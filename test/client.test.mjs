@@ -106,7 +106,66 @@ function collectByType(node, type, out = []) {
   return out;
 }
 
-function loadModule(payload) {
+/** 设置导航的一行：只实现 client.js 用到的 textContent / attribute 接口。 */
+function navRow(text) {
+  const attrs = new Set();
+  let label = text;
+  return {
+    get textContent() { return label; },
+    set textContent(next) { label = next; },
+    attrs,
+    setAttribute(name) { attrs.add(name); },
+    removeAttribute(name) { attrs.delete(name); },
+    hasAttribute(name) { return attrs.has(name); },
+  };
+}
+
+/**
+ * 设置对话框导航的 DOM 存根：一个 <nav> 里的几行按钮 + 可注入的 <style>。
+ * 只服务 installSettingsNavIcon 用到的选择器与 MutationObserver。
+ */
+function createSettingsNavDom(rows) {
+  const styles = [];
+  const observers = [];
+  const document = {
+    body: {},
+    head: { appendChild(node) { styles.push(node); } },
+    createElement(tagName) {
+      return {
+        tagName,
+        dataset: {},
+        textContent: '',
+        remove() {
+          const index = styles.indexOf(this);
+          if (index >= 0) styles.splice(index, 1);
+        },
+      };
+    },
+    querySelectorAll(selector) {
+      if (selector === '[role="dialog"] nav button') return rows;
+      if (selector === '[data-dsh-skills-console-nav-icon]') {
+        return rows.filter((row) => row.hasAttribute('data-dsh-skills-console-nav-icon'));
+      }
+      return [];
+    },
+  };
+  class FakeMutationObserver {
+    constructor(callback) {
+      this.callback = callback;
+      observers.push(this);
+    }
+    observe() {}
+    disconnect() {}
+  }
+  return {
+    document,
+    MutationObserver: FakeMutationObserver,
+    styles,
+    trigger() { for (const observer of observers) observer.callback([]); },
+  };
+}
+
+function loadModule(payload, options = {}) {
   let definition = null;
   const sandbox = {
     window: { __ModuleLoader__: { load: (value) => { definition = value; } } },
@@ -115,6 +174,8 @@ function loadModule(payload) {
     clearTimeout: () => {},
     console,
   };
+  if (options.document !== undefined) sandbox.document = options.document;
+  if (options.MutationObserver !== undefined) sandbox.MutationObserver = options.MutationObserver;
   sandbox.window.addEventListener = () => {};
   sandbox.window.removeEventListener = () => {};
   vm.createContext(sandbox);
@@ -139,7 +200,7 @@ function loadModule(payload) {
       return () => { entry.active = false; };
     },
   };
-  const locale = { getLocale: () => ({ active: 'zh' }) };
+  const locale = { getLocale: () => ({ active: options.locale || 'zh' }) };
   const layout = {
     selected: [],
     selectPanel(id) { this.selected.push(id); },
@@ -173,6 +234,7 @@ function loadModule(payload) {
     layout,
     ctx,
     module,
+    effects,
   };
 }
 
@@ -227,6 +289,7 @@ const STATE = {
   visibleComplete: true,
   visibleOnly: [],
   checks: {},
+  plugin: { name: 'dsh-skills-console', version: '0.2.0' },
   cli: { version: '1.7.4', json: true, fullDepth: true, source: 'profile-dependency', usable: true },
   paths: {},
   scannedAt: 'now',
@@ -274,7 +337,7 @@ test('CLI 不可用 / 只读：顶部提示 + 写操作按钮禁用', async () =
   const tree = stub.render(Component, {}, first.hooks).tree;
   const text = textOf(tree);
   assert.ok(text.includes('只读模式'));
-  assert.ok(text.includes('写操作已禁用'));
+  assert.ok(text.includes('无法安装或修改'));
   const disabled = collectButtons(tree).filter((button) => button.props.disabled);
   assert.ok(disabled.length >= 2, '添加技能 / 自动链接都应被禁用');
 });
@@ -317,11 +380,25 @@ test('可见性差异：内置技能是说明，其他来源才算告警', async
   assert.ok(text.includes('DSH 自带技能'), '内置技能要有正常化说明');
   assert.ok(!text.includes('不在 canonical 属正常'), '内置技能说明不再重复 canonical 免责声明');
   assert.ok(text.includes('stray-skill'), '非内置的游离技能仍要列出来');
-  assert.ok(text.includes('DSH 能看到、但不在 ~/.agents/skills'));
+  assert.ok(text.includes('DSH 能看到，但不在本地技能库'));
 
   const banners = collectByType(tree, 'div').filter((node) => String(node.props.className || '').startsWith('dshsc-banner'));
   assert.ok(banners.some((node) => String(node.props.className).includes('info')), '内置技能用 info 样式');
   assert.ok(banners.some((node) => String(node.props.className).includes('warn')), '其他来源用 warn 样式');
+});
+
+test('页头两个动作按钮固定同高，不因文案换行或字体回退一高一低', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  const base = (css.match(/\.dshsc-btn\s*\{[^}]*\}/) || [''])[0];
+  const head = (css.match(/\.dshsc-head-actions \.dshsc-btn\s*\{[^}]*\}/) || [''])[0];
+  assert.ok(base.includes('white-space: nowrap'), '按钮文案不应换行（换行会改变按钮高度）');
+  assert.ok(head.includes('height: 28px'), '页头动作按钮应有显式高度');
+  assert.ok(head.includes('box-sizing: border-box'), '高度要含 1px 边框，两个按钮才严格同高');
 });
 
 test('主按钮文本色不能写死 #fff（深色主题白底白字）', async () => {
@@ -363,7 +440,7 @@ test('二级弹窗用 bg-base，不用 bg-overlay（深色主题会变灰白）'
   assert.ok(css.includes('.dshsc-modal-close'), '弹窗要有显式关闭按钮');
 });
 
-test('插件主页：右上角 GitHub 仓库入口', async () => {
+test('页头：GitHub 是一颗带文字的胶囊，不在业务动作区', async () => {
   const { Component, stub } = loadModule(STATE);
   const first = stub.render(Component, {});
   first.effects.forEach((fn) => fn());
@@ -376,9 +453,60 @@ test('插件主页：右上角 GitHub 仓库入口', async () => {
   assert.equal(link.props.target, '_blank');
   assert.match(String(link.props.rel), /noopener/);
   assert.equal(link.props['aria-label'], '打开 GitHub 仓库');
+  assert.match(String(link.props.className), /dshsc-pill/, 'GitHub 用胶囊样式，跟标题放一起');
+  assert.equal(textOf(link).trim(), 'GitHub ↗', '胶囊要有文字，不只是一个图标');
+  const addSkill = collectButtons(tree).find((button) => textOf(button).trim() === '添加技能');
+  assert.ok(addSkill, '业务动作里仍然只有「添加技能」');
+  assert.ok(!String(addSkill.props.className).includes('GitHub'));
 });
 
-test('入口位置：设置里 / 侧边栏可切换，并重新注册 slot', async () => {
+test('页头身份：包名与版本来自 Host 注入的 plugin 字段', async () => {
+  const { Component, stub } = loadModule({ ...STATE, plugin: { name: 'dsh-skills-console', version: '9.9.9' } });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const text = textOf(tree);
+  assert.ok(text.includes('dsh-skills-console'), '页头要显示包名');
+  assert.ok(text.includes('v9.9.9'), '页头要显示版本');
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  const ver = (css.match(/\.dshsc-ver\s*\{[^}]*\}/) || [''])[0];
+  assert.ok(ver.includes('tabular-nums'), '版本数字等宽');
+  assert.ok(!ver.includes('border'), '版本用普通灰字，不加描边');
+});
+
+test('页头副标题：讲清本地技能与跨 Agent 复用，不出现技术名词', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const zh = textOf(stub.render(Component, {}, first.hooks).tree);
+  assert.ok(zh.includes('统一管理本地技能的安装、更新、删除与接入'), '中文副标题要保留定稿措辞');
+  assert.ok(zh.includes('让同一份技能在多个 Agent 间复用'), '中文副标题要说明跨 Agent 复用');
+  assert.ok(!zh.includes('canonical'), '中文副标题不出现 canonical');
+  assert.ok(!zh.includes('skills CLI'), '中文副标题不出现 skills CLI');
+
+  const en = loadModule(STATE, { locale: 'en' });
+  const enFirst = en.stub.render(en.Component, {});
+  enFirst.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const enText = textOf(en.stub.render(en.Component, {}, enFirst.hooks).tree);
+  assert.ok(enText.includes('Manage local skills in one place'), '英文副标题与中文同义');
+  assert.ok(enText.includes('reused across agents'), '英文副标题保留跨 Agent 复用');
+  assert.ok(!enText.includes('canonical'), '英文副标题不出现 canonical');
+});
+
+test('页头身份：Host 没下发 plugin 时不渲染包名/版本，也不崩', async () => {
+  const { Component, stub } = loadModule({ ...STATE, plugin: null });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const text = textOf(stub.render(Component, {}, first.hooks).tree);
+  assert.ok(text.includes('技能控制台'), '标题照常渲染');
+  assert.ok(!text.includes('v0.2.0'), '没有版本就不画版本徽标');
+});
+
+test('侧边栏入口：一个开关（不是文字按钮），切换后重新注册 slot', async () => {
   const { Component, stub, registrations, layout } = loadModule({
     ...STATE,
     settings: { ...STATE.settings, placement: 'settings' },
@@ -386,19 +514,34 @@ test('入口位置：设置里 / 侧边栏可切换，并重新注册 slot', asy
   const first = stub.render(Component, {});
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
-  const tree = stub.render(Component, {}, first.hooks).tree;
-  const text = textOf(tree);
-  assert.ok(text.includes('入口位置'), '要有入口位置设置');
-  const sidebar = collectButtons(tree).find((button) => textOf(button).trim() === '侧边栏');
-  assert.ok(sidebar, '要有侧边栏选项');
-  assert.equal(sidebar.props['aria-pressed'], 'false');
+  const closed = stub.render(Component, {}, first.hooks).tree;
+  const pill = collectButtons(closed).find((button) => textOf(button).trim() === '插件设置');
+  assert.ok(pill, '标题旁要有「插件设置」胶囊');
+  assert.equal(pill.props['aria-expanded'], 'false');
+  assert.ok(!textOf(closed).includes('侧边栏入口'), '面板收起时不渲染侧边栏入口');
 
-  sidebar.props.onClick();
+  pill.props.onClick();
+  const opened = stub.render(Component, {}, first.hooks).tree;
+  assert.ok(textOf(opened).includes('侧边栏入口'), '面板里要有「侧边栏入口」');
+  assert.ok(!textOf(opened).includes('设置页'), '不再用「设置页 / 侧边栏」两段文字按钮');
+  const toggle = collectButtons(opened).find((button) => button.props.role === 'switch' && button.props['aria-label']?.includes('侧边栏入口'));
+  assert.ok(toggle, '要有一个 role=switch 的开关');
+  assert.equal(textOf(toggle).trim(), '', '开关本身不带文字');
+  assert.equal(toggle.props['aria-checked'], 'false', '当前在设置页 → 关');
+
+  toggle.props.onClick();
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.ok(registrations.some((entry) => entry.key === 'main' && entry.active), '注册主面板');
   assert.ok(registrations.some((entry) => entry.key === 'sidebar.panellist' && entry.active), '注册侧栏图标');
   assert.ok(!registrations.some((entry) => entry.key === 'settings.section' && entry.active), '移除设置分区');
   assert.ok(layout.selected.includes('dsh-skills-console'), '切到侧栏后选中主面板');
+
+  const after = stub.render(Component, {}, first.hooks).tree;
+  const reopened = collectButtons(after).find((button) => textOf(button).trim() === '插件设置');
+  reopened.props.onClick();
+  const openedAgain = stub.render(Component, {}, first.hooks).tree;
+  const onToggle = collectButtons(openedAgain).find((button) => button.props.role === 'switch' && button.props['aria-label']?.includes('侧边栏入口'));
+  assert.equal(onToggle.props['aria-checked'], 'true', '切到侧栏后开关应为开');
 });
 
 test('入口位置=sidebar：启动时直接注册主面板和侧栏图标', async () => {
@@ -418,9 +561,39 @@ test('入口位置=sidebar：启动时直接注册主面板和侧栏图标', asy
   const first = stub.render(main.Component, {});
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
-  const text = textOf(stub.render(main.Component, {}, first.hooks).tree);
-  assert.ok(text.includes('技能控制台'), '主面板有独立标题');
-  assert.ok(text.includes('入口位置'));
+  const panel = stub.render(main.Component, {}, first.hooks).tree;
+  assert.ok(textOf(panel).includes('技能控制台'), '主面板有独立标题');
+  const pill = collectButtons(panel).find((button) => textOf(button).trim() === '插件设置');
+  pill.props.onClick();
+  assert.ok(textOf(stub.render(main.Component, {}, first.hooks).tree).includes('侧边栏入口'));
+});
+
+test('设置导航：只把自己那一行从齿轮换成本插件图标，卸载时还原', async () => {
+  const rows = [navRow('通用设置'), navRow('技能控制台'), navRow('插件市场')];
+  const dom = createSettingsNavDom(rows);
+  const { effects } = loadModule(STATE, { document: dom.document, MutationObserver: dom.MutationObserver });
+  const marker = 'data-dsh-skills-console-nav-icon';
+
+  assert.equal(dom.styles.length, 1, '注入一份导航图标样式');
+  assert.equal(dom.styles[0].dataset.plugin, '@morehao/dsh-skills-console');
+  assert.match(dom.styles[0].textContent, /mask-image/, '用 mask 画标记');
+  assert.ok(rows[1].hasAttribute(marker), '「技能控制台」那一行换成自己的图标');
+  assert.ok(!rows[0].hasAttribute(marker), '「通用设置」的齿轮保持原样');
+  assert.ok(!rows[2].hasAttribute(marker), '「插件市场」的图标保持原样');
+
+  // 语言切换后行文案会变：观察器要按新标题重新认领
+  rows[1].textContent = 'Skills Console';
+  dom.trigger();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(!rows[1].hasAttribute(marker), '文案不匹配时不能继续占用');
+  rows[1].textContent = '技能控制台';
+  dom.trigger();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(rows[1].hasAttribute(marker), '改回中文后重新认领');
+
+  for (const dispose of effects) if (typeof dispose === 'function') dispose();
+  assert.ok(!rows[1].hasAttribute(marker), '卸载时移除标记');
+  assert.equal(dom.styles.length, 0, '卸载时移除样式');
 });
 
 test('自动链接：按 Agent 多选，只列本机已装的', async () => {
