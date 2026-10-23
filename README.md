@@ -11,7 +11,7 @@ DeepSeek Harness（dsh）的技能管理插件：**装 / 更新 / 删除 / 接�
 
 ## 状态
 
-P0–P2 已实现并通过单测（48 个用例）：
+P0–P2 已实现并通过单测（53 个用例）：
 
 | 能力 | 说明 |
 | --- | --- |
@@ -45,7 +45,7 @@ P0–P2 已实现并通过单测（48 个用例）：
 ```bash
 npm test               # node --test，临时 HOME / DSH_HOME，不碰真实目录
 npm run check          # 语法自检 + 命名/导出接线 + 打包白名单 + Release 说明投影冒烟
-npm run sync:agents    # 从 skills CLI 的 dist 重新导出 agent 目录表
+npm run sync:agents -- <skills/dist/cli.mjs>   # 重新导出 agent 目录表（默认写回 lib/agent-table.json）
 ```
 
 目录结构、测试策略（离线 / stub CLI / 各用例覆盖什么）与调试手段见 [docs/development.md](docs/development.md)；

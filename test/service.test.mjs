@@ -209,6 +209,29 @@ test('删除：体检拦截真实目录；通过后进回收站并清记账', as
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('Agent 目录被删：链接记录保留但清单忽略，自动链接不重建', async () => {
+  const { root, home, store, service } = setup();
+  await service.install({
+    source: 'morehao/ai-kit',
+    skills: ['alpha'],
+    targets: ['dsh-global', 'agent:claude-code'],
+  });
+  assert.ok(fs.existsSync(path.join(home, '.claude', 'skills', 'alpha')));
+  fs.rmSync(path.join(home, '.claude'), { recursive: true, force: true });
+
+  const state = await service.getState({});
+  const row = state.installs.find((item) => item.name === 'alpha');
+  assert.deepEqual(row.links.map((link) => link.target), ['dsh-global'], '断掉的 Agent 链接不进清单');
+  assert.ok(
+    store.state.links.some((link) => link.target === 'agent:claude-code'),
+    '历史记录保留，Agent 重装后还能复用',
+  );
+
+  await service.install({ source: 'morehao/ai-kit', skills: ['beta'] });
+  assert.equal(fs.existsSync(path.join(home, '.claude')), false, '自动链接不能凭空重建已删目录');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('自动接管：CLI 已装好的技能在第一次读取时直接纳入追踪', async () => {
   const { root, home, paths, store, service } = setup();
   // 模拟"CLI 装好但本插件不知道"的状态

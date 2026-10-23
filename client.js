@@ -52,7 +52,7 @@ window.__ModuleLoader__.load({
         'links.scopeGlobal': '全局（默认）',
         'links.scopeProjects': '仅以下项目',
         'links.targets': '链接到哪些 Agent',
-        'links.detectedHint': '只显示本机已安装（目录存在）的 Agent',
+        'links.detectedHint': '只显示本机已安装（目录存在）的 Agent；已删除的 Agent 会从列表消失，旧链接记录保留但不展示。',
         'links.workspaces': 'DSH 工作区',
         'links.noWorkspaces': '还没有 DSH 工作区，可以点下面「选择其他目录」',
         'links.pickDirectory': '选择其他目录…',
@@ -91,7 +91,7 @@ window.__ModuleLoader__.load({
         skillCount: '个技能',
         visibleOnly: '模型可见但不在 canonical',
         visibleOnlyOther: 'DSH 能看到、但不在 ~/.agents/skills',
-        visibleOnlyBuiltin: 'DSH 自带技能（不在 canonical 属正常，本插件不管理）',
+        visibleOnlyBuiltin: 'DSH 自带技能（本插件不管理）',
         external: '非本插件创建',
       },
       en: {
@@ -135,7 +135,7 @@ window.__ModuleLoader__.load({
         'links.scopeGlobal': 'Global (default)',
         'links.scopeProjects': 'Only these projects',
         'links.targets': 'Link to agents',
-        'links.detectedHint': 'Only agents installed on this machine (directory exists)',
+        'links.detectedHint': 'Only installed agents are listed; deleted agents disappear but their old link records are kept and hidden.',
         'links.workspaces': 'DSH workspaces',
         'links.noWorkspaces': 'No DSH workspaces yet; use "Choose another folder" below',
         'links.pickDirectory': 'Choose another folder…',
@@ -174,70 +174,130 @@ window.__ModuleLoader__.load({
         skillCount: 'skills',
         visibleOnly: 'Visible to the model but not in canonical',
         visibleOnlyOther: 'DSH can see these but they are not in ~/.agents/skills',
-        visibleOnlyBuiltin: 'Shipped with DSH (not in canonical is normal; this plugin does not manage them)',
+        visibleOnlyBuiltin: 'Shipped with DSH (this plugin does not manage them)',
         external: 'created outside this plugin',
         'adopt.done': 'now tracked',
       },
     };
 
     const CSS = `
-      .dshsm-root { display: flex; flex-direction: column; gap: 12px; color: var(--dsw-alias-label-primary); }
-      .dshsm-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-      .dshsm-title { font-size: 15px; font-weight: 600; margin: 0; }
-      .dshsm-sub { font-size: 12px; color: var(--dsw-alias-label-secondary); margin: 0; }
+      .dshsm-root { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); }
+      .dshsm-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+      .dshsm-heading { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .dshsm-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+      .dshsm-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
       .dshsm-spacer { flex: 1; }
-      .dshsm-btn { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 7px; cursor: pointer;
-        border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); }
-      .dshsm-btn:hover:not(:disabled) { border-color: var(--dsw-alias-border-l2); }
-      .dshsm-btn:disabled { opacity: .45; cursor: not-allowed; }
-      /* brand-primary 在深色主题里是浅色，写死 #fff 会让按钮文字变成白底白字 */
-      .dshsm-btn.primary { background: var(--dsw-alias-brand-primary); border-color: transparent; color: var(--dsw-alias-bg-base); }
-      .dshsm-btn.ghost { background: transparent; border-color: transparent; color: var(--dsw-alias-label-secondary); }
-      .dshsm-btn.ghost:hover { color: var(--dsw-alias-label-primary); }
-      .dshsm-btn.danger { color: var(--dsw-alias-state-error-primary); }
-      .dshsm-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
-      .dshsm-tab { font: inherit; font-size: 13px; padding: 7px 12px; border: 0; background: transparent; cursor: pointer;
-        color: var(--dsw-alias-label-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px; }
-      .dshsm-tab.active { color: var(--dsw-alias-label-primary); border-bottom-color: var(--dsw-alias-brand-primary); }
+      .dshsm-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+
+      .dshsm-btn { font: inherit; font-size: 12px; line-height: 1; padding: 7px 11px; border-radius: 8px; cursor: pointer;
+        border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary);
+        transition: background .12s ease, border-color .12s ease, color .12s ease; }
+      .dshsm-btn:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l2); }
+      .dshsm-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+      .dshsm-btn:disabled { opacity: .42; cursor: not-allowed; }
+      /* brand-primary 与 bg-base 在明暗主题里互为反色：文字用 bg-base 才不会是白底白字 */
+      .dshsm-btn.primary { background: var(--dsw-alias-brand-primary); border-color: transparent; color: var(--dsw-alias-bg-base); font-weight: 600; }
+      .dshsm-btn.primary:hover:not(:disabled) { background: var(--dsw-alias-brand-primary); opacity: .9; }
+      .dshsm-btn.ghost { background: transparent; border-color: transparent; color: var(--dsw-alias-label-secondary); padding: 6px 8px; }
+      .dshsm-btn.ghost:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+      .dshsm-btn.ghost.danger { color: var(--dsw-alias-state-error-primary); }
+      .dshsm-btn.ghost.danger:hover:not(:disabled) { color: var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent); }
+
+      .dshsm-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .dshsm-tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--dsw-alias-border-l1);
+        border-radius: 10px; background: var(--dsw-alias-bg-layer-1); }
+      .dshsm-tab { font: inherit; font-size: 12px; padding: 6px 11px; border: 0; border-radius: 7px; background: transparent;
+        cursor: pointer; color: var(--dsw-alias-label-secondary); }
+      .dshsm-tab:hover { color: var(--dsw-alias-label-primary); }
+      .dshsm-tab.active { background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary);
+        box-shadow: 0 0 0 1px var(--dsw-alias-border-l1), 0 1px 2px rgba(0,0,0,.12); }
+
+      .dshsm-segment { display: inline-flex; border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px;
+        background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
+      .dshsm-segment .dshsm-btn { border: 0; border-radius: 0; background: transparent; padding: 6px 10px; }
+      .dshsm-segment .dshsm-btn + .dshsm-btn { border-left: 1px solid var(--dsw-alias-border-l1); }
+      .dshsm-segment .dshsm-btn[aria-pressed="true"] { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+
       .dshsm-list { display: flex; flex-direction: column; gap: 8px; }
-      .dshsm-row { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); padding: 10px 12px; }
-      .dshsm-row.off { opacity: .55; }
-      .dshsm-row-head { display: flex; align-items: center; gap: 10px; }
-      .dshsm-name { font-size: 13px; font-weight: 600; }
-      .dshsm-status { font-size: 12px; color: var(--dsw-alias-label-secondary); }
-      .dshsm-status.warn { color: var(--dsw-alias-state-warn-primary); }
-      .dshsm-status.ok { color: var(--dsw-alias-state-success-primary); }
-      .dshsm-status.err { color: var(--dsw-alias-state-error-primary); }
-      .dshsm-meta { font-size: 12px; color: var(--dsw-alias-label-secondary); margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap; }
-      .dshsm-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
-      .dshsm-switch { width: 34px; height: 19px; border-radius: 10px; border: 1px solid var(--dsw-alias-border-l2);
-        background: var(--dsw-alias-bg-layer-2); position: relative; cursor: pointer; padding: 0; }
-      .dshsm-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); border-color: transparent; }
-      .dshsm-knob { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: left .12s ease; }
-      .dshsm-switch[aria-checked="true"] .dshsm-knob { left: 17px; }
-      .dshsm-banner { border-radius: 8px; padding: 8px 10px; font-size: 12px; border: 1px solid var(--dsw-alias-border-l1); }
-      .dshsm-banner.err { color: var(--dsw-alias-state-error-primary); border-color: var(--dsw-alias-state-error-primary); }
-      .dshsm-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: var(--dsw-alias-state-warn-primary); }
-      .dshsm-banner.info { color: var(--dsw-alias-label-secondary); }
-      .dshsm-empty { text-align: center; padding: 28px 12px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 10px; }
-      .dshsm-group { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-secondary); margin: 10px 0 2px; }
-      .dshsm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 60; }
-      .dshsm-modal { width: min(560px, calc(100vw - 40px)); max-height: 82vh; overflow: auto; background: var(--dsw-alias-bg-overlay);
-        border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-      .dshsm-modal h3 { margin: 0; font-size: 14px; }
-      .dshsm-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
-      .dshsm-field input { font: inherit; font-size: 13px; padding: 7px 9px; border-radius: 7px;
-        border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
-      .dshsm-check { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
+      .dshsm-row { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1);
+        padding: 12px 14px; transition: border-color .12s ease, background .12s ease; }
+      .dshsm-row:hover { border-color: var(--dsw-alias-border-l2); }
+      .dshsm-row.off { opacity: .62; }
+      .dshsm-row-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .dshsm-name { font-size: 13px; font-weight: 600; letter-spacing: -.005em; }
+      .dshsm-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1; padding: 4px 8px;
+        border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2);
+        color: var(--dsw-alias-label-secondary); white-space: nowrap; }
+      .dshsm-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .85; }
+      .dshsm-status.ok { color: var(--dsw-alias-state-success-primary); background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 13%, transparent); }
+      .dshsm-status.warn { color: var(--dsw-alias-state-warn-primary); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 13%, transparent); }
+      .dshsm-status.err { color: var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 13%, transparent); }
+      .dshsm-meta { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin-top: 6px; display: flex; flex-wrap: wrap; }
+      .dshsm-row .dshsm-meta span + span::before { content: '·'; margin: 0 7px; color: var(--dsw-alias-label-tertiary); }
+      .dshsm-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; flex-wrap: wrap; }
+
+      /* 与 DSH 自带开关同尺寸/同 token：关是 border-l3 轨道，开是 brand-primary 轨道 */
+      .dshsm-switch { box-sizing: border-box; position: relative; flex: none; width: 36px; height: 20px; padding: 2px;
+        border: 0; border-radius: 999px; background: var(--dsw-alias-border-l3); cursor: pointer;
+        transition: background .14s ease; }
+      .dshsm-switch:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+      .dshsm-switch:disabled { cursor: not-allowed; opacity: .5; }
+      .dshsm-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
+      .dshsm-knob { display: block; width: 16px; height: 16px; border-radius: 50%;
+        background: var(--dsw-alias-switch-thumb); transition: transform .12s ease, background .12s ease; }
+      .dshsm-switch[aria-checked="true"] .dshsm-knob { transform: translateX(16px); background: var(--dsw-alias-label-primary-foreground); }
+
+      .dshsm-banner { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; padding: 9px 12px; font-size: 12px;
+        line-height: 1.55; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary);
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .dshsm-banner.err { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); }
+      .dshsm-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); }
+
+      .dshsm-empty { text-align: center; padding: 34px 16px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 12px;
+        background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 55%, transparent); }
+      .dshsm-empty .dshsm-name { font-size: 14px; }
+      .dshsm-empty .dshsm-meta { justify-content: center; margin-top: 6px; }
+      .dshsm-group { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--dsw-alias-label-tertiary); margin: 12px 0 6px; }
+
+      .dshsm-overlay { position: fixed; inset: 0; background: rgba(4,6,9,.55); display: flex; align-items: center; justify-content: center;
+        z-index: 60; padding: 20px; backdrop-filter: blur(2px); }
+      .dshsm-modal { position: relative; width: min(600px, 100%); max-height: calc(100vh - 40px); overflow: auto;
+        background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px;
+        padding: 18px; display: flex; flex-direction: column; gap: 14px;
+        box-shadow: 0 20px 56px rgba(0,0,0,.38), 0 2px 8px rgba(0,0,0,.18); }
+      .dshsm-modal h3 { margin: 0; font-size: 15px; font-weight: 600; padding-right: 26px; }
+      .dshsm-modal-close { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0; border-radius: 7px;
+        background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
+      .dshsm-modal-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+
+      .dshsm-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+      .dshsm-field input { font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 8px;
+        border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); outline: none; }
+      .dshsm-field input:focus { border-color: var(--dsw-alias-brand-primary);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent); }
+
+      .dshsm-check { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+      .dshsm-check:hover { background: var(--dsw-alias-bg-layer-1); }
+      .dshsm-check input { width: 14px; height: 14px; accent-color: var(--dsw-alias-brand-primary); flex: none; }
       .dshsm-check small { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
       .dshsm-check span { white-space: nowrap; }
-      .dshsm-modal-foot { display: flex; justify-content: flex-end; gap: 8px; }
-      .dshsm-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 9px 12px; border-radius: 9px;
-        background: var(--dsw-alias-bg-overlay); border: 1px solid var(--dsw-alias-border-l2); max-width: 420px; }
+
+      .dshsm-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
+        padding: 4px; max-height: 240px; overflow: auto; display: flex; flex-direction: column; }
+      .dshsm-panel .dshsm-check:hover { background: var(--dsw-alias-bg-layer-2); }
+
+      .dshsm-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
+      .dshsm-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 10px 13px; border-radius: 9px;
+        background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l2);
+        box-shadow: 0 8px 24px rgba(0,0,0,.22); max-width: 420px; }
       .dshsm-toast.err { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
-      .dshsm-toast.ok { border-color: var(--dsw-alias-state-success-primary); }
-      .dshsm-sub-entry { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0 3px 12px; }
+      .dshsm-toast.ok { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 50%, var(--dsw-alias-border-l2)); }
+      .dshsm-substat { font-size: 12px; color: var(--dsw-alias-label-secondary); }
+      .dshsm-sub-entry { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 7px 8px 7px 14px; border-top: 1px solid var(--dsw-alias-border-l1); }
+      .dshsm-sub-entry:first-child { border-top: 0; }
+      .dshsm-sub-list { margin-top: 8px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
       .dshsm-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+      .dshsm-chevron { width: 26px; padding: 4px 0; text-align: center; }
     `;
 
     function short(sha) {
@@ -600,15 +660,10 @@ window.__ModuleLoader__.load({
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
               updateCount > 0
-                ? h('div', { className: 'dshsm-banner warn', style: { display: 'flex', alignItems: 'center', gap: 10 } },
+                ? h('div', { className: 'dshsm-banner warn' },
                     h('span', null, `⚠ ${updateCount} ${t('status.update')}`),
                     h('button', { className: 'dshsm-btn', disabled: !writable || busy !== null, onClick: () => void updateAll() }, t('action.updateAll')))
                 : null,
-              h('div', { className: 'dshsm-head' },
-                h('button', { className: 'dshsm-btn ghost', onClick: () => void checkUpdates(), disabled: busy !== null }, t('action.refresh')),
-                h('div', { className: 'dshsm-spacer' }),
-                h('button', { className: 'dshsm-btn ghost', onClick: () => setView('flat'), 'aria-pressed': String(view === 'flat') }, t('view.flat')),
-                h('button', { className: 'dshsm-btn ghost', onClick: () => setView('agent'), 'aria-pressed': String(view === 'agent') }, t('view.agent'))),
               body,
               visibleOnlyBanners(),
             );
@@ -653,16 +708,16 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'dshsm-row-head' },
                   h('button', { className: 'dshsm-btn ghost', onClick: () => setExpanded((prev) => ({ ...prev, [subscription.id]: !open })) }, open ? '▾' : '▸'),
                   h('span', { className: 'dshsm-name' }, subscription.source),
-                  h('span', { className: 'dshsm-status' },
+                  h('span', { className: 'dshsm-substat' },
                     `${subscription.ref || 'default'} · ${entries.length} ${t('skillCount')} · ${t('installed')} ${installedNames.size}`),
                   h('div', { className: 'dshsm-actions' },
                     h('button', { className: 'dshsm-btn ghost', disabled: busy !== null, onClick: () => void refreshSubscription(subscription) }, t('action.refresh')),
                     h('button', { className: 'dshsm-btn ghost danger', disabled: busy !== null, onClick: () => void deleteSubscription(subscription) }, t('action.delete')))),
                 open
-                  ? h('div', { style: { marginTop: 6 } }, entries.map((entry) =>
+                  ? h('div', { className: 'dshsm-sub-list' }, entries.map((entry) =>
                       h('div', { className: 'dshsm-sub-entry', key: entry.name },
                         h('span', { className: 'dshsm-name' }, entry.name),
-                        h('span', { className: 'dshsm-status' }, installedNames.has(entry.name) ? t('installed') : t('notInstalled')),
+                        h('span', { className: 'dshsm-substat' }, installedNames.has(entry.name) ? t('installed') : t('notInstalled')),
                         h('div', { className: 'dshsm-actions' },
                           h('button', {
                             className: 'dshsm-btn',
@@ -686,31 +741,40 @@ window.__ModuleLoader__.load({
             { className: 'dshsm-root' },
             h('style', null, CSS),
             h('div', { className: 'dshsm-head' },
-              h('div', null,
+              h('div', { className: 'dshsm-heading' },
                 h('h2', { className: 'dshsm-title' }, t('section.title')),
                 h('p', { className: 'dshsm-sub' }, t('section.subtitle'))),
-              h('div', { className: 'dshsm-spacer' }),
-              h('button', {
-                className: 'dshsm-btn',
-                disabled: !writable,
-                title: t('autoLink'),
-                onClick: () => setModal({ type: 'autolink' }),
-              }, `${t('autoLink')}：${autoLinkLabel} ▾`),
-              h('button', {
-                className: 'dshsm-btn primary',
-                disabled: !writable,
-                onClick: tab === 'installed' ? requestAddSkill : requestAddSubscription,
-              }, tab === 'installed' ? t('action.addSkill') : t('action.addSubscription'))),
+              h('div', { className: 'dshsm-head-actions' },
+                h('button', {
+                  className: 'dshsm-btn',
+                  disabled: !writable,
+                  title: `${t('autoLink')}：${autoLinkLabel}`,
+                  'aria-label': `${t('autoLink')}：${autoLinkLabel}`,
+                  onClick: () => setModal({ type: 'autolink' }),
+                }, `${t('autoLink')} · ${autoLinkAgents.length + 1} ▾`),
+                h('button', {
+                  className: 'dshsm-btn primary',
+                  disabled: !writable,
+                  onClick: tab === 'installed' ? requestAddSkill : requestAddSubscription,
+                }, tab === 'installed' ? t('action.addSkill') : t('action.addSubscription')))),
 
             error ? h('div', { className: 'dshsm-banner err' }, `${error} · `, h('button', { className: 'dshsm-btn ghost', onClick: () => void reload() }, t('action.retry'))) : null,
             data?.readOnly ? h('div', { className: 'dshsm-banner warn' }, t('banner.readonly')) : null,
             data && !data.cli?.usable ? h('div', { className: 'dshsm-banner err' }, `${t('banner.cli')} · ${data.cli?.source || ''} ${data.cli?.version || ''}`) : null,
 
-            h('div', { className: 'dshsm-tabs' },
-              h('button', { className: `dshsm-tab${tab === 'installed' ? ' active' : ''}`, onClick: () => setTab('installed') },
-                `${t('tab.installed')}（${rows.length}）`),
-              h('button', { className: `dshsm-tab${tab === 'subscriptions' ? ' active' : ''}`, onClick: () => setTab('subscriptions') },
-                `${t('tab.subscriptions')}（${data?.subscriptions?.length || 0}）`)),
+            h('div', { className: 'dshsm-toolbar' },
+              h('div', { className: 'dshsm-tabs' },
+                h('button', { className: `dshsm-tab${tab === 'installed' ? ' active' : ''}`, onClick: () => setTab('installed') },
+                  `${t('tab.installed')}（${rows.length}）`),
+                h('button', { className: `dshsm-tab${tab === 'subscriptions' ? ' active' : ''}`, onClick: () => setTab('subscriptions') },
+                  `${t('tab.subscriptions')}（${data?.subscriptions?.length || 0}）`)),
+              h('div', { className: 'dshsm-spacer' }),
+              tab === 'installed' ? [
+                h('button', { key: 'refresh', className: 'dshsm-btn', disabled: busy !== null, onClick: () => void checkUpdates() }, t('action.refresh')),
+                h('div', { key: 'view', className: 'dshsm-segment' },
+                  h('button', { className: 'dshsm-btn', 'aria-pressed': String(view === 'flat'), onClick: () => setView('flat') }, t('view.flat')),
+                  h('button', { className: 'dshsm-btn', 'aria-pressed': String(view === 'agent'), onClick: () => setView('agent') }, t('view.agent'))),
+              ] : null),
 
             tab === 'installed' ? installedTab() : subscriptionsTab(),
 
@@ -809,6 +873,11 @@ window.__ModuleLoader__.load({
           }, [onCancel]);
           return h('div', { className: 'dshsm-overlay', onClick: (event) => { if (event.target === event.currentTarget) onCancel?.(); } },
             h('div', { className: 'dshsm-modal', role: 'dialog', 'aria-modal': 'true' },
+              h('button', {
+                className: 'dshsm-modal-close',
+                'aria-label': t('action.cancel'),
+                onClick: (event) => { event.stopPropagation(); onCancel?.(); },
+              }, '×'),
               h('h3', null, title),
               children,
               h('div', { className: 'dshsm-modal-foot' }, footer)));
@@ -918,7 +987,7 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'dshsm-group' }, t('links.workspaces')),
                 workspaces.length === 0
                   ? h('p', { className: 'dshsm-sub' }, t('links.noWorkspaces'))
-                  : workspaces.map((workspace) =>
+                  : h('div', { className: 'dshsm-panel' }, workspaces.map((workspace) =>
                       h('label', { className: 'dshsm-check', key: workspace.id },
                         h('input', {
                           type: 'checkbox',
@@ -926,7 +995,7 @@ window.__ModuleLoader__.load({
                           onChange: () => toggleProject(workspace.path),
                         }),
                         h('span', null, workspace.title),
-                        h('small', null, workspace.path))),
+                        h('small', null, workspace.path)))),
                 otherProjects.length > 0
                   ? h('div', { className: 'dshsm-group' }, t('links.selected'))
                   : null,
@@ -938,7 +1007,7 @@ window.__ModuleLoader__.load({
                         className: 'dshsm-btn ghost danger',
                         onClick: () => setScopeProjects((prev) => prev.filter((item) => item !== project)),
                       }, t('action.delete'))))),
-                h('button', { className: 'dshsm-btn', onClick: () => void pickDirectory() }, t('links.pickDirectory')))
+                h('button', { className: 'dshsm-btn', style: { alignSelf: 'flex-start', marginTop: 6 }, onClick: () => void pickDirectory() }, t('links.pickDirectory')))
             : null,
           h('p', { className: 'dshsm-sub' }, t('links.hint')));
         }
@@ -965,7 +1034,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dshsm-group' }, t('autoLink.detected')),
           agents.length === 0
             ? h('p', { className: 'dshsm-sub' }, t('autoLink.none'))
-            : agents.map((agent) =>
+            : h('div', { className: 'dshsm-panel' }, agents.map((agent) =>
                 h('label', { className: 'dshsm-check', key: agent.target },
                   h('input', {
                     type: 'checkbox',
@@ -973,7 +1042,7 @@ window.__ModuleLoader__.load({
                     onChange: () => toggle(agent.target),
                   }),
                   h('span', null, agent.label),
-                  h('small', null, agent.dir))),
+                  h('small', null, agent.dir)))),
           h('p', { className: 'dshsm-sub' }, t('autoLink.hint')));
         }
 

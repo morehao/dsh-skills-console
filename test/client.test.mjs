@@ -221,7 +221,7 @@ test('渲染：三个技能、状态标签、tab 计数、操作列四件套', a
   await new Promise((resolve) => setTimeout(resolve, 20));
   const second = stub.render(Component, {}, first.hooks);
   const text = textOf(second.tree);
-  for (const expected of ['git-kit', 'handoff', 'pdf-tools', '最新', '有新版本', '异常：链接断裂', '已装（3）', 'dsh（全局）']) {
+  for (const expected of ['git-kit', 'handoff', 'pdf-tools', '最新', '有新版本', '异常：链接断裂', '已装（3）', '自动链接']) {
     assert.ok(text.includes(expected), `缺少文案：${expected}`);
   }
   const labels = collectButtons(second.tree).map((button) => textOf(button).trim());
@@ -296,6 +296,7 @@ test('可见性差异：内置技能是说明，其他来源才算告警', async
   const tree = stub.render(Component, {}, first.hooks).tree;
   const text = textOf(tree);
   assert.ok(text.includes('DSH 自带技能'), '内置技能要有正常化说明');
+  assert.ok(!text.includes('不在 canonical 属正常'), '内置技能说明不再重复 canonical 免责声明');
   assert.ok(text.includes('stray-skill'), '非内置的游离技能仍要列出来');
   assert.ok(text.includes('DSH 能看到、但不在 ~/.agents/skills'));
 
@@ -316,6 +317,33 @@ test('主按钮文本色不能写死 #fff（深色主题白底白字）', async 
   assert.ok(css.includes('color: var(--dsw-alias-bg-base)'), '主按钮文字应跟随背景反色');
 });
 
+test('开关开启时旋钮用反色，不能白底白旋钮', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  const on = (css.match(/\.dshsm-switch\[aria-checked="true"\]\s*\{[^}]*\}/) || [''])[0];
+  const knobOn = (css.match(/\.dshsm-switch\[aria-checked="true"\]\s+\.dshsm-knob\s*\{[^}]*\}/) || [''])[0];
+  assert.ok(on.includes('background: var(--dsw-alias-brand-primary)'), '开启态轨道用品牌色');
+  assert.ok(knobOn.includes('background: var(--dsw-alias-label-primary-foreground)'), '开启态旋钮用前景反色');
+  assert.ok(!/#fff/i.test(knobOn), '旋钮不能写死白色');
+});
+
+test('二级弹窗用 bg-base，不用 bg-overlay（深色主题会变灰白）', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  const modal = (css.match(/\.dshsm-modal\s*\{[^}]*\}/) || [''])[0];
+  assert.ok(modal.includes('background: var(--dsw-alias-bg-base)'), '弹窗要用 bg-base 表面色');
+  assert.ok(!modal.includes('--dsw-alias-bg-overlay'), '弹窗不能用 bg-overlay');
+  assert.ok(css.includes('.dshsm-modal-close'), '弹窗要有显式关闭按钮');
+});
+
 test('自动链接：按 Agent 多选，只列本机已装的', async () => {
   const { Component, stub } = loadModule(STATE);
   const first = stub.render(Component, {});
@@ -324,8 +352,9 @@ test('自动链接：按 Agent 多选，只列本机已装的', async () => {
   const tree = stub.render(Component, {}, first.hooks).tree;
   const header = collectButtons(tree).find((button) => String(textOf(button)).startsWith('自动链接'));
   assert.ok(header, '要有「自动链接」入口');
-  assert.ok(textOf(header).includes('Claude Code'), '摘要里要有已勾选的 Agent');
-  assert.ok(!textOf(header).includes('CodeBuddy'), '未安装的 Agent 不进摘要');
+  assert.ok(String(header.props.title).includes('Claude Code'), 'tooltip 里要有已勾选的 Agent');
+  assert.ok(!String(header.props.title).includes('CodeBuddy'), '未安装的 Agent 不进摘要');
+  assert.match(String(textOf(header)), /自动链接 · 2/, '摘要显示 dsh + 已勾选 Agent 的数量');
 
   header.props.onClick();
   const modal = stub.render(Component, {}, first.hooks).tree;

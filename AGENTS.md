@@ -15,7 +15,7 @@
 | [lib/index.js](lib/index.js) | `export const name = "dsh-skills-manager"`、`inject`、`apply()` 装配 |
 | [lib/routes.js](lib/routes.js) | prefix 路由 `/api/morehao/skills-manager/*`，自定义头鉴权，统一 JSON 错误码 |
 | [lib/core/service.js](lib/core/service.js) | 业务编排：清单 / 安装 / 更新 / 回滚 / 删除 / 启停 / 接管 / 订阅 |
-| [lib/core/paths.js](lib/core/paths.js) | 路径与 env 覆盖（`HOME` / `DSH_HOME` / `DSH_SKILLS_MANAGER_HOME`） |
+| [lib/core/paths.js](lib/core/paths.js) | 路径与 env 覆盖（`HOME` / `XDG_CONFIG_HOME` / `DSH_HOME` / `DSH_SKILLS_MANAGER_HOME`） |
 | [lib/core/cli.js](lib/core/cli.js) | `skills` CLI 定位（四层探测 + `npx` 兜底）、能力位、spawn 封装 |
 | [lib/core/hash.js](lib/core/hash.js) | 复刻 CLI 的内容哈希（与 lock 的 `skillFolderHash` 对拍） |
 | [lib/core/state.js](lib/core/state.js) | `state.json` 原子写 + 校验 + 只读降级 |
@@ -67,12 +67,12 @@
 | 目的 | 命令 |
 |---|---|
 | 全量机械校验（语法 + 命名 + 打包 + Release 说明冒烟） | `npm run check` |
-| 单元测试（39 例，离线） | `npm test` |
+| 单元测试（53 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
 | Release body 投影冒烟 | `node scripts/smoke-release-notes.mjs` |
-| 重新导出 agent 目录表（需本机有 `skills` CLI） | `npm run sync:agents` |
+| 重新导出 agent 目录表（需本机有 `skills` CLI） | `npm run sync:agents -- <skills/dist/cli.mjs>` |
 | 发布脚本语法 | `bash -n scripts/ci-publish.sh` |
 
 ## 4. 任务路由
