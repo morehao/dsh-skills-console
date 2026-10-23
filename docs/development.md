@@ -25,7 +25,7 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，62 例
+npm test          # node --test "test/*.test.mjs"，70 例
 npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投影
 ```
 
@@ -43,7 +43,8 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 | `cli.test.mjs` | CLI 定位、argv 形状（`add` 带全参数 / `remove` 不带 `-a`）、能力位、硬超时、非零退出 |
 | `updates.test.mjs` | 快照解析、subpath 过滤、L0–L3 判定、哈希形态不配对 → `unknown`、计划 token 稳定性、Trees 200/304/401/404 |
 | `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、自动链接多选、入口位置持久化、启停、删除（回收站）、Agent 删除后的链接降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘 |
-| `client.test.mjs` | `client.js` 在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动链接多选 / 工作区勾选 / 入口位置切换 / GitHub 入口，并检查主按钮反色、开关旋钮反色、弹窗表面色与开关禁用 |
+| `client.test.mjs` | `client.js` 在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动链接多选 / 工作区勾选 / 入口位置切换（先开「插件设置」面板）/ 页头身份与 GitHub 胶囊 / 设置导航图标认领与卸载还原，并检查主按钮反色、开关旋钮反色、弹窗表面色与开关禁用 |
+| `routes.test.mjs` | `/state` 下发插件身份（包名去 scope + 版本，与 `package.json` 同源）、缺鉴权头 → 403 |
 
 ## 4. 调试
 
@@ -64,3 +65,4 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 | 技能装了但 DSH 里没有 | 看是不是只建了项目级链（`scopeProjects`）或 `mode: off`；再跑 `GET /state` 看 `visible` 与 `ledger` 对账 |
 | 装好的技能仍显示「未纳入追踪」 | 只读模式下不会对账；否则刷新一次 `GET /state` 即可自动补账。仍不行就看日志里的 `skills.reconcile` |
 | 更新提示「本地已改」 | 内容哈希与 lock 不一致（`locally-modified`）；确认后再带 `overwrite` 应用，或先在终端看 `git diff` |
+| 设置里的「技能控制台」图标和「通用设置」一样是齿轮 | dsh 的 `settings.section` 只投影 `id` / `order` / `label`，导航图标由 `dsh-client-ui-settings-general` 按 id 从固定映射里取，未知 id 一律回落到齿轮。`client.js` 的 `installSettingsNavIcon` 会在对话框挂载后按本插件分区标题认领那一行、换成自有标记；dsh 支持 `icon` 字段后可删掉这段 |

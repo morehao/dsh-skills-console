@@ -14,7 +14,7 @@ window.__ModuleLoader__.load({
       zh: {
         'section.title': '技能控制台',
         'page.title': '技能控制台',
-        'section.subtitle': 'canonical 只由 skills CLI 写入；这里管装、更新、删除与接入。',
+        'section.subtitle': '统一管理本地技能的安装、更新、删除与接入，让同一份技能在多个 Agent 间复用。',
         'tab.installed': '已装',
         'tab.subscriptions': '订阅',
         'action.addSkill': '添加技能',
@@ -33,10 +33,15 @@ window.__ModuleLoader__.load({
         'view.flat': '平铺',
         'view.agent': '按 Agent',
         autoLink: '自动链接',
-        'placement.label': '入口位置',
-        'placement.settings': '设置里',
-        'placement.sidebar': '侧边栏',
-        'placement.hint': '切换后立即生效；移到设置后从侧栏底部「设置 → 技能」打开',
+        'settings.pill': '插件设置',
+        'settings.title': '插件设置',
+        'version.label': '当前版本',
+        'placement.label': '侧边栏入口',
+        'placement.effect': '切换后立即生效',
+        'placement.on': '已开启',
+        'placement.off': '已关闭',
+        'placement.hint': '开启后侧栏出现「技能控制台」入口；关闭则只在「设置 → 技能」显示。',
+        'github.label': 'GitHub',
         'github.open': '打开 GitHub 仓库',
         'status.current': '最新',
         'status.update': '有新版本',
@@ -63,7 +68,7 @@ window.__ModuleLoader__.load({
         'links.noWorkspaces': '还没有 DSH 工作区，可以点下面「选择其他目录」',
         'links.pickDirectory': '选择其他目录…',
         'links.selected': '其他已选目录',
-        'links.hint': '保存后按勾选建/删软链；canonical 里的技能真身不会移动。',
+        'links.hint': '保存后按勾选建立或移除接入；技能本体保留在原位置，不会移动。',
         'autoLink.detected': '安装后自动接入',
         'autoLink.none': '本机没有检测到其他 Agent',
         'autoLink.hint': 'dsh（全局）始终接入；这里只影响之后安装时自动建链，已装的技能请在「接入设置」里改。',
@@ -71,7 +76,7 @@ window.__ModuleLoader__.load({
         'empty.skillsHint': '在终端跑 `npx skills add owner/repo`，或点右上角「添加技能」',
         'empty.subs': '还没有添加订阅',
         'empty.subsHint': '订阅只是关注，不安装任何技能',
-        'banner.cli': 'skills CLI 不可用或不支持 --json/--full-depth，写操作已禁用',
+        'banner.cli': '本地技能工具不可用，暂时无法安装或修改',
         'banner.readonly': '状态文件损坏，插件处于只读模式',
         'banner.visible': '模型可见技能与本地账本不一致，差异已列在下方',
         'form.source': '来源（owner/repo 或 GitHub URL）',
@@ -95,15 +100,15 @@ window.__ModuleLoader__.load({
         installed: '已装',
         notInstalled: '未装',
         skillCount: '个技能',
-        visibleOnly: '模型可见但不在 canonical',
-        visibleOnlyOther: 'DSH 能看到、但不在 ~/.agents/skills',
+        visibleOnly: '模型可见，但不在本地技能库',
+        visibleOnlyOther: 'DSH 能看到，但不在本地技能库',
         visibleOnlyBuiltin: 'DSH 自带技能（本插件不管理）',
         external: '非本插件创建',
       },
       en: {
         'section.title': 'Skills Console',
         'page.title': 'Skills Console',
-        'section.subtitle': 'The skills CLI owns canonical; this page installs, updates, removes and links.',
+        'section.subtitle': 'Manage local skills in one place: install, update, remove and link — so the same skill can be reused across agents.',
         'tab.installed': 'Installed',
         'tab.subscriptions': 'Subscriptions',
         'action.addSkill': 'Add skill',
@@ -122,6 +127,16 @@ window.__ModuleLoader__.load({
         'view.flat': 'Flat',
         'view.agent': 'By agent',
         'autoLink': 'Auto-link',
+        'settings.pill': 'Settings',
+        'settings.title': 'Plugin settings',
+        'version.label': 'Version',
+        'placement.label': 'Sidebar entry',
+        'placement.effect': 'Applies immediately',
+        'placement.on': 'on',
+        'placement.off': 'off',
+        'placement.hint': 'On: a Skills Console entry appears in the sidebar. Off: it only shows under Settings → Skills.',
+        'github.label': 'GitHub',
+        'github.open': 'Open GitHub repository',
         'status.current': 'Up to date',
         'status.update': 'Update available',
         'status.local': 'Locally modified',
@@ -147,7 +162,7 @@ window.__ModuleLoader__.load({
         'links.noWorkspaces': 'No DSH workspaces yet; use "Choose another folder" below',
         'links.pickDirectory': 'Choose another folder…',
         'links.selected': 'Other selected folders',
-        'links.hint': 'Saving creates/removes only symlinks; the skill itself stays in canonical.',
+        'links.hint': 'Saving only adds or removes links; the skill itself stays where it is.',
         'autoLink.detected': 'Auto-link after install',
         'autoLink.none': 'No other agents detected on this machine',
         'autoLink.hint': 'dsh (global) is always linked; this only affects future installs. Change existing skills under "Link settings".',
@@ -155,7 +170,7 @@ window.__ModuleLoader__.load({
         'empty.skillsHint': 'Run `npx skills add owner/repo` or use "Add skill".',
         'empty.subs': 'No subscriptions yet',
         'empty.subsHint': 'A subscription only tracks a repository; it installs nothing.',
-        'banner.cli': 'skills CLI unavailable or lacks --json/--full-depth; write actions disabled',
+        'banner.cli': 'The local skills tool is unavailable; install and changes are disabled',
         'banner.readonly': 'State file is corrupt; the plugin is read-only',
         'banner.visible': 'Model-visible skills differ from the local ledger',
         'form.source': 'Source (owner/repo or GitHub URL)',
@@ -179,8 +194,8 @@ window.__ModuleLoader__.load({
         installed: 'installed',
         notInstalled: 'not installed',
         skillCount: 'skills',
-        visibleOnly: 'Visible to the model but not in canonical',
-        visibleOnlyOther: 'DSH can see these but they are not in ~/.agents/skills',
+        visibleOnly: 'Visible to the model but not in the local skill library',
+        visibleOnlyOther: 'DSH can see these, but they are not in the local skill library',
         visibleOnlyBuiltin: 'Shipped with DSH (this plugin does not manage them)',
         external: 'created outside this plugin',
         'adopt.done': 'now tracked',
@@ -203,14 +218,41 @@ window.__ModuleLoader__.load({
       .dshsc-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
       .dshsc-spacer { flex: 1; }
       .dshsc-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
-      .dshsc-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; }
-      .dshsc-prefbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px;
-        color: var(--dsw-alias-label-secondary); }
-      .dshsc-pref-hint { color: var(--dsw-alias-label-tertiary); }
+
+      /* 标题一行：标题 + 包名 + 版本 + 胶囊（参照 DSH 自带「插件市场」与「上下文洞察」页头） */
+      .dshsc-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+      .dshsc-pkg { font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-tertiary);
+        font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace); }
+      .dshsc-ver { flex: none; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-tertiary);
+        font-variant-numeric: tabular-nums; }
+      .dshsc-pill { display: inline-flex; align-items: center; gap: 6px; flex: none; cursor: pointer;
+        white-space: nowrap; text-decoration: none; font: inherit; font-size: 12px; line-height: 18px;
+        padding: 3px 12px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2);
+        background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary);
+        transition: border-color .12s ease, color .12s ease, background .12s ease; }
+      .dshsc-pill:hover { border-color: var(--dsw-alias-label-secondary); color: var(--dsw-alias-label-primary); }
+      .dshsc-pill:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+      .dshsc-pill[aria-expanded="true"] { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-3); }
+      .dshsc-pill-ext { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-settings { position: relative; display: inline-flex; }
+      .dshsc-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; width: 286px;
+        display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px;
+        border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, .35); }
+      .dshsc-pop-title { font-size: 11px; letter-spacing: .06em; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-pop-label { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        font-size: 12px; color: var(--dsw-alias-label-primary); }
+      .dshsc-pop-label em { font-style: normal; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-pop-name { display: inline-flex; align-items: baseline; gap: 6px; }
+      .dshsc-pop-hint { font-size: 11px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); }
 
       .dshsc-btn { font: inherit; font-size: 12px; line-height: 1; padding: 7px 11px; border-radius: 8px; cursor: pointer;
+        white-space: nowrap;
         border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary);
         transition: background .12s ease, border-color .12s ease, color .12s ease; }
+      /* 页头动作按钮：显式同高（border-box），文案换行 / 字体回退都不会让其中一个变高 */
+      .dshsc-head-actions .dshsc-btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+        height: 28px; padding: 0 11px; }
       .dshsc-btn:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l2); }
       .dshsc-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
       .dshsc-btn:disabled { opacity: .42; cursor: not-allowed; }
@@ -399,12 +441,118 @@ window.__ModuleLoader__.load({
       h('circle', { cx: 4.2, cy: 12, r: 1.1, fill: 'currentColor', stroke: 'none' }));
     }
 
+    // 设置导航的图标由 Host 按 section id 从固定映射里挑，未知 id 一律回落到齿轮
+    // （dsh-client-ui-settings-general 的 navIcon），而 settings.section 只投影
+    // id / order / label，没有 icon 字段——所以每个第三方分区都会和「通用设置」撞图标。
+    // 这里在对话框挂载后认领自己那一行：只按可见文案匹配本插件的分区标题，把回落的
+    // 齿轮换成本插件的标记；不碰 Host 的其它结构。等 settings.section 支持 icon 后删掉。
+    const NAV_ICON_MARKER = 'data-dsh-skills-console-nav-icon';
+    const NAV_ROW_SELECTOR = '[role="dialog"] nav button';
+
+    /** 导航行里用的标记：与 PanelIcon 同一套几何，画成 CSS mask 的 alpha 形状。 */
+    function navIconMaskSvg() {
+      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">'
+        + '<rect x="7.5" y="7.5" width="9" height="9" rx="3" stroke="#000" stroke-width="1.8"/>'
+        + '<path d="M9.8 12.1l1.5 1.5 3.1-3.3" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
+        + '<path d="M12 7.5V4.8M12 16.5v2.7M7.5 12H4.8" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-opacity=".55"/>'
+        + '<circle cx="12" cy="4.2" r="1.1" fill="#000"/><circle cx="12" cy="19.8" r="1.1" fill="#000"/>'
+        + '<circle cx="4.2" cy="12" r="1.1" fill="#000"/></svg>';
+    }
+
+    /** mask 的 URL：运行时编码，避免手写转义。 */
+    function navIconMaskUrl() {
+      return `data:image/svg+xml,${encodeURIComponent(navIconMaskSvg())}`;
+    }
+
+    /** 隐藏 Host 画的齿轮，改用本插件标记（颜色跟随 currentColor，适配深浅主题）。 */
+    function navIconCss(maskUrl) {
+      return [
+        `[${NAV_ICON_MARKER}] > svg { display: none; }`,
+        `[${NAV_ICON_MARKER}]::before {`,
+        "  content: '';",
+        '  flex: none;',
+        '  width: 16px;',
+        '  height: 16px;',
+        '  background-color: currentColor;',
+        `  -webkit-mask-image: url("${maskUrl}");`,
+        `  mask-image: url("${maskUrl}");`,
+        '  -webkit-mask-repeat: no-repeat;',
+        '  mask-repeat: no-repeat;',
+        '  -webkit-mask-position: center;',
+        '  mask-position: center;',
+        '  -webkit-mask-size: 16px 16px;',
+        '  mask-size: 16px 16px;',
+        '}',
+      ].join('\n');
+    }
+
+    /** 只有可见文案等于本插件分区标题的那一行才算自己的；空标题不认领任何行。 */
+    function isOwnNavRow(rowText, wantedLabel) {
+      const wanted = String(wantedLabel ?? '').trim();
+      if (wanted.length === 0) return false;
+      return String(rowText ?? '').trim() === wanted;
+    }
+
+    /**
+     * 把设置导航里的齿轮换成本插件标记。
+     * @param ctx 客户端 context，用于 effect 生命周期（卸载时移除标记与样式）。
+     * @param resolveLabel 当前分区标题（与 settings.section 用同一个 thunk，语言切换后可重认领）。
+     */
+    function installSettingsNavIcon(ctx, resolveLabel) {
+      if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+      ctx.effect(() => {
+        const tag = document.createElement('style');
+        tag.dataset.plugin = '@morehao/dsh-skills-console';
+        tag.dataset.pluginCss = 'dsh-skills-console/settings-nav-icon';
+        tag.textContent = navIconCss(navIconMaskUrl());
+        document.head.appendChild(tag);
+        let disposed = false;
+        let scheduled = false;
+        const sync = () => {
+          scheduled = false;
+          if (disposed) return;
+          const wanted = resolveLabel();
+          for (const row of document.querySelectorAll(NAV_ROW_SELECTOR)) {
+            if (isOwnNavRow(row.textContent, wanted)) row.setAttribute(NAV_ICON_MARKER, '');
+            else row.removeAttribute(NAV_ICON_MARKER);
+          }
+        };
+        const schedule = () => {
+          if (scheduled || disposed) return;
+          scheduled = true;
+          if (typeof queueMicrotask === 'function') queueMicrotask(sync);
+          else Promise.resolve().then(sync);
+        };
+        sync();
+        const observer = new MutationObserver(schedule);
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+        return () => {
+          disposed = true;
+          observer.disconnect();
+          for (const row of document.querySelectorAll(`[${NAV_ICON_MARKER}]`)) row.removeAttribute(NAV_ICON_MARKER);
+          tag.remove();
+        };
+      }, 'dsh-skills-console: settings nav icon');
+    }
+
     function GitHubIcon({ size = 16 }) {
       return h('svg', {
         width: size, height: size, viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': true,
         style: { display: 'block' },
       }, h('path', {
         d: 'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12',
+      }));
+    }
+
+    function GearIcon({ size = 13 }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+        style: { display: 'block' },
+      },
+      h('circle', { cx: 12, cy: 12, r: 3.1 }),
+      h('path', {
+        d: 'M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.55-1.1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z',
       }));
     }
 
@@ -415,6 +563,9 @@ window.__ModuleLoader__.load({
         const t = buildTranslate(locale);
         const slots = ctx.get('slots');
         if (!slots?.register) return;
+
+        // 设置分区在 Host 的导航里默认拿齿轮；换成插件自己的标记（语言切换时重认领）。
+        installSettingsNavIcon(ctx, () => t('section.title'));
 
         function Section(props) {
           const page = Boolean(props?.page);
@@ -427,6 +578,9 @@ window.__ModuleLoader__.load({
           const [modal, setModal] = React.useState(null);
           const [expanded, setExpanded] = React.useState({});
           const [placementBusy, setPlacementBusy] = React.useState(null);
+          // POST /settings 成功后 data 还是旧的；用本地覆盖值，避免开关弹回旧状态（重开面板时尤其明显）
+          const [placementOverride, setPlacementOverride] = React.useState(null);
+          const [settingsOpen, setSettingsOpen] = React.useState(false);
 
           const reload = React.useCallback(async () => {
             try {
@@ -447,6 +601,25 @@ window.__ModuleLoader__.load({
             const timer = setTimeout(() => setToast(null), 4200);
             return () => clearTimeout(timer);
           }, [toast]);
+
+          // 设置面板：点外面或按 Esc 关掉；用 closest 判断，避免按钮自己把自己关掉
+          React.useEffect(() => {
+            if (!settingsOpen || typeof document === 'undefined') return undefined;
+            const onPointerDown = (event) => {
+              const target = event?.target;
+              if (target && typeof target.closest === 'function' && target.closest('.dshsc-settings')) return;
+              setSettingsOpen(false);
+            };
+            const onKeyDown = (event) => {
+              if (event?.key === 'Escape') setSettingsOpen(false);
+            };
+            document.addEventListener('pointerdown', onPointerDown);
+            document.addEventListener('keydown', onKeyDown);
+            return () => {
+              document.removeEventListener('pointerdown', onPointerDown);
+              document.removeEventListener('keydown', onKeyDown);
+            };
+          }, [settingsOpen]);
 
           const run = React.useCallback(
             async (label, task) => {
@@ -804,13 +977,15 @@ window.__ModuleLoader__.load({
             ? autolinkTargets.filter((agent) => autoLinkSelection.includes(agent.target))
             : autolinkTargets;
           const autoLinkLabel = [t('links.dshGlobal'), ...autoLinkAgents.map((agent) => agent.label)].join('、');
-          const placement = data?.settings?.placement === 'sidebar' ? 'sidebar' : 'settings';
+          const placement = (placementOverride ?? data?.settings?.placement) === 'sidebar' ? 'sidebar' : 'settings';
 
           async function changePlacement(next) {
             if (next === placement || placementBusy) return;
             setPlacementBusy(next);
             try {
               await apiCall('POST', '/settings', { placement: next });
+              setPlacementOverride(next);
+              setSettingsOpen(false);
               props?.onPlacementChange?.(next);
               setPlacementBusy(null);
             } catch (err) {
@@ -827,7 +1002,48 @@ window.__ModuleLoader__.load({
               h('div', { className: 'dshsc-heading' },
                 h(Logo, { size: page ? 36 : 30 }),
                 h('div', { className: 'dshsc-heading-text' },
-                  h('h2', { className: 'dshsc-title' }, page ? t('page.title') : t('section.title')),
+                  h('div', { className: 'dshsc-title-row' },
+                    h('h2', { className: 'dshsc-title' }, page ? t('page.title') : t('section.title')),
+                    // 身份：包名 + 版本，由 Host 从 package.json 注入（lib/routes.js 的 /state）
+                    data?.plugin?.name ? h('span', { className: 'dshsc-pkg' }, data.plugin.name) : null,
+                    data?.plugin?.version
+                      ? h('span', { className: 'dshsc-ver', title: `${t('version.label')} v${data.plugin.version}` },
+                          `v${data.plugin.version}`)
+                      : null,
+                    h('div', { className: 'dshsc-settings' },
+                      h('button', {
+                        className: 'dshsc-pill',
+                        'aria-haspopup': 'dialog',
+                        'aria-expanded': String(settingsOpen),
+                        title: t('settings.title'),
+                        onClick: () => setSettingsOpen((prev) => !prev),
+                      }, h(GearIcon, { size: 13 }), h('span', null, t('settings.pill'))),
+                      settingsOpen
+                        ? h('div', { className: 'dshsc-pop', role: 'dialog', 'aria-label': t('settings.title') },
+                            h('div', { className: 'dshsc-pop-title' }, t('settings.title')),
+                            h('div', { className: 'dshsc-pop-label' },
+                              h('span', { className: 'dshsc-pop-name' },
+                                t('placement.label'), h('em', null, t('placement.effect'))),
+                              h('button', {
+                                className: 'dshsc-switch',
+                                role: 'switch',
+                                'aria-checked': String(placement === 'sidebar'),
+                                'aria-label': `${t('placement.label')}：${placement === 'sidebar' ? t('placement.on') : t('placement.off')}`,
+                                title: t('placement.hint'),
+                                disabled: Boolean(placementBusy) || Boolean(data?.readOnly),
+                                onClick: () => void changePlacement(placement === 'sidebar' ? 'settings' : 'sidebar'),
+                              }, h('span', { className: 'dshsc-knob' }))),
+                            h('div', { className: 'dshsc-pop-hint' }, t('placement.hint')))
+                        : null),
+                    h('a', {
+                      className: 'dshsc-pill',
+                      href: GITHUB_URL,
+                      target: '_blank',
+                      rel: 'noopener noreferrer',
+                      title: t('github.open'),
+                      'aria-label': t('github.open'),
+                    }, h(GitHubIcon, { size: 13 }), h('span', null, t('github.label')),
+                      h('span', { className: 'dshsc-pill-ext' }, '↗'))),
                   h('p', { className: 'dshsc-sub' }, t('section.subtitle')))),
               h('div', { className: 'dshsc-head-actions' },
                 h('button', {
@@ -841,32 +1057,7 @@ window.__ModuleLoader__.load({
                   className: 'dshsc-btn primary',
                   disabled: !writable,
                   onClick: tab === 'installed' ? requestAddSkill : requestAddSubscription,
-                }, tab === 'installed' ? t('action.addSkill') : t('action.addSubscription')),
-                h('a', {
-                  className: 'dshsc-btn dshsc-iconbtn',
-                  href: GITHUB_URL,
-                  target: '_blank',
-                  rel: 'noopener noreferrer',
-                  title: t('github.open'),
-                  'aria-label': t('github.open'),
-                }, h(GitHubIcon, { size: 16 })))),
-
-            data ? h('div', { className: 'dshsc-prefbar' },
-              h('span', null, t('placement.label')),
-              h('div', { className: 'dshsc-segment' },
-                h('button', {
-                  className: 'dshsc-btn',
-                  'aria-pressed': String(placement === 'settings'),
-                  disabled: Boolean(placementBusy) || Boolean(data.readOnly),
-                  onClick: () => void changePlacement('settings'),
-                }, t('placement.settings')),
-                h('button', {
-                  className: 'dshsc-btn',
-                  'aria-pressed': String(placement === 'sidebar'),
-                  disabled: Boolean(placementBusy) || Boolean(data.readOnly),
-                  onClick: () => void changePlacement('sidebar'),
-                }, t('placement.sidebar'))),
-              h('span', { className: 'dshsc-pref-hint' }, t('placement.hint'))) : null,
+                }, tab === 'installed' ? t('action.addSkill') : t('action.addSubscription')))),
 
             error ? h('div', { className: 'dshsc-banner err' }, `${error} · `, h('button', { className: 'dshsc-btn ghost', onClick: () => void reload() }, t('action.retry'))) : null,
             data?.readOnly ? h('div', { className: 'dshsc-banner warn' }, t('banner.readonly')) : null,
