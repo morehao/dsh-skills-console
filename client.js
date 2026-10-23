@@ -13,6 +13,7 @@ window.__ModuleLoader__.load({
     const DICT = {
       zh: {
         'section.title': '技能',
+        'page.title': '技能管理',
         'section.subtitle': 'canonical 只由 skills CLI 写入；这里管装、更新、删除与接入。',
         'tab.installed': '已装',
         'tab.subscriptions': '订阅',
@@ -32,6 +33,11 @@ window.__ModuleLoader__.load({
         'view.flat': '平铺',
         'view.agent': '按 Agent',
         autoLink: '自动链接',
+        'placement.label': '入口位置',
+        'placement.settings': '设置里',
+        'placement.sidebar': '侧边栏',
+        'placement.hint': '切换后立即生效；移到设置后从侧栏底部「设置 → 技能」打开',
+        'github.open': '打开 GitHub 仓库',
         'status.current': '最新',
         'status.update': '有新版本',
         'status.local': '本地已改',
@@ -96,6 +102,7 @@ window.__ModuleLoader__.load({
       },
       en: {
         'section.title': 'Skills',
+        'page.title': 'Skills Manager',
         'section.subtitle': 'The skills CLI owns canonical; this page installs, updates, removes and links.',
         'tab.installed': 'Installed',
         'tab.subscriptions': 'Subscriptions',
@@ -181,13 +188,25 @@ window.__ModuleLoader__.load({
     };
 
     const CSS = `
+      /* 主面板形态：与 DSH 自带管理页同一边距/滚动方式 */
+      .dshsm-page { box-sizing: border-box; width: 100%; height: 100%; overflow: auto;
+        padding: calc(28px + var(--dsh-frame-top-clearance, 0px)) clamp(24px, 4vw, 48px) 48px; }
+      .dshsm-page .dshsm-root { max-width: 980px; margin: 0 auto; }
+      .dshsm-page .dshsm-title { font-size: 20px; font-weight: 500; line-height: 28px; }
+      .dshsm-page .dshsm-sub { font-size: 13px; line-height: 20px; }
       .dshsm-root { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); }
       .dshsm-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
-      .dshsm-heading { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .dshsm-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+      .dshsm-heading-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .dshsm-logo { flex: none; display: block; border-radius: 8px; }
       .dshsm-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
       .dshsm-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
       .dshsm-spacer { flex: 1; }
       .dshsm-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+      .dshsm-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; }
+      .dshsm-prefbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px;
+        color: var(--dsw-alias-label-secondary); }
+      .dshsm-pref-hint { color: var(--dsw-alias-label-tertiary); }
 
       .dshsm-btn { font: inherit; font-size: 12px; line-height: 1; padding: 7px 11px; border-radius: 8px; cursor: pointer;
         border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary);
@@ -341,6 +360,54 @@ window.__ModuleLoader__.load({
       };
     }
 
+    const GITHUB_URL = 'https://github.com/morehao/dsh-skills-manager';
+
+    function Logo({ size = 30 }) {
+      return h('svg', {
+        className: 'dshsm-logo', width: size, height: size, viewBox: '0 0 64 64', 'aria-hidden': true,
+      },
+      h('defs', null,
+        h('linearGradient', { id: 'dshsm-logo-bg', x1: 6, y1: 2, x2: 58, y2: 62, gradientUnits: 'userSpaceOnUse' },
+          h('stop', { stopColor: '#3b82f6' }),
+          h('stop', { offset: 1, stopColor: '#1d4ed8' }))),
+      h('rect', { x: 3, y: 3, width: 58, height: 58, rx: 14, fill: 'url(#dshsm-logo-bg)' }),
+      h('path', {
+        d: 'M32 32 18 17M32 32 46 17M32 32 32 49',
+        stroke: '#ffffff', strokeOpacity: 0.55, strokeWidth: 2.6, strokeLinecap: 'round',
+      }),
+      h('circle', { cx: 18, cy: 17, r: 4.6, fill: '#7ef0c0' }),
+      h('circle', { cx: 46, cy: 17, r: 4.6, fill: '#ffffff' }),
+      h('circle', { cx: 32, cy: 49, r: 4.6, fill: '#ffffff' }),
+      h('rect', { x: 21, y: 21, width: 22, height: 22, rx: 7, fill: '#ffffff' }),
+      h('path', {
+        d: 'M27 32.5l3.6 3.6 6.8-7.4',
+        fill: 'none', stroke: '#1d4ed8', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round',
+      }));
+    }
+
+    function PanelIcon({ size = 16 }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+        style: { display: 'block' },
+      },
+      h('rect', { x: 7.5, y: 7.5, width: 9, height: 9, rx: 3 }),
+      h('path', { d: 'M9.8 12.1l1.5 1.5 3.1-3.3' }),
+      h('path', { d: 'M12 7.5V4.8M12 16.5v2.7M7.5 12H4.8', opacity: 0.55 }),
+      h('circle', { cx: 12, cy: 4.2, r: 1.1, fill: 'currentColor', stroke: 'none' }),
+      h('circle', { cx: 12, cy: 19.8, r: 1.1, fill: 'currentColor', stroke: 'none' }),
+      h('circle', { cx: 4.2, cy: 12, r: 1.1, fill: 'currentColor', stroke: 'none' }));
+    }
+
+    function GitHubIcon({ size = 16 }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': true,
+        style: { display: 'block' },
+      }, h('path', {
+        d: 'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12',
+      }));
+    }
+
     return {
       inject: ['slots'],
       apply(ctx) {
@@ -349,7 +416,8 @@ window.__ModuleLoader__.load({
         const slots = ctx.get('slots');
         if (!slots?.register) return;
 
-        function Section() {
+        function Section(props) {
+          const page = Boolean(props?.page);
           const [data, setData] = React.useState(null);
           const [error, setError] = React.useState(null);
           const [tab, setTab] = React.useState('installed');
@@ -358,6 +426,7 @@ window.__ModuleLoader__.load({
           const [toast, setToast] = React.useState(null);
           const [modal, setModal] = React.useState(null);
           const [expanded, setExpanded] = React.useState({});
+          const [placementBusy, setPlacementBusy] = React.useState(null);
 
           const reload = React.useCallback(async () => {
             try {
@@ -735,15 +804,31 @@ window.__ModuleLoader__.load({
             ? autolinkTargets.filter((agent) => autoLinkSelection.includes(agent.target))
             : autolinkTargets;
           const autoLinkLabel = [t('links.dshGlobal'), ...autoLinkAgents.map((agent) => agent.label)].join('、');
+          const placement = data?.settings?.placement === 'sidebar' ? 'sidebar' : 'settings';
 
-          return h(
+          async function changePlacement(next) {
+            if (next === placement || placementBusy) return;
+            setPlacementBusy(next);
+            try {
+              await apiCall('POST', '/settings', { placement: next });
+              props?.onPlacementChange?.(next);
+              setPlacementBusy(null);
+            } catch (err) {
+              setToast({ kind: 'err', text: err.message });
+              setPlacementBusy(null);
+            }
+          }
+
+          const root = h(
             'div',
             { className: 'dshsm-root' },
             h('style', null, CSS),
             h('div', { className: 'dshsm-head' },
               h('div', { className: 'dshsm-heading' },
-                h('h2', { className: 'dshsm-title' }, t('section.title')),
-                h('p', { className: 'dshsm-sub' }, t('section.subtitle'))),
+                h(Logo, { size: page ? 36 : 30 }),
+                h('div', { className: 'dshsm-heading-text' },
+                  h('h2', { className: 'dshsm-title' }, page ? t('page.title') : t('section.title')),
+                  h('p', { className: 'dshsm-sub' }, t('section.subtitle')))),
               h('div', { className: 'dshsm-head-actions' },
                 h('button', {
                   className: 'dshsm-btn',
@@ -756,7 +841,32 @@ window.__ModuleLoader__.load({
                   className: 'dshsm-btn primary',
                   disabled: !writable,
                   onClick: tab === 'installed' ? requestAddSkill : requestAddSubscription,
-                }, tab === 'installed' ? t('action.addSkill') : t('action.addSubscription')))),
+                }, tab === 'installed' ? t('action.addSkill') : t('action.addSubscription')),
+                h('a', {
+                  className: 'dshsm-btn dshsm-iconbtn',
+                  href: GITHUB_URL,
+                  target: '_blank',
+                  rel: 'noopener noreferrer',
+                  title: t('github.open'),
+                  'aria-label': t('github.open'),
+                }, h(GitHubIcon, { size: 16 })))),
+
+            data ? h('div', { className: 'dshsm-prefbar' },
+              h('span', null, t('placement.label')),
+              h('div', { className: 'dshsm-segment' },
+                h('button', {
+                  className: 'dshsm-btn',
+                  'aria-pressed': String(placement === 'settings'),
+                  disabled: Boolean(placementBusy) || Boolean(data.readOnly),
+                  onClick: () => void changePlacement('settings'),
+                }, t('placement.settings')),
+                h('button', {
+                  className: 'dshsm-btn',
+                  'aria-pressed': String(placement === 'sidebar'),
+                  disabled: Boolean(placementBusy) || Boolean(data.readOnly),
+                  onClick: () => void changePlacement('sidebar'),
+                }, t('placement.sidebar'))),
+              h('span', { className: 'dshsm-pref-hint' }, t('placement.hint'))) : null,
 
             error ? h('div', { className: 'dshsm-banner err' }, `${error} · `, h('button', { className: 'dshsm-btn ghost', onClick: () => void reload() }, t('action.retry'))) : null,
             data?.readOnly ? h('div', { className: 'dshsm-banner warn' }, t('banner.readonly')) : null,
@@ -782,6 +892,7 @@ window.__ModuleLoader__.load({
             toast ? h('div', { className: `dshsm-toast ${toast.kind}` }, toast.text) : null,
             modal ? renderModal() : null,
           );
+          return page ? h('div', { className: 'dshsm-page' }, root) : root;
 
           function renderModal() {
             if (modal.type === 'add-skill') {
@@ -1046,15 +1157,89 @@ window.__ModuleLoader__.load({
           h('p', { className: 'dshsm-sub' }, t('autoLink.hint')));
         }
 
-        ctx.effect(
-          () => slots.inject('settings.section', () =>
-            slots.register(
-              { name: 'settings.section', id: 'dsh-skills-manager', order: 26, label: () => t('section.title') },
-              Section,
-            ),
-          ),
-          'dsh-skills-manager:settings-section',
-        );
+        const PANEL_ID = 'dsh-skills-manager';
+        const layout = ctx.get('layout');
+        let surface = null;
+        let userSelected = false;
+        const surfaceDisposers = [];
+
+        function SettingsSurface(props) {
+          return h(Section, {
+            ...props,
+            page: false,
+            onPlacementChange: (next) => changeSurface(next, props?.close),
+          });
+        }
+
+        function PageSurface() {
+          return h(Section, { page: true, onPlacementChange: (next) => changeSurface(next) });
+        }
+
+        function SurfaceIcon(props) {
+          return h(PanelIcon, { size: props?.size || 16 });
+        }
+
+        function clearSurface() {
+          while (surfaceDisposers.length > 0) {
+            const dispose = surfaceDisposers.pop();
+            try {
+              dispose();
+            } catch {
+              // 单个卸载失败不阻塞另一个入口
+            }
+          }
+        }
+
+        function mount(next) {
+          const target = next === 'sidebar' ? 'sidebar' : 'settings';
+          if (surface === target) return;
+          clearSurface();
+          surface = target;
+          if (target === 'sidebar') {
+            // 先注册 main 再注册侧栏按钮：按钮出现时 main 一定可选
+            surfaceDisposers.push(slots.inject('main', () => {
+              const disposeMain = slots.register({ name: 'main', key: PANEL_ID }, PageSurface);
+              const disposeIcon = slots.inject('sidebar.panellist', () => slots.register({
+                name: 'sidebar.panellist', id: PANEL_ID, order: 30, label: () => t('page.title'),
+              }, SurfaceIcon));
+              return [disposeMain, disposeIcon];
+            }));
+          } else {
+            surfaceDisposers.push(slots.inject('settings.section', () =>
+              slots.register({
+                name: 'settings.section', id: PANEL_ID, order: 26, label: () => t('section.title'),
+              }, SettingsSurface)));
+          }
+        }
+
+        function changeSurface(next, close) {
+          userSelected = true;
+          mount(next);
+          try {
+            if (next === 'sidebar') {
+              layout?.selectPanel?.(PANEL_ID);
+              close?.();
+            } else {
+              // 离开已消失的自定义主面板，回到会话；用户从侧栏底部打开设置即可看到分区
+              layout?.selectPanel?.('conversation');
+            }
+          } catch {
+            // main 声明尚未就绪时 select 会抛错；侧栏按钮/设置分区随后仍可点开
+          }
+        }
+
+        mount('settings');
+        ctx.effect(() => () => {
+          clearSurface();
+          surface = null;
+        }, 'dsh-skills-manager:surface');
+
+        // 读取入口偏好；晚到的响应不能覆盖用户刚才在页面里的选择
+        apiCall('GET', '/state')
+          .then((state) => {
+            if (!userSelected && state?.settings?.placement === 'sidebar') mount('sidebar');
+          })
+          .catch(() => {});
       },
     };
   },

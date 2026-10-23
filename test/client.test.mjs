@@ -126,15 +126,24 @@ function loadModule(payload) {
   const registrations = [];
   const slots = {
     inject(key, callback) {
-      assert.equal(key, 'settings.section');
-      return callback();
+      const dispose = callback();
+      return () => {
+        for (const fn of Array.isArray(dispose) ? dispose : [dispose]) {
+          if (typeof fn === 'function') fn();
+        }
+      };
     },
     register(options, Component) {
-      registrations.push({ options, Component });
-      return () => {};
+      const entry = { key: options.name, options, Component, active: true };
+      registrations.push(entry);
+      return () => { entry.active = false; };
     },
   };
   const locale = { getLocale: () => ({ active: 'zh' }) };
+  const layout = {
+    selected: [],
+    selectPanel(id) { this.selected.push(id); },
+  };
   const effects = [];
   const module = definition.factory((id) => {
     if (id === 'react') return stub.React;
@@ -144,6 +153,7 @@ function loadModule(payload) {
     get(name) {
       if (name === 'slots') return slots;
       if (name === 'locale') return locale;
+      if (name === 'layout') return layout;
       return undefined;
     },
     effect(fn) {
@@ -151,10 +161,19 @@ function loadModule(payload) {
     },
   };
   module.apply(ctx);
-  assert.equal(registrations.length, 1, '必须注册一个 settings.section');
-  assert.equal(registrations[0].options.id, 'dsh-skills-manager');
-  assert.equal(registrations[0].options.order, 26);
-  return { Component: registrations[0].Component, options: registrations[0].options, stub };
+  const settings = registrations.filter((entry) => entry.key === 'settings.section');
+  assert.equal(settings.length, 1, '必须注册一个 settings.section');
+  assert.equal(settings[0].options.id, 'dsh-skills-manager');
+  assert.equal(settings[0].options.order, 26);
+  return {
+    Component: settings[0].Component,
+    options: settings[0].options,
+    stub,
+    registrations,
+    layout,
+    ctx,
+    module,
+  };
 }
 
 const ROW = (over = {}) => ({
@@ -342,6 +361,66 @@ test('二级弹窗用 bg-base，不用 bg-overlay（深色主题会变灰白）'
   assert.ok(modal.includes('background: var(--dsw-alias-bg-base)'), '弹窗要用 bg-base 表面色');
   assert.ok(!modal.includes('--dsw-alias-bg-overlay'), '弹窗不能用 bg-overlay');
   assert.ok(css.includes('.dshsm-modal-close'), '弹窗要有显式关闭按钮');
+});
+
+test('插件主页：右上角 GitHub 仓库入口', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const link = collectByType(tree, 'a').find(
+    (node) => node.props.href === 'https://github.com/morehao/dsh-skills-manager',
+  );
+  assert.ok(link, '要有 GitHub 仓库链接');
+  assert.equal(link.props.target, '_blank');
+  assert.match(String(link.props.rel), /noopener/);
+  assert.equal(link.props['aria-label'], '打开 GitHub 仓库');
+});
+
+test('入口位置：设置里 / 侧边栏可切换，并重新注册 slot', async () => {
+  const { Component, stub, registrations, layout } = loadModule({
+    ...STATE,
+    settings: { ...STATE.settings, placement: 'settings' },
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const text = textOf(tree);
+  assert.ok(text.includes('入口位置'), '要有入口位置设置');
+  const sidebar = collectButtons(tree).find((button) => textOf(button).trim() === '侧边栏');
+  assert.ok(sidebar, '要有侧边栏选项');
+  assert.equal(sidebar.props['aria-pressed'], 'false');
+
+  sidebar.props.onClick();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(registrations.some((entry) => entry.key === 'main' && entry.active), '注册主面板');
+  assert.ok(registrations.some((entry) => entry.key === 'sidebar.panellist' && entry.active), '注册侧栏图标');
+  assert.ok(!registrations.some((entry) => entry.key === 'settings.section' && entry.active), '移除设置分区');
+  assert.ok(layout.selected.includes('dsh-skills-manager'), '切到侧栏后选中主面板');
+});
+
+test('入口位置=sidebar：启动时直接注册主面板和侧栏图标', async () => {
+  const { stub, registrations } = loadModule({
+    ...STATE,
+    settings: { ...STATE.settings, placement: 'sidebar' },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const main = registrations.find((entry) => entry.key === 'main' && entry.active);
+  const icon = registrations.find((entry) => entry.key === 'sidebar.panellist' && entry.active);
+  assert.ok(main, '侧栏模式要注册 main');
+  assert.ok(icon, '侧栏模式要注册 sidebar.panellist');
+  assert.equal(main.options.key, 'dsh-skills-manager');
+  assert.equal(icon.options.id, 'dsh-skills-manager');
+  assert.ok(!registrations.some((entry) => entry.key === 'settings.section' && entry.active), '不再占设置分区');
+
+  const first = stub.render(main.Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const text = textOf(stub.render(main.Component, {}, first.hooks).tree);
+  assert.ok(text.includes('技能管理'), '主面板有独立标题');
+  assert.ok(text.includes('入口位置'));
 });
 
 test('自动链接：按 Agent 多选，只列本机已装的', async () => {

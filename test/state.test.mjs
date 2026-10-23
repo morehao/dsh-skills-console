@@ -90,6 +90,23 @@ test('缺字段但结构可信 → 补默认值继续用', () => {
   const state = store.load();
   assert.equal(store.readOnly, false);
   assert.equal(state.settings.autoLinkTargets, null);
+  assert.equal(state.settings.placement, 'settings', '默认入口在设置里');
   assert.deepEqual(state.agents.custom, []);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('settings.placement 只接受 settings / sidebar，非法值回退', () => {
+  const { root, paths } = sandbox();
+  fs.mkdirSync(paths.stateDir, { recursive: true });
+  const write = (placement) => {
+    fs.writeFileSync(
+      paths.stateFile,
+      JSON.stringify({ version: 1, settings: { placement }, installs: [], links: [], subscriptions: [] }),
+    );
+    return new StateStore(paths).load();
+  };
+  assert.equal(write('sidebar').settings.placement, 'sidebar');
+  assert.equal(write('bogus').settings.placement, 'settings');
+  assert.equal(write(undefined).settings.placement, 'settings');
   fs.rmSync(root, { recursive: true, force: true });
 });

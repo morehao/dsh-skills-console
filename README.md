@@ -11,12 +11,13 @@ DeepSeek Harness（dsh）的技能管理插件：**装 / 更新 / 删除 / 接�
 
 ## 状态
 
-P0–P2 已实现并通过单测（53 个用例）：
+P0–P2 已实现并通过单测（58 个用例）：
 
 | 能力 | 说明 |
 | --- | --- |
 | 清单 | canonical 扫描 + CLI lock 对账 + `ctx.skills.snapshot` 可见性对账（模型可见 vs 本地账本）；canonical 里已有的技能首次读取自动纳入追踪，不必逐个「接管」 |
 | 接入 | 软链四态判定（`managed` / `managed-external` / `foreign-link` / `real`），**绝不覆盖**非本插件创建的东西；可接入的 Agent 只列本机已装目录，「自动链接」按 Agent 多选 |
+| 入口 | 默认在设置页「技能」分区；页内可切到左侧栏独立面板，切换立即生效；主页右上角提供 GitHub 仓库入口 |
 | 安装 | `skills add <owner/repo#commit> --skill … -a universal -g -y --json --full-depth`，装完断言 lock 的 `skillFolderHash` 与快照 tree SHA 一致 |
 | 更新 | GitHub Trees API 检测 → 计划（commit 区间 + token）→ 应用（先备份、后重建、失败回滚） |
 | 删除 | 体检（真实目录/外部链接即中止）→ 快照进回收站（7 天）→ `skills remove -s … -g -y`（**不带 `-a`**）→ 清自家链接与记账 |

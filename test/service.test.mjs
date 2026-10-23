@@ -166,6 +166,18 @@ test('自动链接：只接入勾选的已探测 Agent，dsh 全局必选', asyn
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('入口位置：settings / sidebar 持久化，非法值被忽略', async () => {
+  const { root, store, service } = setup();
+  assert.equal(store.state.settings.placement, 'settings');
+  await service.setSettings({ placement: 'sidebar' });
+  assert.equal(store.state.settings.placement, 'sidebar');
+  await service.setSettings({ placement: 'bogus' });
+  assert.equal(store.state.settings.placement, 'sidebar', '非法值不能把入口弄坏');
+  await service.setSettings({ placement: 'settings' });
+  assert.equal(store.state.settings.placement, 'settings');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('启停：off 只摘 DSH 侧链接，文件与其他 Agent 链接不动；on 按原作用范围重建', async () => {
   const { root, home, paths, service } = setup();
   await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: ['dsh-global', 'agent:claude-code'] });

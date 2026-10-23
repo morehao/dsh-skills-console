@@ -5,7 +5,7 @@
 ## 1. 项目速览
 
 - 包：`@morehao/dsh-skills-manager`，DeepSeek Harness（dsh）的**技能管理插件**；**仓库根即包根**，无 workspace、无子包目录。
-- 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（[client.js](client.js)，`window.__ModuleLoader__` 预打包 bundle，设置页 `settings.section` 一页两 tab）。
+- 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（[client.js](client.js)，`window.__ModuleLoader__` 预打包 bundle；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板）。
 - 纯 ESM、**零 runtime 依赖**、无构建步骤；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
 - 技能真身只认 [`skills`](https://www.npmjs.com/package/skills) CLI：下载/落盘 canonical（`~/.agents/skills`）/写 lock 全交给它；本插件只做「发链接 + 记账 + 事务编排」。
 - 发布：注记 tag `vX.Y.Z` → GitHub Actions OIDC → npm；发布成功后 CI 用注记正文建 GitHub Release。
@@ -67,7 +67,7 @@
 | 目的 | 命令 |
 |---|---|
 | 全量机械校验（语法 + 命名 + 打包 + Release 说明冒烟） | `npm run check` |
-| 单元测试（53 例，离线） | `npm test` |
+| 单元测试（58 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
