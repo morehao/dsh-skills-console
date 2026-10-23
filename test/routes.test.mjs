@@ -86,3 +86,36 @@ test('/subscriptions：service 抛错 → 400 + 错误码（客户端据此显�
   assert.equal(body.ok, false);
   assert.equal(body.code, 'error.skills.upstream-failed');
 });
+
+test('/probe：透传探测结果（多选数据源）；GET 不放行', async () => {
+  const service = {
+    reloadState() {},
+    getState: async () => ({ ok: true }),
+    probeSource: async (body) => ({
+      ok: true,
+      source: body.source,
+      ref: 'master',
+      skills: [{ name: 'huashu-design', skillPath: 'SKILL.md' }],
+    }),
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  await handler({
+    url: `${ROUTE_PREFIX}/probe`,
+    method: 'POST',
+    headers: { 'x-dsh-skills-console': '1' },
+    async *[Symbol.asyncIterator]() {
+      yield Buffer.from(JSON.stringify({ source: 'alchaincyf/huashu-design' }));
+    },
+  }, res);
+
+  assert.equal(res.out.status, 200);
+  const body = JSON.parse(res.out.body);
+  assert.equal(body.ok, true);
+  assert.equal(body.source, 'alchaincyf/huashu-design');
+  assert.deepEqual(body.skills, [{ name: 'huashu-design', skillPath: 'SKILL.md' }]);
+
+  const getRes = fakeRes();
+  await handler({ url: `${ROUTE_PREFIX}/probe`, method: 'GET', headers: { 'x-dsh-skills-console': '1' } }, getRes);
+  assert.equal(getRes.out.status, 404, '探测只接受 POST');
+});

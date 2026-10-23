@@ -185,6 +185,7 @@ function loadModule(payload, options = {}) {
   };
   if (options.document !== undefined) sandbox.document = options.document;
   if (options.MutationObserver !== undefined) sandbox.MutationObserver = options.MutationObserver;
+  if (options.fetch) sandbox.fetch = options.fetch;
   sandbox.window.addEventListener = () => {};
   sandbox.window.removeEventListener = () => {};
   vm.createContext(sandbox);
@@ -739,6 +740,71 @@ test('接入设置：只列本机已装 Agent，并可直接勾 DSH 工作区', 
   const selected = stub.render(Component, {}, first.hooks).tree;
   const selectedChecks = collectByType(selected, 'input').filter((node) => node.props.type === 'checkbox');
   assert.equal(selectedChecks[2].props.checked, true, '勾选工作区后要生效');
+});
+
+test('添加技能：先探测再勾选，仓库有多个技能时可多选', async () => {
+  const calls = [];
+  const fetchStub = async (url, init) => {
+    calls.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+    if (String(url).endsWith('/probe')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          source: 'morehao/agent-skills',
+          ref: 'main',
+          skills: [
+            { name: 'git-kit', skillPath: 'skills/git-kit/SKILL.md' },
+            { name: 'handoff', skillPath: 'skills/handoff/SKILL.md' },
+          ],
+        }),
+      };
+    }
+    return { ok: true, status: 200, json: async () => ({ ...STATE, ok: true }) };
+  };
+  const { Component, stub } = loadModule(STATE, { fetch: fetchStub });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  let tree = stub.render(Component, {}, first.hooks).tree;
+
+  const add = collectButtons(tree).find((button) => textOf(button).trim() === '添加技能');
+  assert.ok(add, '页头要有添加技能');
+  add.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  assert.ok(textOf(tree).includes('检测技能'), '弹窗先给检测入口');
+
+  const input = collectByType(tree, 'input').find((node) => node.props.placeholder === '例如 morehao/ai-kit');
+  assert.ok(input, '来源输入框');
+  input.props.onChange({ target: { value: 'https://github.com/morehao/agent-skills' } });
+  tree = stub.render(Component, {}, first.hooks).tree;
+
+  const probe = collectButtons(tree).find((button) => textOf(button).trim() === '检测技能');
+  assert.equal(probe.props.disabled, false, '填了来源就能检测');
+  probe.props.onClick();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  tree = stub.render(Component, {}, first.hooks).tree;
+
+  assert.ok(textOf(tree).includes('检测到 2 个技能'), '多技能要提示数量');
+  let checks = collectByType(tree, 'input').filter((node) => node.props.type === 'checkbox');
+  assert.equal(checks.length, 2, '每个技能一个复选框');
+  assert.ok(checks.every((node) => node.props.checked), '默认全选');
+
+  checks[0].props.onChange();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  checks = collectByType(tree, 'input').filter((node) => node.props.type === 'checkbox');
+  assert.equal(checks[0].props.checked, false, '取消勾选生效');
+
+  const save = collectButtons(tree).find((button) => textOf(button).trim() === '保存');
+  assert.equal(save.props.disabled, false, '至少选一个就能保存');
+  save.props.onClick();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const install = calls.find((call) => call.url.endsWith('/install'));
+  assert.ok(install, '保存要调安装接口');
+  assert.equal(install.body.source, 'https://github.com/morehao/agent-skills');
+  assert.deepEqual(install.body.skills, ['handoff'], '只装勾选的那个');
 });
 
 test('切到订阅 tab：空态文案跟随 tab', async () => {

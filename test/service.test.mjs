@@ -481,3 +481,37 @@ test('添加订阅：仓库里没有 SKILL.md 时按失败处理，不落空订�
   assert.equal(fs.existsSync(paths.stateFile), false, '没成功之前不写 state.json');
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('探测来源：只读列出技能（多选数据源），不写 state、不建订阅', async () => {
+  const gh = githubStub({
+    defaultBranch: 'master',
+    tree: [
+      { path: 'skills/alpha/SKILL.md', type: 'blob', sha: 'a'.repeat(40) },
+      { path: 'skills/beta/SKILL.md', type: 'blob', sha: 'b'.repeat(40) },
+      { path: 'README.md', type: 'blob', sha: 'c'.repeat(40) },
+    ],
+  });
+  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const result = await service.probeSource({ source: 'https://github.com/alchaincyf/huashu-design' });
+  assert.equal(result.ok, true);
+  assert.equal(result.source, 'alchaincyf/huashu-design', '来源归一成 owner/repo');
+  assert.equal(result.ref, 'master', '缺省 ref 跟随默认分支');
+  assert.deepEqual(result.skills.map((item) => item.name), ['alpha', 'beta']);
+  assert.deepEqual(
+    result.skills.map((item) => item.skillPath),
+    ['skills/alpha/SKILL.md', 'skills/beta/SKILL.md'],
+  );
+  assert.equal(store.state.subscriptions.length, 0, '探测不能建订阅');
+  assert.equal(fs.existsSync(paths.stateFile), false, '探测不能写 state.json');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：非法来源报 bad-source，不发请求', async () => {
+  const { root, service } = setup();
+  await assert.rejects(
+    () => service.probeSource({ source: 'not a repo' }),
+    (error) => error.code === 'error.skills.bad-source',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});

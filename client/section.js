@@ -184,7 +184,8 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       autoLinkAgents: autolinkTargets,
       pickDirectory,
       actions: {
-        addSkill: actions.addSkill,
+        probeSkills: actions.probeSkills,
+        installSkills: actions.installSkills,
         addSubscription: actions.addSubscription,
         saveLinks: actions.saveLinks,
       },

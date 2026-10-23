@@ -35,7 +35,7 @@ PR 与 push `main` 触发，**只装构建期依赖**（esbuild），不跑发�
 1. `npm ci`（`check:client` 需要 esbuild）
 2. `bash -n scripts/ci-publish.sh`
 3. `npm run check` → `check-syntax.mjs`（lib/、client/、scripts/、test/、client.js 逐文件 `node --check`）→ `check:client`（按 `client/` 重建并与提交的 `client.js` 逐字节比对）→ `check-naming` → `check-pack` → `smoke-release-notes`
-4. `npm test` → 89 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
+4. `npm test` → 93 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
 
 注意：
 

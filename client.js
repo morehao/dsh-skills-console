@@ -148,7 +148,16 @@ var DICT = {
     "banner.visible": "模型可见技能与本地账本不一致，差异已列在下方",
     "form.source": "来源（owner/repo 或 GitHub URL）",
     "form.sourceHint": "例如 morehao/ai-kit",
-    "form.skills": "技能名（多个用逗号分隔，留空装全部）",
+    "form.probe": "检测技能",
+    "form.probing": "读取中…",
+    "form.probingHint": "正在读仓库的文件树，稍等一下…",
+    "form.detected": "检测到 {n} 个技能，勾选要安装的",
+    "form.selectAll": "全选",
+    "form.selectNone": "全不选",
+    "form.pickHint": "先填来源并检测；仓库里有多个技能时可以多选，只有一个会默认勾上。",
+    "form.noSkills": "仓库里没找到 SKILL.md，可以直接填技能名安装",
+    "form.probeFailed": "检测失败，仍可手动填技能名",
+    "form.skills": "技能名（多个用逗号分隔）",
     "form.ref": "ref（分支 / tag，可空）",
     "form.refHint": "留空则自动跟随仓库默认分支",
     "form.subpath": "子目录（可空）",
@@ -268,7 +277,16 @@ var DICT = {
     "banner.visible": "Model-visible skills differ from the local ledger",
     "form.source": "Source (owner/repo or GitHub URL)",
     "form.sourceHint": "e.g. morehao/ai-kit",
-    "form.skills": "Skill names (comma separated; empty installs all)",
+    "form.probe": "Detect",
+    "form.probing": "Reading…",
+    "form.probingHint": "Reading the repository tree…",
+    "form.detected": "Found {n} skills; pick the ones to install",
+    "form.selectAll": "Select all",
+    "form.selectNone": "Clear",
+    "form.pickHint": "Enter a source and detect first. Pick one or more when the repo has several.",
+    "form.noSkills": "No SKILL.md found; type skill names instead",
+    "form.probeFailed": "Detection failed; you can still type names",
+    "form.skills": "Skill names (comma separated)",
     "form.ref": "ref (branch / tag, optional)",
     "form.refHint": "empty follows the repository default branch",
     "form.subpath": "Subdirectory (optional)",
@@ -892,6 +910,10 @@ var CSS = `
     border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); outline: none; }
   .dshsc-field input:focus { border-color: var(--dsw-alias-brand-primary);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent); }
+  /* 来源输入 + 检测按钮同一行；输入框吃掉剩余宽度，按钮不被挤压 */
+  .dshsc-inline { display: flex; gap: 6px; align-items: stretch; }
+  .dshsc-inline input { flex: 1; min-width: 0; }
+  .dshsc-inline .dshsc-btn { flex: none; }
 
   .dshsc-check { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 5px 8px; border-radius: 8px; cursor: pointer; }
   .dshsc-check:hover { background: var(--dsw-alias-bg-layer-1); }
@@ -1013,11 +1035,13 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
   function requestAddSubscription() {
     setModal({ type: "add-subscription" });
   }
-  async function addSkill(form) {
-    const names = form.skills.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean);
+  async function probeSkills(source) {
+    return apiCall("POST", "/probe", { source: String(source || "").trim() });
+  }
+  async function installSkills({ source, skills }) {
     setModal(null);
     await run("install", async () => {
-      const result = await apiCall("POST", "/install", { source: form.source.trim(), skills: names });
+      const result = await apiCall("POST", "/install", { source: String(source || "").trim(), skills });
       const warnings = result.warnings?.length || 0;
       setToast({
         kind: warnings ? "err" : "ok",
@@ -1064,7 +1088,8 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
     saveLinks,
     requestAddSkill,
     requestAddSubscription,
-    addSkill,
+    probeSkills,
+    installSkills,
     addSubscription,
     refreshSubscription,
     deleteSubscription,
@@ -2036,18 +2061,143 @@ function AutoLinkModal({ t, settings, agents, onCancel, onSave }) {
     h("p", { className: "dshsc-sub" }, t("autoLink.hint"))
   );
 }
-function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClose, onSaveAutoLink }) {
-  if (modal.type === "add-skill") {
-    return h(FormModal, {
+function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
+  const [source, setSource] = import_react3.default.useState("");
+  const [phase, setPhase] = import_react3.default.useState("idle");
+  const [options, setOptions] = import_react3.default.useState([]);
+  const [selected, setSelected] = import_react3.default.useState(() => /* @__PURE__ */ new Set());
+  const [manual, setManual] = import_react3.default.useState("");
+  const [error, setError] = import_react3.default.useState(null);
+  const reset = (value) => {
+    setSource(value);
+    setPhase("idle");
+    setOptions([]);
+    setSelected(/* @__PURE__ */ new Set());
+    setError(null);
+  };
+  const probe = async () => {
+    const value = source.trim();
+    if (!value || phase === "probing") return;
+    setPhase("probing");
+    setError(null);
+    try {
+      const result = await onProbe(value);
+      const found = Array.isArray(result?.skills) ? result.skills : [];
+      setOptions(found);
+      setSelected(new Set(found.map((item) => item.name)));
+      setPhase(found.length > 0 ? "picked" : "empty");
+    } catch (err) {
+      setError(err?.message || String(err));
+      setPhase("failed");
+    }
+  };
+  const toggle = (name) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    return next;
+  });
+  const names = manual.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean);
+  const manualMode = phase === "empty" || phase === "failed";
+  const skills = phase === "picked" ? [...selected] : names;
+  const canSubmit = phase === "picked" ? selected.size > 0 : manualMode ? names.length > 0 : false;
+  const submit = () => {
+    if (!canSubmit) return;
+    onInstall({ source: source.trim(), skills });
+  };
+  return h(
+    Overlay,
+    {
       t,
       title: t("action.addSkill"),
-      hint: t("form.hint"),
-      fields: [
-        { key: "source", label: t("form.source"), placeholder: t("form.sourceHint") },
-        { key: "skills", label: t("form.skills"), placeholder: "git-kit, handoff", required: false }
-      ],
+      onCancel,
+      footer: [
+        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
+        h("button", {
+          key: "s",
+          className: "dshsc-btn primary",
+          disabled: !canSubmit,
+          onClick: submit
+        }, t("action.save"))
+      ]
+    },
+    h("p", { className: "dshsc-sub" }, t("form.pickHint")),
+    h(
+      "div",
+      { className: "dshsc-field" },
+      h("span", null, t("form.source")),
+      h(
+        "div",
+        { className: "dshsc-inline" },
+        h("input", {
+          value: source,
+          placeholder: t("form.sourceHint"),
+          onChange: (event) => reset(event.target.value),
+          onKeyDown: (event) => {
+            if (event.key === "Enter") void probe();
+          }
+        }),
+        h("button", {
+          className: "dshsc-btn",
+          disabled: !source.trim() || phase === "probing",
+          onClick: () => void probe()
+        }, phase === "probing" ? t("form.probing") : t("form.probe"))
+      )
+    ),
+    phase === "picked" ? h(
+      "div",
+      { key: "picked" },
+      h("div", { className: "dshsc-group" }, t("form.detected").replace("{n}", String(options.length))),
+      h(
+        "div",
+        { style: { display: "flex", gap: 6, marginBottom: 6 } },
+        h("button", {
+          className: "dshsc-btn ghost",
+          onClick: () => setSelected(new Set(options.map((item) => item.name)))
+        }, t("form.selectAll")),
+        h("button", {
+          className: "dshsc-btn ghost",
+          onClick: () => setSelected(/* @__PURE__ */ new Set())
+        }, t("form.selectNone"))
+      ),
+      h("div", { className: "dshsc-panel" }, options.map((option) => h(
+        "label",
+        { className: "dshsc-check", key: option.name },
+        h("input", {
+          type: "checkbox",
+          checked: selected.has(option.name),
+          onChange: () => toggle(option.name)
+        }),
+        h("span", null, option.name),
+        h("small", null, option.skillPath)
+      )))
+    ) : null,
+    phase === "probing" ? h("p", { className: "dshsc-sub" }, t("form.probingHint")) : null,
+    manualMode ? h(
+      "div",
+      { key: "manual" },
+      h("p", { className: "dshsc-sub" }, phase === "empty" ? t("form.noSkills") : `${t("form.probeFailed")}${error ? ` · ${error}` : ""}`),
+      h(
+        "label",
+        { className: "dshsc-field" },
+        h("span", null, t("form.skills")),
+        h("input", {
+          value: manual,
+          placeholder: "git-kit, handoff",
+          onChange: (event) => setManual(event.target.value)
+        })
+      )
+    ) : null,
+    h("p", { className: "dshsc-sub" }, t("form.hint"))
+  );
+}
+function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClose, onSaveAutoLink }) {
+  if (modal.type === "add-skill") {
+    return h(AddSkillModal, {
+      t,
       onCancel: onClose,
-      onSubmit: (form) => void actions.addSkill(form)
+      onProbe: actions.probeSkills,
+      onInstall: actions.installSkills
     });
   }
   if (modal.type === "add-subscription") {
@@ -2274,7 +2424,8 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       autoLinkAgents: autolinkTargets,
       pickDirectory,
       actions: {
-        addSkill: actions.addSkill,
+        probeSkills: actions.probeSkills,
+        installSkills: actions.installSkills,
         addSubscription: actions.addSubscription,
         saveLinks: actions.saveLinks
       },
