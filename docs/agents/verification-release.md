@@ -39,6 +39,7 @@ PR 与 push `main` 触发，**不装依赖、不联网**：
 
 - 需要真实 `skills` CLI 或 GitHub 的动作（`npm run sync:agents`、真实安装/更新）**不在 CI**，本地跑并如实说明。
 - `check-pack` 用临时 `npm_config_cache`；本机手动 `npm pack` 若报 `EPERM ~/.npm/_cacache`，是 `~/.npm` 里有 root 属主文件，不是包的问题。
+- workflow 用 `actions/checkout@v7` + `actions/setup-node@v7`，且**不设 `registry-url`**（v7 移除了 dummy `NODE_AUTH_TOKEN` 兜底，registry 由 `ci-publish.sh` 显式 `--registry` 指定），并显式 `package-manager-cache: false`。改这两处前先读 [发布流程 §7](../publishing.md)。
 
 ## 4. 打包与命名
 

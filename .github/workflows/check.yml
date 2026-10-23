@@ -16,12 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
+          # 本包零 runtime 依赖、CI 不装依赖：显式关掉 setup-node 的自动依赖缓存，
+          # 既省时间也少一个缓存投毒面（v5 起有 packageManager 字段就会自动开缓存）。
+          package-manager-cache: false
 
       # 发布脚本本身是 shell：`bash -n` 先过一遍语法，避免 tag 推上去才发现脚本跑不起来。
       - name: 发布脚本语法

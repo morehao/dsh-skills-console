@@ -36,15 +36,18 @@ jobs:
       contents: write   # 必须：发布成功后建 GitHub Release
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
+      # 不设 registry-url：setup-node v7 移除了 dummy NODE_AUTH_TOKEN 的兜底，而发布凭据一律走
+      # OIDC；registry 由 scripts/ci-publish.sh 显式 --registry 指定，免得 .npmrc 里的
+      # ${NODE_AUTH_TOKEN} 占位与 OIDC 抢凭据。package-manager-cache 同理显式关闭。
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
 
       - name: Upgrade npm for trusted publishing
         run: npm install -g npm@latest
