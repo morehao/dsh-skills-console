@@ -28,7 +28,7 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，80 例
+npm test          # node --test "test/*.test.mjs"，79 例
 npm run check     # 机械校验：语法 + 生成物一致性（check:client）+ 命名 + 打包 + Release 说明投影
 ```
 
@@ -40,7 +40,7 @@ npm run check     # 机械校验：语法 + 生成物一致性（check:client）
 | 用例文件 | 覆盖什么 |
 |---|---|
 | `hash.test.mjs` | 内容哈希稳定（与文件顺序、路径大小写无关）、跳过 `.git` / `node_modules` |
-| `state.test.mjs` | 原子写、坏 JSON → 只读、未来版本 → 只读、缺字段补默认、`autoLinkAgents` → `autoLinkTargets` 迁移、`placement` 回退 |
+| `state.test.mjs` | 原子写、坏 JSON → 只读、未来版本 → 只读、缺字段补默认、`autoLinkAgents` → `autoLinkTargets` 旧字段升级、`placement` 回退 |
 | `agents.test.mjs` | 注册表探测、排除 universal 伪路径、OpenCode / XDG config、Agent 目录被删 |
 | `links.test.mjs` | 软链四态判定、幂等建链、不覆盖 `real` / `foreign-link` |
 | `cli.test.mjs` | CLI 定位、argv 形状（`add` 带全参数 / `remove` 不带 `-a`）、能力位、硬超时、非零退出 |

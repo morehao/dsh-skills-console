@@ -57,10 +57,6 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 客户端 half 只注册 `platform: web`，面板出现在 DSH Web 的设置页 / 侧栏。
 
-> 本机可能还装着 `@michengai/dsh-skills-manager`（显示名「技能管理」）。两者互不干扰（路由前缀 `/api/morehao/skills-console/*`、状态目录 `$DSH_HOME/skills-console/` 都不同），但会各出一个设置分区；只想留一个时把另一个 `plugin_manager set_plugin enabled:false` 即可。
-
-如果你从本插件的旧包名 `@morehao/dsh-skills-manager` 升级，新旧对照与账本搬迁见 [迁移说明](docs/migration-from-skills-manager.md)。
-
 ## 快速上手
 
 1. **添加技能**：点右上角「添加技能」，填 `owner/repo`（需要的话再列出技能名），确认即可。安装完成后会在列表里出现。

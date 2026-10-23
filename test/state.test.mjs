@@ -60,7 +60,7 @@ test('未来版本 → 只读（不猜结构）', () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('v1 的 autoLinkAgents 迁移成 autoLinkTargets', () => {
+test('v1 的 autoLinkAgents 升级为 autoLinkTargets', () => {
   const { root, paths } = sandbox();
   fs.mkdirSync(paths.stateDir, { recursive: true });
   fs.writeFileSync(
@@ -71,7 +71,7 @@ test('v1 的 autoLinkAgents 迁移成 autoLinkTargets', () => {
   const state = store.load();
   assert.equal(store.readOnly, false);
   assert.deepEqual(state.settings.autoLinkTargets, []);
-  assert.equal('autoLinkAgents' in state.settings, false, '迁移后删掉旧字段');
+  assert.equal('autoLinkAgents' in state.settings, false, '升级后删掉旧字段');
 
   fs.writeFileSync(
     paths.stateFile,

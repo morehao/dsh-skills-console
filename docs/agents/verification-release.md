@@ -35,7 +35,7 @@ PR 与 push `main` 触发，**只装构建期依赖**（esbuild），不跑发�
 1. `npm ci`（`check:client` 需要 esbuild）
 2. `bash -n scripts/ci-publish.sh`
 3. `npm run check` → `check-syntax.mjs`（lib/、client/、scripts/、test/、client.js 逐文件 `node --check`）→ `check:client`（按 `client/` 重建并与提交的 `client.js` 逐字节比对）→ `check-naming` → `check-pack` → `smoke-release-notes`
-4. `npm test` → 80 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
+4. `npm test` → 79 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
 
 注意：
 
@@ -82,7 +82,7 @@ PR 与 push `main` 触发，**只装构建期依赖**（esbuild），不跑发�
 | `npm test` 碰到真实目录 | 用例忘了把 `HOME` / `DSH_HOME` 指到临时目录 |
 | OIDC `404` | workflow `name:` 是否等于 `release.yml`；npm registry 是否降级 |
 | OIDC `403 permission denied` | Trusted Publisher 的 Allowed actions 是否允许 `npm publish` |
-| 发布成功但无 Release | Release 步骤是否被删/改名；tag 是否为轻量 tag（无正文） |
+| 发布成功但无 Release | Release 步骤是否被删或被替换；tag 是否为轻量 tag（无正文） |
 | Release body 为空或报错 | `node scripts/release-notes.mjs <tag>` 本地复现 |
 | npm 上版本已存在 | 正常幂等跳过；不要改 tag 重发同版本 |
 
