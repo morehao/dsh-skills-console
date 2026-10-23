@@ -148,11 +148,23 @@ var DICT = {
     "banner.visible": "模型可见技能与本地账本不一致，差异已列在下方",
     "form.source": "来源（owner/repo 或 GitHub URL）",
     "form.sourceHint": "例如 morehao/ai-kit",
+    "form.probe": "检测技能",
+    "form.probing": "读取中…",
+    "form.probingHint": "正在读仓库的文件树，稍等一下…",
+    "form.detected": "检测到 {n} 个技能，勾选要安装的",
+    "form.skipped": "另有 {n} 个 SKILL.md 缺少 name/description，CLI 无法安装，已跳过",
+    "form.selectAll": "全选",
+    "form.selectNone": "全不选",
+    "form.pickHint": "先填来源并检测；仓库里有多个技能时可以多选，只有一个会默认勾上。",
+    "form.noSkills": "仓库里没找到 SKILL.md，可以直接填技能名安装",
+    "form.probeFailed": "检测失败，仍可手动填技能名",
     "form.skills": "技能名（多个用逗号分隔）",
     "form.ref": "ref（分支 / tag，可空）",
+    "form.refHint": "留空则自动跟随仓库默认分支",
     "form.subpath": "子目录（可空）",
     "form.hint": "会立即下载并写入 ~/.agents/skills，并按「自动接入」设置接到对应 Agent。",
     "form.subHint": "只记录你关注这个仓库，不会安装任何技能。",
+    "subscription.defaultRef": "默认分支",
     "confirm.deleteTitle": "删除技能",
     "confirm.deleteBody": "会从本机移除，断开本插件建立的软链并调 skills CLI 卸载；目录先备份到回收站（保留 7 天）。不会删除你的源仓库。",
     "confirm.updateTitle": "本地有改动",
@@ -266,11 +278,23 @@ var DICT = {
     "banner.visible": "Model-visible skills differ from the local ledger",
     "form.source": "Source (owner/repo or GitHub URL)",
     "form.sourceHint": "e.g. morehao/ai-kit",
+    "form.probe": "Detect",
+    "form.probing": "Reading…",
+    "form.probingHint": "Reading the repository tree…",
+    "form.detected": "Found {n} skills; pick the ones to install",
+    "form.skipped": "{n} SKILL.md file(s) skipped: missing name/description",
+    "form.selectAll": "Select all",
+    "form.selectNone": "Clear",
+    "form.pickHint": "Enter a source and detect first. Pick one or more when the repo has several.",
+    "form.noSkills": "No SKILL.md found; type skill names instead",
+    "form.probeFailed": "Detection failed; you can still type names",
     "form.skills": "Skill names (comma separated)",
     "form.ref": "ref (branch / tag, optional)",
+    "form.refHint": "empty follows the repository default branch",
     "form.subpath": "Subdirectory (optional)",
     "form.hint": "Downloads into ~/.agents/skills and links agents per the auto-link setting.",
     "form.subHint": "Only records the repository; installs nothing.",
+    "subscription.defaultRef": "default branch",
     "confirm.deleteTitle": "Delete skill",
     "confirm.deleteBody": "Removes it locally, disconnects this plugin’s links and calls skills remove. A snapshot stays in trash for 7 days. Your source repo is untouched.",
     "confirm.updateTitle": "Local changes",
@@ -888,6 +912,10 @@ var CSS = `
     border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); outline: none; }
   .dshsc-field input:focus { border-color: var(--dsw-alias-brand-primary);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent); }
+  /* 来源输入 + 检测按钮同一行；输入框吃掉剩余宽度，按钮不被挤压 */
+  .dshsc-inline { display: flex; gap: 6px; align-items: stretch; }
+  .dshsc-inline input { flex: 1; min-width: 0; }
+  .dshsc-inline .dshsc-btn { flex: none; }
 
   .dshsc-check { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 5px 8px; border-radius: 8px; cursor: pointer; }
   .dshsc-check:hover { background: var(--dsw-alias-bg-layer-1); }
@@ -905,6 +933,14 @@ var CSS = `
   .dshsc-check input:disabled { opacity: .55; cursor: not-allowed; }
   .dshsc-check small { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .dshsc-check span { white-space: nowrap; }
+  /* 添加技能：每个技能一行，名字 + 两行描述 + 路径；描述太长时截断，不把弹窗撑高 */
+  .dshsc-skill { align-items: flex-start; }
+  .dshsc-skill input[type="checkbox"] { margin-top: 3px; }
+  .dshsc-skill-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+  .dshsc-skill-name { font-weight: 600; }
+  .dshsc-check .dshsc-skill-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; white-space: normal; line-height: 1.4; }
+  .dshsc-check .dshsc-skill-path { font-size: 11px; opacity: .75; }
 
   .dshsc-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
     padding: 4px; max-height: 300px; overflow: auto; display: flex; flex-direction: column; }
@@ -1009,11 +1045,13 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
   function requestAddSubscription() {
     setModal({ type: "add-subscription" });
   }
-  async function addSkill(form) {
-    const names = form.skills.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean);
+  async function probeSkills(source) {
+    return apiCall("POST", "/probe", { source: String(source || "").trim() });
+  }
+  async function installSkills({ source, skills }) {
     setModal(null);
     await run("install", async () => {
-      const result = await apiCall("POST", "/install", { source: form.source.trim(), skills: names });
+      const result = await apiCall("POST", "/install", { source: String(source || "").trim(), skills });
       const warnings = result.warnings?.length || 0;
       setToast({
         kind: warnings ? "err" : "ok",
@@ -1060,7 +1098,8 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
     saveLinks,
     requestAddSkill,
     requestAddSubscription,
-    addSkill,
+    probeSkills,
+    installSkills,
     addSubscription,
     refreshSubscription,
     deleteSubscription,
@@ -1768,7 +1807,7 @@ function SubscriptionsTab({
           onClick: () => onToggle(subscription.id)
         }, h(CaretIcon, { open })),
         h("span", { className: "dshsc-name" }, subscription.source),
-        h("span", { className: "dshsc-tag" }, subscription.ref || "default"),
+        h("span", { className: "dshsc-tag" }, subscription.ref || t("subscription.defaultRef")),
         h(
           "span",
           { className: "dshsc-substat" },
@@ -1848,6 +1887,9 @@ function Overlay({ t, title, children, footer, onCancel }) {
 }
 function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
   const [form, setForm] = import_react3.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
+  const incomplete = fields.some(
+    (field) => field.required !== false && !String(form[field.key] || "").trim()
+  );
   return h(
     Overlay,
     {
@@ -1859,7 +1901,7 @@ function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
         h("button", {
           key: "s",
           className: "dshsc-btn primary",
-          disabled: !form[fields[0].key]?.trim?.() || fields.some((f) => f.key === "skills") && !form.skills?.trim(),
+          disabled: incomplete,
           onClick: () => onSubmit(form)
         }, t("action.save"))
       ]
@@ -2029,18 +2071,153 @@ function AutoLinkModal({ t, settings, agents, onCancel, onSave }) {
     h("p", { className: "dshsc-sub" }, t("autoLink.hint"))
   );
 }
-function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClose, onSaveAutoLink }) {
-  if (modal.type === "add-skill") {
-    return h(FormModal, {
+function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
+  const [source, setSource] = import_react3.default.useState("");
+  const [phase, setPhase] = import_react3.default.useState("idle");
+  const [options, setOptions] = import_react3.default.useState([]);
+  const [selected, setSelected] = import_react3.default.useState(() => /* @__PURE__ */ new Set());
+  const [manual, setManual] = import_react3.default.useState("");
+  const [skipped, setSkipped] = import_react3.default.useState(0);
+  const [error, setError] = import_react3.default.useState(null);
+  const reset = (value) => {
+    setSource(value);
+    setPhase("idle");
+    setOptions([]);
+    setSelected(/* @__PURE__ */ new Set());
+    setSkipped(0);
+    setError(null);
+  };
+  const probe = async () => {
+    const value = source.trim();
+    if (!value || phase === "probing") return;
+    setPhase("probing");
+    setError(null);
+    try {
+      const result = await onProbe(value);
+      const found = Array.isArray(result?.skills) ? result.skills : [];
+      setOptions(found);
+      setSelected(new Set(found.map((item) => item.name)));
+      setSkipped(Math.max(0, Number(result?.skipped) || 0));
+      setPhase(found.length > 0 ? "picked" : "empty");
+    } catch (err) {
+      setError(err?.message || String(err));
+      setPhase("failed");
+    }
+  };
+  const toggle = (name) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    return next;
+  });
+  const names = manual.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean);
+  const skippedText = skipped > 0 ? t("form.skipped").replace("{n}", String(skipped)) : null;
+  const manualMode = phase === "empty" || phase === "failed";
+  const skills = phase === "picked" ? [...selected] : names;
+  const canSubmit = phase === "picked" ? selected.size > 0 : manualMode ? names.length > 0 : false;
+  const submit = () => {
+    if (!canSubmit) return;
+    onInstall({ source: source.trim(), skills });
+  };
+  return h(
+    Overlay,
+    {
       t,
       title: t("action.addSkill"),
-      hint: t("form.hint"),
-      fields: [
-        { key: "source", label: t("form.source"), placeholder: t("form.sourceHint") },
-        { key: "skills", label: t("form.skills"), placeholder: "git-kit, handoff" }
-      ],
+      onCancel,
+      footer: [
+        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
+        h("button", {
+          key: "s",
+          className: "dshsc-btn primary",
+          disabled: !canSubmit,
+          onClick: submit
+        }, t("action.save"))
+      ]
+    },
+    h("p", { className: "dshsc-sub" }, t("form.pickHint")),
+    h(
+      "div",
+      { className: "dshsc-field" },
+      h("span", null, t("form.source")),
+      h(
+        "div",
+        { className: "dshsc-inline" },
+        h("input", {
+          value: source,
+          placeholder: t("form.sourceHint"),
+          onChange: (event) => reset(event.target.value),
+          onKeyDown: (event) => {
+            if (event.key === "Enter") void probe();
+          }
+        }),
+        h("button", {
+          className: "dshsc-btn",
+          disabled: !source.trim() || phase === "probing",
+          onClick: () => void probe()
+        }, phase === "probing" ? t("form.probing") : t("form.probe"))
+      )
+    ),
+    phase === "picked" ? h(
+      "div",
+      { key: "picked" },
+      h("div", { className: "dshsc-group" }, t("form.detected").replace("{n}", String(options.length))),
+      h(
+        "div",
+        { style: { display: "flex", gap: 6, marginBottom: 6 } },
+        h("button", {
+          className: "dshsc-btn ghost",
+          onClick: () => setSelected(new Set(options.map((item) => item.name)))
+        }, t("form.selectAll")),
+        h("button", {
+          className: "dshsc-btn ghost",
+          onClick: () => setSelected(/* @__PURE__ */ new Set())
+        }, t("form.selectNone"))
+      ),
+      h("div", { className: "dshsc-panel" }, options.map((option) => h(
+        "label",
+        { className: "dshsc-check dshsc-skill", key: option.name },
+        h("input", {
+          type: "checkbox",
+          checked: selected.has(option.name),
+          onChange: () => toggle(option.name)
+        }),
+        h(
+          "span",
+          { className: "dshsc-skill-main" },
+          h("span", { className: "dshsc-skill-name" }, option.name),
+          option.description ? h("small", { className: "dshsc-skill-desc" }, option.description) : null,
+          h("small", { className: "dshsc-skill-path" }, option.skillPath)
+        )
+      ))),
+      skippedText ? h("p", { className: "dshsc-sub" }, skippedText) : null
+    ) : null,
+    phase === "probing" ? h("p", { className: "dshsc-sub" }, t("form.probingHint")) : null,
+    manualMode ? h(
+      "div",
+      { key: "manual" },
+      h("p", { className: "dshsc-sub" }, phase === "empty" ? skippedText || t("form.noSkills") : `${t("form.probeFailed")}${error ? ` · ${error}` : ""}`),
+      h(
+        "label",
+        { className: "dshsc-field" },
+        h("span", null, t("form.skills")),
+        h("input", {
+          value: manual,
+          placeholder: "git-kit, handoff",
+          onChange: (event) => setManual(event.target.value)
+        })
+      )
+    ) : null,
+    h("p", { className: "dshsc-sub" }, t("form.hint"))
+  );
+}
+function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClose, onSaveAutoLink }) {
+  if (modal.type === "add-skill") {
+    return h(AddSkillModal, {
+      t,
       onCancel: onClose,
-      onSubmit: (form) => void actions.addSkill(form)
+      onProbe: actions.probeSkills,
+      onInstall: actions.installSkills
     });
   }
   if (modal.type === "add-subscription") {
@@ -2050,8 +2227,8 @@ function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClos
       hint: t("form.subHint"),
       fields: [
         { key: "source", label: t("form.source"), placeholder: t("form.sourceHint") },
-        { key: "ref", label: t("form.ref"), placeholder: "main" },
-        { key: "subpath", label: t("form.subpath"), placeholder: "skills" }
+        { key: "ref", label: t("form.ref"), placeholder: t("form.refHint"), required: false },
+        { key: "subpath", label: t("form.subpath"), placeholder: "skills", required: false }
       ],
       onCancel: onClose,
       onSubmit: (form) => void actions.addSubscription(form)
@@ -2267,7 +2444,8 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       autoLinkAgents: autolinkTargets,
       pickDirectory,
       actions: {
-        addSkill: actions.addSkill,
+        probeSkills: actions.probeSkills,
+        installSkills: actions.installSkills,
         addSubscription: actions.addSubscription,
         saveLinks: actions.saveLinks
       },

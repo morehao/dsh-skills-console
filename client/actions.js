@@ -107,14 +107,15 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     setModal({ type: 'add-subscription' });
   }
 
-  async function addSkill(form) {
-    const names = form.skills
-      .split(/[,，\s]+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
+  /** 只读探测：列出仓库里的技能，供弹窗多选；失败由弹窗自己展示。 */
+  async function probeSkills(source) {
+    return apiCall('POST', '/probe', { source: String(source || '').trim() });
+  }
+
+  async function installSkills({ source, skills }) {
     setModal(null);
     await run('install', async () => {
-      const result = await apiCall('POST', '/install', { source: form.source.trim(), skills: names });
+      const result = await apiCall('POST', '/install', { source: String(source || '').trim(), skills });
       const warnings = result.warnings?.length || 0;
       setToast({
         kind: warnings ? 'err' : 'ok',
@@ -166,7 +167,8 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     saveLinks,
     requestAddSkill,
     requestAddSubscription,
-    addSkill,
+    probeSkills,
+    installSkills,
     addSubscription,
     refreshSubscription,
     deleteSubscription,

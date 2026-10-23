@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   checkSkill,
+  fetchDefaultBranch,
   fetchTree,
   listSkillsFromTree,
   parseSource,
@@ -94,6 +95,23 @@ test('fetchTree: 401 / 404 都变成 error，不抛异常', async () => {
     fetchImpl: async () => new Response('rate limited', { status: 403 }),
   });
   assert.match(result.error, /HTTP 403/);
+});
+
+test('fetchDefaultBranch: 取默认分支；仓库不存在时返回 null', async () => {
+  const branch = await fetchDefaultBranch({
+    source: 'alchaincyf/huashu-design',
+    fetchImpl: async (url) => {
+      assert.match(url, /\/repos\/alchaincyf\/huashu-design$/);
+      return new Response(JSON.stringify({ default_branch: 'master' }), { status: 200 });
+    },
+  });
+  assert.equal(branch, 'master');
+
+  const missing = await fetchDefaultBranch({
+    source: 'o/r',
+    fetchImpl: async () => new Response('{"message":"Not Found"}', { status: 404 }),
+  });
+  assert.equal(missing, null);
 });
 
 test('planToken 对同一输入稳定、对变化敏感', () => {

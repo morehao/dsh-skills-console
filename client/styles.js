@@ -289,6 +289,10 @@ export const CSS = `
     border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); outline: none; }
   .dshsc-field input:focus { border-color: var(--dsw-alias-brand-primary);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent); }
+  /* 来源输入 + 检测按钮同一行；输入框吃掉剩余宽度，按钮不被挤压 */
+  .dshsc-inline { display: flex; gap: 6px; align-items: stretch; }
+  .dshsc-inline input { flex: 1; min-width: 0; }
+  .dshsc-inline .dshsc-btn { flex: none; }
 
   .dshsc-check { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 5px 8px; border-radius: 8px; cursor: pointer; }
   .dshsc-check:hover { background: var(--dsw-alias-bg-layer-1); }
@@ -306,6 +310,14 @@ export const CSS = `
   .dshsc-check input:disabled { opacity: .55; cursor: not-allowed; }
   .dshsc-check small { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .dshsc-check span { white-space: nowrap; }
+  /* 添加技能：每个技能一行，名字 + 两行描述 + 路径；描述太长时截断，不把弹窗撑高 */
+  .dshsc-skill { align-items: flex-start; }
+  .dshsc-skill input[type="checkbox"] { margin-top: 3px; }
+  .dshsc-skill-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+  .dshsc-skill-name { font-weight: 600; }
+  .dshsc-check .dshsc-skill-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; white-space: normal; line-height: 1.4; }
+  .dshsc-check .dshsc-skill-path { font-size: 11px; opacity: .75; }
 
   .dshsc-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
     padding: 4px; max-height: 300px; overflow: auto; display: flex; flex-direction: column; }

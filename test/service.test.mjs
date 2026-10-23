@@ -8,6 +8,7 @@ import { createPaths } from '../lib/core/paths.js';
 import { createRegistry } from '../lib/core/agents.js';
 import { createService } from '../lib/core/service.js';
 import { StateStore } from '../lib/core/state.js';
+import { snapshotId } from '../lib/core/updates.js';
 
 const TREE_SHA = 'e'.repeat(40);
 const COMMIT = 'f'.repeat(40);
@@ -33,7 +34,9 @@ if (args.includes('--version')) { console.log('1.7.4'); process.exit(0); }
 if (args[0] === 'add' && args.includes('--help')) { console.log('--json --full-depth --skill'); process.exit(0); }
 if (args[0] === 'list') { console.log('[]'); process.exit(0); }
 if (args[0] === 'add') {
-  const names = namesAfter('--skill');
+  let names = namesAfter('--skill');
+  // \`--skill '*'\` = 整仓全部；stub 固定回两个，方便断言"留空装全部"
+  if (names.includes('*')) names = ['all-one', 'all-two'];
   const lock = readLock();
   for (const name of names) {
     const dir = path.join(canonical, name);
@@ -52,7 +55,7 @@ if (args[0] === 'add') {
   }
   lock.version = 3;
   writeLock(lock);
-  console.log(JSON.stringify({ ok: true, installed: names }));
+  console.log(JSON.stringify(names.map((name) => ({ name, status: 'installed' }))));
   process.exit(0);
 }
 if (args[0] === 'remove') {
@@ -127,6 +130,21 @@ test('安装：canonical + lock 断言 + 默认建链 + 记账', async () => {
   const row = state.installs.find((item) => item.name === 'alpha');
   assert.equal(row.managed, true);
   assert.equal(row.visible, true, '可见列要能对上 canonical 条目');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('安装：技能名留空 → CLI 按 --skill * 装全部，并按输出里的真实结果记账', async () => {
+  const { root, home, paths, store, service } = setup();
+  const result = await service.install({ source: 'https://github.com/alchaincyf/huashu-design', skills: [] });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.installed.map((item) => item.name).sort(), ['all-one', 'all-two'], '以 CLI 输出为准');
+
+  for (const name of ['all-one', 'all-two']) {
+    assert.ok(fs.existsSync(path.join(paths.canonical, name, 'SKILL.md')), `${name} 要落进 canonical`);
+    assert.ok(fs.lstatSync(path.join(home, '.dsh', 'skills', name)).isSymbolicLink(), `${name} 要接入 dsh`);
+    assert.ok(store.findInstall(name), `${name} 要有 installs 记录`);
+  }
+  assert.equal(store.state.installs.length, 2);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -319,5 +337,249 @@ test('只读状态下的写操作被拒绝，也不会自动接管', async () =>
   assert.equal(state.readOnly, true);
   assert.equal(store.findInstall('gamma'), undefined, '只读时绝不对账写盘');
   assert.equal(state.installs.find((item) => item.name === 'gamma').status, 'unmanaged');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+// ---- 订阅：添加/刷新必须以「拿到快照」为前提（失败不能留下空壳）----------------
+
+const TREE_MAIN = [
+  { path: 'skills', type: 'tree', sha: '1'.repeat(40) },
+  { path: 'skills/alpha', type: 'tree', sha: '2'.repeat(40) },
+  { path: 'skills/alpha/SKILL.md', type: 'blob', sha: '3'.repeat(40) },
+];
+
+function jsonBody(body) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json', etag: 'W/"test"' },
+  });
+}
+
+/** 可控的 GitHub stub：按路径分派 repo 元数据 / trees / commits，并记录调用。 */
+function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT, contents = {} } = {}) {
+  const control = { defaultBranch, tree, commit, contents, fail: null };
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    if (control.fail === 'network') throw new Error('ECONNRESET');
+    // 探测会用 raw.githubusercontent.com 读 SKILL.md 补 frontmatter，不走 API 配额
+    if (String(url).startsWith('https://raw.githubusercontent.com/')) {
+      const parts = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
+      const filePath = parts.slice(3).join('/');
+      if (!(filePath in control.contents)) return new Response('not found', { status: 404 });
+      return new Response(control.contents[filePath], { status: 200 });
+    }
+    const { pathname } = new URL(url);
+    if (/^\/repos\/[^/]+\/[^/]+$/.test(pathname)) {
+      if (control.fail === 'metadata') return new Response('{"message":"Not Found"}', { status: 404 });
+      return jsonBody({ default_branch: control.defaultBranch });
+    }
+    if (pathname.includes('/git/trees/')) {
+      if (control.fail === 'tree') return new Response('{"message":"Not Found"}', { status: 404 });
+      return jsonBody({ sha: TREE_SHA, tree: control.tree, truncated: false });
+    }
+    if (pathname.includes('/commits/')) return jsonBody({ sha: control.commit });
+    return new Response('{"message":"Not Found"}', { status: 404 });
+  };
+  return { control, calls, fetchImpl };
+}
+
+test('添加订阅：上游报错时不落盘、接口抛错（回归：不能再出现空订阅）', async () => {
+  const gh = githubStub();
+  gh.control.fail = 'tree';
+  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  await assert.rejects(
+    () => service.addSubscription({ source: 'alchaincyf/huashu-design' }),
+    (error) => error.code === 'error.skills.upstream-failed' && /huashu-design/.test(error.message),
+  );
+  assert.equal(store.state.subscriptions.length, 0, 'state 里不能留下订阅');
+  assert.equal(fs.existsSync(paths.stateFile), false, '没成功之前不写 state.json');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('添加订阅：ref 缺省时跟随仓库默认分支（master + 根级 SKILL.md）', async () => {
+  const gh = githubStub({
+    defaultBranch: 'master',
+    tree: [{ path: 'SKILL.md', type: 'blob', sha: '4'.repeat(40) }],
+  });
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const result = await service.addSubscription({ source: 'https://github.com/alchaincyf/huashu-design' });
+  assert.equal(result.ok, true);
+  assert.equal(store.state.subscriptions.length, 1);
+
+  const row = store.state.subscriptions[0];
+  assert.equal(row.source, 'alchaincyf/huashu-design', '来源要归一成 owner/repo');
+  assert.equal(row.ref, 'master', '缺省 ref 要落成仓库默认分支');
+  assert.deepEqual(row.snapshot.entries.map((item) => item.name), ['huashu-design']);
+  assert.equal(row.snapshot.entries[0].skillPath, 'SKILL.md');
+  assert.equal(row.snapshot.entries[0].treeSha, TREE_SHA);
+  assert.equal(row.snapshot.commit, COMMIT);
+  assert.ok(gh.calls.some((url) => url.includes('/git/trees/master')), '必须按默认分支拉树');
+  assert.ok(!gh.calls.some((url) => url.includes('/git/trees/main')), '不能硬套 main');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('刷新订阅：上游失败要抛错，但保留上次快照并记下 lastCheck', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  const id = added.subscription.id;
+  const snapshot = structuredClone(store.state.subscriptions[0].snapshot);
+
+  gh.control.fail = 'tree';
+  await assert.rejects(
+    () => service.refreshSubscription({ id }),
+    (error) => error.code === 'error.skills.upstream-failed',
+  );
+
+  const row = store.state.subscriptions[0];
+  assert.deepEqual(row.snapshot, snapshot, '失败不能清空已有快照');
+  assert.equal(row.lastCheck.status, 'unknown');
+  assert.match(row.lastCheck.detail, /404/);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('添加订阅：同一来源重复添加幂等', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const first = await service.addSubscription({ source: 'morehao/ai-kit' });
+  const second = await service.addSubscription({ source: 'morehao/ai-kit' });
+  assert.equal(second.existing, true);
+  assert.equal(second.subscription.id, first.subscription.id);
+  assert.equal(store.state.subscriptions.length, 1);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('添加订阅：老版本失败留下的空订阅会被补全，而不是继续留空壳', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  // 旧版本的 id 用原始 URL 计算，source 已归一；补全时要认得出是同一条
+  const id = snapshotId({ source: 'https://github.com/morehao/ai-kit', ref: null, subpath: null });
+  store.update((draft) => {
+    draft.subscriptions.push({
+      id,
+      source: 'morehao/ai-kit',
+      ref: null,
+      subpath: null,
+      skills: '*',
+      lastCheck: null,
+      snapshot: null,
+    });
+  });
+
+  const result = await service.addSubscription({ source: 'https://github.com/morehao/ai-kit' });
+  assert.equal(result.subscription.id, id);
+  assert.equal(store.state.subscriptions.length, 1, '补全而不是新增一条');
+  assert.equal(result.subscription.snapshot?.entries?.length, 1);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('添加订阅：仓库里没有 SKILL.md 时按失败处理，不落空订阅', async () => {
+  const gh = githubStub({ tree: [{ path: 'README.md', type: 'blob', sha: '9'.repeat(40) }] });
+  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  await assert.rejects(
+    () => service.addSubscription({ source: 'morehao/empty-kit' }),
+    (error) => error.code === 'error.skills.no-skills',
+  );
+  assert.equal(store.state.subscriptions.length, 0);
+  assert.equal(fs.existsSync(paths.stateFile), false, '没成功之前不写 state.json');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：只读列出技能（多选数据源），不写 state、不建订阅', async () => {
+  const gh = githubStub({
+    defaultBranch: 'master',
+    tree: [
+      { path: 'skills/alpha/SKILL.md', type: 'blob', sha: 'a'.repeat(40) },
+      { path: 'skills/beta/SKILL.md', type: 'blob', sha: 'b'.repeat(40) },
+      { path: 'README.md', type: 'blob', sha: 'c'.repeat(40) },
+    ],
+  });
+  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const result = await service.probeSource({ source: 'https://github.com/alchaincyf/huashu-design' });
+  assert.equal(result.ok, true);
+  assert.equal(result.source, 'alchaincyf/huashu-design', '来源归一成 owner/repo');
+  assert.equal(result.ref, 'master', '缺省 ref 跟随默认分支');
+  assert.deepEqual(result.skills.map((item) => item.name), ['alpha', 'beta']);
+  assert.deepEqual(
+    result.skills.map((item) => item.skillPath),
+    ['skills/alpha/SKILL.md', 'skills/beta/SKILL.md'],
+  );
+  assert.equal(store.state.subscriptions.length, 0, '探测不能建订阅');
+  assert.equal(fs.existsSync(paths.stateFile), false, '探测不能写 state.json');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：用 frontmatter 的 name/description（CLI 按 name 安装），缺字段的跳过', async () => {
+  const gh = githubStub({
+    tree: [
+      { path: 'skills/folder-a/SKILL.md', type: 'blob', sha: '1'.repeat(40) },
+      { path: 'skills/folder-b/SKILL.md', type: 'blob', sha: '2'.repeat(40) },
+      { path: 'skills/broken/SKILL.md', type: 'blob', sha: '3'.repeat(40) },
+    ],
+    contents: {
+      'skills/folder-a/SKILL.md': '---\nname: alpha\ndescription: 甲技能\n---\n\n# alpha\n',
+      'skills/folder-b/SKILL.md': '---\nname: "beta"\ndescription: >\n  乙技能\n  跨行描述\n---\n',
+      'skills/broken/SKILL.md': '---\nname: broken\n---\n',
+    },
+  });
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const result = await service.probeSource({ source: 'morehao/agent-skills' });
+  assert.deepEqual(result.skills.map((item) => item.name), ['alpha', 'beta'], '用 frontmatter name，与 CLI 一致');
+  assert.equal(result.skills[0].description, '甲技能');
+  assert.equal(result.skills[1].description, '乙技能 跨行描述', '折叠块拼成一行');
+  assert.equal(result.skipped, 1, '缺 description 的按 CLI 规则跳过');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：非法来源报 bad-source，不发请求', async () => {
+  const { root, service } = setup();
+  await assert.rejects(
+    () => service.probeSource({ source: 'not a repo' }),
+    (error) => error.code === 'error.skills.bad-source',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：并发与重复探测复用结果，不重复请求', async () => {
+  const gh = githubStub({
+    tree: [
+      { path: 'SKILL.md', type: 'blob', sha: '5'.repeat(40) },
+      { path: 'skills/alpha/SKILL.md', type: 'blob', sha: '6'.repeat(40) },
+    ],
+  });
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const [first, second] = await Promise.all([
+    service.probeSource({ source: 'morehao/agent-skills' }),
+    service.probeSource({ source: 'https://github.com/morehao/agent-skills' }),
+  ]);
+  assert.deepEqual(first.skills, second.skills, '并发请求拿到同一份结果');
+  const apiCalls = () => gh.calls.filter((url) => url.startsWith('https://api.github.com')).length;
+  assert.equal(apiCalls(), 2, '元数据 + 文件树各一次，并发只探测一次');
+
+  const totalCalls = gh.calls.length;
+  const third = await service.probeSource({ source: 'morehao/agent-skills' });
+  assert.equal(gh.calls.length, totalCalls, '60 秒内重复探测命中缓存，不再发请求');
+  assert.deepEqual(third.skills, first.skills);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：失败不进缓存，重试会重新请求', async () => {
+  const gh = githubStub({ tree: [{ path: 'SKILL.md', type: 'blob', sha: '7'.repeat(40) }] });
+  gh.control.fail = 'network';
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  await assert.rejects(() => service.probeSource({ source: 'morehao/agent-skills' }), /读不到 .* 的默认分支/);
+  const callsAfterFailure = gh.calls.length;
+  gh.control.fail = null;
+  const result = await service.probeSource({ source: 'morehao/agent-skills' });
+  assert.equal(result.ok, true, '重试能成功');
+  assert.ok(gh.calls.length > callsAfterFailure, '失败没有留下缓存');
   fs.rmSync(root, { recursive: true, force: true });
 });

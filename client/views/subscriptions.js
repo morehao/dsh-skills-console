@@ -31,7 +31,7 @@ export function SubscriptionsTab({
           onClick: () => onToggle(subscription.id),
         }, h(CaretIcon, { open })),
         h('span', { className: 'dshsc-name' }, subscription.source),
-        h('span', { className: 'dshsc-tag' }, subscription.ref || 'default'),
+        h('span', { className: 'dshsc-tag' }, subscription.ref || t('subscription.defaultRef')),
         h('span', { className: 'dshsc-substat' },
           `${entries.length} ${t('skillCount')} · ${t('installed')} ${installedNames.size}`),
         h('div', { className: 'dshsc-actions' },
