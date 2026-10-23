@@ -20,9 +20,8 @@
 | 我要做什么 | 跳到 |
 |---|---|
 | 发个新版本（99% 的情况） | §4（升版本 → PR → 注记 tag → 看 CI） |
-| 新包名第一次发布 / 改名 / 换机器 | §3（一次性：建包 + 配 TP） |
+| 首次发布（新包名）/ 换机器 | §3（一次性：建包 + 配 TP） |
 | 发布成功了但 npm 上看不到 | §5 + §6（先等几分钟，看单版本端点；packument 更慢） |
-| 旧包要不要 deprecate / unpublish | §6 末节「旧包：deprecate 还是 unpublish」 |
 | 改 workflow / 发布脚本 | §7（先读约束） |
 
 ## 2. 链路总览
@@ -97,7 +96,7 @@ npm trust github @morehao/dsh-skills-console \
 | 参数 | 必须这样填 | 填错的后果 |
 |---|---|---|
 | `--file` | `release.yml`（**文件名**，不是路径） | 与 workflow 的 `name:` 对不上 → OIDC 被拒 |
-| `--repo` | `morehao/dsh-skills-console`（**改名后的仓库名**） | 仓库改过名还填旧名 → OIDC 被拒 |
+| `--repo` | `morehao/dsh-skills-console`（**仓库全名**） | 与 npm 里填的 Repository 不一致 → OIDC 被拒 |
 | `--allow-publish` | 必须带 | 默认只给 `stage publish`，CI 直接 `npm publish` 会被 403 拒 |
 
 成功输出关键行（记录下来，便于日后核对）：
@@ -133,17 +132,6 @@ grep -q 'registry.npmjs.org/:_authToken' ~/.npmrc && echo '还有 token，检查
 ```
 
 之后只剩 CI 的 OIDC，本机不再持有任何可发布的凭据。
-
-### 3.5 改名 / 换包名时的额外清单（2026-10 实操已验证）
-
-| # | 动作 | 注意 |
-|---|---|---|
-| 1 | GitHub 仓库改名，`git remote set-url origin …` | 旧 URL 会 301，但 **TP 的 Repository 必须填新名** |
-| 2 | `package.json` / `cordis.patch.yml` / `lib/index.js` / 路由前缀 / state 目录 / env / CSS 前缀 | 三处命名由 `npm run check` 守住；旧名不兼容就别写兼容层 |
-| 3 | 按 §3.1–3.2 建**新包名** + 配 TP | 顺序不能颠倒：先有包，才能配 TP |
-| 4 | 旧包：`npm deprecate @旧包@版本 "已重命名…"` | 旧包若已从 registry 消失，这条会 404，见 §6 末节 |
-| 5 | 本机 `link:` 接入的 profile | `package.json` 依赖键与 `link:` 路径都要换，否则 bundle 静默不加载 |
-| 6 | 是否搬状态目录 | 新名读不到旧目录只会「降级成待接管」，不会误删；想保住账本就 `mv` 旧目录到新目录 |
 
 ## 4. 日常发新版
 
@@ -187,7 +175,7 @@ git push origin v0.2.0
 
 **发布失败不要删 tag 重打**：`ci-publish.sh` 最多尝试 3 次（第 n 次失败等 n×30s，每次失败先回读 registry），registry 恢复后 `gh run rerun <run-id>` 即可；版本存在即跳过，重跑不会重复发布。
 
-> 反面教材：本仓 `v0.2.0` 的注记就是漏了 `--cleanup=verbatim` 打的，`## 本次发布`、`### 迁移` 等以 `#` 开头的行被 `strip` 全部吃掉，Release 正文只剩段落和表格。打之前用 `git for-each-ref --format='%(contents)' refs/tags/vX.Y.Z | head` 自查一眼。
+> 反面教材：本仓 `v0.2.0` 的注记就是漏了 `--cleanup=verbatim` 打的，`## 本次发布`、`### 新增` 等以 `#` 开头的行被 `strip` 全部吃掉，Release 正文只剩段落和表格。打之前用 `git for-each-ref --format='%(contents)' refs/tags/vX.Y.Z | head` 自查一眼。
 
 ## 5. 发布后验证
 
@@ -245,18 +233,9 @@ done
 | 发布成功但 `npm view` 还是旧版本号 | 读端点 CDN 缓存 | 用 `/-/package/<name>/dist-tags` 与单版本端点，别用完整 packument 判断 |
 | `publish` 绿色但没发出去 | `@actions/exec` 不做 shell 解析，`a && b` 只执行 `a` | workflow 里只用单一命令 `bash ./scripts/ci-publish.sh` |
 | 发布成功但没有 Release | 注记 tag 没正文（轻量 tag / 只有首行） | 本地 `node scripts/release-notes.mjs vX.Y.Z` 复现；补注记后重跑该 run |
-| `npm deprecate` 404 | 包在 npmjs 上不存在（被下架/从未落成），或 token 无写权限 | 先 `curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/@morehao%2F<包名>`；404 就别再试 deprecate（见下节） |
-| 装旧名仍成功 | 你用的源是 npmmirror，镜像对「删除」有同步延迟 | 判断真实状态一律 `--registry https://registry.npmjs.org` |
+| `npm deprecate` 404 | 包在 npmjs 上不存在（被下架/从未落成），或 token 无写权限 | 先 `curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/@morehao%2F<包名>`；404 就别再试 deprecate |
 | 本地 `npm login` 弹 CNPM/npmmirror | 全局 registry 是 npmmirror | 所有命令显式 `--registry https://registry.npmjs.org` |
 | `npm pack` 报 `EPERM ~/.npm/_cacache` | `~/.npm` 里有 root 属主文件 | `check-pack.mjs` 已用临时 cache 规避；手动跑可 `sudo chown -R $(id -u):$(id -g) ~/.npm` |
-
-### 旧包：deprecate 还是 unpublish
-
-- **deprecate（推荐先做）**：安装旧名的人会看到警告，包还能装。命令：
-  `npm deprecate @morehao/dsh-skills-manager@0.1.0 "已重命名为 @morehao/dsh-skills-console，请迁移"`
-- **unpublish（更彻底）**：npm 的规则是「发布 72h 内可自由下架」；超过 72h 需同时满足**无其他包依赖 + 近一周下载 < 300 + 单一 owner**，否则只能 deprecate。下架后同 `name@version` 永久不可重发。
-- **两者都可能做不了**：如果包在 registry 上已经 404（下架过了 / 首发布没落成），deprecate 也会 404。此时旧名安装直接失败，效果比 deprecate 更强；**不要为了「有个 deprecate 记录」去重新发布旧名**。
-- npmmirror 等镜像对删除有延迟，镜像上可能还能装到旧版——这不是 npmjs 的真实状态，无法从本机干预。
 
 ## 7. 本仓 CI 约定（改 workflow 前先看）
 
@@ -285,7 +264,7 @@ done
 | `cordis.patch.yml` | 插件注册 patch（`id` / `name` 与包名、`export const name` 三处一致） |
 | `AGENTS.md` · `docs/agents/verification-release.md` | agent 侧硬约束与提交前检查矩阵 |
 
-## 9. 实操记录：2026-10-23 改名后的 0.2.0 首发
+## 9. 实操记录：2026-10-23 的 0.2.0 首发
 
 用于校准预期，不代表固定流程。
 
@@ -296,4 +275,3 @@ done
 | 18:17:47 | 推注记 tag `v0.2.0` | run 39938083185 |
 | 18:18:05 | CI OIDC 发布 0.2.0 + 建 Release | `+ @morehao/dsh-skills-console@0.2.0`，provenance 已签 |
 | 18:20:39 | 单版本端点转 200；`dist-tags.latest=0.2.0` | 约 2.5 分钟 processing 窗口 |
-| — | 旧包 `@morehao/dsh-skills-manager` 在 npmjs 已 404 | packument 与 `/0.1.0` 都 404；`npm access list packages` 无此包；`npm deprecate` 实测 E404。镜像仍残留 0.1.0 |

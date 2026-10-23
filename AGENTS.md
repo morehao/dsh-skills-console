@@ -41,7 +41,7 @@
 - **不接收任意路径**：`target` 一律走注册表反查；软链目标恒为 canonical 下同名目录；请求体路径参数不得直接拼到文件系统。
 - **state 只读降级**：坏 JSON / 未知版本 → `readOnly=true` 且写接口 409，**不 fail-open、不猜结构、不自动修复**。
 - **启停不改正文**：`mode: on/off` 只增删 DSH 侧链接，不编辑 `SKILL.md`（`add` 会整份覆盖，改文件还会让更新被锁死）。
-- **不碰别人的东西**：本机可能并存 `@michengai/dsh-skills-manager`（显示名「技能管理」）。两者已天然隔离（id / 路由前缀 / state 目录各不相同）；原则是**永不与他人共用路由前缀与状态目录**，也不要为了「统一命名」去凑别人的前缀。
+- **不碰别人的东西**：本机可能并存其他同类技能插件。与本插件无关的插件一律不共用路由前缀与状态目录；也不要为了「统一命名」去凑别人的前缀。
 
 ### 测试与环境
 
@@ -68,7 +68,7 @@
 - `main` 不直推；**升版本也走分支 + PR**。tag 打在合并后的 `main`，去掉 `v` 必须等于 `package.json.version`。
 - GitHub Release 由 CI 在 npm 发布成功后创建，正文取自**注记** tag；`gh release create` 必须留在 [.github/workflows/release.yml](.github/workflows/release.yml)（git-kit 的 `/git-release` 预检靠它判定后效），不要挪进 `scripts/`。
 - `release.yml` 的 `name:` 必须等于文件名 `release.yml`（与 npm Trusted Publisher 的 Workflow 字段精确匹配）；发布 job 需 `id-token: write`，且**不要**设 `NODE_AUTH_TOKEN`（会覆盖 OIDC）。
-- workflow 用 `actions/checkout@v7` + `actions/setup-node@v7`：**不设 `registry-url`**（v7 移除了 dummy `NODE_AUTH_TOKEN` 兜底，registry 由 `ci-publish.sh` 显式 `--registry` 指定），并显式 `package-manager-cache: false`；`runs-on` 钉 `ubuntu-24.04`（不用 `ubuntu-latest`，避免 26.04 迁移把镜像差异混进校验与发布结果）。完整发布流程见 [docs/publishing.md](docs/publishing.md)。
+- workflow 用 `actions/checkout@v7` + `actions/setup-node@v7`：**不设 `registry-url`**（v7 移除了 dummy `NODE_AUTH_TOKEN` 兜底，registry 由 `ci-publish.sh` 显式 `--registry` 指定），并显式 `package-manager-cache: false`；`runs-on` 钉 `ubuntu-24.04`（不用 `ubuntu-latest`，避免 26.04 升级把镜像差异混进校验与发布结果）。完整发布流程见 [docs/publishing.md](docs/publishing.md)。
 
 ### 文档
 
@@ -84,7 +84,7 @@
 | 监听源码并自动重建（配合 `link:` HMR） | `npm run dev:client` |
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
-| 单元测试（80 例，离线） | `npm test` |
+| 单元测试（79 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |

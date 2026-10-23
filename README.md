@@ -57,8 +57,6 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 客户端 half 只注册 `platform: web`，面板出现在 DSH Web 的设置页 / 侧栏。
 
-> 本机可能还装着 `@michengai/dsh-skills-manager`（显示名「技能管理」）。两者互不干扰（路由前缀 `/api/morehao/skills-console/*`、状态目录 `$DSH_HOME/skills-console/` 都不同），但会各出一个设置分区；只想留一个时把另一个 `plugin_manager set_plugin enabled:false` 即可。
-
 ## 快速上手
 
 1. **添加技能**：点右上角「添加技能」，填 `owner/repo`（需要的话再列出技能名），确认即可。安装完成后会在列表里出现。
@@ -66,7 +64,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 3. **检查更新**：点列表头上的刷新图标；有更新的行会亮起「更新」，也可以一次「全部更新」。本地改过的技能会先要求确认。
 4. **临时停用**：关掉行内开关。DSH 看不到它，但文件和其他 Agent 的接入都还在；再打开就恢复。
 
-## 设计约束
+## 可靠性
 
 - **canonical 与 CLI lock 只读**：`~/.agents/skills`、`~/.agents/.skill-lock.json` 的增删改只经 `skills` CLI，插件不直接写、不克隆仓库、不代理来源。
 - **只动自己的东西**：只处理本插件创建的 `managed` 链接，以及已记账的 `managed-external`；`real` 目录和 `foreign-link` 永不改写，删除前体检直接中止。
@@ -88,43 +86,9 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 环境变量：`DSH_SKILLS_CONSOLE_HOME`、`DSH_SKILLS_CONSOLE_CLI`、`DSH_SKILLS_CONSOLE_NPX_SPEC`、`DSH_SKILLS_CONSOLE_TIMEOUT_MS`、`GITHUB_TOKEN` / `GH_TOKEN`。
 
-## 开发
+## 开发与发布
 
-```bash
-npm install            # 只装构建期依赖（esbuild）；运行时依赖仍为零
-npm run build:client   # 从 client/ 生成根 client.js（生成物要提交，不要手改）
-npm run dev:client     # 监听 client/ 自动重建（配合 link: 接入，改完刷新即可）
-npm test               # node --test，80 个离线用例，临时 HOME / DSH_HOME，不碰真实目录
-npm run check          # 语法自检 + 生成物一致性 + 命名/导出接线 + 打包白名单 + Release 说明投影冒烟
-npm run sync:agents -- <skills/dist/cli.mjs>   # 重新导出 agent 目录表（默认写回 lib/agent-table.json）
-```
-
-Web Client 的源码在 `client/`（`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app`），仓根 `client.js` 是 `npm run build:client` 的产物；只改产物不改源码，`npm run check` 会直接红。
-
-目录结构、测试策略与调试手段见 [docs/development.md](docs/development.md)；在本仓工作的 AI agent 请先读 [AGENTS.md](AGENTS.md)。
-
-## 发布
-
-打注记 tag `vX.Y.Z` → GitHub Actions（OIDC / Trusted Publishing）自动发布到 npm → 用 tag 注记正文建 GitHub Release，不需要任何 npm token。
-
-```bash
-# 升版本走分支 + PR；合并后在 main 最新提交上打注记 tag（正文就是 Release body）
-git tag -a v0.2.0 -m "release: v0.2.0
-<变更说明>"
-git push origin v0.2.0
-```
-
-完整流程、一次性建包配置与排障清单见 [docs/publishing.md](docs/publishing.md)。
-
-## 从 `dsh-skills-manager` 迁移
-
-`v0.2.0` 起包名、插件 id、路由前缀、状态目录与环境变量统一改为 `skills-console`，**不提供兼容读旧值**。保住旧账本（订阅、回收站、链接记录、版本缓存）只需搬一次目录：
-
-```bash
-mv ~/.dsh/skills-manager ~/.dsh/skills-console
-```
-
-完整对照、不搬的后果与安装侧改动见 [docs/migration-from-skills-manager.md](docs/migration-from-skills-manager.md)。
+源码结构、测试策略与调试手段见 [docs/development.md](docs/development.md)；发布流程与排障清单见 [docs/publishing.md](docs/publishing.md)。在本仓工作的 AI agent 请先读 [AGENTS.md](AGENTS.md)。
 
 ## 边界（明确不做）
 

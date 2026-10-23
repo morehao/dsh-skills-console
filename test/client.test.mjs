@@ -329,7 +329,7 @@ test('渲染：三个技能、状态标签、tab 计数、操作列四件套', a
   assert.ok(!labels.includes('删除'), '删除不再占文字宽度');
   assert.ok(!labels.includes('检查更新'), '检查更新不再占文字宽度');
   assert.ok(labels.some((label) => label.startsWith('全部更新')), '有可更新行时要出现「全部更新 · n」');
-  assert.ok(!labels.includes('刷新'), '「刷新」已改名为「检查更新」');
+  assert.ok(!labels.includes('刷新'), '「刷新」已统一为「检查更新」');
   const switches = collectButtons(second.tree).filter((button) => button.props.role === 'switch');
   assert.equal(switches.length, 3, '每个技能一个启停开关');
   assert.equal(switches[2].props['aria-checked'], 'false', '停用的技能开关应为关');
@@ -913,7 +913,7 @@ test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给�
   );
   assert.ok(named('检查更新'), '订阅行要有「检查更新」图标按钮');
   assert.ok(labels.includes('取消订阅'), '订阅行要有「取消订阅」');
-  assert.ok(textOf(tree).includes('已安装'), '「已装」统一改名为「已安装」');
+  assert.ok(textOf(tree).includes('已安装'), '「已装」统一为「已安装」');
   assert.ok(!labels.includes('⋯'), '不使用折叠菜单');
 
   const caret = collectButtons(tree).find((button) => String(button.props.className || '').includes('dshsc-caret'));

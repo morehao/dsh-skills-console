@@ -43,6 +43,6 @@ jobs:
       - name: 机械校验（npm run check）
         run: npm run check
 
-      # 80 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
+      # 79 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
       - name: 单元测试
         run: npm test
