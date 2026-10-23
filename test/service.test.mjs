@@ -143,7 +143,7 @@ test('作用范围：/state 带出可选的 DSH 工作区', async () => {
   fs.rmSync(broken.root, { recursive: true, force: true });
 });
 
-test('自动链接：只接入勾选的已探测 Agent，dsh 全局必选', async () => {
+test('自动接入：只接入勾选的已探测 Agent，dsh 全局必选', async () => {
   const { root, home, paths, store, service } = setup();
   fs.mkdirSync(path.join(home, '.codebuddy', 'skills'), { recursive: true });
 
@@ -221,7 +221,7 @@ test('删除：体检拦截真实目录；通过后进回收站并清记账', as
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('Agent 目录被删：链接记录保留但清单忽略，自动链接不重建', async () => {
+test('Agent 目录被删：链接记录保留但清单忽略，自动接入不重建', async () => {
   const { root, home, store, service } = setup();
   await service.install({
     source: 'morehao/ai-kit',
@@ -240,7 +240,7 @@ test('Agent 目录被删：链接记录保留但清单忽略，自动链接不�
   );
 
   await service.install({ source: 'morehao/ai-kit', skills: ['beta'] });
-  assert.equal(fs.existsSync(path.join(home, '.claude')), false, '自动链接不能凭空重建已删目录');
+  assert.equal(fs.existsSync(path.join(home, '.claude')), false, '自动接入不能凭空重建已删目录');
   fs.rmSync(root, { recursive: true, force: true });
 });
 

@@ -8,7 +8,21 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react');
     const h = React.createElement;
+    // 悬浮气泡要挂到 body 上，才能逃出列表的 overflow 裁切；老宿主没暴露 react-dom 时退回内联渲染。
+    let ReactDOM = null;
+    try {
+      ReactDOM = require('react-dom');
+    } catch {
+      ReactDOM = null;
+    }
     const API = '/api/morehao/skills-console';
+
+    // 浮层（设置面板 / Agent 气泡）统一走 portal：列表和页面的 overflow 都裁不到
+    function portalize(node) {
+      return ReactDOM?.createPortal && typeof document !== 'undefined' && document.body
+        ? ReactDOM.createPortal(node, document.body)
+        : node;
+    }
 
     const DICT = {
       zh: {
@@ -37,7 +51,7 @@ window.__ModuleLoader__.load({
         'action.retry': '重新加载',
         'view.flat': '平铺',
         'view.agent': '按 Agent',
-        autoLink: '自动链接',
+        autoLink: '自动接入',
         'settings.title': '插件设置',
         'version.label': '当前版本',
         'placement.label': '侧边栏入口',
@@ -51,24 +65,24 @@ window.__ModuleLoader__.load({
         'status.local': '本地已改',
         'status.conflict': '本地已改 + 上游已变',
         'status.deleted': '上游已移除',
-        'status.broken': '异常：链接断裂',
+        'status.broken': '异常：软链断裂',
         'status.unmanaged': '未纳入追踪',
         'status.unknown': '待检查',
         'status.off': '已停用',
-        'status.brokenHint': '链接目标不存在：重新接入，或删除后重装',
+        'status.brokenHint': '软链目标不存在：重新接入，或删除后重装',
         'adopt.switchHint': '还未纳入追踪，不能启停',
         'adopt.noUpstream': '没有远端来源，暂时无法检测更新',
         'toast.checked': '检查完成',
         'mode.on': '启用',
         'mode.off': '停用',
-        'mode.offHint': '停用中：DSH 看不到它，但已链接的其他 Agent 照常可用',
+        'mode.offHint': '停用中：DSH 看不到它，但已接入的其他 Agent 照常可用',
         'links.dshGlobal': 'dsh（全局）',
         'links.required': '必选',
         'links.scope': '在 DSH 里的作用范围',
         'links.scopeGlobal': '全局（默认）',
         'links.scopeProjects': '仅以下项目',
-        'links.targets': '链接到哪些 Agent',
-        'links.detectedHint': '只显示本机已安装（目录存在）的 Agent；已删除的 Agent 会从列表消失，旧链接记录保留但不展示。',
+        'links.targets': '接入到哪些 Agent',
+        'links.detectedHint': '只显示本机已安装（目录存在）的 Agent；已删除的会从列表消失，旧接入记录保留但不展示。',
         'links.canonical': '技能本体：{path}；下面列的是各 Agent 的接入目录（软链目标）。',
         'links.workspaces': 'DSH 工作区',
         'links.noWorkspaces': '还没有 DSH 工作区，可以点下面「选择其他目录」',
@@ -77,7 +91,7 @@ window.__ModuleLoader__.load({
         'links.hint': '保存后按勾选建立或移除接入；技能本体保留在原位置，不会移动。',
         'autoLink.detected': '安装后自动接入',
         'autoLink.none': '本机没有检测到其他 Agent',
-        'autoLink.hint': 'dsh（全局）始终接入；这里只影响之后安装时自动建链，已安装的技能请在「接入设置」里改。',
+        'autoLink.hint': 'dsh（全局）始终接入；这里只影响之后安装时的自动接入，已安装的技能请在「接入设置」里改。',
         'empty.skills': '还没有安装任何技能',
         'empty.skillsHint': '在终端跑 `npx skills add owner/repo`，或点右上角「添加技能」',
         'empty.subs': '还没有添加订阅',
@@ -90,10 +104,10 @@ window.__ModuleLoader__.load({
         'form.skills': '技能名（多个用逗号分隔）',
         'form.ref': 'ref（分支 / tag，可空）',
         'form.subpath': '子目录（可空）',
-        'form.hint': '会立即下载并写入 ~/.agents/skills，并按「自动链接」设置接入 Agent。',
+        'form.hint': '会立即下载并写入 ~/.agents/skills，并按「自动接入」设置接到对应 Agent。',
         'form.subHint': '只记录你关注这个仓库，不会安装任何技能。',
         'confirm.deleteTitle': '删除技能',
-        'confirm.deleteBody': '会从本机移除，断开本插件建的链接并调 skills CLI 卸载；目录先备份到回收站（保留 7 天）。不会删除你的源仓库。',
+        'confirm.deleteBody': '会从本机移除，断开本插件建立的软链并调 skills CLI 卸载；目录先备份到回收站（保留 7 天）。不会删除你的源仓库。',
         'confirm.updateTitle': '本地有改动',
         'confirm.updateBody': '更新会覆盖这些本地改动；旧内容已备份，可回滚。',
         'error.conflictTitle': '删除被拦截',
@@ -103,6 +117,7 @@ window.__ModuleLoader__.load({
         'meta.unlinked': '未接入任何 Agent',
         'meta.scope': '范围',
         'meta.onlyProject': '仅',
+        'meta.agentsAll': '已接入的 Agent',
         'meta.none': '无',
         'filter.all': '全部',
         'filter.update': '可更新',
@@ -122,8 +137,10 @@ window.__ModuleLoader__.load({
         notInstalled: '未安装',
         skillCount: '个技能',
         visibleOnly: '模型可见，但不在本地技能库',
-        visibleOnlyOther: 'DSH 能看到，但不在本地技能库',
-        visibleOnlyBuiltin: 'DSH 自带技能（本插件不管理）',
+        visibleOnlyOther: 'DSH 能看到，但不在 ~/.agents/skills',
+        visibleOnlyBuiltin: '本插件仅管理 ~/.agents/skills 下的技能，DSH 内置技能不在管理范围内',
+        'builtin.view': '查看内置技能（{n}）',
+        'builtin.hide': '收起内置技能',
         external: '非本插件创建',
       },
       en: {
@@ -217,6 +234,7 @@ window.__ModuleLoader__.load({
         'meta.unlinked': 'not linked to any agent',
         'meta.scope': 'scope',
         'meta.onlyProject': 'only',
+        'meta.agentsAll': 'Connected agents',
         'meta.none': 'none',
         'filter.all': 'All',
         'filter.update': 'Updates',
@@ -236,8 +254,10 @@ window.__ModuleLoader__.load({
         notInstalled: 'not installed',
         skillCount: 'skills',
         visibleOnly: 'Visible to the model but not in the local skill library',
-        visibleOnlyOther: 'DSH can see these, but they are not in the local skill library',
-        visibleOnlyBuiltin: 'Shipped with DSH (this plugin does not manage them)',
+        visibleOnlyOther: 'DSH can see these, but they are not under ~/.agents/skills',
+        visibleOnlyBuiltin: 'This plugin only manages skills under ~/.agents/skills; DSH built-in skills are out of scope',
+        'builtin.view': 'View built-ins ({n})',
+        'builtin.hide': 'Hide built-ins',
         external: 'created outside this plugin',
         'adopt.done': 'now tracked',
       },
@@ -270,19 +290,20 @@ window.__ModuleLoader__.load({
       .dshsc-idsep { flex: none; font-size: 10px; color: var(--dsw-alias-border-l3); }
       .dshsc-ver { flex: none; font-size: 11px; line-height: 1; color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
 
-      .dshsc-pills { display: inline-flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; }
-      .dshsc-pill { display: inline-flex; align-items: center; gap: 6px; flex: none; cursor: pointer;
-        box-sizing: border-box; height: 28px; padding: 0 10px; white-space: nowrap; text-decoration: none;
-        font: inherit; font-size: 12px; line-height: 18px; border-radius: 999px;
-        border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2);
-        color: var(--dsw-alias-label-secondary);
-        transition: border-color .12s ease, color .12s ease, background .12s ease; }
-      .dshsc-pill:hover { border-color: var(--dsw-alias-label-secondary); color: var(--dsw-alias-label-primary); }
-      .dshsc-pill:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
-      .dshsc-pill[aria-expanded="true"] { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-3); }
-      .dshsc-pill-ext { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+      /* 插件级工具（设置 / GitHub）：跟在身份胶囊后面，用细线分组；鬼影按钮不和业务按钮抢权重 */
+      .dshsc-tools { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: 2px;
+        padding-left: 9px; border-left: 1px solid var(--dsw-alias-border-l1); }
+      .dshsc-tool { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+        width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent;
+        color: var(--dsw-alias-label-secondary); cursor: pointer; text-decoration: none;
+        transition: background .12s ease, color .12s ease; }
+      .dshsc-tool:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+      .dshsc-tool:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+      .dshsc-tool[aria-expanded="true"] { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
       .dshsc-settings { position: relative; display: inline-flex; }
-      .dshsc-pop { position: absolute; top: calc(100% + 8px); right: 0; left: auto; z-index: 30; width: 286px;
+      /* 设置面板留在 Host 对话框内（焦点陷阱 / 层级都跟着走）；开启时按左右余量选边和宽度 */
+      .dshsc-pop { position: absolute; top: calc(100% + 8px); z-index: 30; box-sizing: border-box;
+        max-width: calc(100vw - 16px); max-height: calc(100vh - 24px); overflow: auto;
         display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px;
         border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2);
         box-shadow: 0 16px 40px rgba(0, 0, 0, .35); }
@@ -397,13 +418,31 @@ window.__ModuleLoader__.load({
         background: color-mix(in srgb, var(--dsw-alias-brand-primary) 10%, transparent); }
       .dshsc-agent .dshsc-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .8; }
       .dshsc-agent.more, .dshsc-agent.scope { border-style: dashed; background: transparent; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-agent.more { margin: 0; font: inherit; font-size: 11px; line-height: 1; cursor: pointer;
+        -webkit-appearance: none; appearance: none; }
+      .dshsc-agent.more:hover { color: var(--dsw-alias-label-primary); border-color: var(--dsw-alias-label-tertiary); }
+      .dshsc-agent.more[aria-expanded="true"] { color: var(--dsw-alias-label-primary);
+        border-color: var(--dsw-alias-border-l3); background: var(--dsw-alias-bg-layer-2); }
+      .dshsc-agent.more:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
       .dshsc-unlinked { font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
+
+      /* “+n” 的悬浮气泡：portal 到 body + fixed 定位，列表的 overflow:hidden 裁不到 */
+      .dshsc-agenttip { position: fixed; z-index: 10000; box-sizing: border-box; width: max-content;
+        max-width: min(340px, calc(100vw - 24px)); padding: 9px 10px; display: flex; flex-direction: column; gap: 7px;
+        border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: var(--dsw-alias-bg-layer-2);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, .32), 0 2px 6px rgba(0, 0, 0, .18); pointer-events: none; }
+      .dshsc-agenttip-head { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        font-size: 10.5px; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-agenttip-n { min-width: 16px; height: 15px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
+        background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 20%, transparent);
+        color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 15px; text-align: center;
+        font-variant-numeric: tabular-nums; }
+      .dshsc-agenttip-list { display: flex; flex-wrap: wrap; gap: 4px; }
 
       .dshsc-row .dshsc-actions { display: flex; align-items: center; justify-content: flex-end; gap: 2px; flex-wrap: nowrap; }
       .dshsc-row .dshsc-btn { display: inline-flex; align-items: center; justify-content: center; height: 24px;
         padding: 0 7px; font-size: 11.5px; border-radius: 6px; }
-      /* 图标按钮：插件设置 / GitHub 28px；行内删除 / 检查更新 24–26px */
-      .dshsc-pill.sq { width: 28px; padding: 0; justify-content: center; border-radius: 8px; }
+      /* 行内图标按钮：删除 / 检查更新 24–26px；页头工具入口见 .dshsc-tool */
       .dshsc-btn.sq { box-sizing: border-box; width: 24px; padding: 0; justify-content: center; }
       .dshsc-btn.sq svg { display: block; }
       .dshsc-listbar .dshsc-btn.sq { width: 26px; padding: 0; }
@@ -420,15 +459,18 @@ window.__ModuleLoader__.load({
       .dshsc-gdot { width: 5px; height: 5px; border-radius: 50%; background: var(--dsw-alias-brand-primary); opacity: .8; flex: none; }
 
       .dshsc-hint { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
-      .dshsc-notice { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px;
+      /* 说明会是一整句，窄面板必然折行：图标单独成列并贴住首行，正文列负责换行，避免图标被挤成孤行 */
+      .dshsc-notice { display: flex; flex-direction: column; font-size: 11.5px;
         color: var(--dsw-alias-label-tertiary); line-height: 1.5; }
-      .dshsc-notice > svg { flex: none; }
-      .dshsc-notice-text { color: var(--dsw-alias-label-secondary); }
+      .dshsc-notice-row { display: flex; align-items: flex-start; gap: 6px; }
+      .dshsc-notice-row > svg { flex: none; margin-top: 2px; }
+      .dshsc-notice-text { flex: 1 1 auto; min-width: 0; color: var(--dsw-alias-label-secondary); }
+      .dshsc-notice-text .dshsc-linkbtn { margin-left: 2px; white-space: nowrap; }
       .dshsc-linkbtn { border: 0; background: none; padding: 0 2px; font: inherit; font-size: 11.5px;
         color: var(--dsw-alias-brand-primary); cursor: pointer; }
       .dshsc-linkbtn:hover { text-decoration: underline; }
       .dshsc-linkbtn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; border-radius: 4px; }
-      .dshsc-notice-list { flex-basis: 100%; margin: 2px 0 0 19px; padding: 7px 10px; border-radius: 8px;
+      .dshsc-notice-list { margin: 4px 0 0 19px; padding: 7px 10px; border-radius: 8px;
         border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1);
         color: var(--dsw-alias-label-tertiary); font-size: 11.5px; line-height: 1.7; }
       .dshsc-empty { text-align: center; padding: 30px 16px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 12px;
@@ -474,6 +516,10 @@ window.__ModuleLoader__.load({
         .dshsc-row .dshsc-actions { grid-column: 2; grid-row: 1 / span 2; }
         .dshsc-row .dshsc-btn { padding: 0 5px; }
       }
+      /* 窄面板里工具组会换到下一行，行首的分割线就没有意义了 */
+      @container dshsc (max-width: 520px) {
+        .dshsc-tools { border-left: 0; padding-left: 0; margin-left: 0; }
+      }
       .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
       /* 与 DSH 自带开关同尺寸/同 token：关是 border-l3 轨道，开是 brand-primary 轨道 */
@@ -494,6 +540,8 @@ window.__ModuleLoader__.load({
         background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px;
         padding: 18px; display: flex; flex-direction: column; gap: 14px;
         box-shadow: 0 20px 56px rgba(0,0,0,.38), 0 2px 8px rgba(0,0,0,.18); }
+      /* 64ch 是主页面长文的舒适行长；弹窗说明只有一两句，用满弹窗宽度，避免没必要的折行 */
+      .dshsc-modal .dshsc-sub { max-width: none; }
       .dshsc-modal h3 { margin: 0; font-size: 15px; font-weight: 600; padding-right: 26px; }
       .dshsc-modal-close { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0; border-radius: 7px;
         background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
@@ -805,6 +853,13 @@ window.__ModuleLoader__.load({
           // POST /settings 成功后 data 还是旧的；用本地覆盖值，避免开关弹回旧状态（重开面板时尤其明显）
           const [placementOverride, setPlacementOverride] = React.useState(null);
           const [settingsOpen, setSettingsOpen] = React.useState(false);
+          const settingsRef = React.useRef(null);
+          // 面板朝哪边展开、多宽：齿轮不在标题行右端，固定 left/right 在窄面板里会出界
+          const [settingsPlacement, setSettingsPlacement] = React.useState({ side: 'left', width: 286 });
+          // “+n” 的悬浮列表：labels + 锚点矩形；位置在 layout effect 里量出来再落
+          const [agentTip, setAgentTip] = React.useState(null);
+          const [agentTipPos, setAgentTipPos] = React.useState(null);
+          const agentTipRef = React.useRef(null);
           const [query, setQuery] = React.useState('');
           const [filter, setFilter] = React.useState('all');
           const [builtinOpen, setBuiltinOpen] = React.useState(false);
@@ -832,21 +887,89 @@ window.__ModuleLoader__.load({
           // 设置面板：点外面或按 Esc 关掉；用 closest 判断，避免按钮自己把自己关掉
           React.useEffect(() => {
             if (!settingsOpen || typeof document === 'undefined') return undefined;
+            const close = () => setSettingsOpen(false);
             const onPointerDown = (event) => {
               const target = event?.target;
-              if (target && typeof target.closest === 'function' && target.closest('.dshsc-settings')) return;
-              setSettingsOpen(false);
+              if (target && typeof target.closest === 'function'
+                && (target.closest('.dshsc-settings') || target.closest('.dshsc-pop'))) return;
+              close();
             };
             const onKeyDown = (event) => {
-              if (event?.key === 'Escape') setSettingsOpen(false);
+              if (event?.key === 'Escape') close();
             };
             document.addEventListener('pointerdown', onPointerDown);
             document.addEventListener('keydown', onKeyDown);
+            // 宽度按打开时的余量算，窗口变了就收起，避免重新计算时机太散
+            window.addEventListener('resize', close);
             return () => {
               document.removeEventListener('pointerdown', onPointerDown);
               document.removeEventListener('keydown', onKeyDown);
+              window.removeEventListener('resize', close);
             };
           }, [settingsOpen]);
+
+          // 悬浮气泡：滚动 / 改窗口 / 点别处 / Esc 都关掉，避免它停在旧位置
+          React.useEffect(() => {
+            if (!agentTip) return undefined;
+            const close = () => {
+              setAgentTip(null);
+              setAgentTipPos(null);
+            };
+            const onPointerDown = (event) => {
+              if (agentTip.anchor && event?.target === agentTip.anchor) return;
+              close();
+            };
+            const onKeyDown = (event) => {
+              if (event?.key === 'Escape') close();
+            };
+            window.addEventListener('scroll', close, true);
+            window.addEventListener('resize', close);
+            if (typeof document !== 'undefined') {
+              document.addEventListener('pointerdown', onPointerDown, true);
+              document.addEventListener('keydown', onKeyDown);
+            }
+            return () => {
+              window.removeEventListener('scroll', close, true);
+              window.removeEventListener('resize', close);
+              if (typeof document !== 'undefined') {
+                document.removeEventListener('pointerdown', onPointerDown, true);
+                document.removeEventListener('keydown', onKeyDown);
+              }
+            };
+          }, [agentTip]);
+
+          // 先渲染（隐藏）再量宽高：贴着锚点底部，出屏就翻到上方
+          React.useLayoutEffect(() => {
+            if (!agentTip || typeof window === 'undefined') return;
+            const node = agentTipRef.current;
+            if (!node) return;
+            const width = node.offsetWidth || 0;
+            const height = node.offsetHeight || 0;
+            const { left, right, top, bottom } = agentTip.rect;
+            const nextLeft = Math.max(8, Math.min(left + (right - left) / 2 - width / 2, window.innerWidth - width - 8));
+            let nextTop = bottom + 6;
+            if (nextTop + height > window.innerHeight - 8) nextTop = Math.max(8, top - height - 6);
+            setAgentTipPos({ left: nextLeft, top: nextTop });
+          }, [agentTip]);
+
+          function openAgentTip(event, rowName, labels) {
+            if (agentTip?.rowName === rowName) return;
+            const anchor = event?.currentTarget;
+            if (!anchor || typeof anchor.getBoundingClientRect !== 'function') return;
+            const rect = anchor.getBoundingClientRect();
+            setAgentTipPos(null);
+            setAgentTip({
+              anchor,
+              rowName,
+              labels,
+              rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom },
+            });
+          }
+
+          function closeAgentTip() {
+            setAgentTip(null);
+            setAgentTipPos(null);
+          }
 
           const run = React.useCallback(
             async (label, task) => {
@@ -1082,10 +1205,19 @@ window.__ModuleLoader__.load({
               title: label,
             }, label === 'DSH' ? h('i', { className: 'dshsc-dot' }) : null, label));
             if (labels.length > 3) {
-              chips.push(h('span', {
+              const open = agentTip?.rowName === row.name;
+              chips.push(h('button', {
+                type: 'button',
                 className: 'dshsc-agent more',
                 key: 'more',
-                title: labels.join('、'),
+                'aria-label': `${t('meta.agentsAll')}：${labels.join('、')}`,
+                'aria-describedby': open ? 'dshsc-agenttip' : undefined,
+                'aria-expanded': String(open),
+                onClick: (event) => openAgentTip(event, row.name, labels),
+                onMouseEnter: (event) => openAgentTip(event, row.name, labels),
+                onFocus: (event) => openAgentTip(event, row.name, labels),
+                onMouseLeave: closeAgentTip,
+                onBlur: closeAgentTip,
               }, `+${labels.length - 3}`));
             }
             if (scopeNames.length > 0) {
@@ -1253,20 +1385,26 @@ window.__ModuleLoader__.load({
           }
 
           function builtinNotice() {
-            // DSH 自带技能是说明，不是告警：折叠成一行，点开才列出名字，避免底部一屏文字没人看
+            // 内置技能是说明，不是告警：默认折叠成一行句子 + 查看入口，点开才列出名字
             const items = (data?.visibleOnly || []).filter((item) => item.source === 'bundled');
             if (items.length === 0) return null;
+            const listId = 'dshsc-builtin-list';
             return h('div', { className: 'dshsc-notice' },
-              h(InfoIcon, { size: 13 }),
-              h('span', { className: 'dshsc-notice-text' },
-                `${t('visibleOnlyBuiltin')} · ${items.length}`),
-              h('button', {
-                className: 'dshsc-linkbtn',
-                'aria-expanded': String(builtinOpen),
-                onClick: () => setBuiltinOpen((prev) => !prev),
-              }, builtinOpen ? t('action.hide') : t('action.view')),
+              h('div', { className: 'dshsc-notice-row' },
+                h(InfoIcon, { size: 13 }),
+                h('span', { className: 'dshsc-notice-text' },
+                  t('visibleOnlyBuiltin'),
+                  ' ',
+                  h('button', {
+                    className: 'dshsc-linkbtn',
+                    'aria-expanded': String(builtinOpen),
+                    'aria-controls': builtinOpen ? listId : undefined,
+                    onClick: () => setBuiltinOpen((prev) => !prev),
+                  }, builtinOpen
+                    ? t('builtin.hide')
+                    : t('builtin.view').replace('{n}', String(items.length))))),
               builtinOpen
-                ? h('div', { className: 'dshsc-notice-list' }, items.map((item) => item.name).join('、'))
+                ? h('div', { className: 'dshsc-notice-list', id: listId }, items.map((item) => item.name).join('、'))
                 : null);
           }
 
@@ -1362,6 +1500,70 @@ window.__ModuleLoader__.load({
             }
           }
 
+          // 插件级工具跟身份胶囊同组：设置开面板、GitHub 开仓库；业务动作留在右侧
+          const headTools = h('div', { className: 'dshsc-tools' },
+            // 先源码、后设置：GitHub 紧挨包名，齿轮留在工具组最外侧
+            h('a', {
+              className: 'dshsc-tool',
+              href: GITHUB_URL,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              title: t('github.open'),
+              'aria-label': t('github.open'),
+            }, h(GitHubIcon, { size: 15 })),
+            h('div', { className: 'dshsc-settings' },
+              h('button', {
+                ref: settingsRef,
+                className: 'dshsc-tool',
+                'aria-haspopup': 'dialog',
+                'aria-expanded': String(settingsOpen),
+                type: 'button',
+                'aria-label': t('settings.title'),
+                title: t('settings.title'),
+                onClick: () => {
+                  if (settingsOpen) {
+                    setSettingsOpen(false);
+                    return;
+                  }
+                  const anchor = settingsRef.current;
+                  if (anchor && typeof window !== 'undefined') {
+                    const rect = anchor.getBoundingClientRect();
+                    const root = typeof anchor.closest === 'function' ? anchor.closest('.dshsc-root') : null;
+                    const rootRect = root ? root.getBoundingClientRect() : { left: 8, right: window.innerWidth - 8 };
+                    const spaceRight = rootRect.right - rect.left;
+                    const spaceLeft = rect.right - rootRect.left;
+                    const side = spaceRight >= spaceLeft ? 'right' : 'left';
+                    const width = Math.max(180, Math.min(286, (side === 'right' ? spaceRight : spaceLeft) - 8));
+                    setSettingsPlacement({ side, width });
+                  }
+                  setSettingsOpen(true);
+                },
+              }, h(GearIcon, { size: 15 })),
+              settingsOpen
+                ? h('div', {
+                    className: 'dshsc-pop',
+                    role: 'dialog',
+                    'aria-label': t('settings.title'),
+                    style: settingsPlacement.side === 'right'
+                      ? { left: 0, width: `${settingsPlacement.width}px` }
+                      : { right: 0, width: `${settingsPlacement.width}px` },
+                  },
+                    h('div', { className: 'dshsc-pop-title' }, t('settings.title')),
+                    h('div', { className: 'dshsc-pop-label' },
+                      h('span', { className: 'dshsc-pop-name' },
+                        t('placement.label'), h('em', null, t('placement.effect'))),
+                      h('button', {
+                        className: 'dshsc-switch',
+                        role: 'switch',
+                        'aria-checked': String(placement === 'sidebar'),
+                        'aria-label': `${t('placement.label')}：${placement === 'sidebar' ? t('placement.on') : t('placement.off')}`,
+                        title: t('placement.hint'),
+                        disabled: Boolean(placementBusy) || Boolean(data?.readOnly),
+                        onClick: () => void changePlacement(placement === 'sidebar' ? 'settings' : 'sidebar'),
+                      }, h('span', { className: 'dshsc-knob' }))),
+                    h('div', { className: 'dshsc-pop-hint' }, t('placement.hint')))
+                : null));
+
           const root = h(
             'div',
             { className: 'dshsc-root' },
@@ -1381,45 +1583,11 @@ window.__ModuleLoader__.load({
                             ? h('span', { className: 'dshsc-ver', title: `${t('version.label')} v${data.plugin.version}` },
                                 `v${data.plugin.version}`)
                             : null)
-                      : null),
+                      : null,
+                    headTools),
                   h('p', { className: 'dshsc-sub' }, t('section.subtitle')))),
-              // 工具入口和业务动作一起右对齐；主按钮保持在最右
+              // 右侧只留业务动作；主按钮仍在最右
               h('div', { className: 'dshsc-head-actions' },
-                h('div', { className: 'dshsc-pills' },
-                  h('div', { className: 'dshsc-settings' },
-                    h('button', {
-                      className: 'dshsc-pill sq',
-                      'aria-haspopup': 'dialog',
-                      'aria-expanded': String(settingsOpen),
-                      'aria-label': t('settings.title'),
-                      title: t('settings.title'),
-                      onClick: () => setSettingsOpen((prev) => !prev),
-                    }, h(GearIcon, { size: 14 })),
-                    settingsOpen
-                      ? h('div', { className: 'dshsc-pop', role: 'dialog', 'aria-label': t('settings.title') },
-                          h('div', { className: 'dshsc-pop-title' }, t('settings.title')),
-                          h('div', { className: 'dshsc-pop-label' },
-                            h('span', { className: 'dshsc-pop-name' },
-                              t('placement.label'), h('em', null, t('placement.effect'))),
-                            h('button', {
-                              className: 'dshsc-switch',
-                              role: 'switch',
-                              'aria-checked': String(placement === 'sidebar'),
-                              'aria-label': `${t('placement.label')}：${placement === 'sidebar' ? t('placement.on') : t('placement.off')}`,
-                              title: t('placement.hint'),
-                              disabled: Boolean(placementBusy) || Boolean(data?.readOnly),
-                              onClick: () => void changePlacement(placement === 'sidebar' ? 'settings' : 'sidebar'),
-                            }, h('span', { className: 'dshsc-knob' }))),
-                          h('div', { className: 'dshsc-pop-hint' }, t('placement.hint')))
-                      : null),
-                  h('a', {
-                    className: 'dshsc-pill sq',
-                    href: GITHUB_URL,
-                    target: '_blank',
-                    rel: 'noopener noreferrer',
-                    title: t('github.open'),
-                    'aria-label': t('github.open'),
-                  }, h(GitHubIcon, { size: 14 }))),
                 h('button', {
                   className: 'dshsc-btn',
                   disabled: !writable,
@@ -1472,8 +1640,31 @@ window.__ModuleLoader__.load({
             busy ? h('div', { className: 'dshsc-meta' }, `${t('busy.working')} ${busy}`) : null,
             toast ? h('div', { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
             modal ? renderModal() : null,
+            agentTip ? renderAgentTip() : null,
           );
           return page ? h('div', { className: 'dshsc-page' }, root) : root;
+
+          function renderAgentTip() {
+            const node = h('div', {
+              ref: agentTipRef,
+              id: 'dshsc-agenttip',
+              role: 'tooltip',
+              className: 'dshsc-agenttip',
+              style: agentTipPos
+                ? { left: `${agentTipPos.left}px`, top: `${agentTipPos.top}px` }
+                : { left: 0, top: 0, visibility: 'hidden' },
+            },
+              h('div', { className: 'dshsc-agenttip-head' },
+                h('span', null, t('meta.agentsAll')),
+                h('span', { className: 'dshsc-agenttip-n' }, agentTip.labels.length)),
+              h('div', { className: 'dshsc-agenttip-list' },
+                agentTip.labels.map((label, index) => h('span', {
+                  className: `dshsc-agent${label === 'DSH' ? ' dsh' : ''}`,
+                  key: `agenttip-${index}`,
+                }, label === 'DSH' ? h('i', { className: 'dshsc-dot' }) : null, label))));
+            // 列表容器 overflow:hidden，必须挂到 body 才能浮在行外
+            return portalize(node);
+          }
 
           function renderModal() {
             if (modal.type === 'add-skill') {
