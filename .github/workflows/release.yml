@@ -30,7 +30,9 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   publish:
     name: Publish
-    runs-on: ubuntu-latest
+    # 镜像显式钉版本：ubuntu-latest 自 2026-10-19 起分批迁到 26.04（11-19 完成）。
+    # 发布失败只能补发（tag 已推不可改），所以不跟 latest 漂；要试新镜像就手动改 ubuntu-26.04。
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write   # 必须：OIDC 可信发布
       contents: write   # 必须：发布成功后建 GitHub Release
