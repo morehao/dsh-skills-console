@@ -84,8 +84,18 @@ test('add 的 argv 形状：-a universal -g -y --json --full-depth', async () =>
   const argv = JSON.parse(fs.readFileSync(log, 'utf8').trim().split('\n').pop());
   assert.deepEqual(argv.slice(0, 3), ['add', 'morehao/ai-kit#0123456789abcdef0123456789abcdef01234567', '--skill']);
   assert.ok(argv.includes('universal'));
-  assert.ok(!argv.includes('*'), '永不带 --all / -a *');
+  assert.equal(argv[argv.indexOf('-a') + 1], 'universal', 'Agent 固定 universal，永不带 -a *');
   assert.ok(!argv.includes('--all'));
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('add 未点名技能时用 --skill *（整仓全部）', async () => {
+  const { root, stubPath, log } = sandbox();
+  const cli = createCli({ env: envFor({ stubPath, log }) });
+  await cli.add({ source: 'alchaincyf/huashu-design' });
+  const argv = JSON.parse(fs.readFileSync(log, 'utf8').trim().split('\n').pop());
+  assert.equal(argv[argv.indexOf('--skill') + 1], '*');
+  assert.equal(argv[argv.indexOf('-a') + 1], 'universal', '技能名的 * 不能影响 Agent');
   fs.rmSync(root, { recursive: true, force: true });
 });
 

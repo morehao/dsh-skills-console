@@ -148,7 +148,7 @@ var DICT = {
     "banner.visible": "模型可见技能与本地账本不一致，差异已列在下方",
     "form.source": "来源（owner/repo 或 GitHub URL）",
     "form.sourceHint": "例如 morehao/ai-kit",
-    "form.skills": "技能名（多个用逗号分隔）",
+    "form.skills": "技能名（多个用逗号分隔，留空装全部）",
     "form.ref": "ref（分支 / tag，可空）",
     "form.refHint": "留空则自动跟随仓库默认分支",
     "form.subpath": "子目录（可空）",
@@ -268,7 +268,7 @@ var DICT = {
     "banner.visible": "Model-visible skills differ from the local ledger",
     "form.source": "Source (owner/repo or GitHub URL)",
     "form.sourceHint": "e.g. morehao/ai-kit",
-    "form.skills": "Skill names (comma separated)",
+    "form.skills": "Skill names (comma separated; empty installs all)",
     "form.ref": "ref (branch / tag, optional)",
     "form.refHint": "empty follows the repository default branch",
     "form.subpath": "Subdirectory (optional)",
@@ -1852,6 +1852,9 @@ function Overlay({ t, title, children, footer, onCancel }) {
 }
 function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
   const [form, setForm] = import_react3.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
+  const incomplete = fields.some(
+    (field) => field.required !== false && !String(form[field.key] || "").trim()
+  );
   return h(
     Overlay,
     {
@@ -1863,7 +1866,7 @@ function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
         h("button", {
           key: "s",
           className: "dshsc-btn primary",
-          disabled: !form[fields[0].key]?.trim?.() || fields.some((f) => f.key === "skills") && !form.skills?.trim(),
+          disabled: incomplete,
           onClick: () => onSubmit(form)
         }, t("action.save"))
       ]
@@ -2041,7 +2044,7 @@ function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClos
       hint: t("form.hint"),
       fields: [
         { key: "source", label: t("form.source"), placeholder: t("form.sourceHint") },
-        { key: "skills", label: t("form.skills"), placeholder: "git-kit, handoff" }
+        { key: "skills", label: t("form.skills"), placeholder: "git-kit, handoff", required: false }
       ],
       onCancel: onClose,
       onSubmit: (form) => void actions.addSkill(form)
@@ -2054,8 +2057,8 @@ function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClos
       hint: t("form.subHint"),
       fields: [
         { key: "source", label: t("form.source"), placeholder: t("form.sourceHint") },
-        { key: "ref", label: t("form.ref"), placeholder: t("form.refHint") },
-        { key: "subpath", label: t("form.subpath"), placeholder: "skills" }
+        { key: "ref", label: t("form.ref"), placeholder: t("form.refHint"), required: false },
+        { key: "subpath", label: t("form.subpath"), placeholder: "skills", required: false }
       ],
       onCancel: onClose,
       onSubmit: (form) => void actions.addSubscription(form)

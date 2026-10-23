@@ -25,6 +25,10 @@ export function Overlay({ t, title, children, footer, onCancel }) {
 
 export function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
   const [form, setForm] = React.useState(() => Object.fromEntries(fields.map((field) => [field.key, ''])));
+  // 默认每项都必填；标了 required: false 的字段（技能名 / ref / 子目录）可留空
+  const incomplete = fields.some(
+    (field) => field.required !== false && !String(form[field.key] || '').trim(),
+  );
   return h(Overlay, {
     t,
     title,
@@ -34,7 +38,7 @@ export function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
       h('button', {
         key: 's',
         className: 'dshsc-btn primary',
-        disabled: !form[fields[0].key]?.trim?.() || (fields.some((f) => f.key === 'skills') && !form.skills?.trim()),
+        disabled: incomplete,
         onClick: () => onSubmit(form),
       }, t('action.save')),
     ],
@@ -199,7 +203,7 @@ export function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions,
       hint: t('form.hint'),
       fields: [
         { key: 'source', label: t('form.source'), placeholder: t('form.sourceHint') },
-        { key: 'skills', label: t('form.skills'), placeholder: 'git-kit, handoff' },
+        { key: 'skills', label: t('form.skills'), placeholder: 'git-kit, handoff', required: false },
       ],
       onCancel: onClose,
       onSubmit: (form) => void actions.addSkill(form),
@@ -212,8 +216,8 @@ export function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions,
       hint: t('form.subHint'),
       fields: [
         { key: 'source', label: t('form.source'), placeholder: t('form.sourceHint') },
-        { key: 'ref', label: t('form.ref'), placeholder: t('form.refHint') },
-        { key: 'subpath', label: t('form.subpath'), placeholder: 'skills' },
+        { key: 'ref', label: t('form.ref'), placeholder: t('form.refHint'), required: false },
+        { key: 'subpath', label: t('form.subpath'), placeholder: 'skills', required: false },
       ],
       onCancel: onClose,
       onSubmit: (form) => void actions.addSubscription(form),

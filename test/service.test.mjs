@@ -34,7 +34,9 @@ if (args.includes('--version')) { console.log('1.7.4'); process.exit(0); }
 if (args[0] === 'add' && args.includes('--help')) { console.log('--json --full-depth --skill'); process.exit(0); }
 if (args[0] === 'list') { console.log('[]'); process.exit(0); }
 if (args[0] === 'add') {
-  const names = namesAfter('--skill');
+  let names = namesAfter('--skill');
+  // \`--skill '*'\` = 整仓全部；stub 固定回两个，方便断言"留空装全部"
+  if (names.includes('*')) names = ['all-one', 'all-two'];
   const lock = readLock();
   for (const name of names) {
     const dir = path.join(canonical, name);
@@ -53,7 +55,7 @@ if (args[0] === 'add') {
   }
   lock.version = 3;
   writeLock(lock);
-  console.log(JSON.stringify({ ok: true, installed: names }));
+  console.log(JSON.stringify(names.map((name) => ({ name, status: 'installed' }))));
   process.exit(0);
 }
 if (args[0] === 'remove') {
@@ -128,6 +130,21 @@ test('安装：canonical + lock 断言 + 默认建链 + 记账', async () => {
   const row = state.installs.find((item) => item.name === 'alpha');
   assert.equal(row.managed, true);
   assert.equal(row.visible, true, '可见列要能对上 canonical 条目');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('安装：技能名留空 → CLI 按 --skill * 装全部，并按输出里的真实结果记账', async () => {
+  const { root, home, paths, store, service } = setup();
+  const result = await service.install({ source: 'https://github.com/alchaincyf/huashu-design', skills: [] });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.installed.map((item) => item.name).sort(), ['all-one', 'all-two'], '以 CLI 输出为准');
+
+  for (const name of ['all-one', 'all-two']) {
+    assert.ok(fs.existsSync(path.join(paths.canonical, name, 'SKILL.md')), `${name} 要落进 canonical`);
+    assert.ok(fs.lstatSync(path.join(home, '.dsh', 'skills', name)).isSymbolicLink(), `${name} 要接入 dsh`);
+    assert.ok(store.findInstall(name), `${name} 要有 installs 记录`);
+  }
+  assert.equal(store.state.installs.length, 2);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
