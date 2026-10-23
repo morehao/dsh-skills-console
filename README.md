@@ -88,7 +88,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 ## 开发与发布
 
-源码结构、测试策略与调试手段见 [docs/development.md](docs/development.md)；发布流程与排障清单见 [docs/publishing.md](docs/publishing.md)。在本仓工作的 AI agent 请先读 [AGENTS.md](AGENTS.md)。
+源码结构、测试策略与调试手段见 [docs/development.md](docs/development.md)（含本地 `link:` 验证与回退步骤）；发布流程与排障清单见 [docs/publishing.md](docs/publishing.md)。在本仓工作的 AI agent 请先读 [AGENTS.md](AGENTS.md)。
 
 ## 边界（明确不做）
 

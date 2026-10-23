@@ -55,11 +55,62 @@ npm run check     # 机械校验：语法 + 生成物一致性（check:client）
 - **事件日志**：`$DSH_HOME/skills-console/dsh-skills-console.log`（JSONL，1MB 滚动到 `.1`），每条带 `at` / `event` / 上下文。
 - **状态文件**：`$DSH_HOME/skills-console/state.json`；坏掉时插件降级只读（写接口 409），删掉重建即可恢复。`DSH_SKILLS_CONSOLE_HOME` 可整体挪到临时目录做实验。
 - **接口**：所有路由要带 `x-dsh-skills-console: 1` 请求头，否则 403。
-- **生效方式**：`plugin_manager install_bundle(target = 本仓绝对路径)` 时是 `link:`：改 `client/` 后跑 `npm run dev:client`（宿主只 watch 根 `client.js`，产物一变就刷新），改 `lib/` 后刷新页面即可；npm 安装版是拷贝，需要重新 `npm run build:client`、重装并重启 dsh web。
+- **生效方式**：`plugin_manager install_bundle(target = 本仓绝对路径)` 时是 `link:`：改 `client/` 后跑 `npm run dev:client`（宿主只 watch 根 `client.js`，产物一变就刷新），改 `lib/` 后刷新页面即可；npm 安装版是拷贝，需要重新 `npm run build:client`、重装并重启 dsh web。本地 link 验证的安装、生效与回退步骤见 §5。
 - **别在本机真实目录上试破坏性操作**：删除、更新 apply 会动 `~/.agents/skills` 与各 Agent 的软链；用临时 `HOME` 起一个干净宿主更安全。接管只补记账、不碰文件。
 - **自动接管**：`GET /state` 会扫描 canonical，把账本里还没有的技能补成 `installs`（有 lock 来源时顺带建订阅）；只读状态或在途写操作时跳过。
 
-## 5. 常见坑
+## 5. 本地验证（link: 安装）
+
+把某个 profile 里的 `@morehao/dsh-skills-console` 换成指向本仓的 `link:`，用真实宿主验证 Host 接口与 Web Client；验证完按 §5.3 回退。
+
+### 5.1 安装
+
+```bash
+PROFILE=~/.dsh/profiles/desktop              # 换成要验证的 profile
+mkdir -p .dsh/link-preview
+cp "$PROFILE/package.json" .dsh/link-preview/package.json.bak
+cp "$PROFILE/pnpm-lock.yaml" .dsh/link-preview/pnpm-lock.yaml.bak
+cp -R "$PROFILE/node_modules/@morehao/dsh-skills-console" .dsh/link-preview/dsh-skills-console-installed
+
+dsh plugin --profile desktop add "link:$PWD"
+```
+
+`dsh plugin` 把参数转发给 profile 目录里的 pnpm；`link:` 装出来是指向本仓的软链，不是拷贝。校验：
+
+```bash
+readlink ~/.dsh/profiles/desktop/node_modules/@morehao/dsh-skills-console   # 应指向本仓
+grep '"@morehao/dsh-skills-console"' ~/.dsh/profiles/desktop/package.json   # 值应为 link:/...
+```
+
+### 5.2 生效
+
+- **切换后要完全退出宿主再重开**（桌面端 ⌘Q，不是关窗口）：profile 的 bundle 在启动时装载，改 `node_modules` 不会热替换已加载的模块，只刷新页面不够。
+- 启动后进 设置 → 技能控制台 → 添加技能：应出现「检测技能」；`alchaincyf/huashu-design` 检出 1 个技能，`morehao/agent-skills` 检出 7 个、可多选。
+- 之后改 `client/`：`npm run dev:client`（宿主 watch 根 `client.js`，产物一变页面自动刷新）；改 `lib/`：刷新页面。
+- link 绑定当前工作树：验证期间不要切分支、移动或删除 checkout，否则宿主下次启动会静默丢掉这个插件（设置分区消失且无报错）。
+
+### 5.3 回退
+
+```bash
+# 方式一：从 npm 重装验证前的版本（把 0.2.1 换成实际版本）
+dsh plugin --profile desktop add @morehao/dsh-skills-console@0.2.1
+
+# 方式二：用备份还原（package.json / lock 被改乱，或方式一失败时）
+cp .dsh/link-preview/package.json.bak ~/.dsh/profiles/desktop/package.json
+cp .dsh/link-preview/pnpm-lock.yaml.bak ~/.dsh/profiles/desktop/pnpm-lock.yaml
+dsh plugin --profile desktop install --frozen-lockfile
+```
+
+回退后同样**完全退出再重开**宿主，确认 `readlink` 不再指向本仓、`grep link:` 无输出。
+
+### 5.4 注意
+
+- `dsh plugin` 要写 `~/.dsh/profiles/<name>`；在 agent 沙箱里会报 `EPERM ... package.json.lock`，在终端执行或申请更高权限。
+- 验证前先 `npm run build:client`（或 `npm run check:client`），确保 link 读到的是最新 `client.js`。
+- 别在真实 HOME 上做破坏性验证（删除技能、更新 apply）：用临时 `HOME` / `DSH_HOME` 起干净宿主，见 §3。
+- 只验证 Host 逻辑不必装 link，直接跑 `npm test` / `npm run check`。
+
+## 6. 常见坑
 
 | 症状 | 原因与处理 |
 |---|---|
