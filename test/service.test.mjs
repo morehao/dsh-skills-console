@@ -357,8 +357,8 @@ function jsonBody(body) {
 }
 
 /** 可控的 GitHub stub：按路径分派 repo 元数据 / trees / commits，并记录调用。 */
-function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT, contents = {} } = {}) {
-  const control = { defaultBranch, tree, commit, contents, fail: null };
+function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT, contents = {}, resetAt = 1_780_000_000 } = {}) {
+  const control = { defaultBranch, tree, commit, contents, fail: null, resetAt };
   const calls = [];
   const fetchImpl = async (url) => {
     calls.push(url);
@@ -371,6 +371,14 @@ function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT,
       return new Response(control.contents[filePath], { status: 200 });
     }
     const { pathname } = new URL(url);
+    if (control.fail === 'rate-limit') {
+      return new Response('{"message":"API rate limit exceeded"}', {
+        status: 403,
+        headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(control.resetAt) },
+      });
+    }
+    if (control.fail === 'forbidden') return new Response('{"message":"Forbidden"}', { status: 403 });
+    if (control.fail === 'server') return new Response('{"message":"boom"}', { status: 502 });
     if (/^\/repos\/[^/]+\/[^/]+$/.test(pathname)) {
       if (control.fail === 'metadata') return new Response('{"message":"Not Found"}', { status: 404 });
       return jsonBody({ default_branch: control.defaultBranch });
@@ -597,11 +605,47 @@ test('探测来源：失败不进缓存，重试会重新请求', async () => {
   gh.control.fail = 'network';
   const { root, service } = setup({ fetchImpl: gh.fetchImpl });
 
-  await assert.rejects(() => service.probeSource({ source: 'morehao/agent-skills' }), /读不到 .* 的默认分支/);
+  await assert.rejects(
+    () => service.probeSource({ source: 'morehao/agent-skills' }),
+    (error) => error.code === 'error.skills.network',
+  );
   const callsAfterFailure = gh.calls.length;
   gh.control.fail = null;
   const result = await service.probeSource({ source: 'morehao/agent-skills' });
   assert.equal(result.ok, true, '重试能成功');
   assert.ok(gh.calls.length > callsAfterFailure, '失败没有留下缓存');
   fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：四种上游失败分成四个错误码与四句不同文案（T1）', async () => {
+  const cases = [
+    ['rate-limit', 'error.skills.rate-limited', /已限流[\s\S]*后自动恢复[\s\S]*5000 次\/小时/],
+    ['metadata', 'error.skills.repo-not-found', /仓库不存在或为私有/],
+    ['forbidden', 'error.skills.repo-forbidden', /被拒绝（HTTP 403）/],
+    ['server', 'error.skills.upstream-failed', /HTTP 502/],
+    ['network', 'error.skills.network', /无法连接 GitHub/],
+  ];
+  const messages = new Set();
+  for (const [fail, code, pattern] of cases) {
+    const gh = githubStub();
+    gh.control.fail = fail;
+    const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+    await assert.rejects(
+      () => service.probeSource({ source: 'morehao/agent-skills' }),
+      (error) => {
+        assert.equal(error.code, code, `${fail} 必须报 ${code}`);
+        assert.match(error.message, pattern);
+        messages.add(error.message);
+        if (fail === 'rate-limit') {
+          assert.match(error.message, /\d{2}:\d{2}/, '限流文案要带本机时区的重置时间');
+          assert.equal(typeof error.detail.resetAt, 'number');
+          assert.equal(error.detail.status, 403);
+        }
+        return true;
+      },
+    );
+    assert.equal(store.state.subscriptions.length, 0, '失败不能留下订阅');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+  assert.equal(messages.size, cases.length, '四种失败必须是四句不同的话');
 });

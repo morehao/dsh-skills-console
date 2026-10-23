@@ -165,21 +165,78 @@ test('fetchTree: 401 / 404 都变成 error，不抛异常', async () => {
   assert.match(result.error, /HTTP 403/);
 });
 
-test('fetchDefaultBranch: 取默认分支；仓库不存在时返回 null', async () => {
-  const branch = await fetchDefaultBranch({
+test('fetchTree: 403 + remaining=0 要标出 rateLimited（供 T4 决定是否转 git）', async () => {
+  const result = await fetchTree({
+    source: 'o/r',
+    ref: 'main',
+    fetchImpl: async () =>
+      new Response('rate limited', {
+        status: 403,
+        headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1780000000' },
+      }),
+  });
+  assert.equal(result.rateLimited, true);
+  assert.equal(result.resetAt, 1_780_000_000_000);
+});
+
+test('fetchDefaultBranch: 200 → 分支名，结构里带 status', async () => {
+  const result = await fetchDefaultBranch({
     source: 'alchaincyf/huashu-design',
     fetchImpl: async (url) => {
       assert.match(url, /\/repos\/alchaincyf\/huashu-design$/);
       return new Response(JSON.stringify({ default_branch: 'master' }), { status: 200 });
     },
   });
-  assert.equal(branch, 'master');
+  assert.equal(result.branch, 'master');
+  assert.equal(result.status, 200);
+  assert.equal(result.rateLimited, false);
+  assert.equal(result.resetAt, null);
+});
+
+test('fetchDefaultBranch: 403 + remaining=0 → rateLimited 且带重置时间', async () => {
+  const resetAt = 1_780_000_000; // 秒
+  const result = await fetchDefaultBranch({
+    source: 'o/r',
+    fetchImpl: async () =>
+      new Response('{"message":"API rate limit exceeded"}', {
+        status: 403,
+        headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(resetAt) },
+      }),
+  });
+  assert.equal(result.branch, null);
+  assert.equal(result.status, 403);
+  assert.equal(result.rateLimited, true);
+  assert.equal(result.resetAt, resetAt * 1000, 'reset 是秒，统一换成毫秒');
+  assert.match(result.error, /HTTP 403/);
+});
+
+test('fetchDefaultBranch: 429 也算限流，404 不是', async () => {
+  const tooMany = await fetchDefaultBranch({
+    source: 'o/r',
+    fetchImpl: async () => new Response('slow down', { status: 429 }),
+  });
+  assert.equal(tooMany.rateLimited, true);
 
   const missing = await fetchDefaultBranch({
     source: 'o/r',
     fetchImpl: async () => new Response('{"message":"Not Found"}', { status: 404 }),
   });
-  assert.equal(missing, null);
+  assert.equal(missing.branch, null);
+  assert.equal(missing.status, 404);
+  assert.equal(missing.rateLimited, false);
+});
+
+test('fetchDefaultBranch: 网络异常 → 无 status、error 非空', async () => {
+  const result = await fetchDefaultBranch({
+    source: 'o/r',
+    fetchImpl: async () => {
+      throw new Error('ECONNRESET');
+    },
+  });
+  assert.equal(result.branch, null);
+  assert.equal(result.status, null);
+  assert.equal(result.rateLimited, false);
+  assert.match(result.error, /ECONNRESET/);
 });
 
 test('planToken 对同一输入稳定、对变化敏感', () => {
