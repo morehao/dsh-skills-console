@@ -57,7 +57,7 @@
 - 构建期依赖只有 esbuild（devDependency），**零 runtime 依赖**不变；不要新增 `dependencies`。
 - `client.js.map` 只用于本地调试（`npm run build:client -- --sourcemap`）：不提交、不入包。
 - 文案：`client/copy.js` 的 `zh` / `en` 键集合与 `{n}` / `{path}` 占位符必须一一对应；新增文案必须两份一起加。
-- 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `views/*` / `surface` / `app` / `index`；禁止循环依赖；`hooks` 只依赖 `api`，`views` 不直接发请求。
+- 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app` / `index`；禁止循环依赖；`hooks` / `actions` 只依赖 `api`，`views` 不直接发请求。
 
 ### 包与发布
 
