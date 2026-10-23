@@ -7,6 +7,9 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# 客户端 sourcemap 只用于本机调试；产物 client.js 本身要提交
+client.js.map
+
 # 日志与临时文件
 *.log
 *.tmp

@@ -262,14 +262,14 @@ done
 
 - **actions 版本**：`actions/checkout@v7` + `actions/setup-node@v7`。
   - setup-node v7 **移除了 dummy `NODE_AUTH_TOKEN` 兜底**：设了 `registry-url` 却不给 token 时，老 npm / Yarn Classic / pnpm 可能报错。本仓因此**不设 `registry-url`**，registry 由 `ci-publish.sh` 显式 `--registry` 指定。
-  - v5 起按 `packageManager` 自动开依赖缓存；本包零依赖，显式 `package-manager-cache: false`（发布 job 更必须，避免缓存投毒波及 OIDC 令牌）。
+  - v5 起按 `packageManager` 自动开依赖缓存；本包**零 runtime 依赖**，但 check job 需要构建期 esbuild，显式 `package-manager-cache: false`，依赖只从 lockfile 装一次（发布 job 更必须关，避免缓存投毒波及 OIDC 令牌）。
   - checkout v6 起把凭据写到独立文件、v7 起转 ESM 并阻止 `pull_request_target` / `workflow_run` 下检 fork PR；本仓用 `push: tags` + `pull_request`，不受影响。
 - **runner 钉版本**：`runs-on: ubuntu-24.04`（不用 `ubuntu-latest`）。`ubuntu-latest` 自 2026-10-19 起分批迁到 26.04（11-19 完成），发布链路失败只能补发，不该跟着浮动标签漂；要升级就显式改成 `ubuntu-26.04` 先跑一轮 CI 与一次发布验证。
 - **OIDC 前置**：发布 job 需要 `permissions: id-token: write`；**不要**设 `NODE_AUTH_TOKEN`（会盖掉 OIDC）。
 - **npm 版本**：OIDC 发布要求 npm ≥ 11.5.1；Node 22 自带 npm 10.x，所以 release job 有一步 `npm install -g npm@latest`（实测拉到的 npm 12 行为正常）。
 - **`name:` 必须等于文件名**：`release.yml` 的 `name: release.yml`，与 TP 的 Workflow 字段精确匹配。
 - **`gh release create` 必须留在 `release.yml`**：git-kit 的 `/git-release` 预检靠 grep workflow 判定 `EFFECT_RELEASE=workflow`，挪进 `scripts/` 会让它误判成「流程自己建 Release」。
-- **不要给发布 job 加依赖安装 / 构建步骤**：本包无构建、无依赖，多一步就多一个失外面。
+- **不要给发布 job 加依赖安装 / 构建步骤**：运行时零依赖，客户端 bundle（根 `client.js`）是提交进仓的生成物；发布 job 只发已提交的产物，生成物保鲜由 PR 阶段的 `check:client`（`npm run check` 内）负责，多一步就多一个失外面。
 
 ## 8. 相关文件
 
@@ -280,6 +280,7 @@ done
 | `scripts/ci-publish.sh` | 版本一致性守卫、幂等跳过、`npm publish --provenance`（最多 3 次尝试、指数退避） |
 | `scripts/release-notes.mjs` | 注记 tag → Release body 投影（不重算、不改写） |
 | `scripts/check-naming.mjs` · `scripts/check-pack.mjs` | 三处命名一致、`exports`/`files` 接线与打包白名单 |
+| `scripts/build-client.mjs` | `client/` → 根 `client.js` 的 esbuild 构建（`--check` 在 CI 里保证生成物不漂移） |
 | `package.json` | `version`、`publishConfig.access`、`files`、`dsh.bundle` / `dsh.client` |
 | `cordis.patch.yml` | 插件注册 patch（`id` / `name` 与包名、`export const name` 三处一致） |
 | `AGENTS.md` · `docs/agents/verification-release.md` | agent 侧硬约束与提交前检查矩阵 |

@@ -1,0 +1,92 @@
+/** 页头：标题 / 身份胶囊 / 插件工具（GitHub + 设置浮层）/ 业务动作。 */
+import { h } from '../host.js';
+import { GITHUB_URL } from '../api.js';
+import { Logo, GitHubIcon, GearIcon } from '../icons.js';
+
+export function Header({
+  t, page, plugin, writable,
+  autoLinkLabel, autoLinkCount, tab,
+  settingsOpen, settingsRef, settingsPlacement, placement, placementBusy, readOnly,
+  onToggleSettings, onChangePlacement,
+  onOpenAutoLink, onAddSkill, onAddSubscription,
+}) {
+  // 插件级工具跟身份胶囊同组：设置开面板、GitHub 开仓库；业务动作留在右侧
+  const headTools = h('div', { className: 'dshsc-tools' },
+    // 先源码、后设置：GitHub 紧挨包名，齿轮留在工具组最外侧
+    h('a', {
+      className: 'dshsc-tool',
+      href: GITHUB_URL,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      title: t('github.open'),
+      'aria-label': t('github.open'),
+    }, h(GitHubIcon, { size: 15 })),
+    h('div', { className: 'dshsc-settings' },
+      h('button', {
+        ref: settingsRef,
+        className: 'dshsc-tool',
+        'aria-haspopup': 'dialog',
+        'aria-expanded': String(settingsOpen),
+        type: 'button',
+        'aria-label': t('settings.title'),
+        title: t('settings.title'),
+        onClick: onToggleSettings,
+      }, h(GearIcon, { size: 15 })),
+      settingsOpen
+        ? h('div', {
+            className: 'dshsc-pop',
+            role: 'dialog',
+            'aria-label': t('settings.title'),
+            style: settingsPlacement.side === 'right'
+              ? { left: 0, width: `${settingsPlacement.width}px` }
+              : { right: 0, width: `${settingsPlacement.width}px` },
+          },
+            h('div', { className: 'dshsc-pop-title' }, t('settings.title')),
+            h('div', { className: 'dshsc-pop-label' },
+              h('span', { className: 'dshsc-pop-name' },
+                t('placement.label'), h('em', null, t('placement.effect'))),
+              h('button', {
+                className: 'dshsc-switch',
+                role: 'switch',
+                'aria-checked': String(placement === 'sidebar'),
+                'aria-label': `${t('placement.label')}：${placement === 'sidebar' ? t('placement.on') : t('placement.off')}`,
+                title: t('placement.hint'),
+                disabled: Boolean(placementBusy) || readOnly,
+                onClick: () => void onChangePlacement(placement === 'sidebar' ? 'settings' : 'sidebar'),
+              }, h('span', { className: 'dshsc-knob' }))),
+            h('div', { className: 'dshsc-pop-hint' }, t('placement.hint')))
+        : null));
+
+  return h('div', { className: 'dshsc-head' },
+    h('div', { className: 'dshsc-heading' },
+      h(Logo, { size: page ? 36 : 30 }),
+      h('div', { className: 'dshsc-heading-text' },
+        h('div', { className: 'dshsc-title-row' },
+          h('h2', { className: 'dshsc-title' }, page ? t('page.title') : t('section.title')),
+          // 身份：包名 + 版本合成一枚低调 chip，由 Host 从 package.json 注入
+          plugin?.name
+            ? h('span', { className: 'dshsc-id' },
+                h('span', { className: 'dshsc-pkg' }, plugin.name),
+                plugin.version ? h('span', { className: 'dshsc-idsep' }, '|') : null,
+                plugin.version
+                  ? h('span', { className: 'dshsc-ver', title: `${t('version.label')} v${plugin.version}` },
+                      `v${plugin.version}`)
+                  : null)
+            : null,
+          headTools),
+        h('p', { className: 'dshsc-sub' }, t('section.subtitle')))),
+    // 右侧只留业务动作；主按钮仍在最右
+    h('div', { className: 'dshsc-head-actions' },
+      h('button', {
+        className: 'dshsc-btn',
+        disabled: !writable,
+        title: `${t('autoLink')}：${autoLinkLabel}`,
+        'aria-label': `${t('autoLink')}：${autoLinkLabel}`,
+        onClick: onOpenAutoLink,
+      }, `${t('autoLink')} · ${autoLinkCount} ▾`),
+      h('button', {
+        className: 'dshsc-btn primary',
+        disabled: !writable,
+        onClick: tab === 'installed' ? onAddSkill : onAddSubscription,
+      }, tab === 'installed' ? t('action.addSkill') : t('action.addSubscription'))));
+}

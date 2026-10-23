@@ -5,8 +5,8 @@
 ## 1. 项目速览
 
 - 包：`@morehao/dsh-skills-console`（显示名「技能控制台」），DeepSeek Harness（dsh）的**技能控制台插件**；**仓库根即包根**，无 workspace、无子包目录。
-- 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（[client.js](client.js)，`window.__ModuleLoader__` 预打包 bundle；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板）。
-- 纯 ESM、**零 runtime 依赖**、无构建步骤；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
+- 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（源码 `client/`，构建产物 [client.js](client.js)，`window.__ModuleLoader__` bundle；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板）。
+- 纯 ESM、**零 runtime 依赖**；Host 无构建，Web Client 由 esbuild 打包（构建期 devDependency，生成物提交）；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
 - 技能真身只认 [`skills`](https://www.npmjs.com/package/skills) CLI：下载/落盘 canonical（`~/.agents/skills`）/写 lock 全交给它；本插件只做「发链接 + 记账 + 事务编排」。
 - 发布：注记 tag `vX.Y.Z` → GitHub Actions OIDC → npm；发布成功后 CI 用注记正文建 GitHub Release。
 
@@ -25,6 +25,8 @@
 | [lib/core/updates.js](lib/core/updates.js) | GitHub Trees 快照、L0–L3 判定、apply/rollback、计划 token |
 | [lib/core/trash.js](lib/core/trash.js) | 删除前快照（回收站）与备份 |
 | [lib/core/log.js](lib/core/log.js) | JSONL 事件日志，1MB 滚动，写失败不阻塞主流程 |
+| [client/](client/) | Web Client 源码（ESM）：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app` |
+| [scripts/build-client.mjs](scripts/build-client.mjs) | esbuild 打包：`client/` → 根 `client.js`，`--check` 校验生成物漂移 |
 | [scripts/](scripts/) | 语法自检、命名/打包校验、agent 表导出、发布与 Release 正文投影 |
 | [test/](test/) | `node --test` 用例（离线、临时 HOME、stub CLI） |
 | [docs/](docs/) | 人类向文档（开发、发布）与 `docs/agents/` 任务手册 |
@@ -48,10 +50,21 @@
 - 破坏性操作（删除技能、`updates/apply`、push、tag、publish、改真实 HOME、覆盖或删除软链）先征得用户确认。
 - 改 `lib/` 后需重启 dsh web；只有 `link:` 接入时源码即时生效，npm 版是拷贝。
 
+### Client 源码与生成物
+
+- Web Client 的**唯一源码目录是 `client/`**；仓根 [client.js](client.js) 是 `npm run build:client` 的产物（esbuild + `__ModuleLoader__.load` 外壳），**禁止手改**。改 UI 一律改 `client/`，然后重建。
+- 每次改 `client/**`：先 `npm run build:client`，再把 `client/` 与根 `client.js` 一起提交。`npm run check` 里的 `check:client` 会在内存中重建并逐字节比对，不一致直接红。
+- 生成物必须提交（`link:` 安装与 npm 包都直接读根 `client.js`）；不要加进 `.gitignore`，也不要把 `client/` 加进 `package.json.files`。
+- 客户端只允许 `require('react')` / `require('react-dom')`（后者可选）；其它宿主模块或 npm 包一律不许。源码内的相对 `import` 由构建内联；运行时不解析相对 `require`。
+- 构建期依赖只有 esbuild（devDependency），**零 runtime 依赖**不变；不要新增 `dependencies`。
+- `client.js.map` 只用于本地调试（`npm run build:client -- --sourcemap`）：不提交、不入包。
+- 文案：`client/copy.js` 的 `zh` / `en` 键集合与 `{n}` / `{path}` 占位符必须一一对应；新增文案必须两份一起加。
+- 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app` / `index`；禁止循环依赖；`hooks` / `actions` 只依赖 `api`，`views` 不直接发请求。
+
 ### 包与发布
 
 - 三处命名一致：`package.json.name` = `cordis.patch.yml` 的 `insert[0].name`；`lib/index.js` 的 `export const name` = `insert[0].id`；且 `publishConfig.access = "public"`。
-- 打包只含白名单：`client.js`、`lib/`、`locale/`、`package.json`、`README.md`、`LICENSE`、`cordis.patch.yml`、`icon.svg`。`.dsh/`、`docs/`、`scripts/`、`test/`、`node_modules`、`*.tgz` 一律不入包。
+- 打包只含白名单：`client.js`、`lib/`、`locale/`、`package.json`、`README.md`、`LICENSE`、`cordis.patch.yml`、`icon.svg`。`.dsh/`、`docs/`、`scripts/`、`test/`、`client/`、`node_modules`、`*.tgz` 一律不入包——`client/` 是源码目录，npm 只发根 `client.js`。
 - `main` 不直推；**升版本也走分支 + PR**。tag 打在合并后的 `main`，去掉 `v` 必须等于 `package.json.version`。
 - GitHub Release 由 CI 在 npm 发布成功后创建，正文取自**注记** tag；`gh release create` 必须留在 [.github/workflows/release.yml](.github/workflows/release.yml)（git-kit 的 `/git-release` 预检靠它判定后效），不要挪进 `scripts/`。
 - `release.yml` 的 `name:` 必须等于文件名 `release.yml`（与 npm Trusted Publisher 的 Workflow 字段精确匹配）；发布 job 需 `id-token: write`，且**不要**设 `NODE_AUTH_TOKEN`（会覆盖 OIDC）。
@@ -66,8 +79,12 @@
 
 | 目的 | 命令 |
 |---|---|
-| 全量机械校验（语法 + 命名 + 打包 + Release 说明冒烟） | `npm run check` |
-| 单元测试（77 例，离线） | `npm test` |
+| 首次安装构建期依赖 | `npm install` |
+| 从 `client/` 生成根 `client.js` | `npm run build:client` |
+| 监听源码并自动重建（配合 `link:` HMR） | `npm run dev:client` |
+| 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
+| 全量机械校验（需先 `npm install`） | `npm run check` |
+| 单元测试（80 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
@@ -81,14 +98,17 @@
 |---|---|---|
 | `lib/core/*`（清单/链接/安装/更新/删除/订阅） | 对应模块头部注释 + 相关 `test/*.test.mjs` | `npm run check` + `npm test` |
 | `lib/routes.js`（接口形状、错误码、鉴权） | [lib/routes.js](lib/routes.js) 的 `matchRoute` + `client.js` 调用点 | `npm run check` + `npm test` |
-| `client.js`（设置页 UI） | `test/client.test.mjs`（React 存根渲染）与 `locale/{zh,en}.json` | `npm run check` + `npm test` |
+| `client/**`（Web Client UI） | `client/index.js` + `test/client.test.mjs` | `npm run build:client` + `npm run check` + `npm test` |
+| 根 `client.js`（生成物） | 不要改；改 `client/**` 后重建 | `npm run check:client` |
 | `package.json` / `exports` / `files` / 命名 / CI / 发布 | [验证与发布](docs/agents/verification-release.md) | `npm run check`（含命名与打包） |
 | 纯文档 | 对应人类文档；链接与事实核对 | 不跑代码检查 |
 
 ## 5. 完成定义
 
 - [ ] `npm run check` 通过。
-- [ ] `npm test` 通过（改了 `lib/` 必须跑）。
+- [ ] `npm test` 通过（改了 `lib/` 或 `client/` 必须跑）。
+- [ ] 改了 `client/**`：`npm run build:client` 后 `npm run check`（含 `check:client`）通过，生成物已随提交。
+- [ ] `git diff` 中 `client.js` 的变化能与 `client/**` 的改动对应（没有手改生成物）。
 - [ ] 改 `package.json` / `exports` / `files` / 命名 / CI 时，`check-naming` 与 `check-pack` 通过。
 - [ ] 行为或契约变更同步 `README.md` / `docs/`（按影响面，不机械全改）。
 - [ ] `git status` / `git diff --stat` 无 `.dsh/`、`node_modules`、`*.tgz` 等意外文件。
