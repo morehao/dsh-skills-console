@@ -1,6 +1,6 @@
 {
   "name": "@morehao/dsh-skills-console",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DSH 技能控制台：技能真身只由 skills CLI 写，本插件只管可见性、接入与生命周期——装 / 更新 / 删除 / 启停、四态软链、回收站、订阅。",
   "license": "MIT",
   "author": "morehao <morehao@qq.com>",
