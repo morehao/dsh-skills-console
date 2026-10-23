@@ -43,8 +43,19 @@ P0–P2 已实现并通过单测（39 个用例）：
 
 ```bash
 npm test               # node --test，临时 HOME / DSH_HOME，不碰真实目录
-npm run check          # 全部文件语法自检
+npm run check          # 语法自检 + 命名/导出接线 + 打包白名单 + Release 说明投影冒烟
 npm run sync:agents    # 从 skills CLI 的 dist 重新导出 agent 目录表
+```
+
+## 发布
+
+打注记 tag `vX.Y.Z` → GitHub Actions（OIDC / Trusted Publishing）自动发布到 npm → 用 tag 注记正文建 GitHub Release；不需要任何 npm token。完整流程、一次性建包配置与排障清单见 [docs/publishing.md](docs/publishing.md)。
+
+```bash
+# 升版本走分支 + PR；合并后在 main 最新提交上打注记 tag（正文就是 Release body）
+git tag -a v0.2.0 -m "release: v0.2.0
+<变更说明>"
+git push origin v0.2.0
 ```
 
 ## 数据位置
