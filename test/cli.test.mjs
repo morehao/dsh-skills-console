@@ -21,7 +21,7 @@ else { console.log(JSON.stringify({ ok: true })); process.exit(0); }
 `;
 
 function sandbox() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-cli-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-cli-'));
   const stubPath = path.join(root, 'stub.cjs');
   fs.writeFileSync(stubPath, STUB);
   const log = path.join(root, 'argv.log');
@@ -31,7 +31,7 @@ function sandbox() {
 function envFor({ stubPath, log, mode }) {
   return {
     ...process.env,
-    DSH_SKILLS_MANAGER_CLI: `${process.execPath} ${stubPath}`,
+    DSH_SKILLS_CONSOLE_CLI: `${process.execPath} ${stubPath}`,
     STUB_ARGV_LOG: log,
     STUB_MODE: mode || 'ok',
     PATH: '',
@@ -40,7 +40,7 @@ function envFor({ stubPath, log, mode }) {
 
 test('显式覆盖优先，且来源被记下来', () => {
   const { root, stubPath } = sandbox();
-  const location = locateCli({ env: { DSH_SKILLS_MANAGER_CLI: `${process.execPath} ${stubPath}` } });
+  const location = locateCli({ env: { DSH_SKILLS_CONSOLE_CLI: `${process.execPath} ${stubPath}` } });
   assert.equal(location.source, 'env-override');
   assert.equal(location.command, process.execPath);
   fs.rmSync(root, { recursive: true, force: true });

@@ -4,7 +4,7 @@
 
 ## 1. 项目速览
 
-- 包：`@morehao/dsh-skills-manager`，DeepSeek Harness（dsh）的**技能管理插件**；**仓库根即包根**，无 workspace、无子包目录。
+- 包：`@morehao/dsh-skills-console`（显示名「技能控制台」），DeepSeek Harness（dsh）的**技能控制台插件**；**仓库根即包根**，无 workspace、无子包目录。
 - 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（[client.js](client.js)，`window.__ModuleLoader__` 预打包 bundle；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板）。
 - 纯 ESM、**零 runtime 依赖**、无构建步骤；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
 - 技能真身只认 [`skills`](https://www.npmjs.com/package/skills) CLI：下载/落盘 canonical（`~/.agents/skills`）/写 lock 全交给它；本插件只做「发链接 + 记账 + 事务编排」。
@@ -12,10 +12,10 @@
 
 | 路径 | 作用 |
 |---|---|
-| [lib/index.js](lib/index.js) | `export const name = "dsh-skills-manager"`、`inject`、`apply()` 装配 |
-| [lib/routes.js](lib/routes.js) | prefix 路由 `/api/morehao/skills-manager/*`，自定义头鉴权，统一 JSON 错误码 |
+| [lib/index.js](lib/index.js) | `export const name = "dsh-skills-console"`、`inject`、`apply()` 装配 |
+| [lib/routes.js](lib/routes.js) | prefix 路由 `/api/morehao/skills-console/*`，自定义头鉴权，统一 JSON 错误码 |
 | [lib/core/service.js](lib/core/service.js) | 业务编排：清单 / 安装 / 更新 / 回滚 / 删除 / 启停 / 接管 / 订阅 |
-| [lib/core/paths.js](lib/core/paths.js) | 路径与 env 覆盖（`HOME` / `XDG_CONFIG_HOME` / `DSH_HOME` / `DSH_SKILLS_MANAGER_HOME`） |
+| [lib/core/paths.js](lib/core/paths.js) | 路径与 env 覆盖（`HOME` / `XDG_CONFIG_HOME` / `DSH_HOME` / `DSH_SKILLS_CONSOLE_HOME`） |
 | [lib/core/cli.js](lib/core/cli.js) | `skills` CLI 定位（四层探测 + `npx` 兜底）、能力位、spawn 封装 |
 | [lib/core/hash.js](lib/core/hash.js) | 复刻 CLI 的内容哈希（与 lock 的 `skillFolderHash` 对拍） |
 | [lib/core/state.js](lib/core/state.js) | `state.json` 原子写 + 校验 + 只读降级 |
@@ -39,11 +39,11 @@
 - **不接收任意路径**：`target` 一律走注册表反查；软链目标恒为 canonical 下同名目录；请求体路径参数不得直接拼到文件系统。
 - **state 只读降级**：坏 JSON / 未知版本 → `readOnly=true` 且写接口 409，**不 fail-open、不猜结构、不自动修复**。
 - **启停不改正文**：`mode: on/off` 只增删 DSH 侧链接，不编辑 `SKILL.md`（`add` 会整份覆盖，改文件还会让更新被锁死）。
-- **不碰别人的东西**：与本机可能并存的 `@michengai/dsh-skills-manager` 靠自有 id/前缀/state 文件名隔离，不要改成相同前缀。
+- **不碰别人的东西**：本机可能并存 `@michengai/dsh-skills-manager`（显示名「技能管理」）。两者已天然隔离（id / 路由前缀 / state 目录各不相同）；原则是**永不与他人共用路由前缀与状态目录**，也不要为了「统一命名」去凑别人的前缀。
 
 ### 测试与环境
 
-- 测试必须**离线**：临时 `HOME` / `DSH_HOME`，CLI 用 `DSH_SKILLS_MANAGER_CLI` 注入 stub；禁止读写真实 `~/.dsh`、`~/.agents` 或真实技能目录。
+- 测试必须**离线**：临时 `HOME` / `DSH_HOME`，CLI 用 `DSH_SKILLS_CONSOLE_CLI` 注入 stub；禁止读写真实 `~/.dsh`、`~/.agents` 或真实技能目录。
 - 新逻辑先想「怎么在不联网、不碰真目录的前提下断言」，再落代码；网络相关分支（Trees API、CLI 退出码/超时/无 JSON）用 stub 覆盖。
 - 破坏性操作（删除技能、`updates/apply`、push、tag、publish、改真实 HOME、覆盖或删除软链）先征得用户确认。
 - 改 `lib/` 后需重启 dsh web；只有 `link:` 接入时源码即时生效，npm 版是拷贝。
@@ -67,7 +67,7 @@
 | 目的 | 命令 |
 |---|---|
 | 全量机械校验（语法 + 命名 + 打包 + Release 说明冒烟） | `npm run check` |
-| 单元测试（58 例，离线） | `npm test` |
+| 单元测试（62 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |

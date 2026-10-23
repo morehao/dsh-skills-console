@@ -6,7 +6,7 @@ import test from 'node:test';
 import { ensureLink, inspectTarget, removeLink } from '../lib/core/links.js';
 
 function sandbox() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-links-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-links-'));
   const canonical = path.join(root, '.agents', 'skills', 'demo');
   fs.mkdirSync(canonical, { recursive: true });
   fs.writeFileSync(path.join(canonical, 'SKILL.md'), '---\nname: demo\ndescription: d\n---\n');

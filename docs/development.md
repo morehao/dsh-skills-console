@@ -6,13 +6,13 @@
 
 - Node.js ≥ 22.20（`engines`：`^22.20.0 || >=24.0.0`），npm 随 Node。
 - **没有依赖**：`package.json` 无 `dependencies`，克隆下来直接跑；`npm install` 只会在需要打包校验时读 `package.json`。
-- `skills` CLI 不在本包内：运行时由宿主环境提供（四层探测：`DSH_SKILLS_MANAGER_CLI` 覆盖 → `PATH` → `$DSH_HOME/profiles/*/node_modules/skills` → `npx`）。
+- `skills` CLI 不在本包内：运行时由宿主环境提供（四层探测：`DSH_SKILLS_CONSOLE_CLI` 覆盖 → `PATH` → `$DSH_HOME/profiles/*/node_modules/skills` → `npx`）。
 
 ## 2. 目录结构
 
 ```
 lib/index.js        Host 入口：装配 paths / state / registry / cli / service / routes
-lib/routes.js       HTTP 路由（prefix /api/morehao/skills-manager）
+lib/routes.js       HTTP 路由（prefix /api/morehao/skills-console）
 lib/core/           领域逻辑：清单、软链、安装、更新、删除、订阅、哈希、状态、日志
 client.js           Web Client half：设置页 settings.section（一页两 tab）
 locale/{zh,en}.json 分区标题与描述
@@ -25,14 +25,14 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，58 例
+npm test          # node --test "test/*.test.mjs"，62 例
 npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投影
 ```
 
 两条硬规矩：
 
 1. **离线**：不联网。GitHub Trees API 走 stub（`updates.test.mjs` 直接喂 200 / 304 / 401 / 404 响应）。
-2. **不碰真实目录**：每个用例自建 `mkdtemp` 出来的临时 `HOME` / `DSH_HOME`；CLI 用 `DSH_SKILLS_MANAGER_CLI="<node> <stub.cjs>"` 注入 stub（见 `test/cli.test.mjs`，覆盖成功 / 非零退出 / 超时 / 无 JSON 四种形态）。
+2. **不碰真实目录**：每个用例自建 `mkdtemp` 出来的临时 `HOME` / `DSH_HOME`；CLI 用 `DSH_SKILLS_CONSOLE_CLI="<node> <stub.cjs>"` 注入 stub（见 `test/cli.test.mjs`，覆盖成功 / 非零退出 / 超时 / 无 JSON 四种形态）。
 
 | 用例文件 | 覆盖什么 |
 |---|---|
@@ -47,9 +47,9 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 
 ## 4. 调试
 
-- **事件日志**：`$DSH_HOME/skills-manager/dsh-skills-manager.log`（JSONL，1MB 滚动到 `.1`），每条带 `at` / `event` / 上下文。
-- **状态文件**：`$DSH_HOME/skills-manager/state.json`；坏掉时插件降级只读（写接口 409），删掉重建即可恢复。`DSH_SKILLS_MANAGER_HOME` 可整体挪到临时目录做实验。
-- **接口**：所有路由要带 `x-dsh-skills-manager: 1` 请求头，否则 403。
+- **事件日志**：`$DSH_HOME/skills-console/dsh-skills-console.log`（JSONL，1MB 滚动到 `.1`），每条带 `at` / `event` / 上下文。
+- **状态文件**：`$DSH_HOME/skills-console/state.json`；坏掉时插件降级只读（写接口 409），删掉重建即可恢复。`DSH_SKILLS_CONSOLE_HOME` 可整体挪到临时目录做实验。
+- **接口**：所有路由要带 `x-dsh-skills-console: 1` 请求头，否则 403。
 - **生效方式**：`plugin_manager install_bundle(target = 本仓绝对路径)` 时是 `link:`，改 `client.js` / `lib/` 后刷新页面即可；npm 安装版是拷贝，需要重装并重启 dsh web。
 - **别在本机真实目录上试破坏性操作**：删除、更新 apply 会动 `~/.agents/skills` 与各 Agent 的软链；用临时 `HOME` 起一个干净宿主更安全。接管只补记账、不碰文件。
 - **自动接管**：`GET /state` 会扫描 canonical，把账本里还没有的技能补成 `installs`（有 lock 来源时顺带建订阅）；只读状态或在途写操作时跳过。
@@ -58,7 +58,7 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 
 | 症状 | 原因与处理 |
 |---|---|
-| 面板里 CLI 显示 `npx` 且每次慢 2–3 秒 | GUI 启动的宿主进程拿不到 `DSH_PROFILE_DIR`；靠 `$DSH_HOME/profiles/*/node_modules/skills` 探测兜底，或显式设 `DSH_SKILLS_MANAGER_CLI` |
+| 面板里 CLI 显示 `npx` 且每次慢 2–3 秒 | GUI 启动的宿主进程拿不到 `DSH_PROFILE_DIR`；靠 `$DSH_HOME/profiles/*/node_modules/skills` 探测兜底，或显式设 `DSH_SKILLS_CONSOLE_CLI` |
 | 手工改了 `state.json` 页面没反应 | 已改成每请求前重读，但若写入队列有在途写，会等 pending 归零再读 |
 | `npm pack` 报 `EPERM ~/.npm/_cacache` | 本机 `~/.npm` 有 root 属主文件；`check-pack.mjs` 用临时 cache 规避，手动跑可 `sudo chown -R 501:20 ~/.npm` |
 | 技能装了但 DSH 里没有 | 看是不是只建了项目级链（`scopeProjects`）或 `mode: off`；再跑 `GET /state` 看 `visible` 与 `ledger` 对账 |

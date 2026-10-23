@@ -1,16 +1,16 @@
 {
-  "name": "@morehao/dsh-skills-manager",
-  "version": "0.1.0",
-  "description": "技能管理：装 / 更新 / 删除 / 接入其他 Agent / 启停，外加订阅跟踪（canonical 只由 skills CLI 写）。",
+  "name": "@morehao/dsh-skills-console",
+  "version": "0.2.0",
+  "description": "DSH 技能控制台：技能真身只由 skills CLI 写，本插件只管可见性、接入与生命周期——装 / 更新 / 删除 / 启停、四态软链、回收站、订阅。",
   "license": "MIT",
   "author": "morehao <morehao@qq.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/morehao/dsh-skills-manager.git"
+    "url": "git+https://github.com/morehao/dsh-skills-console.git"
   },
-  "homepage": "https://github.com/morehao/dsh-skills-manager#readme",
+  "homepage": "https://github.com/morehao/dsh-skills-console#readme",
   "bugs": {
-    "url": "https://github.com/morehao/dsh-skills-manager/issues"
+    "url": "https://github.com/morehao/dsh-skills-console/issues"
   },
   "publishConfig": {
     "access": "public"

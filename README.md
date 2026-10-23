@@ -1,6 +1,8 @@
-# dsh-skills-manager
+# dsh-skills-console
 
-DeepSeek Harness（dsh）的技能管理插件：**装 / 更新 / 删除 / 接入其他 Agent / 启停**，配一个订阅列表。
+DeepSeek Harness（dsh）的**技能控制台**：**装 / 更新 / 删除 / 接入其他 Agent / 启停**，配一个订阅列表。
+
+> 与 `skills` CLI 的分工：CLI 是技能的唯一写者（供应链 + lock），本插件是 DSH 侧的控制台（可见性 + 接线 + 事务）。它不搬技能，它管「哪些技能、对谁、在哪一层可见」。
 
 ## 定位
 
@@ -11,13 +13,13 @@ DeepSeek Harness（dsh）的技能管理插件：**装 / 更新 / 删除 / 接�
 
 ## 状态
 
-P0–P2 已实现并通过单测（58 个用例）：
+P0–P2 已实现并通过单测（62 个用例）：
 
 | 能力 | 说明 |
 | --- | --- |
 | 清单 | canonical 扫描 + CLI lock 对账 + `ctx.skills.snapshot` 可见性对账（模型可见 vs 本地账本）；canonical 里已有的技能首次读取自动纳入追踪，不必逐个「接管」 |
 | 接入 | 软链四态判定（`managed` / `managed-external` / `foreign-link` / `real`），**绝不覆盖**非本插件创建的东西；可接入的 Agent 只列本机已装目录，「自动链接」按 Agent 多选 |
-| 入口 | 默认在设置页「技能」分区；页内可切到左侧栏独立面板，切换立即生效；主页右上角提供 GitHub 仓库入口 |
+| 入口 | 默认在设置页「技能控制台」分区；页内可切到左侧栏独立面板，切换立即生效；主页右上角提供 GitHub 仓库入口 |
 | 安装 | `skills add <owner/repo#commit> --skill … -a universal -g -y --json --full-depth`，装完断言 lock 的 `skillFolderHash` 与快照 tree SHA 一致 |
 | 更新 | GitHub Trees API 检测 → 计划（commit 区间 + token）→ 应用（先备份、后重建、失败回滚） |
 | 删除 | 体检（真实目录/外部链接即中止）→ 快照进回收站（7 天）→ `skills remove -s … -g -y`（**不带 `-a`**）→ 清自家链接与记账 |
@@ -35,11 +37,33 @@ P0–P2 已实现并通过单测（58 个用例）：
 
 ```yaml
 - insert:
-    - id: dsh-skills-manager
-      name: '@morehao/dsh-skills-manager'
+    - id: dsh-skills-console
+      name: '@morehao/dsh-skills-console'
 ```
 
-> ⚠️ 本机 profile 里可能已经装着 `@michengai/dsh-skills-manager`（同样叫「技能管理」）。两者互不干扰（路由前缀 `/api/morehao/skills-manager/*`、状态文件名不同），但会各出一个设置分区；只想留一个时把另一个 `plugin_manager set_plugin enabled:false` 即可。
+> ⚠️ 本机 profile 里可能还装着 `@michengai/dsh-skills-manager`（显示名「技能管理」）。两者互不干扰（路由前缀 `/api/morehao/skills-console/*`、状态目录 `$DSH_HOME/skills-console/` 均不同），但会各出一个设置分区；只想留一个时把另一个 `plugin_manager set_plugin enabled:false` 即可。
+
+## 从 `dsh-skills-manager` 迁移
+
+`v0.2.0` 起包名、插件 id、路由前缀与状态目录都换成 `skills-console`，**不提供兼容读旧值**：
+
+| 层面 | 旧 | 新 |
+| --- | --- | --- |
+| npm 包 / 模块标识符 | `@morehao/dsh-skills-manager` | `@morehao/dsh-skills-console` |
+| 插件 id（配置树键） | `dsh-skills-manager` | `dsh-skills-console` |
+| 路由前缀 / 鉴权头 | `/api/morehao/skills-manager` · `x-dsh-skills-manager` | `/api/morehao/skills-console` · `x-dsh-skills-console` |
+| 状态目录 | `$DSH_HOME/skills-manager/` | `$DSH_HOME/skills-console/` |
+| 环境变量 | `DSH_SKILLS_MANAGER_*` | `DSH_SKILLS_CONSOLE_*` |
+
+**保住现有账本**（订阅、回收站、链接记录、版本缓存）只需把旧目录搬过去：
+
+```bash
+mv ~/.dsh/skills-manager ~/.dsh/skills-console
+```
+
+不搬也能用：软链四态判定会把已有链接读成 `managed-external`（指向 canonical 但账本无记录），在设置页点一次「接管」即可恢复接管，**不会误删也不会覆盖**；代价是订阅列表、回收站快照与「已停用」状态会丢失。
+
+安装侧：profile 的 `package.json` 依赖键要从 `@morehao/dsh-skills-manager` 换成新名（`link:` 本地接入时同步改路径），否则 bundle 不会加载。
 
 ## 开发
 
@@ -70,11 +94,11 @@ git push origin v0.2.0
 | canonical 真身 | `~/.agents/skills` | `skills` CLI 独占 |
 | CLI lock | `~/.agents/.skill-lock.json` | `skills` CLI 独占（本插件只读） |
 | DSH 全局根 | `~/.dsh/skills` | 本插件写软链 |
-| 插件状态 | `$DSH_HOME/skills-manager/state.json` | 本插件（`DSH_SKILLS_MANAGER_HOME` 可覆盖） |
-| 备份 / 回收站 | `$DSH_HOME/skills-manager/{backups,trash}` | 本插件 |
-| 事件日志 | `$DSH_HOME/skills-manager/dsh-skills-manager.log` | 本插件（JSONL，1MB 滚动） |
+| 插件状态 | `$DSH_HOME/skills-console/state.json` | 本插件（`DSH_SKILLS_CONSOLE_HOME` 可覆盖） |
+| 备份 / 回收站 | `$DSH_HOME/skills-console/{backups,trash}` | 本插件 |
+| 事件日志 | `$DSH_HOME/skills-console/dsh-skills-console.log` | 本插件（JSONL，1MB 滚动） |
 
-环境变量：`DSH_SKILLS_MANAGER_HOME`、`DSH_SKILLS_MANAGER_CLI`、`DSH_SKILLS_MANAGER_NPX_SPEC`、`DSH_SKILLS_MANAGER_TIMEOUT_MS`、`GITHUB_TOKEN`/`GH_TOKEN`。
+环境变量：`DSH_SKILLS_CONSOLE_HOME`、`DSH_SKILLS_CONSOLE_CLI`、`DSH_SKILLS_CONSOLE_NPX_SPEC`、`DSH_SKILLS_CONSOLE_TIMEOUT_MS`、`GITHUB_TOKEN`/`GH_TOKEN`。
 
 ## 边界（明确不做）
 

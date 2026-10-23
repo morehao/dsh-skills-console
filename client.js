@@ -1,19 +1,19 @@
 /**
- * Client half：设置页「技能」分区。
+ * Client half：设置页「技能控制台」分区。
  * 一页两 tab：已装 / 订阅。行内操作列 = 开关 + 更新 + 接入设置 + 删除。
- * 所有数据来自 Host 的 /api/morehao/skills-manager/*，这里只做展示与提交。
+ * 所有数据来自 Host 的 /api/morehao/skills-console/*，这里只做展示与提交。
  */
 window.__ModuleLoader__.load({
-  id: '@morehao/dsh-skills-manager',
+  id: '@morehao/dsh-skills-console',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
-    const API = '/api/morehao/skills-manager';
+    const API = '/api/morehao/skills-console';
 
     const DICT = {
       zh: {
-        'section.title': '技能',
-        'page.title': '技能管理',
+        'section.title': '技能控制台',
+        'page.title': '技能控制台',
         'section.subtitle': 'canonical 只由 skills CLI 写入；这里管装、更新、删除与接入。',
         'tab.installed': '已装',
         'tab.subscriptions': '订阅',
@@ -101,8 +101,8 @@ window.__ModuleLoader__.load({
         external: '非本插件创建',
       },
       en: {
-        'section.title': 'Skills',
-        'page.title': 'Skills Manager',
+        'section.title': 'Skills Console',
+        'page.title': 'Skills Console',
         'section.subtitle': 'The skills CLI owns canonical; this page installs, updates, removes and links.',
         'tab.installed': 'Installed',
         'tab.subscriptions': 'Subscriptions',
@@ -189,134 +189,134 @@ window.__ModuleLoader__.load({
 
     const CSS = `
       /* 主面板形态：与 DSH 自带管理页同一边距/滚动方式 */
-      .dshsm-page { box-sizing: border-box; width: 100%; height: 100%; overflow: auto;
+      .dshsc-page { box-sizing: border-box; width: 100%; height: 100%; overflow: auto;
         padding: calc(28px + var(--dsh-frame-top-clearance, 0px)) clamp(24px, 4vw, 48px) 48px; }
-      .dshsm-page .dshsm-root { max-width: 980px; margin: 0 auto; }
-      .dshsm-page .dshsm-title { font-size: 20px; font-weight: 500; line-height: 28px; }
-      .dshsm-page .dshsm-sub { font-size: 13px; line-height: 20px; }
-      .dshsm-root { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); }
-      .dshsm-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
-      .dshsm-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
-      .dshsm-heading-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-      .dshsm-logo { flex: none; display: block; border-radius: 8px; }
-      .dshsm-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
-      .dshsm-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
-      .dshsm-spacer { flex: 1; }
-      .dshsm-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
-      .dshsm-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; }
-      .dshsm-prefbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px;
+      .dshsc-page .dshsc-root { max-width: 980px; margin: 0 auto; }
+      .dshsc-page .dshsc-title { font-size: 20px; font-weight: 500; line-height: 28px; }
+      .dshsc-page .dshsc-sub { font-size: 13px; line-height: 20px; }
+      .dshsc-root { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); }
+      .dshsc-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+      .dshsc-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+      .dshsc-heading-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .dshsc-logo { flex: none; display: block; border-radius: 8px; }
+      .dshsc-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+      .dshsc-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
+      .dshsc-spacer { flex: 1; }
+      .dshsc-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+      .dshsc-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; }
+      .dshsc-prefbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px;
         color: var(--dsw-alias-label-secondary); }
-      .dshsm-pref-hint { color: var(--dsw-alias-label-tertiary); }
+      .dshsc-pref-hint { color: var(--dsw-alias-label-tertiary); }
 
-      .dshsm-btn { font: inherit; font-size: 12px; line-height: 1; padding: 7px 11px; border-radius: 8px; cursor: pointer;
+      .dshsc-btn { font: inherit; font-size: 12px; line-height: 1; padding: 7px 11px; border-radius: 8px; cursor: pointer;
         border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary);
         transition: background .12s ease, border-color .12s ease, color .12s ease; }
-      .dshsm-btn:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l2); }
-      .dshsm-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
-      .dshsm-btn:disabled { opacity: .42; cursor: not-allowed; }
+      .dshsc-btn:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l2); }
+      .dshsc-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+      .dshsc-btn:disabled { opacity: .42; cursor: not-allowed; }
       /* brand-primary 与 bg-base 在明暗主题里互为反色：文字用 bg-base 才不会是白底白字 */
-      .dshsm-btn.primary { background: var(--dsw-alias-brand-primary); border-color: transparent; color: var(--dsw-alias-bg-base); font-weight: 600; }
-      .dshsm-btn.primary:hover:not(:disabled) { background: var(--dsw-alias-brand-primary); opacity: .9; }
-      .dshsm-btn.ghost { background: transparent; border-color: transparent; color: var(--dsw-alias-label-secondary); padding: 6px 8px; }
-      .dshsm-btn.ghost:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
-      .dshsm-btn.ghost.danger { color: var(--dsw-alias-state-error-primary); }
-      .dshsm-btn.ghost.danger:hover:not(:disabled) { color: var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent); }
+      .dshsc-btn.primary { background: var(--dsw-alias-brand-primary); border-color: transparent; color: var(--dsw-alias-bg-base); font-weight: 600; }
+      .dshsc-btn.primary:hover:not(:disabled) { background: var(--dsw-alias-brand-primary); opacity: .9; }
+      .dshsc-btn.ghost { background: transparent; border-color: transparent; color: var(--dsw-alias-label-secondary); padding: 6px 8px; }
+      .dshsc-btn.ghost:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+      .dshsc-btn.ghost.danger { color: var(--dsw-alias-state-error-primary); }
+      .dshsc-btn.ghost.danger:hover:not(:disabled) { color: var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent); }
 
-      .dshsm-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .dshsm-tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--dsw-alias-border-l1);
+      .dshsc-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .dshsc-tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--dsw-alias-border-l1);
         border-radius: 10px; background: var(--dsw-alias-bg-layer-1); }
-      .dshsm-tab { font: inherit; font-size: 12px; padding: 6px 11px; border: 0; border-radius: 7px; background: transparent;
+      .dshsc-tab { font: inherit; font-size: 12px; padding: 6px 11px; border: 0; border-radius: 7px; background: transparent;
         cursor: pointer; color: var(--dsw-alias-label-secondary); }
-      .dshsm-tab:hover { color: var(--dsw-alias-label-primary); }
-      .dshsm-tab.active { background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary);
+      .dshsc-tab:hover { color: var(--dsw-alias-label-primary); }
+      .dshsc-tab.active { background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary);
         box-shadow: 0 0 0 1px var(--dsw-alias-border-l1), 0 1px 2px rgba(0,0,0,.12); }
 
-      .dshsm-segment { display: inline-flex; border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px;
+      .dshsc-segment { display: inline-flex; border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px;
         background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
-      .dshsm-segment .dshsm-btn { border: 0; border-radius: 0; background: transparent; padding: 6px 10px; }
-      .dshsm-segment .dshsm-btn + .dshsm-btn { border-left: 1px solid var(--dsw-alias-border-l1); }
-      .dshsm-segment .dshsm-btn[aria-pressed="true"] { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+      .dshsc-segment .dshsc-btn { border: 0; border-radius: 0; background: transparent; padding: 6px 10px; }
+      .dshsc-segment .dshsc-btn + .dshsc-btn { border-left: 1px solid var(--dsw-alias-border-l1); }
+      .dshsc-segment .dshsc-btn[aria-pressed="true"] { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
 
-      .dshsm-list { display: flex; flex-direction: column; gap: 8px; }
-      .dshsm-row { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1);
+      .dshsc-list { display: flex; flex-direction: column; gap: 8px; }
+      .dshsc-row { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1);
         padding: 12px 14px; transition: border-color .12s ease, background .12s ease; }
-      .dshsm-row:hover { border-color: var(--dsw-alias-border-l2); }
-      .dshsm-row.off { opacity: .62; }
-      .dshsm-row-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-      .dshsm-name { font-size: 13px; font-weight: 600; letter-spacing: -.005em; }
-      .dshsm-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1; padding: 4px 8px;
+      .dshsc-row:hover { border-color: var(--dsw-alias-border-l2); }
+      .dshsc-row.off { opacity: .62; }
+      .dshsc-row-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .dshsc-name { font-size: 13px; font-weight: 600; letter-spacing: -.005em; }
+      .dshsc-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1; padding: 4px 8px;
         border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2);
         color: var(--dsw-alias-label-secondary); white-space: nowrap; }
-      .dshsm-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .85; }
-      .dshsm-status.ok { color: var(--dsw-alias-state-success-primary); background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 13%, transparent); }
-      .dshsm-status.warn { color: var(--dsw-alias-state-warn-primary); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 13%, transparent); }
-      .dshsm-status.err { color: var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 13%, transparent); }
-      .dshsm-meta { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin-top: 6px; display: flex; flex-wrap: wrap; }
-      .dshsm-row .dshsm-meta span + span::before { content: '·'; margin: 0 7px; color: var(--dsw-alias-label-tertiary); }
-      .dshsm-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; flex-wrap: wrap; }
+      .dshsc-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .85; }
+      .dshsc-status.ok { color: var(--dsw-alias-state-success-primary); background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 13%, transparent); }
+      .dshsc-status.warn { color: var(--dsw-alias-state-warn-primary); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 13%, transparent); }
+      .dshsc-status.err { color: var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 13%, transparent); }
+      .dshsc-meta { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin-top: 6px; display: flex; flex-wrap: wrap; }
+      .dshsc-row .dshsc-meta span + span::before { content: '·'; margin: 0 7px; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; flex-wrap: wrap; }
 
       /* 与 DSH 自带开关同尺寸/同 token：关是 border-l3 轨道，开是 brand-primary 轨道 */
-      .dshsm-switch { box-sizing: border-box; position: relative; flex: none; width: 36px; height: 20px; padding: 2px;
+      .dshsc-switch { box-sizing: border-box; position: relative; flex: none; width: 36px; height: 20px; padding: 2px;
         border: 0; border-radius: 999px; background: var(--dsw-alias-border-l3); cursor: pointer;
         transition: background .14s ease; }
-      .dshsm-switch:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
-      .dshsm-switch:disabled { cursor: not-allowed; opacity: .5; }
-      .dshsm-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
-      .dshsm-knob { display: block; width: 16px; height: 16px; border-radius: 50%;
+      .dshsc-switch:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+      .dshsc-switch:disabled { cursor: not-allowed; opacity: .5; }
+      .dshsc-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
+      .dshsc-knob { display: block; width: 16px; height: 16px; border-radius: 50%;
         background: var(--dsw-alias-switch-thumb); transition: transform .12s ease, background .12s ease; }
-      .dshsm-switch[aria-checked="true"] .dshsm-knob { transform: translateX(16px); background: var(--dsw-alias-label-primary-foreground); }
+      .dshsc-switch[aria-checked="true"] .dshsc-knob { transform: translateX(16px); background: var(--dsw-alias-label-primary-foreground); }
 
-      .dshsm-banner { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; padding: 9px 12px; font-size: 12px;
+      .dshsc-banner { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; padding: 9px 12px; font-size: 12px;
         line-height: 1.55; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary);
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .dshsm-banner.err { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); }
-      .dshsm-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); }
+      .dshsc-banner.err { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); }
+      .dshsc-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); }
 
-      .dshsm-empty { text-align: center; padding: 34px 16px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 12px;
+      .dshsc-empty { text-align: center; padding: 34px 16px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 12px;
         background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 55%, transparent); }
-      .dshsm-empty .dshsm-name { font-size: 14px; }
-      .dshsm-empty .dshsm-meta { justify-content: center; margin-top: 6px; }
-      .dshsm-group { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--dsw-alias-label-tertiary); margin: 12px 0 6px; }
+      .dshsc-empty .dshsc-name { font-size: 14px; }
+      .dshsc-empty .dshsc-meta { justify-content: center; margin-top: 6px; }
+      .dshsc-group { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--dsw-alias-label-tertiary); margin: 12px 0 6px; }
 
-      .dshsm-overlay { position: fixed; inset: 0; background: rgba(4,6,9,.55); display: flex; align-items: center; justify-content: center;
+      .dshsc-overlay { position: fixed; inset: 0; background: rgba(4,6,9,.55); display: flex; align-items: center; justify-content: center;
         z-index: 60; padding: 20px; backdrop-filter: blur(2px); }
-      .dshsm-modal { position: relative; width: min(600px, 100%); max-height: calc(100vh - 40px); overflow: auto;
+      .dshsc-modal { position: relative; width: min(600px, 100%); max-height: calc(100vh - 40px); overflow: auto;
         background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px;
         padding: 18px; display: flex; flex-direction: column; gap: 14px;
         box-shadow: 0 20px 56px rgba(0,0,0,.38), 0 2px 8px rgba(0,0,0,.18); }
-      .dshsm-modal h3 { margin: 0; font-size: 15px; font-weight: 600; padding-right: 26px; }
-      .dshsm-modal-close { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0; border-radius: 7px;
+      .dshsc-modal h3 { margin: 0; font-size: 15px; font-weight: 600; padding-right: 26px; }
+      .dshsc-modal-close { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0; border-radius: 7px;
         background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
-      .dshsm-modal-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+      .dshsc-modal-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
 
-      .dshsm-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
-      .dshsm-field input { font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 8px;
+      .dshsc-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+      .dshsc-field input { font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 8px;
         border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); outline: none; }
-      .dshsm-field input:focus { border-color: var(--dsw-alias-brand-primary);
+      .dshsc-field input:focus { border-color: var(--dsw-alias-brand-primary);
         box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent); }
 
-      .dshsm-check { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
-      .dshsm-check:hover { background: var(--dsw-alias-bg-layer-1); }
-      .dshsm-check input { width: 14px; height: 14px; accent-color: var(--dsw-alias-brand-primary); flex: none; }
-      .dshsm-check small { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-      .dshsm-check span { white-space: nowrap; }
+      .dshsc-check { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+      .dshsc-check:hover { background: var(--dsw-alias-bg-layer-1); }
+      .dshsc-check input { width: 14px; height: 14px; accent-color: var(--dsw-alias-brand-primary); flex: none; }
+      .dshsc-check small { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+      .dshsc-check span { white-space: nowrap; }
 
-      .dshsm-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
+      .dshsc-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
         padding: 4px; max-height: 240px; overflow: auto; display: flex; flex-direction: column; }
-      .dshsm-panel .dshsm-check:hover { background: var(--dsw-alias-bg-layer-2); }
+      .dshsc-panel .dshsc-check:hover { background: var(--dsw-alias-bg-layer-2); }
 
-      .dshsm-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
-      .dshsm-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 10px 13px; border-radius: 9px;
+      .dshsc-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
+      .dshsc-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 10px 13px; border-radius: 9px;
         background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l2);
         box-shadow: 0 8px 24px rgba(0,0,0,.22); max-width: 420px; }
-      .dshsm-toast.err { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
-      .dshsm-toast.ok { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 50%, var(--dsw-alias-border-l2)); }
-      .dshsm-substat { font-size: 12px; color: var(--dsw-alias-label-secondary); }
-      .dshsm-sub-entry { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 7px 8px 7px 14px; border-top: 1px solid var(--dsw-alias-border-l1); }
-      .dshsm-sub-entry:first-child { border-top: 0; }
-      .dshsm-sub-list { margin-top: 8px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
-      .dshsm-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
-      .dshsm-chevron { width: 26px; padding: 4px 0; text-align: center; }
+      .dshsc-toast.err { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
+      .dshsc-toast.ok { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 50%, var(--dsw-alias-border-l2)); }
+      .dshsc-substat { font-size: 12px; color: var(--dsw-alias-label-secondary); }
+      .dshsc-sub-entry { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 7px 8px 7px 14px; border-top: 1px solid var(--dsw-alias-border-l1); }
+      .dshsc-sub-entry:first-child { border-top: 0; }
+      .dshsc-sub-list { margin-top: 8px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
+      .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+      .dshsc-chevron { width: 26px; padding: 4px 0; text-align: center; }
     `;
 
     function short(sha) {
@@ -326,7 +326,7 @@ window.__ModuleLoader__.load({
     async function apiCall(method, path, body) {
       const response = await fetch(`${API}${path}`, {
         method,
-        headers: { 'content-type': 'application/json', 'x-dsh-skills-manager': '1' },
+        headers: { 'content-type': 'application/json', 'x-dsh-skills-console': '1' },
         body: body === undefined ? undefined : JSON.stringify(body),
         cache: 'no-store',
       });
@@ -360,17 +360,17 @@ window.__ModuleLoader__.load({
       };
     }
 
-    const GITHUB_URL = 'https://github.com/morehao/dsh-skills-manager';
+    const GITHUB_URL = 'https://github.com/morehao/dsh-skills-console';
 
     function Logo({ size = 30 }) {
       return h('svg', {
-        className: 'dshsm-logo', width: size, height: size, viewBox: '0 0 64 64', 'aria-hidden': true,
+        className: 'dshsc-logo', width: size, height: size, viewBox: '0 0 64 64', 'aria-hidden': true,
       },
       h('defs', null,
-        h('linearGradient', { id: 'dshsm-logo-bg', x1: 6, y1: 2, x2: 58, y2: 62, gradientUnits: 'userSpaceOnUse' },
+        h('linearGradient', { id: 'dshsc-logo-bg', x1: 6, y1: 2, x2: 58, y2: 62, gradientUnits: 'userSpaceOnUse' },
           h('stop', { stopColor: '#3b82f6' }),
           h('stop', { offset: 1, stopColor: '#1d4ed8' }))),
-      h('rect', { x: 3, y: 3, width: 58, height: 58, rx: 14, fill: 'url(#dshsm-logo-bg)' }),
+      h('rect', { x: 3, y: 3, width: 58, height: 58, rx: 14, fill: 'url(#dshsc-logo-bg)' }),
       h('path', {
         d: 'M32 32 18 17M32 32 46 17M32 32 32 49',
         stroke: '#ffffff', strokeOpacity: 0.55, strokeWidth: 2.6, strokeLinecap: 'round',
@@ -631,7 +631,7 @@ window.__ModuleLoader__.load({
               unknown: ['status.unknown', ''],
             };
             const [key, cls] = map[row.status] || ['status.unknown', ''];
-            return h('span', { className: `dshsm-status ${cls}` }, t(key));
+            return h('span', { className: `dshsc-status ${cls}` }, t(key));
           }
 
           function metaLine(row) {
@@ -646,7 +646,7 @@ window.__ModuleLoader__.load({
               .map((link) => (link.target === 'dsh-global' ? 'DSH' : link.label));
             parts.push(available.length > 0 ? `${t('meta.available')}：${available.join('、')}` : t('meta.unlinked'));
             if (row.scopeProjects?.length) parts.push(`${t('meta.scope')}：${row.scopeProjects.map((p) => p.split('/').pop()).join('、')}`);
-            return h('div', { className: 'dshsm-meta' }, parts.map((text, index) => h('span', { key: index }, text)));
+            return h('div', { className: 'dshsc-meta' }, parts.map((text, index) => h('span', { key: index }, text)));
           }
 
           function rowView(row) {
@@ -655,17 +655,17 @@ window.__ModuleLoader__.load({
             const canUpdate = writable && (row.status === 'update-available' || row.status === 'conflict' || row.status === 'locally-modified');
             return h(
               'div',
-              { className: `dshsm-row${off ? ' off' : ''}`, key: row.name },
+              { className: `dshsc-row${off ? ' off' : ''}`, key: row.name },
               h(
                 'div',
-                { className: 'dshsm-row-head' },
-                h('span', { className: 'dshsm-name' }, row.name),
+                { className: 'dshsc-row-head' },
+                h('span', { className: 'dshsc-name' }, row.name),
                 statusCell(row),
                 h(
                   'div',
-                  { className: 'dshsm-actions' },
+                  { className: 'dshsc-actions' },
                   h('button', {
-                    className: 'dshsm-switch',
+                    className: 'dshsc-switch',
                     role: 'switch',
                     'aria-checked': String(tracked && row.mode === 'on'),
                     'aria-label': `${row.name} ${t('mode.on')}/${t('mode.off')}`,
@@ -673,22 +673,22 @@ window.__ModuleLoader__.load({
                     disabled: busy !== null || !tracked,
                     onClick: () => void toggleMode(row),
                     title: tracked ? (row.mode === 'on' ? t('mode.off') : t('mode.on')) : t('adopt.switchHint'),
-                  }, h('span', { className: 'dshsm-knob' })),
+                  }, h('span', { className: 'dshsc-knob' })),
                   row.status === 'unmanaged'
                     ? h('button', {
-                        className: 'dshsm-btn ghost',
+                        className: 'dshsc-btn ghost',
                         disabled: !writable || busy !== null,
                         title: row.source ? row.source : t('meta.none'),
                         onClick: () => void adopt(row),
                       }, t('action.adopt'))
-                    : h('button', { className: 'dshsm-btn ghost', disabled: !canUpdate || busy !== null, onClick: () => requestUpdate(row) }, t('action.update')),
-                  h('button', { className: 'dshsm-btn ghost', disabled: busy !== null, onClick: () => setModal({ type: 'links', row }) }, t('action.links')),
-                  h('button', { className: 'dshsm-btn ghost danger', disabled: !writable || busy !== null, onClick: () => requestDelete(row) }, t('action.delete')),
+                    : h('button', { className: 'dshsc-btn ghost', disabled: !canUpdate || busy !== null, onClick: () => requestUpdate(row) }, t('action.update')),
+                  h('button', { className: 'dshsc-btn ghost', disabled: busy !== null, onClick: () => setModal({ type: 'links', row }) }, t('action.links')),
+                  h('button', { className: 'dshsc-btn ghost danger', disabled: !writable || busy !== null, onClick: () => requestDelete(row) }, t('action.delete')),
                 ),
               ),
               metaLine(row),
-              off ? h('div', { className: 'dshsm-meta' }, t('mode.offHint')) : null,
-              row.status === 'broken-link' ? h('div', { className: 'dshsm-meta' }, `⚠ ${t('status.broken')}`) : null,
+              off ? h('div', { className: 'dshsc-meta' }, t('mode.offHint')) : null,
+              row.status === 'broken-link' ? h('div', { className: 'dshsc-meta' }, `⚠ ${t('status.broken')}`) : null,
             );
           }
 
@@ -709,29 +709,29 @@ window.__ModuleLoader__.load({
           }
 
           function installedTab() {
-            if (!data) return h('div', { className: 'dshsm-empty' }, t('busy.working'));
+            if (!data) return h('div', { className: 'dshsc-empty' }, t('busy.working'));
             if (rows.length === 0) {
               return h(
                 'div',
-                { className: 'dshsm-empty' },
-                h('div', { className: 'dshsm-name' }, t('empty.skills')),
-                h('div', { className: 'dshsm-meta', style: { justifyContent: 'center' } }, t('empty.skillsHint')),
+                { className: 'dshsc-empty' },
+                h('div', { className: 'dshsc-name' }, t('empty.skills')),
+                h('div', { className: 'dshsc-meta', style: { justifyContent: 'center' } }, t('empty.skillsHint')),
                 h('div', { style: { marginTop: 10 } },
-                  h('button', { className: 'dshsm-btn primary', disabled: !writable, onClick: requestAddSkill }, t('action.addSkill'))),
+                  h('button', { className: 'dshsc-btn primary', disabled: !writable, onClick: requestAddSkill }, t('action.addSkill'))),
               );
             }
             const body =
               view === 'agent'
                 ? groupedRows().map((group) =>
-                    h('div', { key: group.title }, h('div', { className: 'dshsm-group' }, group.title), h('div', { className: 'dshsm-list' }, group.rows.map(rowView))))
-                : h('div', { className: 'dshsm-list' }, rows.map(rowView));
+                    h('div', { key: group.title }, h('div', { className: 'dshsc-group' }, group.title), h('div', { className: 'dshsc-list' }, group.rows.map(rowView))))
+                : h('div', { className: 'dshsc-list' }, rows.map(rowView));
             return h(
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
               updateCount > 0
-                ? h('div', { className: 'dshsm-banner warn' },
+                ? h('div', { className: 'dshsc-banner warn' },
                     h('span', null, `⚠ ${updateCount} ${t('status.update')}`),
-                    h('button', { className: 'dshsm-btn', disabled: !writable || busy !== null, onClick: () => void updateAll() }, t('action.updateAll')))
+                    h('button', { className: 'dshsc-btn', disabled: !writable || busy !== null, onClick: () => void updateAll() }, t('action.updateAll')))
                 : null,
               body,
               visibleOnlyBanners(),
@@ -745,11 +745,11 @@ window.__ModuleLoader__.load({
             const others = items.filter((item) => item.source !== 'bundled');
             return [
               others.length > 0
-                ? h('div', { className: 'dshsm-banner warn', key: 'other' },
+                ? h('div', { className: 'dshsc-banner warn', key: 'other' },
                     `${t('visibleOnlyOther')}：${others.map((item) => item.name).join('、')}`)
                 : null,
               builtin.length > 0
-                ? h('div', { className: 'dshsm-banner info', key: 'builtin' },
+                ? h('div', { className: 'dshsc-banner info', key: 'builtin' },
                     `${t('visibleOnlyBuiltin')}：${builtin.map((item) => item.name).join('、')}`)
                 : null,
             ];
@@ -760,36 +760,36 @@ window.__ModuleLoader__.load({
             if (subs.length === 0) {
               return h(
                 'div',
-                { className: 'dshsm-empty' },
-                h('div', { className: 'dshsm-name' }, t('empty.subs')),
-                h('div', { className: 'dshsm-meta', style: { justifyContent: 'center' } }, t('empty.subsHint')),
+                { className: 'dshsc-empty' },
+                h('div', { className: 'dshsc-name' }, t('empty.subs')),
+                h('div', { className: 'dshsc-meta', style: { justifyContent: 'center' } }, t('empty.subsHint')),
                 h('div', { style: { marginTop: 10 } },
-                  h('button', { className: 'dshsm-btn primary', disabled: !writable, onClick: requestAddSubscription }, t('action.addSubscription'))),
+                  h('button', { className: 'dshsc-btn primary', disabled: !writable, onClick: requestAddSubscription }, t('action.addSubscription'))),
               );
             }
-            return h('div', { className: 'dshsm-list' }, subs.map((subscription) => {
+            return h('div', { className: 'dshsc-list' }, subs.map((subscription) => {
               const entries = subscription.snapshot?.entries || [];
               const installedNames = new Set(rows.filter((row) => row.subscriptionId === subscription.id).map((row) => row.name));
               const open = Boolean(expanded[subscription.id]);
               return h(
                 'div',
-                { className: 'dshsm-row', key: subscription.id },
-                h('div', { className: 'dshsm-row-head' },
-                  h('button', { className: 'dshsm-btn ghost', onClick: () => setExpanded((prev) => ({ ...prev, [subscription.id]: !open })) }, open ? '▾' : '▸'),
-                  h('span', { className: 'dshsm-name' }, subscription.source),
-                  h('span', { className: 'dshsm-substat' },
+                { className: 'dshsc-row', key: subscription.id },
+                h('div', { className: 'dshsc-row-head' },
+                  h('button', { className: 'dshsc-btn ghost', onClick: () => setExpanded((prev) => ({ ...prev, [subscription.id]: !open })) }, open ? '▾' : '▸'),
+                  h('span', { className: 'dshsc-name' }, subscription.source),
+                  h('span', { className: 'dshsc-substat' },
                     `${subscription.ref || 'default'} · ${entries.length} ${t('skillCount')} · ${t('installed')} ${installedNames.size}`),
-                  h('div', { className: 'dshsm-actions' },
-                    h('button', { className: 'dshsm-btn ghost', disabled: busy !== null, onClick: () => void refreshSubscription(subscription) }, t('action.refresh')),
-                    h('button', { className: 'dshsm-btn ghost danger', disabled: busy !== null, onClick: () => void deleteSubscription(subscription) }, t('action.delete')))),
+                  h('div', { className: 'dshsc-actions' },
+                    h('button', { className: 'dshsc-btn ghost', disabled: busy !== null, onClick: () => void refreshSubscription(subscription) }, t('action.refresh')),
+                    h('button', { className: 'dshsc-btn ghost danger', disabled: busy !== null, onClick: () => void deleteSubscription(subscription) }, t('action.delete')))),
                 open
-                  ? h('div', { className: 'dshsm-sub-list' }, entries.map((entry) =>
-                      h('div', { className: 'dshsm-sub-entry', key: entry.name },
-                        h('span', { className: 'dshsm-name' }, entry.name),
-                        h('span', { className: 'dshsm-substat' }, installedNames.has(entry.name) ? t('installed') : t('notInstalled')),
-                        h('div', { className: 'dshsm-actions' },
+                  ? h('div', { className: 'dshsc-sub-list' }, entries.map((entry) =>
+                      h('div', { className: 'dshsc-sub-entry', key: entry.name },
+                        h('span', { className: 'dshsc-name' }, entry.name),
+                        h('span', { className: 'dshsc-substat' }, installedNames.has(entry.name) ? t('installed') : t('notInstalled')),
+                        h('div', { className: 'dshsc-actions' },
                           h('button', {
-                            className: 'dshsm-btn',
+                            className: 'dshsc-btn',
                             disabled: !writable || busy !== null || installedNames.has(entry.name),
                             onClick: () => void installFromSubscription(subscription, entry),
                           }, t('action.install')))))) 
@@ -821,29 +821,29 @@ window.__ModuleLoader__.load({
 
           const root = h(
             'div',
-            { className: 'dshsm-root' },
+            { className: 'dshsc-root' },
             h('style', null, CSS),
-            h('div', { className: 'dshsm-head' },
-              h('div', { className: 'dshsm-heading' },
+            h('div', { className: 'dshsc-head' },
+              h('div', { className: 'dshsc-heading' },
                 h(Logo, { size: page ? 36 : 30 }),
-                h('div', { className: 'dshsm-heading-text' },
-                  h('h2', { className: 'dshsm-title' }, page ? t('page.title') : t('section.title')),
-                  h('p', { className: 'dshsm-sub' }, t('section.subtitle')))),
-              h('div', { className: 'dshsm-head-actions' },
+                h('div', { className: 'dshsc-heading-text' },
+                  h('h2', { className: 'dshsc-title' }, page ? t('page.title') : t('section.title')),
+                  h('p', { className: 'dshsc-sub' }, t('section.subtitle')))),
+              h('div', { className: 'dshsc-head-actions' },
                 h('button', {
-                  className: 'dshsm-btn',
+                  className: 'dshsc-btn',
                   disabled: !writable,
                   title: `${t('autoLink')}：${autoLinkLabel}`,
                   'aria-label': `${t('autoLink')}：${autoLinkLabel}`,
                   onClick: () => setModal({ type: 'autolink' }),
                 }, `${t('autoLink')} · ${autoLinkAgents.length + 1} ▾`),
                 h('button', {
-                  className: 'dshsm-btn primary',
+                  className: 'dshsc-btn primary',
                   disabled: !writable,
                   onClick: tab === 'installed' ? requestAddSkill : requestAddSubscription,
                 }, tab === 'installed' ? t('action.addSkill') : t('action.addSubscription')),
                 h('a', {
-                  className: 'dshsm-btn dshsm-iconbtn',
+                  className: 'dshsc-btn dshsc-iconbtn',
                   href: GITHUB_URL,
                   target: '_blank',
                   rel: 'noopener noreferrer',
@@ -851,48 +851,48 @@ window.__ModuleLoader__.load({
                   'aria-label': t('github.open'),
                 }, h(GitHubIcon, { size: 16 })))),
 
-            data ? h('div', { className: 'dshsm-prefbar' },
+            data ? h('div', { className: 'dshsc-prefbar' },
               h('span', null, t('placement.label')),
-              h('div', { className: 'dshsm-segment' },
+              h('div', { className: 'dshsc-segment' },
                 h('button', {
-                  className: 'dshsm-btn',
+                  className: 'dshsc-btn',
                   'aria-pressed': String(placement === 'settings'),
                   disabled: Boolean(placementBusy) || Boolean(data.readOnly),
                   onClick: () => void changePlacement('settings'),
                 }, t('placement.settings')),
                 h('button', {
-                  className: 'dshsm-btn',
+                  className: 'dshsc-btn',
                   'aria-pressed': String(placement === 'sidebar'),
                   disabled: Boolean(placementBusy) || Boolean(data.readOnly),
                   onClick: () => void changePlacement('sidebar'),
                 }, t('placement.sidebar'))),
-              h('span', { className: 'dshsm-pref-hint' }, t('placement.hint'))) : null,
+              h('span', { className: 'dshsc-pref-hint' }, t('placement.hint'))) : null,
 
-            error ? h('div', { className: 'dshsm-banner err' }, `${error} · `, h('button', { className: 'dshsm-btn ghost', onClick: () => void reload() }, t('action.retry'))) : null,
-            data?.readOnly ? h('div', { className: 'dshsm-banner warn' }, t('banner.readonly')) : null,
-            data && !data.cli?.usable ? h('div', { className: 'dshsm-banner err' }, `${t('banner.cli')} · ${data.cli?.source || ''} ${data.cli?.version || ''}`) : null,
+            error ? h('div', { className: 'dshsc-banner err' }, `${error} · `, h('button', { className: 'dshsc-btn ghost', onClick: () => void reload() }, t('action.retry'))) : null,
+            data?.readOnly ? h('div', { className: 'dshsc-banner warn' }, t('banner.readonly')) : null,
+            data && !data.cli?.usable ? h('div', { className: 'dshsc-banner err' }, `${t('banner.cli')} · ${data.cli?.source || ''} ${data.cli?.version || ''}`) : null,
 
-            h('div', { className: 'dshsm-toolbar' },
-              h('div', { className: 'dshsm-tabs' },
-                h('button', { className: `dshsm-tab${tab === 'installed' ? ' active' : ''}`, onClick: () => setTab('installed') },
+            h('div', { className: 'dshsc-toolbar' },
+              h('div', { className: 'dshsc-tabs' },
+                h('button', { className: `dshsc-tab${tab === 'installed' ? ' active' : ''}`, onClick: () => setTab('installed') },
                   `${t('tab.installed')}（${rows.length}）`),
-                h('button', { className: `dshsm-tab${tab === 'subscriptions' ? ' active' : ''}`, onClick: () => setTab('subscriptions') },
+                h('button', { className: `dshsc-tab${tab === 'subscriptions' ? ' active' : ''}`, onClick: () => setTab('subscriptions') },
                   `${t('tab.subscriptions')}（${data?.subscriptions?.length || 0}）`)),
-              h('div', { className: 'dshsm-spacer' }),
+              h('div', { className: 'dshsc-spacer' }),
               tab === 'installed' ? [
-                h('button', { key: 'refresh', className: 'dshsm-btn', disabled: busy !== null, onClick: () => void checkUpdates() }, t('action.refresh')),
-                h('div', { key: 'view', className: 'dshsm-segment' },
-                  h('button', { className: 'dshsm-btn', 'aria-pressed': String(view === 'flat'), onClick: () => setView('flat') }, t('view.flat')),
-                  h('button', { className: 'dshsm-btn', 'aria-pressed': String(view === 'agent'), onClick: () => setView('agent') }, t('view.agent'))),
+                h('button', { key: 'refresh', className: 'dshsc-btn', disabled: busy !== null, onClick: () => void checkUpdates() }, t('action.refresh')),
+                h('div', { key: 'view', className: 'dshsc-segment' },
+                  h('button', { className: 'dshsc-btn', 'aria-pressed': String(view === 'flat'), onClick: () => setView('flat') }, t('view.flat')),
+                  h('button', { className: 'dshsc-btn', 'aria-pressed': String(view === 'agent'), onClick: () => setView('agent') }, t('view.agent'))),
               ] : null),
 
             tab === 'installed' ? installedTab() : subscriptionsTab(),
 
-            busy ? h('div', { className: 'dshsm-meta' }, `${t('busy.working')} ${busy}`) : null,
-            toast ? h('div', { className: `dshsm-toast ${toast.kind}` }, toast.text) : null,
+            busy ? h('div', { className: 'dshsc-meta' }, `${t('busy.working')} ${busy}`) : null,
+            toast ? h('div', { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
             modal ? renderModal() : null,
           );
-          return page ? h('div', { className: 'dshsm-page' }, root) : root;
+          return page ? h('div', { className: 'dshsc-page' }, root) : root;
 
           function renderModal() {
             if (modal.type === 'add-skill') {
@@ -982,16 +982,16 @@ window.__ModuleLoader__.load({
             window.addEventListener('keydown', onKey);
             return () => window.removeEventListener('keydown', onKey);
           }, [onCancel]);
-          return h('div', { className: 'dshsm-overlay', onClick: (event) => { if (event.target === event.currentTarget) onCancel?.(); } },
-            h('div', { className: 'dshsm-modal', role: 'dialog', 'aria-modal': 'true' },
+          return h('div', { className: 'dshsc-overlay', onClick: (event) => { if (event.target === event.currentTarget) onCancel?.(); } },
+            h('div', { className: 'dshsc-modal', role: 'dialog', 'aria-modal': 'true' },
               h('button', {
-                className: 'dshsm-modal-close',
+                className: 'dshsc-modal-close',
                 'aria-label': t('action.cancel'),
                 onClick: (event) => { event.stopPropagation(); onCancel?.(); },
               }, '×'),
               h('h3', null, title),
               children,
-              h('div', { className: 'dshsm-modal-foot' }, footer)));
+              h('div', { className: 'dshsc-modal-foot' }, footer)));
         }
 
         function FormModal({ title, hint, fields, onCancel, onSubmit }) {
@@ -1000,18 +1000,18 @@ window.__ModuleLoader__.load({
             title,
             onCancel,
             footer: [
-              h('button', { key: 'c', className: 'dshsm-btn ghost', onClick: onCancel }, t('action.cancel')),
+              h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
               h('button', {
                 key: 's',
-                className: 'dshsm-btn primary',
+                className: 'dshsc-btn primary',
                 disabled: !form[fields[0].key]?.trim?.() || (fields.some((f) => f.key === 'skills') && !form.skills?.trim()),
                 onClick: () => onSubmit(form),
               }, t('action.save')),
             ],
           },
-          hint ? h('p', { className: 'dshsm-sub' }, hint) : null,
+          hint ? h('p', { className: 'dshsc-sub' }, hint) : null,
           ...fields.map((field) =>
-            h('label', { className: 'dshsm-field', key: field.key },
+            h('label', { className: 'dshsc-field', key: field.key },
               h('span', null, field.label),
               h('input', {
                 value: form[field.key],
@@ -1025,10 +1025,10 @@ window.__ModuleLoader__.load({
             title,
             onCancel,
             footer: [
-              h('button', { key: 'c', className: 'dshsm-btn ghost', onClick: onCancel }, t('action.cancel')),
-              h('button', { key: 'o', className: `dshsm-btn${danger ? ' danger' : ' primary'}`, onClick: onConfirm }, confirmLabel || t('action.save')),
+              h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
+              h('button', { key: 'o', className: `dshsc-btn${danger ? ' danger' : ' primary'}`, onClick: onConfirm }, confirmLabel || t('action.save')),
             ],
-          }, h('p', { className: 'dshsm-sub', style: { whiteSpace: 'pre-wrap' } }, body));
+          }, h('p', { className: 'dshsc-sub', style: { whiteSpace: 'pre-wrap' } }, body));
         }
 
         function LinksModal({ row, agents, workspaces, onCancel, onSave }) {
@@ -1065,18 +1065,18 @@ window.__ModuleLoader__.load({
             title: `${t('action.links')} · ${row.name}`,
             onCancel,
             footer: [
-              h('button', { key: 'c', className: 'dshsm-btn ghost', onClick: onCancel }, t('action.cancel')),
+              h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
               h('button', {
                 key: 's',
-                className: 'dshsm-btn primary',
+                className: 'dshsc-btn primary',
                 onClick: () => onSave([...targets], scopeMode === 'projects' ? scopeProjects.filter((item) => item.trim()) : []),
               }, t('action.save')),
             ],
           },
-          h('div', { className: 'dshsm-group' }, t('links.targets')),
-          h('p', { className: 'dshsm-sub' }, t('links.detectedHint')),
+          h('div', { className: 'dshsc-group' }, t('links.targets')),
+          h('p', { className: 'dshsc-sub' }, t('links.detectedHint')),
           ...candidates.map((agent) =>
-            h('label', { className: 'dshsm-check', key: agent.target },
+            h('label', { className: 'dshsc-check', key: agent.target },
               h('input', {
                 type: 'checkbox',
                 checked: agent.target === 'dsh-global' ? true : targets.has(agent.target),
@@ -1086,20 +1086,20 @@ window.__ModuleLoader__.load({
               h('span', null, agent.kind === 'dsh' ? t('links.dshGlobal') : agent.label),
               agent.target === 'dsh-global' ? h('small', null, t('links.required')) : null,
               h('small', null, agent.dir))),
-          h('div', { className: 'dshsm-group' }, t('links.scope')),
-          h('label', { className: 'dshsm-check' },
+          h('div', { className: 'dshsc-group' }, t('links.scope')),
+          h('label', { className: 'dshsc-check' },
             h('input', { type: 'radio', name: `scope-${row.name}`, checked: scopeMode === 'global', onChange: () => setScopeMode('global') }),
             h('span', null, t('links.scopeGlobal'))),
-          h('label', { className: 'dshsm-check' },
+          h('label', { className: 'dshsc-check' },
             h('input', { type: 'radio', name: `scope-${row.name}`, checked: scopeMode === 'projects', onChange: () => setScopeMode('projects') }),
             h('span', null, t('links.scopeProjects'))),
           scopeMode === 'projects'
             ? h('div', null,
-                h('div', { className: 'dshsm-group' }, t('links.workspaces')),
+                h('div', { className: 'dshsc-group' }, t('links.workspaces')),
                 workspaces.length === 0
-                  ? h('p', { className: 'dshsm-sub' }, t('links.noWorkspaces'))
-                  : h('div', { className: 'dshsm-panel' }, workspaces.map((workspace) =>
-                      h('label', { className: 'dshsm-check', key: workspace.id },
+                  ? h('p', { className: 'dshsc-sub' }, t('links.noWorkspaces'))
+                  : h('div', { className: 'dshsc-panel' }, workspaces.map((workspace) =>
+                      h('label', { className: 'dshsc-check', key: workspace.id },
                         h('input', {
                           type: 'checkbox',
                           checked: scopeProjects.includes(workspace.path),
@@ -1108,19 +1108,19 @@ window.__ModuleLoader__.load({
                         h('span', null, workspace.title),
                         h('small', null, workspace.path)))),
                 otherProjects.length > 0
-                  ? h('div', { className: 'dshsm-group' }, t('links.selected'))
+                  ? h('div', { className: 'dshsc-group' }, t('links.selected'))
                   : null,
                 ...otherProjects.map((project) =>
-                  h('div', { className: 'dshsm-sub-entry', key: project },
-                    h('span', { className: 'dshsm-code' }, project),
-                    h('div', { className: 'dshsm-actions' },
+                  h('div', { className: 'dshsc-sub-entry', key: project },
+                    h('span', { className: 'dshsc-code' }, project),
+                    h('div', { className: 'dshsc-actions' },
                       h('button', {
-                        className: 'dshsm-btn ghost danger',
+                        className: 'dshsc-btn ghost danger',
                         onClick: () => setScopeProjects((prev) => prev.filter((item) => item !== project)),
                       }, t('action.delete'))))),
-                h('button', { className: 'dshsm-btn', style: { alignSelf: 'flex-start', marginTop: 6 }, onClick: () => void pickDirectory() }, t('links.pickDirectory')))
+                h('button', { className: 'dshsc-btn', style: { alignSelf: 'flex-start', marginTop: 6 }, onClick: () => void pickDirectory() }, t('links.pickDirectory')))
             : null,
-          h('p', { className: 'dshsm-sub' }, t('links.hint')));
+          h('p', { className: 'dshsc-sub' }, t('links.hint')));
         }
 
         function AutoLinkModal({ settings, agents, onCancel, onSave }) {
@@ -1137,16 +1137,16 @@ window.__ModuleLoader__.load({
             title: t('autoLink'),
             onCancel,
             footer: [
-              h('button', { key: 'c', className: 'dshsm-btn ghost', onClick: onCancel }, t('action.cancel')),
-              h('button', { key: 's', className: 'dshsm-btn primary', onClick: () => onSave([...targets]) }, t('action.save')),
+              h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
+              h('button', { key: 's', className: 'dshsc-btn primary', onClick: () => onSave([...targets]) }, t('action.save')),
             ],
           },
-          h('p', { className: 'dshsm-sub' }, t('links.dshGlobal') + ' · ' + t('links.required')),
-          h('div', { className: 'dshsm-group' }, t('autoLink.detected')),
+          h('p', { className: 'dshsc-sub' }, t('links.dshGlobal') + ' · ' + t('links.required')),
+          h('div', { className: 'dshsc-group' }, t('autoLink.detected')),
           agents.length === 0
-            ? h('p', { className: 'dshsm-sub' }, t('autoLink.none'))
-            : h('div', { className: 'dshsm-panel' }, agents.map((agent) =>
-                h('label', { className: 'dshsm-check', key: agent.target },
+            ? h('p', { className: 'dshsc-sub' }, t('autoLink.none'))
+            : h('div', { className: 'dshsc-panel' }, agents.map((agent) =>
+                h('label', { className: 'dshsc-check', key: agent.target },
                   h('input', {
                     type: 'checkbox',
                     checked: targets.has(agent.target),
@@ -1154,10 +1154,10 @@ window.__ModuleLoader__.load({
                   }),
                   h('span', null, agent.label),
                   h('small', null, agent.dir)))),
-          h('p', { className: 'dshsm-sub' }, t('autoLink.hint')));
+          h('p', { className: 'dshsc-sub' }, t('autoLink.hint')));
         }
 
-        const PANEL_ID = 'dsh-skills-manager';
+        const PANEL_ID = 'dsh-skills-console';
         const layout = ctx.get('layout');
         let surface = null;
         let userSelected = false;
@@ -1232,7 +1232,7 @@ window.__ModuleLoader__.load({
         ctx.effect(() => () => {
           clearSurface();
           surface = null;
-        }, 'dsh-skills-manager:surface');
+        }, 'dsh-skills-console:surface');
 
         // 读取入口偏好；晚到的响应不能覆盖用户刚才在页面里的选择
         apiCall('GET', '/state')

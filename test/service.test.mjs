@@ -70,7 +70,7 @@ process.exit(0);
 `;
 
 function setup(extra = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-service-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-service-'));
   const home = path.join(root, 'home');
   fs.mkdirSync(path.join(home, '.dsh', 'skills'), { recursive: true });
   fs.mkdirSync(path.join(home, '.claude', 'skills'), { recursive: true });
@@ -82,7 +82,7 @@ function setup(extra = {}) {
   const registry = createRegistry({ paths, getState: () => store.state });
   const env = {
     ...process.env,
-    DSH_SKILLS_MANAGER_CLI: `${process.execPath} ${stub}`,
+    DSH_SKILLS_CONSOLE_CLI: `${process.execPath} ${stub}`,
     TEST_HOME: home,
     TEST_TREE_SHA: TREE_SHA,
     PATH: '',

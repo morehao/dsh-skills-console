@@ -120,7 +120,7 @@ function loadModule(payload) {
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(CLIENT, 'utf8'), sandbox);
   assert.ok(definition, 'client.js 必须向 __ModuleLoader__ 注册');
-  assert.equal(definition.id, '@morehao/dsh-skills-manager');
+  assert.equal(definition.id, '@morehao/dsh-skills-console');
 
   const stub = createReactStub();
   const registrations = [];
@@ -163,7 +163,7 @@ function loadModule(payload) {
   module.apply(ctx);
   const settings = registrations.filter((entry) => entry.key === 'settings.section');
   assert.equal(settings.length, 1, '必须注册一个 settings.section');
-  assert.equal(settings[0].options.id, 'dsh-skills-manager');
+  assert.equal(settings[0].options.id, 'dsh-skills-console');
   assert.equal(settings[0].options.order, 26);
   return {
     Component: settings[0].Component,
@@ -216,7 +216,7 @@ const STATE = {
   },
   subscriptions: [],
   workspaces: [
-    { id: 'w1', title: 'dsh-skills-manager', path: '/Users/morehao/Documents/practice/ai/dsh-skills-manager' },
+    { id: 'w1', title: 'dsh-skills-console', path: '/Users/morehao/Documents/practice/ai/dsh-skills-console' },
   ],
   installs: [
     ROW(),
@@ -319,7 +319,7 @@ test('可见性差异：内置技能是说明，其他来源才算告警', async
   assert.ok(text.includes('stray-skill'), '非内置的游离技能仍要列出来');
   assert.ok(text.includes('DSH 能看到、但不在 ~/.agents/skills'));
 
-  const banners = collectByType(tree, 'div').filter((node) => String(node.props.className || '').startsWith('dshsm-banner'));
+  const banners = collectByType(tree, 'div').filter((node) => String(node.props.className || '').startsWith('dshsc-banner'));
   assert.ok(banners.some((node) => String(node.props.className).includes('info')), '内置技能用 info 样式');
   assert.ok(banners.some((node) => String(node.props.className).includes('warn')), '其他来源用 warn 样式');
 });
@@ -331,8 +331,8 @@ test('主按钮文本色不能写死 #fff（深色主题白底白字）', async 
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
-  assert.ok(css.includes('.dshsm-btn.primary'), '应有主按钮样式');
-  assert.ok(!/\.dshsm-btn\.primary[^}]*color:\s*#fff/i.test(css), '主按钮不能写死白色文字');
+  assert.ok(css.includes('.dshsc-btn.primary'), '应有主按钮样式');
+  assert.ok(!/\.dshsc-btn\.primary[^}]*color:\s*#fff/i.test(css), '主按钮不能写死白色文字');
   assert.ok(css.includes('color: var(--dsw-alias-bg-base)'), '主按钮文字应跟随背景反色');
 });
 
@@ -343,8 +343,8 @@ test('开关开启时旋钮用反色，不能白底白旋钮', async () => {
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
-  const on = (css.match(/\.dshsm-switch\[aria-checked="true"\]\s*\{[^}]*\}/) || [''])[0];
-  const knobOn = (css.match(/\.dshsm-switch\[aria-checked="true"\]\s+\.dshsm-knob\s*\{[^}]*\}/) || [''])[0];
+  const on = (css.match(/\.dshsc-switch\[aria-checked="true"\]\s*\{[^}]*\}/) || [''])[0];
+  const knobOn = (css.match(/\.dshsc-switch\[aria-checked="true"\]\s+\.dshsc-knob\s*\{[^}]*\}/) || [''])[0];
   assert.ok(on.includes('background: var(--dsw-alias-brand-primary)'), '开启态轨道用品牌色');
   assert.ok(knobOn.includes('background: var(--dsw-alias-label-primary-foreground)'), '开启态旋钮用前景反色');
   assert.ok(!/#fff/i.test(knobOn), '旋钮不能写死白色');
@@ -357,10 +357,10 @@ test('二级弹窗用 bg-base，不用 bg-overlay（深色主题会变灰白）'
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
-  const modal = (css.match(/\.dshsm-modal\s*\{[^}]*\}/) || [''])[0];
+  const modal = (css.match(/\.dshsc-modal\s*\{[^}]*\}/) || [''])[0];
   assert.ok(modal.includes('background: var(--dsw-alias-bg-base)'), '弹窗要用 bg-base 表面色');
   assert.ok(!modal.includes('--dsw-alias-bg-overlay'), '弹窗不能用 bg-overlay');
-  assert.ok(css.includes('.dshsm-modal-close'), '弹窗要有显式关闭按钮');
+  assert.ok(css.includes('.dshsc-modal-close'), '弹窗要有显式关闭按钮');
 });
 
 test('插件主页：右上角 GitHub 仓库入口', async () => {
@@ -370,7 +370,7 @@ test('插件主页：右上角 GitHub 仓库入口', async () => {
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const link = collectByType(tree, 'a').find(
-    (node) => node.props.href === 'https://github.com/morehao/dsh-skills-manager',
+    (node) => node.props.href === 'https://github.com/morehao/dsh-skills-console',
   );
   assert.ok(link, '要有 GitHub 仓库链接');
   assert.equal(link.props.target, '_blank');
@@ -398,7 +398,7 @@ test('入口位置：设置里 / 侧边栏可切换，并重新注册 slot', asy
   assert.ok(registrations.some((entry) => entry.key === 'main' && entry.active), '注册主面板');
   assert.ok(registrations.some((entry) => entry.key === 'sidebar.panellist' && entry.active), '注册侧栏图标');
   assert.ok(!registrations.some((entry) => entry.key === 'settings.section' && entry.active), '移除设置分区');
-  assert.ok(layout.selected.includes('dsh-skills-manager'), '切到侧栏后选中主面板');
+  assert.ok(layout.selected.includes('dsh-skills-console'), '切到侧栏后选中主面板');
 });
 
 test('入口位置=sidebar：启动时直接注册主面板和侧栏图标', async () => {
@@ -411,15 +411,15 @@ test('入口位置=sidebar：启动时直接注册主面板和侧栏图标', asy
   const icon = registrations.find((entry) => entry.key === 'sidebar.panellist' && entry.active);
   assert.ok(main, '侧栏模式要注册 main');
   assert.ok(icon, '侧栏模式要注册 sidebar.panellist');
-  assert.equal(main.options.key, 'dsh-skills-manager');
-  assert.equal(icon.options.id, 'dsh-skills-manager');
+  assert.equal(main.options.key, 'dsh-skills-console');
+  assert.equal(icon.options.id, 'dsh-skills-console');
   assert.ok(!registrations.some((entry) => entry.key === 'settings.section' && entry.active), '不再占设置分区');
 
   const first = stub.render(main.Component, {});
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const text = textOf(stub.render(main.Component, {}, first.hooks).tree);
-  assert.ok(text.includes('技能管理'), '主面板有独立标题');
+  assert.ok(text.includes('技能控制台'), '主面板有独立标题');
   assert.ok(text.includes('入口位置'));
 });
 
@@ -472,7 +472,7 @@ test('接入设置：只列本机已装 Agent，并可直接勾 DSH 工作区', 
   const scoped = stub.render(Component, {}, first.hooks).tree;
   const scopeText = textOf(scoped);
   assert.ok(scopeText.includes('DSH 工作区'));
-  assert.ok(scopeText.includes('dsh-skills-manager'), '要列出 DSH 工作区标题');
+  assert.ok(scopeText.includes('dsh-skills-console'), '要列出 DSH 工作区标题');
   assert.ok(scopeText.includes('选择其他目录'));
   const checks = collectByType(scoped, 'input').filter((node) => node.props.type === 'checkbox');
   assert.equal(checks.length, 3, 'dsh 全局 + 一个 Agent + 一个工作区');

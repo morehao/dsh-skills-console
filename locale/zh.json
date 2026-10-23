@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "技能管理",
+    "title": "技能控制台",
     "description": "安装、更新、删除、接入与启停本机 Agent 技能；技能正文始终由 skills CLI 写入。"
   }
 }

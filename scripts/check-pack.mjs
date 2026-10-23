@@ -34,7 +34,7 @@ const required = [
 	"locale/en.json",
 ];
 
-const cacheDir = await mkdtemp(join(tmpdir(), "dsh-skills-manager-pack-"));
+const cacheDir = await mkdtemp(join(tmpdir(), "dsh-skills-console-pack-"));
 let files;
 try {
 	const { stdout } = await run(
