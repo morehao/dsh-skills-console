@@ -40,6 +40,9 @@ window.__ModuleLoader__.load({
         'status.broken': '异常：链接断裂',
         'status.unmanaged': '未纳入追踪',
         'status.unknown': '待检查',
+        'adopt.switchHint': '还未纳入追踪，不能启停',
+        'adopt.noUpstream': '没有远端来源，暂时无法检测更新',
+        'toast.checked': '检查完成',
         'mode.on': '启用',
         'mode.off': '停用',
         'mode.offHint': '停用中：DSH 看不到它，但已链接的其他 Agent 照常可用',
@@ -71,12 +74,15 @@ window.__ModuleLoader__.load({
         'busy.working': '处理中…',
         'meta.from': '来自',
         'meta.available': '可用',
+        'meta.unlinked': '未接入任何 Agent',
         'meta.scope': '范围',
         'meta.none': '无',
         installed: '已装',
         notInstalled: '未装',
         skillCount: '个技能',
         visibleOnly: '模型可见但不在 canonical',
+        visibleOnlyOther: 'DSH 能看到、但不在 ~/.agents/skills',
+        visibleOnlyBuiltin: 'DSH 自带技能（不在 canonical 属正常，本插件不管理）',
         external: '非本插件创建',
       },
       en: {
@@ -108,6 +114,9 @@ window.__ModuleLoader__.load({
         'status.broken': 'Broken link',
         'status.unmanaged': 'Untracked',
         'status.unknown': 'Not checked',
+        'adopt.switchHint': 'Not tracked yet, cannot be enabled or disabled',
+        'adopt.noUpstream': 'No upstream source; update checks are unavailable',
+        'toast.checked': 'Checked',
         'mode.on': 'Enabled',
         'mode.off': 'Disabled',
         'mode.offHint': 'Disabled: DSH cannot see it, other linked agents still can',
@@ -139,12 +148,15 @@ window.__ModuleLoader__.load({
         'busy.working': 'Working…',
         'meta.from': 'from',
         'meta.available': 'available',
+        'meta.unlinked': 'not linked to any agent',
         'meta.scope': 'scope',
         'meta.none': 'none',
         installed: 'installed',
         notInstalled: 'not installed',
         skillCount: 'skills',
         visibleOnly: 'Visible to the model but not in canonical',
+        visibleOnlyOther: 'DSH can see these but they are not in ~/.agents/skills',
+        visibleOnlyBuiltin: 'Shipped with DSH (not in canonical is normal; this plugin does not manage them)',
         external: 'created outside this plugin',
         'adopt.done': 'now tracked',
       },
@@ -160,7 +172,8 @@ window.__ModuleLoader__.load({
         border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); }
       .dshsm-btn:hover:not(:disabled) { border-color: var(--dsw-alias-border-l2); }
       .dshsm-btn:disabled { opacity: .45; cursor: not-allowed; }
-      .dshsm-btn.primary { background: var(--dsw-alias-brand-primary); border-color: transparent; color: #fff; }
+      /* brand-primary 在深色主题里是浅色，写死 #fff 会让按钮文字变成白底白字 */
+      .dshsm-btn.primary { background: var(--dsw-alias-brand-primary); border-color: transparent; color: var(--dsw-alias-bg-base); }
       .dshsm-btn.ghost { background: transparent; border-color: transparent; color: var(--dsw-alias-label-secondary); }
       .dshsm-btn.ghost:hover { color: var(--dsw-alias-label-primary); }
       .dshsm-btn.danger { color: var(--dsw-alias-state-error-primary); }
@@ -187,6 +200,7 @@ window.__ModuleLoader__.load({
       .dshsm-banner { border-radius: 8px; padding: 8px 10px; font-size: 12px; border: 1px solid var(--dsw-alias-border-l1); }
       .dshsm-banner.err { color: var(--dsw-alias-state-error-primary); border-color: var(--dsw-alias-state-error-primary); }
       .dshsm-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: var(--dsw-alias-state-warn-primary); }
+      .dshsm-banner.info { color: var(--dsw-alias-label-secondary); }
       .dshsm-empty { text-align: center; padding: 28px 12px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 10px; }
       .dshsm-group { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-secondary); margin: 10px 0 2px; }
       .dshsm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 60; }
@@ -310,7 +324,7 @@ window.__ModuleLoader__.load({
           async function adopt(row) {
             await run(`adopt:${row.name}`, async () => {
               const result = await apiCall('POST', `/skills/${encodeURIComponent(row.name)}/adopt`, {});
-              setToast({ kind: 'ok', text: `${row.name} · ${t('adopt.done')}${result.tracked ? '' : ' (no upstream)'}` });
+              setToast({ kind: 'ok', text: `${row.name} · ${result.tracked ? t('adopt.done') : t('adopt.noUpstream')}` });
               return result;
             });
           }
@@ -358,7 +372,7 @@ window.__ModuleLoader__.load({
           async function checkUpdates() {
             await run('check', async () => {
               const result = await apiCall('POST', '/updates/check', {});
-              setToast({ kind: 'ok', text: `${t('status.current')} · ${result.checks.length}` });
+              setToast({ kind: 'ok', text: `${t('toast.checked')} · ${result.checks.length}` });
             });
           }
 
@@ -478,14 +492,18 @@ window.__ModuleLoader__.load({
               const ref = row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : '';
               parts.push(`${t('meta.from')} ${row.source}${ref}`);
             }
-            const available = ['DSH', ...row.links.filter((link) => link.target !== 'dsh-global').map((link) => link.label)];
-            parts.push(`${t('meta.available')}：${available.join('、')}`);
+            // 只按现场链接说「可用」，没有链接就别默认写 DSH
+            const available = row.links
+              .filter((link) => !link.broken)
+              .map((link) => (link.target === 'dsh-global' ? 'DSH' : link.label));
+            parts.push(available.length > 0 ? `${t('meta.available')}：${available.join('、')}` : t('meta.unlinked'));
             if (row.scopeProjects?.length) parts.push(`${t('meta.scope')}：${row.scopeProjects.map((p) => p.split('/').pop()).join('、')}`);
             return h('div', { className: 'dshsm-meta' }, parts.map((text, index) => h('span', { key: index }, text)));
           }
 
           function rowView(row) {
             const off = row.mode === 'off';
+            const tracked = row.status !== 'unmanaged';
             const canUpdate = writable && (row.status === 'update-available' || row.status === 'conflict' || row.status === 'locally-modified');
             return h(
               'div',
@@ -501,11 +519,12 @@ window.__ModuleLoader__.load({
                   h('button', {
                     className: 'dshsm-switch',
                     role: 'switch',
-                    'aria-checked': String(row.mode === 'on'),
+                    'aria-checked': String(tracked && row.mode === 'on'),
                     'aria-label': `${row.name} ${t('mode.on')}/${t('mode.off')}`,
-                    disabled: busy !== null,
+                    // 未纳入追踪时调 setMode 只会报「没有安装记录」，不如直接禁用
+                    disabled: busy !== null || !tracked,
                     onClick: () => void toggleMode(row),
-                    title: row.mode === 'on' ? t('mode.off') : t('mode.on'),
+                    title: tracked ? (row.mode === 'on' ? t('mode.off') : t('mode.on')) : t('adopt.switchHint'),
                   }, h('span', { className: 'dshsm-knob' })),
                   row.status === 'unmanaged'
                     ? h('button', {
@@ -572,11 +591,25 @@ window.__ModuleLoader__.load({
                 h('button', { className: 'dshsm-btn ghost', onClick: () => setView('flat'), 'aria-pressed': String(view === 'flat') }, t('view.flat')),
                 h('button', { className: 'dshsm-btn ghost', onClick: () => setView('agent'), 'aria-pressed': String(view === 'agent') }, t('view.agent'))),
               body,
-              data.visibleOnly?.length
-                ? h('div', { className: 'dshsm-banner warn' },
-                    `${t('visibleOnly')}：${data.visibleOnly.map((item) => item.name).join('、')}`)
-                : null,
+              visibleOnlyBanners(),
             );
+          }
+
+          function visibleOnlyBanners() {
+            const items = data?.visibleOnly || [];
+            // bundled 是 DSH 自带（archify / office…），不在 canonical 是设计如此，别当成告警
+            const builtin = items.filter((item) => item.source === 'bundled');
+            const others = items.filter((item) => item.source !== 'bundled');
+            return [
+              others.length > 0
+                ? h('div', { className: 'dshsm-banner warn', key: 'other' },
+                    `${t('visibleOnlyOther')}：${others.map((item) => item.name).join('、')}`)
+                : null,
+              builtin.length > 0
+                ? h('div', { className: 'dshsm-banner info', key: 'builtin' },
+                    `${t('visibleOnlyBuiltin')}：${builtin.map((item) => item.name).join('、')}`)
+                : null,
+            ];
           }
 
           function subscriptionsTab() {

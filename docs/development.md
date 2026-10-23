@@ -42,8 +42,8 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 | `links.test.mjs` | 软链四态判定、幂等建链、不覆盖 `real` / `foreign-link` |
 | `cli.test.mjs` | CLI 定位、argv 形状（`add` 带全参数 / `remove` 不带 `-a`）、能力位、硬超时、非零退出 |
 | `updates.test.mjs` | 快照解析、subpath 过滤、L0–L3 判定、哈希形态不配对 → `unknown`、计划 token 稳定性、Trees 200/304/401/404 |
-| `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、启停、删除（回收站）、接管、只读拒绝 |
-| `client.test.mjs` | `client.js` 在 React 存根里渲染三种状态（正常 / 空态 / 只读） |
+| `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、启停、删除（回收站）、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘 |
+| `client.test.mjs` | `client.js` 在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异，并检查主按钮反色与开关禁用 |
 
 ## 4. 调试
 
@@ -51,7 +51,8 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 - **状态文件**：`$DSH_HOME/skills-manager/state.json`；坏掉时插件降级只读（写接口 409），删掉重建即可恢复。`DSH_SKILLS_MANAGER_HOME` 可整体挪到临时目录做实验。
 - **接口**：所有路由要带 `x-dsh-skills-manager: 1` 请求头，否则 403。
 - **生效方式**：`plugin_manager install_bundle(target = 本仓绝对路径)` 时是 `link:`，改 `client.js` / `lib/` 后刷新页面即可；npm 安装版是拷贝，需要重装并重启 dsh web。
-- **别在本机真实目录上试破坏性操作**：删除、更新 apply、接管都会动 `~/.agents/skills` 与各 Agent 的软链；用临时 `HOME` 起一个干净宿主更安全。
+- **别在本机真实目录上试破坏性操作**：删除、更新 apply 会动 `~/.agents/skills` 与各 Agent 的软链；用临时 `HOME` 起一个干净宿主更安全。接管只补记账、不碰文件。
+- **自动接管**：`GET /state` 会扫描 canonical，把账本里还没有的技能补成 `installs`（有 lock 来源时顺带建订阅）；只读状态或在途写操作时跳过。
 
 ## 5. 常见坑
 
@@ -61,4 +62,5 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 | 手工改了 `state.json` 页面没反应 | 已改成每请求前重读，但若写入队列有在途写，会等 pending 归零再读 |
 | `npm pack` 报 `EPERM ~/.npm/_cacache` | 本机 `~/.npm` 有 root 属主文件；`check-pack.mjs` 用临时 cache 规避，手动跑可 `sudo chown -R 501:20 ~/.npm` |
 | 技能装了但 DSH 里没有 | 看是不是只建了项目级链（`scopeProjects`）或 `mode: off`；再跑 `GET /state` 看 `visible` 与 `ledger` 对账 |
+| 装好的技能仍显示「未纳入追踪」 | 只读模式下不会对账；否则刷新一次 `GET /state` 即可自动补账。仍不行就看日志里的 `skills.reconcile` |
 | 更新提示「本地已改」 | 内容哈希与 lock 不一致（`locally-modified`）；确认后再带 `overwrite` 应用，或先在终端看 `git diff` |

@@ -70,6 +70,17 @@ function collectButtons(node, out = []) {
   return out;
 }
 
+function collectByType(node, type, out = []) {
+  if (!node || typeof node !== 'object') return out;
+  if (Array.isArray(node)) {
+    for (const child of node) collectByType(child, type, out);
+    return out;
+  }
+  if (node.type === type) out.push(node);
+  for (const child of node.children) collectByType(child, type, out);
+  return out;
+}
+
 function loadModule(payload) {
   let definition = null;
   const sandbox = {
@@ -218,6 +229,62 @@ test('CLI 不可用 / 只读：顶部提示 + 写操作按钮禁用', async () =
   assert.ok(text.includes('写操作已禁用'));
   const disabled = collectButtons(tree).filter((button) => button.props.disabled);
   assert.ok(disabled.length >= 2, '添加技能 / 自动链接都应被禁用');
+});
+
+test('未纳入追踪：开关禁用、不谎报「可用 DSH」、保留接管入口', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    installs: [
+      ROW({ name: 'local-only', managed: false, status: 'unmanaged', source: null, commit: null, ref: null, links: [] }),
+    ],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const text = textOf(tree);
+  for (const expected of ['未纳入追踪', '未接入任何 Agent', '接管']) {
+    assert.ok(text.includes(expected), `缺少文案：${expected}`);
+  }
+  assert.ok(!text.includes('可用：DSH'), '没有链接时不能显示「可用：DSH」');
+  const switches = collectButtons(tree).filter((button) => button.props.role === 'switch');
+  assert.equal(switches.length, 1);
+  assert.equal(switches[0].props.disabled, true, '未追踪时开关应禁用');
+  assert.equal(switches[0].props['aria-checked'], 'false');
+});
+
+test('可见性差异：内置技能是说明，其他来源才算告警', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    visibleOnly: [
+      { name: 'office', source: 'bundled' },
+      { name: 'stray-skill', source: 'user-dsh' },
+    ],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const text = textOf(tree);
+  assert.ok(text.includes('DSH 自带技能'), '内置技能要有正常化说明');
+  assert.ok(text.includes('stray-skill'), '非内置的游离技能仍要列出来');
+  assert.ok(text.includes('DSH 能看到、但不在 ~/.agents/skills'));
+
+  const banners = collectByType(tree, 'div').filter((node) => String(node.props.className || '').startsWith('dshsm-banner'));
+  assert.ok(banners.some((node) => String(node.props.className).includes('info')), '内置技能用 info 样式');
+  assert.ok(banners.some((node) => String(node.props.className).includes('warn')), '其他来源用 warn 样式');
+});
+
+test('主按钮文本色不能写死 #fff（深色主题白底白字）', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  assert.ok(css.includes('.dshsm-btn.primary'), '应有主按钮样式');
+  assert.ok(!/\.dshsm-btn\.primary[^}]*color:\s*#fff/i.test(css), '主按钮不能写死白色文字');
+  assert.ok(css.includes('color: var(--dsw-alias-bg-base)'), '主按钮文字应跟随背景反色');
 });
 
 test('切到订阅 tab：空态文案跟随 tab', async () => {

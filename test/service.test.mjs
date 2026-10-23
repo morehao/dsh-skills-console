@@ -172,7 +172,7 @@ test('删除：体检拦截真实目录；通过后进回收站并清记账', as
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('接管：把 CLI 装的技能纳入追踪，并顺带建订阅', async () => {
+test('自动接管：CLI 已装好的技能在第一次读取时直接纳入追踪', async () => {
   const { root, home, paths, store, service } = setup();
   // 模拟"CLI 装好但本插件不知道"的状态
   const dir = path.join(paths.canonical, 'alpha');
@@ -195,32 +195,57 @@ test('接管：把 CLI 装的技能纳入追踪，并顺带建订阅', async () 
   );
   fs.symlinkSync(path.join('..', '..', '.agents', 'skills', 'alpha'), path.join(home, '.dsh', 'skills', 'alpha'), 'dir');
 
+  // 没有再点「接管」，第一次 GET /state 就该把账补上
   const before = await service.getState({});
-  assert.equal(before.installs.find((row) => row.name === 'alpha').status, 'unmanaged');
-
-  const result = await service.adopt({ name: 'alpha' });
-  assert.equal(result.ok, true);
-  assert.equal(result.tracked, true, '有远端来源就该能追踪更新');
+  const row = before.installs.find((item) => item.name === 'alpha');
+  assert.equal(row.managed, true);
+  assert.notEqual(row.status, 'unmanaged');
 
   const install = store.findInstall('alpha');
   assert.ok(install.installedHash);
-  assert.ok(install.subscriptionId);
+  assert.ok(install.subscriptionId, '有 lock 来源时自动建订阅');
   const subscription = store.state.subscriptions.find((item) => item.id === install.subscriptionId);
   assert.equal(subscription.source, 'morehao/ai-kit');
-
-  const after = await service.getState({});
-  const row = after.installs.find((item) => item.name === 'alpha');
-  assert.equal(row.managed, true);
-  assert.notEqual(row.status, 'unmanaged');
   assert.ok(row.links.some((link) => link.target === 'dsh-global' && link.state === 'managed'), '已存在的链接要记成自己的');
+
+  const repeat = await service.getState({});
+  assert.equal(store.state.installs.filter((item) => item.name === 'alpha').length, 1, '对账必须幂等');
+  assert.equal(repeat.installs.find((item) => item.name === 'alpha').managed, true);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('只读状态下的写操作被拒绝', async () => {
+test('接管：没有 lock 来源的技能也能纳入追踪，但无法检测更新', async () => {
   const { root, paths, store, service } = setup();
+  const dir = path.join(paths.canonical, 'beta');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: beta\ndescription: demo\n---\nbody\n');
+
+  const result = await service.adopt({ name: 'beta' });
+  assert.equal(result.ok, true);
+  assert.equal(result.tracked, false);
+  assert.match(result.note, /没有可识别的远端来源/);
+  const install = store.findInstall('beta');
+  assert.ok(install);
+  assert.equal(install.subscriptionId, null);
+
+  const state = await service.getState({});
+  assert.equal(state.installs.find((item) => item.name === 'beta').managed, true);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('只读状态下的写操作被拒绝，也不会自动接管', async () => {
+  const { root, paths, store, service } = setup();
+  const dir = path.join(paths.canonical, 'gamma');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: gamma\n---\nbody\n');
   fs.mkdirSync(paths.stateDir, { recursive: true });
   fs.writeFileSync(paths.stateFile, 'broken');
   store.load();
   await assert.rejects(() => service.setSettings({ autoLinkAgents: false }), /read-only|state/i);
+
+  const state = await service.getState({});
+  assert.equal(state.readOnly, true);
+  assert.equal(store.findInstall('gamma'), undefined, '只读时绝不对账写盘');
+  assert.equal(state.installs.find((item) => item.name === 'gamma').status, 'unmanaged');
   fs.rmSync(root, { recursive: true, force: true });
 });
