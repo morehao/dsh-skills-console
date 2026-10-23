@@ -11,9 +11,9 @@
 | 注记 tag（annotated tag） | `git tag -a`，自带正文。Release body 的**唯一真源**；轻量 tag 没有正文，会被 `scripts/release-notes.mjs` 拒绝 |
 | Trusted Publisher（TP） | npm 侧的 OIDC 信任关系：GitHub Actions 的 `release.yml` 可代表本包发布，无需 token |
 | provenance | npm 发布时附带的构建来源证明（SLSA），由 OIDC 自动生成；`dist.attestations` 存在即说明是 CI 发的 |
-| staging / `*-stage` | npm 12 的「暂存发布」机制：2FA 场景下先落一个 `<version>-stage`，证明存在后再转正。正常现象，不用管 |
+| staging / `*-stage` | npm 的「暂存发布」（staged publishing）：需要 2FA 的手工发布先落一个 `<version>-stage`，网页授权后再转正。正常现象，不影响 `latest` |
 
-**前提**：Node ≥ 22、`gh` 已登录（建 Release 用）、本机 `~/.npmrc` 的 registry 是 npmmirror（**所有 npm 命令都要显式 `--registry https://registry.npmjs.org`**，否则读写都打到镜像）。
+**前提**：Node `^22.20.0 || >=24.0.0`（与 `package.json` 的 `engines` 一致）、`gh` 已登录（发布后验证与排障用；CI 建 Release 走 `GITHUB_TOKEN`）、本机 `~/.npmrc` 的 registry 是 npmmirror（**所有 npm 命令都要显式 `--registry https://registry.npmjs.org`**，否则读写都打到镜像）。
 
 ## 1. 速查
 
@@ -21,8 +21,8 @@
 |---|---|
 | 发个新版本（99% 的情况） | §4（升版本 → PR → 注记 tag → 看 CI） |
 | 新包名第一次发布 / 改名 / 换机器 | §3（一次性：建包 + 配 TP） |
-| 发布成功了但 npm 上看不到 | §5 + §6（先等 2–5 分钟，看单版本端点） |
-| 旧包要不要 deprecate / unpublish | §6.3 |
+| 发布成功了但 npm 上看不到 | §5 + §6（先等几分钟，看单版本端点；packument 更慢） |
+| 旧包要不要 deprecate / unpublish | §6 末节「旧包：deprecate 还是 unpublish」 |
 | 改 workflow / 发布脚本 | §7（先读约束） |
 
 ## 2. 链路总览
@@ -45,7 +45,7 @@
 |---|---|---|
 | 版本号 | 人（走 PR，`main` 不直推） | `package.json.version`；tag 去掉 `v` 必须等于它 |
 | tag | 人（打 + 推） | 注记 tag，正文＝Release body |
-| 发布 | `release.yml` + `scripts/ci-publish.sh` | npm 包 + provenance；失败自动退避重试 3 次 |
+| 发布 | `release.yml` + `scripts/ci-publish.sh` | npm 包 + provenance；失败最多重试到 3 次（第 n 次失败后等 n×30s，且每次先回读 registry） |
 | Release | 同一 job 的 `gh release create`（**必须留在 workflow 里**） | GitHub Release |
 | 凭据 | npm Trusted Publisher（OIDC） | 版本元信息里 `_npmUser: GitHub Actions` + `trustedPublisher.id` |
 | PR 门禁 | `.github/workflows/check.yml` | `bash -n scripts/ci-publish.sh` + `npm run check` + `npm test` |
@@ -77,10 +77,12 @@ cd /tmp/placeholder && npm publish --registry https://registry.npmjs.org --acces
 ```bash
 # macOS：伪 TTY 下运行，日志里能拿到未打码的授权 URL
 script -q /tmp/pub.log npm publish --registry https://registry.npmjs.org --access public
+# Linux：语法不同，命令要放进 -c
+# script -q -c "npm publish --registry https://registry.npmjs.org --access public" /tmp/pub.log
 # 另开终端：cat /tmp/pub.log | tr -d '\r' | tail -5   → 复制 auth/cli 链接到浏览器授权
 ```
 
-> npm 12 在这条路上会顺带产生一个 `0.0.0-stage` 版本（暂存发布机制的副产物）。它不影响 `latest`，可留可删。
+> 需要 2FA 的 `npm publish` 会先落一个 `0.0.0-stage` 版本，网页授权通过后再生效成 `0.0.0`（暂存发布机制）。它不影响 `latest`，可留可删。
 
 ### 3.2 配置 Trusted Publisher（CLI，不用点网页）
 
@@ -117,7 +119,7 @@ curl -s https://registry.npmjs.org/-/package/@morehao/dsh-skills-console/dist-ta
 npm access list packages morehao --registry https://registry.npmjs.org        # 包在列表里（read-write）
 ```
 
-- [ ] 包能在 registry 上读到（单版本端点 200；packument 可能还在 processing，见 §6）
+- [ ] 包能在 registry 上读到（单版本端点 200；packument 可能还在 processing，见 §5「processing 窗口」）
 - [ ] TP 的 `file` / `repo` / `permissions` 与 3.2 一致
 - [ ] 本仓 `package.json` 的 `name`、`cordis.patch.yml` 的 `name`、`lib/index.js` 的 `export const name` 与新包名一致（`npm run check` 会兜住）
 - [ ] 仓库没有残留 `NPM_TOKEN` secret（OIDC 不需要；有也要删）
@@ -126,7 +128,8 @@ npm access list packages morehao --registry https://registry.npmjs.org        # 
 
 ```bash
 npm logout --registry https://registry.npmjs.org
-npm config get //registry.npmjs.org/:_authToken    # 期望 undefined
+# npm ≥11 会拒绝用 `npm config get` 读 _authToken（"option is protected"），直接看文件：
+grep -q 'registry.npmjs.org/:_authToken' ~/.npmrc && echo '还有 token，检查是否残留' || echo '已无 npmjs token'
 ```
 
 之后只剩 CI 的 OIDC，本机不再持有任何可发布的凭据。
@@ -138,7 +141,7 @@ npm config get //registry.npmjs.org/:_authToken    # 期望 undefined
 | 1 | GitHub 仓库改名，`git remote set-url origin …` | 旧 URL 会 301，但 **TP 的 Repository 必须填新名** |
 | 2 | `package.json` / `cordis.patch.yml` / `lib/index.js` / 路由前缀 / state 目录 / env / CSS 前缀 | 三处命名由 `npm run check` 守住；旧名不兼容就别写兼容层 |
 | 3 | 按 §3.1–3.2 建**新包名** + 配 TP | 顺序不能颠倒：先有包，才能配 TP |
-| 4 | 旧包：`npm deprecate @旧包@版本 "已重命名…"` | 旧包若已从 registry 消失，这条会 404，见 §6.3 |
+| 4 | 旧包：`npm deprecate @旧包@版本 "已重命名…"` | 旧包若已从 registry 消失，这条会 404，见 §6 末节 |
 | 5 | 本机 `link:` 接入的 profile | `package.json` 依赖键与 `link:` 路径都要换，否则 bundle 静默不加载 |
 | 6 | 是否搬状态目录 | 新名读不到旧目录只会「降级成待接管」，不会误删；想保住账本就 `mv` 旧目录到新目录 |
 
@@ -182,7 +185,9 @@ git push origin v0.2.0
 
 推荐用 git-kit 的 `/git-release`：它只做 `pr-merge` 之后那段（只读预检 → 计划卡 → 打注记 tag → 校验 Release → 跟踪后效）。
 
-**发布失败不要删 tag 重打**：`ci-publish.sh` 内置 3 次退避重试，registry 恢复后 `gh run rerun <run-id>` 即可；版本存在即跳过，重跑不会重复发布。
+**发布失败不要删 tag 重打**：`ci-publish.sh` 最多尝试 3 次（第 n 次失败等 n×30s，每次失败先回读 registry），registry 恢复后 `gh run rerun <run-id>` 即可；版本存在即跳过，重跑不会重复发布。
+
+> 反面教材：本仓 `v0.2.0` 的注记就是漏了 `--cleanup=verbatim` 打的，`## 本次发布`、`### 迁移` 等以 `#` 开头的行被 `strip` 全部吃掉，Release 正文只剩段落和表格。打之前用 `git for-each-ref --format='%(contents)' refs/tags/vX.Y.Z | head` 自查一眼。
 
 ## 5. 发布后验证
 
@@ -199,7 +204,7 @@ curl -s https://registry.npmjs.org/@morehao%2Fdsh-skills-console/0.2.0 \
       console.log('attestations',Object.keys(j.dist.attestations||{}));})"
 
 # 3) 拉下来真的能装（防止 files 白名单漏东西）
-mkdir -p /tmp/packtest && cd /tmp/packtest && npm pack @morehao/dsh-skills-console@0.2.0 --registry https://registry.npmjs.org
+mkdir -p /tmp/packtest && cd /tmp/packtest && npm pack @morehao/dsh-skills-console@0.2.0 --registry https://registry.npmjs.org   # 之后几条若还在跑，先 cd 回仓库
 
 # 4) Release 正文与注记一致
 gh release view v0.2.0 --json tagName,body --jq '{tag:.tagName,len:(.body|length)}'
@@ -211,7 +216,7 @@ gh api repos/morehao/dsh-skills-console/actions/runs/<run-id>/jobs --jq '.jobs[]
 
 ### processing 窗口（重要）
 
-npm 对**新包名/新版本**的首次可见有 1–5 分钟延迟（实测 0.2.0 约 2.5 分钟）。窗口内的典型表现：
+npm 对**新包名/新版本**的首次可见有几分钟延迟，且两个读端点不同步：单版本端点多在 2 分钟内出现，完整 packument 要更久（本次实测 0.2.0 单版本端点约 2.5 分钟；0.0.0 的 packument 约 5 分钟）。窗口内的典型表现：
 
 - `POST/PUT` 已返回 `+ @morehao/dsh-skills-console@0.2.0`，CI 绿；
 - 但 `npm view`、完整 packument 仍 404，`dist-tags` 还是旧版本。
@@ -240,7 +245,7 @@ done
 | 发布成功但 `npm view` 还是旧版本号 | 读端点 CDN 缓存 | 用 `/-/package/<name>/dist-tags` 与单版本端点，别用完整 packument 判断 |
 | `publish` 绿色但没发出去 | `@actions/exec` 不做 shell 解析，`a && b` 只执行 `a` | workflow 里只用单一命令 `bash ./scripts/ci-publish.sh` |
 | 发布成功但没有 Release | 注记 tag 没正文（轻量 tag / 只有首行） | 本地 `node scripts/release-notes.mjs vX.Y.Z` 复现；补注记后重跑该 run |
-| `npm deprecate` 404 | 包在新 registry 上不存在（被下架/从未落成），或 token 无写权限 | 先 `curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/@morehao%2F<包名>`；404 就别再试 deprecate（见下节） |
+| `npm deprecate` 404 | 包在 npmjs 上不存在（被下架/从未落成），或 token 无写权限 | 先 `curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/@morehao%2F<包名>`；404 就别再试 deprecate（见下节） |
 | 装旧名仍成功 | 你用的源是 npmmirror，镜像对「删除」有同步延迟 | 判断真实状态一律 `--registry https://registry.npmjs.org` |
 | 本地 `npm login` 弹 CNPM/npmmirror | 全局 registry 是 npmmirror | 所有命令显式 `--registry https://registry.npmjs.org` |
 | `npm pack` 报 `EPERM ~/.npm/_cacache` | `~/.npm` 里有 root 属主文件 | `check-pack.mjs` 已用临时 cache 规避；手动跑可 `sudo chown -R $(id -u):$(id -g) ~/.npm` |
@@ -271,7 +276,7 @@ done
 |---|---|
 | `.github/workflows/check.yml` | PR / push `main`：发布脚本语法 + 机械校验 + 单测 |
 | `.github/workflows/release.yml` | tag `v*` → OIDC 发布 → 建 Release（`name:` 必须等于文件名） |
-| `scripts/ci-publish.sh` | 版本一致性守卫、幂等跳过、`npm publish --provenance`（3 次退避重试） |
+| `scripts/ci-publish.sh` | 版本一致性守卫、幂等跳过、`npm publish --provenance`（最多 3 次尝试、指数退避） |
 | `scripts/release-notes.mjs` | 注记 tag → Release body 投影（不重算、不改写） |
 | `scripts/check-naming.mjs` · `scripts/check-pack.mjs` | 三处命名一致、`exports`/`files` 接线与打包白名单 |
 | `package.json` | `version`、`publishConfig.access`、`files`、`dsh.bundle` / `dsh.client` |
