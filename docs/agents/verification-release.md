@@ -33,13 +33,14 @@ PR 与 push `main` 触发，**不装依赖、不联网**：
 
 1. `bash -n scripts/ci-publish.sh`
 2. `npm run check` → `check-syntax.mjs`（lib/、scripts/、test/、client.js 逐文件 `node --check`）→ `check-naming` → `check-pack` → `smoke-release-notes`
-3. `npm test` → 39 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
+3. `npm test` → 70 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
 
 注意：
 
 - 需要真实 `skills` CLI 或 GitHub 的动作（`npm run sync:agents`、真实安装/更新）**不在 CI**，本地跑并如实说明。
 - `check-pack` 用临时 `npm_config_cache`；本机手动 `npm pack` 若报 `EPERM ~/.npm/_cacache`，是 `~/.npm` 里有 root 属主文件，不是包的问题。
 - workflow 用 `actions/checkout@v7` + `actions/setup-node@v7`，且**不设 `registry-url`**（v7 移除了 dummy `NODE_AUTH_TOKEN` 兜底，registry 由 `ci-publish.sh` 显式 `--registry` 指定），并显式 `package-manager-cache: false`。改这两处前先读 [发布流程 §7](../publishing.md)。
+- `runs-on` 写**显式版本** `ubuntu-24.04`，不用 `ubuntu-latest`：`ubuntu-latest` 自 2026-10-19 起分批迁到 26.04（11-19 完成），校验与发布结果不该随镜像漂移。要试新镜像就单独改成 `ubuntu-26.04` 跑一轮再切；`check` job 另有 `permissions: contents: read`（只读校验）。
 
 ## 4. 打包与命名
 

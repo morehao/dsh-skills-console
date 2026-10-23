@@ -13,7 +13,11 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   check:
     name: Pre-publish checks
-    runs-on: ubuntu-latest
+    # 镜像显式钉版本：ubuntu-latest 自 2026-10-19 起分批迁到 26.04（11-19 完成）。
+    # 校验结果不该随镜像漂移；要试新镜像就改成 ubuntu-26.04 单独跑一轮。
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read   # 只读校验，不写仓库
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -34,6 +38,6 @@ jobs:
       - name: 机械校验（npm run check）
         run: npm run check
 
-      # 39 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
+      # 70 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
       - name: 单元测试
         run: npm test
