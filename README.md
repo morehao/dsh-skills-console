@@ -4,18 +4,68 @@ DeepSeek Harness（dsh）的技能管理插件：**装 / 更新 / 删除 / 接�
 
 ## 定位
 
-- **技能真身只认 `skills` CLI**：下载、解析、落盘到 canonical（`~/.agents/skills`）、写 lock，全部交给 [`skills`](https://www.npmjs.com/package/skills) CLI，本插件不代理来源、不写 lock。
+- **技能真身只认 `skills` CLI**：下载、解析、落盘到 canonical（`~/.agents/skills`）、写 lock，全部交给 [`skills`](https://www.npmjs.com/package/skills) CLI。本插件不代理来源、不写 lock、不克隆仓库。
 - **DSH 侧只靠原生根**：往原生 `user-dsh` 根（`~/.dsh/skills`，rank 400）建软链让 DSH 发现；项目维度写 `project-dsh` 根（rank 100）。不注册自有 provider、不改 DSH 配置。
-- **其他 Agent 靠软链分发**：Claude Code / Codex / Cursor … 各自 `skills` 目录里放指向 canonical 的软链。
+- **其他 Agent 靠软链分发**：Claude Code / Cursor / Codex … 各自 `skills` 目录里放指向 canonical 的软链。
 - **启停 = DSH 侧链接的有/无**：不动 `SKILL.md`（`add` 会整份覆盖，改文件还会让更新被锁死）。
 
 ## 状态
 
-设计阶段，尚无代码。文档见：
+P0–P2 已实现并通过单测（39 个用例）：
 
-- [设计文档](.dsh/docs/specs/2026-10-23-dsh-skills-manager-design.md)（架构、数据模型、CLI 契约、原生对接、风险）
-- [界面原型设计](.dsh/docs/specs/2026-10-23-dsh-skills-manager-prototype-design.md)
-- [可点原型](.dsh/docs/prototypes/2026-10-23-dsh-skills-manager-prototype.html)（单文件，浏览器直接打开）
+| 能力 | 说明 |
+| --- | --- |
+| 清单 | canonical 扫描 + CLI lock 对账 + `ctx.skills.snapshot` 可见性对账（模型可见 vs 本地账本） |
+| 接入 | 软链四态判定（`managed` / `managed-external` / `foreign-link` / `real`），**绝不覆盖**非本插件创建的东西 |
+| 安装 | `skills add <owner/repo#commit> --skill … -a universal -g -y --json --full-depth`，装完断言 lock 的 `skillFolderHash` 与快照 tree SHA 一致 |
+| 更新 | GitHub Trees API 检测 → 计划（commit 区间 + token）→ 应用（先备份、后重建、失败回滚） |
+| 删除 | 体检（真实目录/外部链接即中止）→ 快照进回收站（7 天）→ `skills remove -s … -g -y`（**不带 `-a`**）→ 清自家链接与记账 |
+| 启停 | `mode: on/off` 只摘 DSH 侧链接，文件与其他 Agent 链接不动 |
+| 订阅 | `owner/repo` + ref + 子目录，只记快照不安装 |
+
+## 安装
+
+```bash
+# 在 Harness 里：plugin_manager install_bundle(target = 本仓库绝对路径)
+```
+
+或写进 profile 的 `cordis.patch.yml`：
+
+```yaml
+- insert:
+    - id: dsh-skills-manager
+      name: '@morehao/dsh-skills-manager'
+```
+
+> ⚠️ 本机 profile 里可能已经装着 `@michengai/dsh-skills-manager`（同样叫「技能管理」）。两者互不干扰（路由前缀 `/api/morehao/skills-manager/*`、状态文件名不同），但会各出一个设置分区；只想留一个时把另一个 `plugin_manager set_plugin enabled:false` 即可。
+
+## 开发
+
+```bash
+npm test               # node --test，临时 HOME / DSH_HOME，不碰真实目录
+npm run check          # 全部文件语法自检
+npm run sync:agents    # 从 skills CLI 的 dist 重新导出 agent 目录表
+```
+
+## 数据位置
+
+| 项 | 路径 | 归属 |
+| --- | --- | --- |
+| canonical 真身 | `~/.agents/skills` | `skills` CLI 独占 |
+| CLI lock | `~/.agents/.skill-lock.json` | `skills` CLI 独占（本插件只读） |
+| DSH 全局根 | `~/.dsh/skills` | 本插件写软链 |
+| 插件状态 | `$DSH_HOME/skills-manager/state.json` | 本插件（`DSH_SKILLS_MANAGER_HOME` 可覆盖） |
+| 备份 / 回收站 | `$DSH_HOME/skills-manager/{backups,trash}` | 本插件 |
+| 事件日志 | `$DSH_HOME/skills-manager/dsh-skills-manager.log` | 本插件（JSONL，1MB 滚动） |
+
+环境变量：`DSH_SKILLS_MANAGER_HOME`、`DSH_SKILLS_MANAGER_CLI`、`DSH_SKILLS_MANAGER_NPX_SPEC`、`DSH_SKILLS_MANAGER_TIMEOUT_MS`、`GITHUB_TOKEN`/`GH_TOKEN`。
+
+## 边界（明确不做）
+
+- 不做技能市场/搜索，不接管 CLI 已有的 agent 分发，不给 CLI 打补丁。
+- 不编辑技能正文（`add` 会整份重建，本地改写必然被覆盖）。
+- 不做文件级差异预览：只给 commit 区间与受影响技能；要看具体行，终端跑 `git diff <from>..<to> -- <skillDir>`。
+- 不做跨机器同步，不落盘任何 token。
 
 ## 许可
 

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Skills Manager",
+    "description": "Install, update, remove, link and enable local agent skills. Skill bodies stay owned by the skills CLI."
+  }
+}
