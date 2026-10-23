@@ -4,6 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createRoutes, PLUGIN_INFO, ROUTE_PREFIX } from '../lib/routes.js';
+import { ServiceError } from '../lib/core/service.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(path.join(here, '..', 'package.json'), 'utf8'));
@@ -60,4 +61,28 @@ test('/state：没有自定义鉴权头 → 403，且不返回 plugin', async ()
   const body = JSON.parse(res.out.body);
   assert.equal(body.ok, false);
   assert.equal(body.plugin, undefined);
+});
+
+test('/subscriptions：service 抛错 → 400 + 错误码（客户端据此显示失败，而不是成功）', async () => {
+  const service = {
+    reloadState() {},
+    getState: async () => ({ ok: true }),
+    addSubscription: async () => {
+      throw new ServiceError('error.skills.upstream-failed', '读取 o/r@main 失败：HTTP 404');
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  const req = {
+    url: `${ROUTE_PREFIX}/subscriptions`,
+    method: 'POST',
+    headers: { 'x-dsh-skills-console': '1' },
+    async *[Symbol.asyncIterator]() {},
+  };
+  await handler(req, res);
+
+  assert.equal(res.out.status, 400);
+  const body = JSON.parse(res.out.body);
+  assert.equal(body.ok, false);
+  assert.equal(body.code, 'error.skills.upstream-failed');
 });

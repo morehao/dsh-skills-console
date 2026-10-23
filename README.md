@@ -29,7 +29,7 @@ DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入
 | 接入 | 软链四态判定（`managed` / `managed-external` / `foreign-link` / `real`），**绝不覆盖**别人创建的东西；只列本机已安装目录，已删的 Agent 自动从列表消失 |
 | 启停 | `mode: on/off` 只摘或重建 DSH 侧链接，不动 `SKILL.md`，其他 Agent 的链接也不受影响 |
 | 作用范围 | 全局 `~/.dsh/skills`，或仅指定项目；项目可直接勾选 DSH 已登记的工作区，也可手动选目录 |
-| 订阅 | 关注 `owner/repo`（可指定 ref / 子目录），只记快照、不装技能；装好后再逐个安装 |
+| 订阅 | 关注 `owner/repo`（可指定 ref / 子目录；ref 缺省时跟随仓库默认分支，`master` 仓库也能用），只记快照、不装技能；上游读不到快照时直接报错，不会留下空订阅 |
 
 ## 界面
 
