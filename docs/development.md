@@ -25,7 +25,7 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，70 例
+npm test          # node --test "test/*.test.mjs"，76 例
 npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投影
 ```
 
@@ -43,7 +43,7 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 | `cli.test.mjs` | CLI 定位、argv 形状（`add` 带全参数 / `remove` 不带 `-a`）、能力位、硬超时、非零退出 |
 | `updates.test.mjs` | 快照解析、subpath 过滤、L0–L3 判定、哈希形态不配对 → `unknown`、计划 token 稳定性、Trees 200/304/401/404 |
 | `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、自动链接多选、入口位置持久化、启停、删除（回收站）、Agent 删除后的链接降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘 |
-| `client.test.mjs` | `client.js` 在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动链接多选 / 工作区勾选 / 入口位置切换（先开「插件设置」面板）/ 页头身份与 GitHub 胶囊 / 设置导航图标认领与卸载还原，并检查主按钮反色、开关旋钮反色、弹窗表面色与开关禁用 |
+| `client.test.mjs` | `client.js` 在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动链接多选 / 工作区勾选 / 入口位置切换（先开「插件设置」面板）/ 页头身份与 GitHub 右侧图标按钮 / 设置导航图标认领与卸载还原，并检查主按钮反色、开关旋钮反色、弹窗表面色、方形复选框圆点与开关禁用 |
 | `routes.test.mjs` | `/state` 下发插件身份（包名去 scope + 版本，与 `package.json` 同源）、缺鉴权头 → 403 |
 
 ## 4. 调试

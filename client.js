@@ -1,6 +1,6 @@
 /**
  * Client half：设置页「技能控制台」分区。
- * 一页两 tab：已装 / 订阅。行内操作列 = 开关 + 更新 + 接入设置 + 删除。
+ * 一页两 tab：已安装 / 订阅。行内操作列 = 开关 + 更新 + 接入设置 + 删除。
  * 所有数据来自 Host 的 /api/morehao/skills-console/*，这里只做展示与提交。
  */
 window.__ModuleLoader__.load({
@@ -15,16 +15,21 @@ window.__ModuleLoader__.load({
         'section.title': '技能控制台',
         'page.title': '技能控制台',
         'section.subtitle': '统一管理本地技能的安装、更新、删除与接入，让同一份技能在多个 Agent 间复用。',
-        'tab.installed': '已装',
+        'tab.installed': '已安装',
         'tab.subscriptions': '订阅',
         'action.addSkill': '添加技能',
         'action.addSubscription': '添加订阅',
-        'action.refresh': '刷新',
+        'action.checkUpdates': '检查更新',
         'action.update': '更新',
         'action.updateAll': '全部更新',
         'action.delete': '删除',
+        'action.unsubscribe': '取消订阅',
+        'action.view': '查看',
+        'action.hide': '收起',
         'action.links': '接入设置',
         'action.install': '安装',
+        'action.expand': '展开',
+        'action.collapse': '收起',
         'action.adopt': '接管',
         'action.save': '保存',
         'action.cancel': '取消',
@@ -33,7 +38,6 @@ window.__ModuleLoader__.load({
         'view.flat': '平铺',
         'view.agent': '按 Agent',
         autoLink: '自动链接',
-        'settings.pill': '插件设置',
         'settings.title': '插件设置',
         'version.label': '当前版本',
         'placement.label': '侧边栏入口',
@@ -41,16 +45,17 @@ window.__ModuleLoader__.load({
         'placement.on': '已开启',
         'placement.off': '已关闭',
         'placement.hint': '开启后侧栏出现「技能控制台」入口；关闭则只在「设置 → 技能」显示。',
-        'github.label': 'GitHub',
         'github.open': '打开 GitHub 仓库',
         'status.current': '最新',
-        'status.update': '有新版本',
+        'status.update': '可更新',
         'status.local': '本地已改',
         'status.conflict': '本地已改 + 上游已变',
         'status.deleted': '上游已移除',
         'status.broken': '异常：链接断裂',
         'status.unmanaged': '未纳入追踪',
         'status.unknown': '待检查',
+        'status.off': '已停用',
+        'status.brokenHint': '链接目标不存在：重新接入，或删除后重装',
         'adopt.switchHint': '还未纳入追踪，不能启停',
         'adopt.noUpstream': '没有远端来源，暂时无法检测更新',
         'toast.checked': '检查完成',
@@ -64,6 +69,7 @@ window.__ModuleLoader__.load({
         'links.scopeProjects': '仅以下项目',
         'links.targets': '链接到哪些 Agent',
         'links.detectedHint': '只显示本机已安装（目录存在）的 Agent；已删除的 Agent 会从列表消失，旧链接记录保留但不展示。',
+        'links.canonical': '技能本体：{path}；下面列的是各 Agent 的接入目录（软链目标）。',
         'links.workspaces': 'DSH 工作区',
         'links.noWorkspaces': '还没有 DSH 工作区，可以点下面「选择其他目录」',
         'links.pickDirectory': '选择其他目录…',
@@ -71,7 +77,7 @@ window.__ModuleLoader__.load({
         'links.hint': '保存后按勾选建立或移除接入；技能本体保留在原位置，不会移动。',
         'autoLink.detected': '安装后自动接入',
         'autoLink.none': '本机没有检测到其他 Agent',
-        'autoLink.hint': 'dsh（全局）始终接入；这里只影响之后安装时自动建链，已装的技能请在「接入设置」里改。',
+        'autoLink.hint': 'dsh（全局）始终接入；这里只影响之后安装时自动建链，已安装的技能请在「接入设置」里改。',
         'empty.skills': '还没有安装任何技能',
         'empty.skillsHint': '在终端跑 `npx skills add owner/repo`，或点右上角「添加技能」',
         'empty.subs': '还没有添加订阅',
@@ -93,12 +99,27 @@ window.__ModuleLoader__.load({
         'error.conflictTitle': '删除被拦截',
         'busy.working': '处理中…',
         'meta.from': '来自',
-        'meta.available': '可用',
+        'meta.noUpstream': '无远端来源 · 不检测更新',
         'meta.unlinked': '未接入任何 Agent',
         'meta.scope': '范围',
+        'meta.onlyProject': '仅',
         'meta.none': '无',
-        installed: '已装',
-        notInstalled: '未装',
+        'filter.all': '全部',
+        'filter.update': '可更新',
+        'filter.unknown': '待检查',
+        'filter.off': '已停用',
+        'search.placeholder': '搜索技能或 Agent',
+        'search.clear': '清除',
+        'empty.loading': '正在读取技能清单…',
+        'empty.filtered': '没有匹配的技能',
+        'empty.filteredHint': '换个关键词，或清除筛选条件',
+        'hint.unknown': '还有 {n} 个技能未检查更新。',
+        'group.dshGlobal': 'DSH · 全局',
+        'group.dshProject': 'DSH · 仅特定项目',
+        'group.off': '已停用',
+        'group.unlinked': '未接入 Agent',
+        installed: '已安装',
+        notInstalled: '未安装',
         skillCount: '个技能',
         visibleOnly: '模型可见，但不在本地技能库',
         visibleOnlyOther: 'DSH 能看到，但不在本地技能库',
@@ -113,12 +134,17 @@ window.__ModuleLoader__.load({
         'tab.subscriptions': 'Subscriptions',
         'action.addSkill': 'Add skill',
         'action.addSubscription': 'Add subscription',
-        'action.refresh': 'Refresh',
+        'action.checkUpdates': 'Check for updates',
         'action.update': 'Update',
         'action.updateAll': 'Update all',
         'action.delete': 'Delete',
+        'action.unsubscribe': 'Unsubscribe',
+        'action.view': 'View',
+        'action.hide': 'Hide',
         'action.links': 'Link settings',
         'action.install': 'Install',
+        'action.expand': 'Expand',
+        'action.collapse': 'Collapse',
         'action.adopt': 'Adopt',
         'action.save': 'Save',
         'action.cancel': 'Cancel',
@@ -127,7 +153,6 @@ window.__ModuleLoader__.load({
         'view.flat': 'Flat',
         'view.agent': 'By agent',
         'autoLink': 'Auto-link',
-        'settings.pill': 'Settings',
         'settings.title': 'Plugin settings',
         'version.label': 'Version',
         'placement.label': 'Sidebar entry',
@@ -135,7 +160,6 @@ window.__ModuleLoader__.load({
         'placement.on': 'on',
         'placement.off': 'off',
         'placement.hint': 'On: a Skills Console entry appears in the sidebar. Off: it only shows under Settings → Skills.',
-        'github.label': 'GitHub',
         'github.open': 'Open GitHub repository',
         'status.current': 'Up to date',
         'status.update': 'Update available',
@@ -145,6 +169,8 @@ window.__ModuleLoader__.load({
         'status.broken': 'Broken link',
         'status.unmanaged': 'Untracked',
         'status.unknown': 'Not checked',
+        'status.off': 'Disabled',
+        'status.brokenHint': 'The link target is missing: relink, or delete and reinstall',
         'adopt.switchHint': 'Not tracked yet, cannot be enabled or disabled',
         'adopt.noUpstream': 'No upstream source; update checks are unavailable',
         'toast.checked': 'Checked',
@@ -187,10 +213,25 @@ window.__ModuleLoader__.load({
         'error.conflictTitle': 'Delete blocked',
         'busy.working': 'Working…',
         'meta.from': 'from',
-        'meta.available': 'available',
+        'meta.noUpstream': 'no upstream · updates not checked',
         'meta.unlinked': 'not linked to any agent',
         'meta.scope': 'scope',
+        'meta.onlyProject': 'only',
         'meta.none': 'none',
+        'filter.all': 'All',
+        'filter.update': 'Updates',
+        'filter.unknown': 'Not checked',
+        'filter.off': 'Disabled',
+        'search.placeholder': 'Search skills or agents',
+        'search.clear': 'Clear',
+        'empty.loading': 'Loading skills…',
+        'empty.filtered': 'No matching skills',
+        'empty.filteredHint': 'Try another keyword, or clear the filters',
+        'hint.unknown': '{n} skills have not been checked for updates.',
+        'group.dshGlobal': 'DSH · global',
+        'group.dshProject': 'DSH · project only',
+        'group.off': 'Disabled',
+        'group.unlinked': 'Not linked',
         installed: 'installed',
         notInstalled: 'not installed',
         skillCount: 'skills',
@@ -209,33 +250,39 @@ window.__ModuleLoader__.load({
       .dshsc-page .dshsc-root { max-width: 980px; margin: 0 auto; }
       .dshsc-page .dshsc-title { font-size: 20px; font-weight: 500; line-height: 28px; }
       .dshsc-page .dshsc-sub { font-size: 13px; line-height: 20px; }
-      .dshsc-root { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); }
-      .dshsc-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
-      .dshsc-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
-      .dshsc-heading-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .dshsc-root { display: flex; flex-direction: column; gap: 14px; color: var(--dsw-alias-label-primary);
+        container-type: inline-size; container-name: dshsc; }
+      .dshsc-head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+      .dshsc-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1; }
+      .dshsc-heading-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
       .dshsc-logo { flex: none; display: block; border-radius: 8px; }
       .dshsc-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
       .dshsc-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
       .dshsc-spacer { flex: 1; }
-      .dshsc-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
-
-      /* 标题一行：标题 + 包名 + 版本 + 胶囊（参照 DSH 自带「插件市场」与「上下文洞察」页头） */
+      .dshsc-head-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
       .dshsc-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-      .dshsc-pkg { font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-tertiary);
-        font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace); }
-      .dshsc-ver { flex: none; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-tertiary);
-        font-variant-numeric: tabular-nums; }
+
+      /* 身份：包名 + 版本合成一枚低调 chip，不再各占一段 */
+      .dshsc-id { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 22px; padding: 0 7px;
+        border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px; background: var(--dsw-alias-bg-layer-1); }
+      .dshsc-pkg { font-size: 11px; line-height: 1; color: var(--dsw-alias-label-tertiary); white-space: nowrap;
+        overflow: hidden; text-overflow: ellipsis; font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace); }
+      .dshsc-idsep { flex: none; font-size: 10px; color: var(--dsw-alias-border-l3); }
+      .dshsc-ver { flex: none; font-size: 11px; line-height: 1; color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+
+      .dshsc-pills { display: inline-flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; }
       .dshsc-pill { display: inline-flex; align-items: center; gap: 6px; flex: none; cursor: pointer;
-        white-space: nowrap; text-decoration: none; font: inherit; font-size: 12px; line-height: 18px;
-        padding: 3px 12px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2);
-        background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary);
+        box-sizing: border-box; height: 28px; padding: 0 10px; white-space: nowrap; text-decoration: none;
+        font: inherit; font-size: 12px; line-height: 18px; border-radius: 999px;
+        border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2);
+        color: var(--dsw-alias-label-secondary);
         transition: border-color .12s ease, color .12s ease, background .12s ease; }
       .dshsc-pill:hover { border-color: var(--dsw-alias-label-secondary); color: var(--dsw-alias-label-primary); }
       .dshsc-pill:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
       .dshsc-pill[aria-expanded="true"] { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-3); }
       .dshsc-pill-ext { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
       .dshsc-settings { position: relative; display: inline-flex; }
-      .dshsc-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; width: 286px;
+      .dshsc-pop { position: absolute; top: calc(100% + 8px); right: 0; left: auto; z-index: 30; width: 286px;
         display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px;
         border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2);
         box-shadow: 0 16px 40px rgba(0, 0, 0, .35); }
@@ -259,43 +306,175 @@ window.__ModuleLoader__.load({
       /* brand-primary 与 bg-base 在明暗主题里互为反色：文字用 bg-base 才不会是白底白字 */
       .dshsc-btn.primary { background: var(--dsw-alias-brand-primary); border-color: transparent; color: var(--dsw-alias-bg-base); font-weight: 600; }
       .dshsc-btn.primary:hover:not(:disabled) { background: var(--dsw-alias-brand-primary); opacity: .9; }
+      .dshsc-btn.tint { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent); border-color: transparent;
+        color: var(--dsw-alias-brand-primary); font-weight: 500; }
+      .dshsc-btn.tint:hover:not(:disabled) { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent); }
       .dshsc-btn.ghost { background: transparent; border-color: transparent; color: var(--dsw-alias-label-secondary); padding: 6px 8px; }
       .dshsc-btn.ghost:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
       .dshsc-btn.ghost.danger { color: var(--dsw-alias-state-error-primary); }
       .dshsc-btn.ghost.danger:hover:not(:disabled) { color: var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent); }
+      .dshsc-btn.ghost.dshsc-update { color: var(--dsw-alias-brand-primary); }
+      .dshsc-btn.ghost.dshsc-update:hover:not(:disabled) { color: var(--dsw-alias-brand-primary); background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent); }
 
       .dshsc-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .dshsc-tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--dsw-alias-border-l1);
-        border-radius: 10px; background: var(--dsw-alias-bg-layer-1); }
-      .dshsc-tab { font: inherit; font-size: 12px; padding: 6px 11px; border: 0; border-radius: 7px; background: transparent;
-        cursor: pointer; color: var(--dsw-alias-label-secondary); }
+      .dshsc-tabs { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--dsw-alias-border-l1);
+        border-radius: 9px; background: var(--dsw-alias-bg-layer-1); }
+      .dshsc-tab { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12px; padding: 5px 10px;
+        border: 0; border-radius: 7px; background: transparent; cursor: pointer; color: var(--dsw-alias-label-secondary); white-space: nowrap; }
       .dshsc-tab:hover { color: var(--dsw-alias-label-primary); }
       .dshsc-tab.active { background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary);
         box-shadow: 0 0 0 1px var(--dsw-alias-border-l1), 0 1px 2px rgba(0,0,0,.12); }
+      .dshsc-tab .n { min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px;
+        background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-tertiary);
+        font-size: 10px; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+      .dshsc-tab.active .n { color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-1); }
+
+      .dshsc-search { position: relative; display: inline-flex; align-items: center; }
+      .dshsc-search > svg { position: absolute; left: 8px; pointer-events: none; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-search input { box-sizing: border-box; width: 210px; height: 30px; padding: 0 27px 0 27px;
+        border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px; background: var(--dsw-alias-bg-layer-1);
+        color: var(--dsw-alias-label-primary); font: inherit; font-size: 12px; outline: none; }
+      .dshsc-search input::placeholder { color: var(--dsw-alias-label-tertiary); }
+      .dshsc-search input:focus { border-color: var(--dsw-alias-brand-primary);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 16%, transparent); }
+      .dshsc-search input::-webkit-search-cancel-button { display: none; }
+      .dshsc-search-clear { position: absolute; right: 4px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px;
+        background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; font-size: 13px; line-height: 1; }
+      .dshsc-search-clear:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
 
       .dshsc-segment { display: inline-flex; border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px;
         background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
-      .dshsc-segment .dshsc-btn { border: 0; border-radius: 0; background: transparent; padding: 6px 10px; }
+      .dshsc-segment .dshsc-btn { display: inline-flex; align-items: center; height: 28px; border: 0; border-radius: 0;
+        background: transparent; padding: 0 10px; font-size: 11.5px; }
       .dshsc-segment .dshsc-btn + .dshsc-btn { border-left: 1px solid var(--dsw-alias-border-l1); }
       .dshsc-segment .dshsc-btn[aria-pressed="true"] { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
 
-      .dshsc-list { display: flex; flex-direction: column; gap: 8px; }
-      .dshsc-row { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1);
-        padding: 12px 14px; transition: border-color .12s ease, background .12s ease; }
-      .dshsc-row:hover { border-color: var(--dsw-alias-border-l2); }
-      .dshsc-row.off { opacity: .62; }
-      .dshsc-row-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-      .dshsc-name { font-size: 13px; font-weight: 600; letter-spacing: -.005em; }
-      .dshsc-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1; padding: 4px 8px;
-        border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2);
-        color: var(--dsw-alias-label-secondary); white-space: nowrap; }
-      .dshsc-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .85; }
-      .dshsc-status.ok { color: var(--dsw-alias-state-success-primary); background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 13%, transparent); }
-      .dshsc-status.warn { color: var(--dsw-alias-state-warn-primary); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 13%, transparent); }
-      .dshsc-status.err { color: var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 13%, transparent); }
-      .dshsc-meta { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin-top: 6px; display: flex; flex-wrap: wrap; }
-      .dshsc-row .dshsc-meta span + span::before { content: '·'; margin: 0 7px; color: var(--dsw-alias-label-tertiary); }
-      .dshsc-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; flex-wrap: wrap; }
+      .dshsc-listbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .dshsc-filters { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+      .dshsc-fchip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border: 1px solid transparent;
+        border-radius: 999px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11.5px;
+        cursor: pointer; white-space: nowrap; }
+      .dshsc-fchip:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+      .dshsc-fchip.active { background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); }
+      .dshsc-fchip:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+      .dshsc-fchip .n { color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+      .dshsc-fchip.active .n { color: var(--dsw-alias-label-secondary); }
+      .dshsc-fdot { width: 5px; height: 5px; border-radius: 50%; background: var(--dsw-alias-state-warn-primary); flex: none; }
+      .dshsc-listbar-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+      .dshsc-listbar .dshsc-btn { display: inline-flex; align-items: center; height: 26px; padding: 0 9px; font-size: 11.5px; }
+
+      .dshsc-list { display: flex; flex-direction: column; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
+        background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
+      .dshsc-row { display: grid; grid-template-columns: 300px minmax(0, 1fr) 218px; gap: 14px; align-items: center;
+        padding: 8px 12px 8px 14px; min-height: 54px; border-top: 1px solid var(--dsw-alias-border-l1);
+        transition: background .12s ease; }
+      .dshsc-list > .dshsc-row:first-child { border-top: 0; }
+      .dshsc-row:hover { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 48%, transparent); }
+      .dshsc-row.off { opacity: .7; }
+      .dshsc-cell { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+      .dshsc-namerow { display: flex; align-items: center; gap: 7px; min-width: 0; }
+      .dshsc-name { font-size: 13px; font-weight: 600; letter-spacing: -.005em; min-width: 0;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .dshsc-src { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 11.5px; line-height: 16px;
+        color: var(--dsw-alias-label-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .dshsc-src .dshsc-code { color: var(--dsw-alias-label-secondary); font-size: 11px; }
+      .dshsc-note { font-size: 11px; line-height: 15px; color: var(--dsw-alias-label-tertiary); margin-top: 2px; }
+      .dshsc-note.warn { color: var(--dsw-alias-state-warn-primary); }
+
+      .dshsc-tag { display: inline-flex; align-items: center; gap: 3px; flex: none; height: 18px; padding: 0 6px;
+        border-radius: 5px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary);
+        font-size: 10.5px; line-height: 1; white-space: nowrap; }
+      .dshsc-tag.ok { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 13%, transparent); color: var(--dsw-alias-state-success-primary); }
+      .dshsc-tag.warn { background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 13%, transparent); color: var(--dsw-alias-state-warn-primary); }
+      .dshsc-tag.err { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 13%, transparent); color: var(--dsw-alias-state-error-primary); }
+      .dshsc-tag.off { color: var(--dsw-alias-label-tertiary); }
+
+      .dshsc-agents { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-width: 0; }
+      .dshsc-agent { display: inline-flex; align-items: center; gap: 5px; flex: none; height: 20px; padding: 0 7px;
+        border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px; color: var(--dsw-alias-label-secondary);
+        background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 55%, transparent); font-size: 11px; white-space: nowrap; }
+      .dshsc-agent.dsh { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 30%, var(--dsw-alias-border-l1));
+        background: color-mix(in srgb, var(--dsw-alias-brand-primary) 10%, transparent); }
+      .dshsc-agent .dshsc-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .8; }
+      .dshsc-agent.more, .dshsc-agent.scope { border-style: dashed; background: transparent; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-unlinked { font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
+
+      .dshsc-row .dshsc-actions { display: flex; align-items: center; justify-content: flex-end; gap: 2px; flex-wrap: nowrap; }
+      .dshsc-row .dshsc-btn { display: inline-flex; align-items: center; justify-content: center; height: 24px;
+        padding: 0 7px; font-size: 11.5px; border-radius: 6px; }
+      /* 图标按钮：插件设置 / GitHub 28px；行内删除 / 检查更新 24–26px */
+      .dshsc-pill.sq { width: 28px; padding: 0; justify-content: center; border-radius: 8px; }
+      .dshsc-btn.sq { box-sizing: border-box; width: 24px; padding: 0; justify-content: center; }
+      .dshsc-btn.sq svg { display: block; }
+      .dshsc-listbar .dshsc-btn.sq { width: 26px; padding: 0; }
+      .dshsc-sub-row .dshsc-btn.sq { width: 24px; padding: 0; }
+
+      .dshsc-groupstack { display: flex; flex-direction: column; gap: 12px; }
+      .dshsc-group-head { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid var(--dsw-alias-border-l1);
+        border-bottom: 0; border-radius: 10px 10px 0 0; background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 48%, transparent);
+        font-size: 11px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+      .dshsc-group-head + .dshsc-list { border-radius: 0 0 10px 10px; }
+      .dshsc-group-head .n { min-width: 16px; height: 15px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
+        background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 20%, transparent); color: var(--dsw-alias-label-secondary);
+        font-size: 10px; line-height: 15px; text-align: center; font-weight: 500; font-variant-numeric: tabular-nums; }
+      .dshsc-gdot { width: 5px; height: 5px; border-radius: 50%; background: var(--dsw-alias-brand-primary); opacity: .8; flex: none; }
+
+      .dshsc-hint { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-notice { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px;
+        color: var(--dsw-alias-label-tertiary); line-height: 1.5; }
+      .dshsc-notice > svg { flex: none; }
+      .dshsc-notice-text { color: var(--dsw-alias-label-secondary); }
+      .dshsc-linkbtn { border: 0; background: none; padding: 0 2px; font: inherit; font-size: 11.5px;
+        color: var(--dsw-alias-brand-primary); cursor: pointer; }
+      .dshsc-linkbtn:hover { text-decoration: underline; }
+      .dshsc-linkbtn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; border-radius: 4px; }
+      .dshsc-notice-list { flex-basis: 100%; margin: 2px 0 0 19px; padding: 7px 10px; border-radius: 8px;
+        border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1);
+        color: var(--dsw-alias-label-tertiary); font-size: 11.5px; line-height: 1.7; }
+      .dshsc-empty { text-align: center; padding: 30px 16px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 12px;
+        background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 55%, transparent); }
+      .dshsc-empty .dshsc-name { font-size: 14px; }
+      .dshsc-empty .dshsc-meta { justify-content: center; margin-top: 6px; }
+      .dshsc-meta { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); display: flex; flex-wrap: wrap; }
+
+      .dshsc-banner { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; padding: 9px 12px; font-size: 12px;
+        line-height: 1.55; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary);
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .dshsc-banner.err { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); }
+      .dshsc-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); }
+
+      .dshsc-sub-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; min-height: 52px; border-top: 1px solid var(--dsw-alias-border-l1); }
+      .dshsc-sub-block:first-child .dshsc-sub-row { border-top: 0; }
+      .dshsc-sub-block + .dshsc-sub-block { border-top: 1px solid var(--dsw-alias-border-l1); }
+      .dshsc-caret { flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent;
+        color: var(--dsw-alias-label-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
+      .dshsc-caret:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+      .dshsc-caret:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+      .dshsc-sub-row .dshsc-name { font-size: 12.5px; }
+      .dshsc-substat { font-size: 11px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
+      .dshsc-sub-row .dshsc-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+      .dshsc-sub-row .dshsc-btn { height: 24px; padding: 0 7px; font-size: 11.5px; display: inline-flex; align-items: center; }
+      .dshsc-sub-list { display: flex; flex-direction: column; background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 22%, transparent); }
+      .dshsc-sub-entry { display: flex; align-items: center; gap: 8px;
+        font-size: 12px; padding: 6px 12px 6px 44px; border-top: 1px solid var(--dsw-alias-border-l1); }
+      .dshsc-sub-entry:first-child { border-top: 0; }
+      .dshsc-sub-entry .dshsc-name { font-size: 12px; font-weight: 500; }
+      .dshsc-state { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+      .dshsc-state.ok svg, .dshsc-state.ok .dshsc-checkmark { color: var(--dsw-alias-state-success-primary); }
+      .dshsc-sub-entry .dshsc-actions { margin-left: auto; display: flex; justify-content: flex-end; }
+      .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
+      /* 设置页的真实宽度常常远小于窗口（侧栏 + 页面缩放），视口 media query 不可靠；
+         以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。 */
+      @container dshsc (max-width: 900px) {
+        .dshsc-head-actions { width: 100%; justify-content: flex-end; }
+        .dshsc-search input { width: 180px; }
+        .dshsc-row { grid-template-columns: minmax(0, 1fr) 196px; row-gap: 3px; padding: 9px 12px; }
+        .dshsc-cell { grid-column: 1; }
+        .dshsc-agents { grid-column: 1; }
+        .dshsc-row .dshsc-actions { grid-column: 2; grid-row: 1 / span 2; }
+        .dshsc-row .dshsc-btn { padding: 0 5px; }
+      }
+      .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
       /* 与 DSH 自带开关同尺寸/同 token：关是 border-l3 轨道，开是 brand-primary 轨道 */
       .dshsc-switch { box-sizing: border-box; position: relative; flex: none; width: 36px; height: 20px; padding: 2px;
@@ -305,20 +484,9 @@ window.__ModuleLoader__.load({
       .dshsc-switch:disabled { cursor: not-allowed; opacity: .5; }
       .dshsc-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
       .dshsc-knob { display: block; width: 16px; height: 16px; border-radius: 50%;
-        background: var(--dsw-alias-switch-thumb); transition: transform .12s ease, background .12s ease; }
+        background: var(--dsw-alias-switch-thumb); box-shadow: 0 1px 2px rgba(0, 0, 0, .28);
+        transition: transform .12s ease, background .12s ease; }
       .dshsc-switch[aria-checked="true"] .dshsc-knob { transform: translateX(16px); background: var(--dsw-alias-label-primary-foreground); }
-
-      .dshsc-banner { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; padding: 9px 12px; font-size: 12px;
-        line-height: 1.55; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary);
-        display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .dshsc-banner.err { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); }
-      .dshsc-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); }
-
-      .dshsc-empty { text-align: center; padding: 34px 16px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 12px;
-        background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 55%, transparent); }
-      .dshsc-empty .dshsc-name { font-size: 14px; }
-      .dshsc-empty .dshsc-meta { justify-content: center; margin-top: 6px; }
-      .dshsc-group { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--dsw-alias-label-tertiary); margin: 12px 0 6px; }
 
       .dshsc-overlay { position: fixed; inset: 0; background: rgba(4,6,9,.55); display: flex; align-items: center; justify-content: center;
         z-index: 60; padding: 20px; backdrop-filter: blur(2px); }
@@ -331,20 +499,33 @@ window.__ModuleLoader__.load({
         background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
       .dshsc-modal-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
 
+      .dshsc-group { margin: 2px 0 -2px; font-size: 11px; font-weight: 600; letter-spacing: .02em;
+        color: var(--dsw-alias-label-secondary); }
       .dshsc-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
       .dshsc-field input { font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 8px;
         border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); outline: none; }
       .dshsc-field input:focus { border-color: var(--dsw-alias-brand-primary);
         box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent); }
 
-      .dshsc-check { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+      .dshsc-check { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 5px 8px; border-radius: 8px; cursor: pointer; }
       .dshsc-check:hover { background: var(--dsw-alias-bg-layer-1); }
-      .dshsc-check input { width: 14px; height: 14px; accent-color: var(--dsw-alias-brand-primary); flex: none; }
+      .dshsc-check input[type="checkbox"], .dshsc-check input[type="radio"] { appearance: none; -webkit-appearance: none;
+        flex: none; position: relative; width: 15px; height: 15px; margin: 0; border: 1px solid var(--dsw-alias-border-l2);
+        border-radius: 4px; background: var(--dsw-alias-bg-layer-1); cursor: pointer; }
+      .dshsc-check input[type="radio"] { border-radius: 50%; }
+      .dshsc-check input[type="checkbox"]:checked { background: var(--dsw-alias-brand-primary); border-color: var(--dsw-alias-brand-primary); }
+      /* 选中用反色圆点：品牌色可能是白色，白勾会消失 */
+      .dshsc-check input[type="checkbox"]:checked::after { content: ''; position: absolute; left: 50%; top: 50%;
+        width: 6px; height: 6px; border-radius: 50%; background: var(--dsw-alias-bg-base);
+        transform: translate(-50%, -50%); }
+      .dshsc-check input[type="radio"]:checked { border: 5px solid var(--dsw-alias-brand-primary); }
+      .dshsc-check input:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+      .dshsc-check input:disabled { opacity: .55; cursor: not-allowed; }
       .dshsc-check small { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
       .dshsc-check span { white-space: nowrap; }
 
       .dshsc-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
-        padding: 4px; max-height: 240px; overflow: auto; display: flex; flex-direction: column; }
+        padding: 4px; max-height: 300px; overflow: auto; display: flex; flex-direction: column; }
       .dshsc-panel .dshsc-check:hover { background: var(--dsw-alias-bg-layer-2); }
 
       .dshsc-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
@@ -353,12 +534,6 @@ window.__ModuleLoader__.load({
         box-shadow: 0 8px 24px rgba(0,0,0,.22); max-width: 420px; }
       .dshsc-toast.err { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
       .dshsc-toast.ok { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 50%, var(--dsw-alias-border-l2)); }
-      .dshsc-substat { font-size: 12px; color: var(--dsw-alias-label-secondary); }
-      .dshsc-sub-entry { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 7px 8px 7px 14px; border-top: 1px solid var(--dsw-alias-border-l1); }
-      .dshsc-sub-entry:first-child { border-top: 0; }
-      .dshsc-sub-list { margin-top: 8px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
-      .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
-      .dshsc-chevron { width: 26px; padding: 4px 0; text-align: center; }
     `;
 
     function short(sha) {
@@ -556,6 +731,55 @@ window.__ModuleLoader__.load({
       }));
     }
 
+    function TrashIcon({ size = 14 }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+        style: { display: 'block' },
+      },
+      h('path', { d: 'M4 7h16' }),
+      h('path', { d: 'M9 7V5h6v2' }),
+      h('path', { d: 'M6.5 7l1 13h9l1-13' }),
+      h('path', { d: 'M10 11v5.5M14 11v5.5' }));
+    }
+
+    function InfoIcon({ size = 13 }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 1.8, strokeLinecap: 'round', 'aria-hidden': true, style: { display: 'block' },
+      },
+      h('circle', { cx: 12, cy: 12, r: 9 }),
+      h('path', { d: 'M12 11v5' }),
+      h('path', { d: 'M12 8h.01' }));
+    }
+
+    function RefreshIcon({ size = 14 }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+        style: { display: 'block' },
+      },
+      h('path', { d: 'M20 12a8 8 0 1 1-2.34-5.66' }),
+      h('path', { d: 'M20 4v5h-5' }));
+    }
+
+    function CaretIcon({ open }) {
+      return h('svg', {
+        width: 10, height: 10, viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': true,
+        style: { display: 'block', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .12s ease' },
+      }, h('path', { d: 'M8 5l11 7-11 7z' }));
+    }
+
+    function SearchIcon({ size = 13 }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 2, strokeLinecap: 'round', 'aria-hidden': true,
+        style: { display: 'block' },
+      },
+      h('circle', { cx: 11, cy: 11, r: 6.4 }),
+      h('path', { d: 'M16 16l4.3 4.3' }));
+    }
+
     return {
       inject: ['slots'],
       apply(ctx) {
@@ -581,6 +805,9 @@ window.__ModuleLoader__.load({
           // POST /settings 成功后 data 还是旧的；用本地覆盖值，避免开关弹回旧状态（重开面板时尤其明显）
           const [placementOverride, setPlacementOverride] = React.useState(null);
           const [settingsOpen, setSettingsOpen] = React.useState(false);
+          const [query, setQuery] = React.useState('');
+          const [filter, setFilter] = React.useState('all');
+          const [builtinOpen, setBuiltinOpen] = React.useState(false);
 
           const reload = React.useCallback(async () => {
             try {
@@ -640,7 +867,22 @@ window.__ModuleLoader__.load({
 
           const rows = data?.installs || [];
           const writable = Boolean(data) && !data?.readOnly && data?.cli?.usable;
-          const updateCount = rows.filter((row) => row.status === 'update-available' || row.status === 'conflict').length;
+          const updatable = (row) => row.status === 'update-available' || row.status === 'locally-modified' || row.status === 'conflict';
+          const updateCount = rows.filter(updatable).length;
+          // 批量更新只处理无本地改动、可直接 fast-forward 的行；有本地改动仍需逐个确认
+          const bulkCount = rows.filter((row) => row.status === 'update-available').length;
+          const unknownCount = rows.filter((row) => row.status === 'unknown').length;
+          const offCount = rows.filter((row) => row.mode === 'off').length;
+          const counts = { all: rows.length, update: updateCount, unknown: unknownCount, off: offCount };
+          const queryText = query.trim().toLowerCase();
+          const visibleRows = rows.filter((row) => {
+            if (filter === 'update' && !updatable(row)) return false;
+            if (filter === 'unknown' && row.status !== 'unknown') return false;
+            if (filter === 'off' && row.mode !== 'off') return false;
+            if (!queryText) return true;
+            const agentLabels = row.links.map((link) => (link.target === 'dsh-global' ? 'DSH' : link.label));
+            return [row.name, row.source || '', ...agentLabels].join(' ').toLowerCase().includes(queryText);
+          });
 
           async function adopt(row) {
             await run(`adopt:${row.name}`, async () => {
@@ -792,97 +1034,195 @@ window.__ModuleLoader__.load({
             });
           }
 
-          function statusCell(row) {
+          function statusTag(row) {
+            // 「待检查」不逐行刷：由列表头的计数与底部提示承接
+            if (row.status === 'unknown') return null;
             const map = {
-              current: ['status.current', 'ok'],
+              current: ['status.current', 'ok', true],
               'update-available': ['status.update', 'warn'],
               'locally-modified': ['status.local', 'warn'],
               conflict: ['status.conflict', 'warn'],
               'upstream-deleted': ['status.deleted', 'warn'],
               'broken-link': ['status.broken', 'err'],
               unmanaged: ['status.unmanaged', ''],
-              unknown: ['status.unknown', ''],
             };
-            const [key, cls] = map[row.status] || ['status.unknown', ''];
-            return h('span', { className: `dshsc-status ${cls}` }, t(key));
+            const [key, cls, check] = map[row.status] || ['status.unknown', ''];
+            return h('span', { className: `dshsc-tag ${cls}` }, check ? `✓ ${t(key)}` : t(key));
           }
 
-          function metaLine(row) {
-            const parts = [];
-            if (row.source) {
-              const ref = row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : '';
-              parts.push(`${t('meta.from')} ${row.source}${ref}`);
+          function sourceLine(row) {
+            if (!row.source) {
+              return h('div', { className: 'dshsc-src', title: t('meta.noUpstream') }, t('meta.noUpstream'));
             }
-            // 只按现场链接说「可用」，没有链接就别默认写 DSH
-            const available = row.links
-              .filter((link) => !link.broken)
+            const ref = row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : '';
+            const text = `${row.source}${ref}`;
+            return h('div', { className: 'dshsc-src', title: text },
+              h('span', null, `${t('meta.from')} `),
+              h('span', { className: 'dshsc-code' }, text));
+          }
+
+          function agentChips(row) {
+            const links = row.links.filter((link) => !link.broken);
+            // project:* 链接本身就是「仅某项目可见」，用后面的 scope chip 表达，不再重复一枚同名 chip
+            const projectLinks = links.filter((link) => String(link.target).startsWith('project:'));
+            const labels = links
+              .filter((link) => !String(link.target).startsWith('project:'))
               .map((link) => (link.target === 'dsh-global' ? 'DSH' : link.label));
-            parts.push(available.length > 0 ? `${t('meta.available')}：${available.join('、')}` : t('meta.unlinked'));
-            if (row.scopeProjects?.length) parts.push(`${t('meta.scope')}：${row.scopeProjects.map((p) => p.split('/').pop()).join('、')}`);
-            return h('div', { className: 'dshsc-meta' }, parts.map((text, index) => h('span', { key: index }, text)));
+            if (projectLinks.length > 0 && !labels.includes('DSH')) labels.unshift('DSH');
+            const projects = row.scopeProjects || [];
+            const scopeNames = projects.length > 0
+              ? projects.map((project) => project.split('/').pop())
+              : projectLinks.map((link) => link.label);
+            if (labels.length === 0 && scopeNames.length === 0) {
+              return h('span', { className: 'dshsc-unlinked' }, t('meta.unlinked'));
+            }
+            const chips = labels.slice(0, 3).map((label, index) => h('span', {
+              className: `dshsc-agent${label === 'DSH' ? ' dsh' : ''}`,
+              key: `agent-${index}`,
+              title: label,
+            }, label === 'DSH' ? h('i', { className: 'dshsc-dot' }) : null, label));
+            if (labels.length > 3) {
+              chips.push(h('span', {
+                className: 'dshsc-agent more',
+                key: 'more',
+                title: labels.join('、'),
+              }, `+${labels.length - 3}`));
+            }
+            if (scopeNames.length > 0) {
+              chips.push(h('span', {
+                className: 'dshsc-agent scope',
+                key: 'scope',
+                title: `${t('meta.scope')}：${projects.length > 0 ? projects.join('、') : scopeNames.join('、')}`,
+              }, `${t('meta.onlyProject')} ${scopeNames.join('、')}`));
+            }
+            return chips;
           }
 
           function rowView(row) {
             const off = row.mode === 'off';
             const tracked = row.status !== 'unmanaged';
-            const canUpdate = writable && (row.status === 'update-available' || row.status === 'conflict' || row.status === 'locally-modified');
+            const canUpdate = writable && updatable(row);
             return h(
               'div',
               { className: `dshsc-row${off ? ' off' : ''}`, key: row.name },
               h(
                 'div',
-                { className: 'dshsc-row-head' },
-                h('span', { className: 'dshsc-name' }, row.name),
-                statusCell(row),
+                { className: 'dshsc-cell' },
                 h(
                   'div',
-                  { className: 'dshsc-actions' },
-                  h('button', {
-                    className: 'dshsc-switch',
-                    role: 'switch',
-                    'aria-checked': String(tracked && row.mode === 'on'),
-                    'aria-label': `${row.name} ${t('mode.on')}/${t('mode.off')}`,
-                    // 未纳入追踪时调 setMode 只会报「没有安装记录」，不如直接禁用
-                    disabled: busy !== null || !tracked,
-                    onClick: () => void toggleMode(row),
-                    title: tracked ? (row.mode === 'on' ? t('mode.off') : t('mode.on')) : t('adopt.switchHint'),
-                  }, h('span', { className: 'dshsc-knob' })),
-                  row.status === 'unmanaged'
-                    ? h('button', {
-                        className: 'dshsc-btn ghost',
-                        disabled: !writable || busy !== null,
-                        title: row.source ? row.source : t('meta.none'),
-                        onClick: () => void adopt(row),
-                      }, t('action.adopt'))
-                    : h('button', { className: 'dshsc-btn ghost', disabled: !canUpdate || busy !== null, onClick: () => requestUpdate(row) }, t('action.update')),
-                  h('button', { className: 'dshsc-btn ghost', disabled: busy !== null, onClick: () => setModal({ type: 'links', row }) }, t('action.links')),
-                  h('button', { className: 'dshsc-btn ghost danger', disabled: !writable || busy !== null, onClick: () => requestDelete(row) }, t('action.delete')),
+                  { className: 'dshsc-namerow' },
+                  h('span', { className: 'dshsc-name', title: row.name }, row.name),
+                  statusTag(row),
+                  off ? h('span', { className: 'dshsc-tag off' }, t('status.off')) : null,
                 ),
+                sourceLine(row),
+                off ? h('div', { className: 'dshsc-note' }, t('mode.offHint')) : null,
+                row.status === 'broken-link' ? h('div', { className: 'dshsc-note warn' }, t('status.brokenHint')) : null,
               ),
-              metaLine(row),
-              off ? h('div', { className: 'dshsc-meta' }, t('mode.offHint')) : null,
-              row.status === 'broken-link' ? h('div', { className: 'dshsc-meta' }, `⚠ ${t('status.broken')}`) : null,
+              h('div', { className: 'dshsc-agents' }, agentChips(row)),
+              h(
+                'div',
+                { className: 'dshsc-actions' },
+                h('button', {
+                  className: 'dshsc-switch',
+                  role: 'switch',
+                  'aria-checked': String(tracked && row.mode === 'on'),
+                  'aria-label': `${row.name} ${t('mode.on')}/${t('mode.off')}`,
+                  // 未纳入追踪时调 setMode 只会报「没有安装记录」，不如直接禁用
+                  disabled: busy !== null || !tracked,
+                  onClick: () => void toggleMode(row),
+                  title: tracked ? (row.mode === 'on' ? t('mode.off') : t('mode.on')) : t('adopt.switchHint'),
+                }, h('span', { className: 'dshsc-knob' })),
+                row.status === 'unmanaged'
+                  ? h('button', {
+                      className: 'dshsc-btn ghost',
+                      disabled: !writable || busy !== null,
+                      title: row.source ? row.source : t('meta.none'),
+                      onClick: () => void adopt(row),
+                    }, t('action.adopt'))
+                  : h('button', {
+                      className: `dshsc-btn ghost${canUpdate ? ' dshsc-update' : ''}`,
+                      disabled: !canUpdate || busy !== null,
+                      onClick: () => requestUpdate(row),
+                    }, t('action.update')),
+                h('button', { className: 'dshsc-btn ghost', disabled: busy !== null, onClick: () => setModal({ type: 'links', row }) }, t('action.links')),
+                h('button', {
+                  className: 'dshsc-btn ghost danger sq',
+                  disabled: !writable || busy !== null,
+                  title: t('action.delete'),
+                  'aria-label': `${t('action.delete')} ${row.name}`,
+                  onClick: () => requestDelete(row),
+                }, h(TrashIcon, { size: 13 })),
+              ),
             );
           }
 
           function groupedRows() {
             const groups = [];
-            const dshRows = rows.filter((row) => row.mode === 'on' && !row.scopeProjects?.length);
-            const projectRows = rows.filter((row) => row.mode === 'on' && row.scopeProjects?.length);
-            const offRows = rows.filter((row) => row.mode === 'off');
-            groups.push({ title: 'DSH（全局）', rows: dshRows });
-            if (projectRows.length) groups.push({ title: 'DSH（仅特定项目）', rows: projectRows });
-            if (offRows.length) groups.push({ title: '已停用', rows: offRows });
+            const hasLink = (row, prefix) => row.links.some((link) => !link.broken && String(link.target).startsWith(prefix));
+            const dshRows = visibleRows.filter((row) => row.mode === 'on' && !row.scopeProjects?.length && hasLink(row, 'dsh-global'));
+            const projectRows = visibleRows.filter((row) => row.mode === 'on' && row.scopeProjects?.length);
+            const offRows = visibleRows.filter((row) => row.mode === 'off');
+            const unlinkedRows = visibleRows.filter((row) => row.mode === 'on' && !row.scopeProjects?.length
+              && !row.links.some((link) => !link.broken));
+            groups.push({ key: 'dsh-global', title: t('group.dshGlobal'), rows: dshRows, dot: true });
+            if (projectRows.length) groups.push({ key: 'dsh-project', title: t('group.dshProject'), rows: projectRows, dot: true });
+            if (offRows.length) groups.push({ key: 'off', title: t('group.off'), rows: offRows });
+            if (unlinkedRows.length) groups.push({ key: 'unlinked', title: t('group.unlinked'), rows: unlinkedRows });
             for (const agent of data?.agents?.detected || []) {
               if (agent.kind !== 'agent') continue;
-              const matched = rows.filter((row) => row.links.some((link) => link.target === agent.target));
-              if (matched.length) groups.push({ title: agent.label, rows: matched });
+              const matched = visibleRows.filter((row) => row.links.some((link) => link.target === agent.target));
+              if (matched.length) groups.push({ key: agent.target, title: agent.label, rows: matched });
             }
             return groups.filter((group) => group.rows.length > 0);
           }
 
+          function filterChip(id, label, dot) {
+            return h('button', {
+              key: id,
+              type: 'button',
+              className: `dshsc-fchip${filter === id ? ' active' : ''}`,
+              'aria-pressed': String(filter === id),
+              title: id === 'unknown' && counts.unknown
+                ? t('hint.unknown').replace('{n}', String(counts.unknown))
+                : undefined,
+              onClick: () => setFilter(id),
+            }, dot, h('span', null, label), h('span', { className: 'n' }, counts[id]));
+          }
+
+          function listBar() {
+            return h('div', { className: 'dshsc-listbar' },
+              h('div', { className: 'dshsc-filters' },
+                filterChip('all', t('filter.all')),
+                filterChip('update', t('filter.update'), h('i', { className: 'dshsc-fdot' })),
+                filterChip('unknown', t('filter.unknown')),
+                filterChip('off', t('filter.off'))),
+              h('div', { className: 'dshsc-listbar-actions' },
+                h('button', {
+                  className: 'dshsc-btn sq',
+                  disabled: busy !== null,
+                  title: t('action.checkUpdates'),
+                  'aria-label': t('action.checkUpdates'),
+                  onClick: () => void checkUpdates(),
+                }, h(RefreshIcon, { size: 14 })),
+                bulkCount > 0
+                  ? h('button', { className: 'dshsc-btn tint', disabled: !writable || busy !== null, onClick: () => void updateAll() }, `${t('action.updateAll')} · ${bulkCount}`)
+                  : null));
+          }
+
+          function filteredEmpty() {
+            return h('div', { className: 'dshsc-empty' },
+              h('div', { className: 'dshsc-name' }, t('empty.filtered')),
+              h('div', { className: 'dshsc-meta', style: { justifyContent: 'center' } }, t('empty.filteredHint')),
+              h('div', { style: { marginTop: 10 } },
+                h('button', {
+                  className: 'dshsc-btn',
+                  onClick: () => { setQuery(''); setFilter('all'); },
+                }, t('search.clear'))));
+          }
+
           function installedTab() {
-            if (!data) return h('div', { className: 'dshsc-empty' }, t('busy.working'));
+            if (!data) return h('div', { className: 'dshsc-empty' }, t('empty.loading'));
             if (rows.length === 0) {
               return h(
                 'div',
@@ -893,39 +1233,50 @@ window.__ModuleLoader__.load({
                   h('button', { className: 'dshsc-btn primary', disabled: !writable, onClick: requestAddSkill }, t('action.addSkill'))),
               );
             }
-            const body =
-              view === 'agent'
-                ? groupedRows().map((group) =>
-                    h('div', { key: group.title }, h('div', { className: 'dshsc-group' }, group.title), h('div', { className: 'dshsc-list' }, group.rows.map(rowView))))
-                : h('div', { className: 'dshsc-list' }, rows.map(rowView));
+            const body = view === 'agent'
+              ? h('div', { className: 'dshsc-groupstack' }, groupedRows().map((group) =>
+                  h('div', { key: group.key },
+                    h('div', { className: 'dshsc-group-head' },
+                      group.dot ? h('i', { className: 'dshsc-gdot' }) : null,
+                      h('span', null, group.title),
+                      h('span', { className: 'n' }, group.rows.length)),
+                    h('div', { className: 'dshsc-list' }, group.rows.map(rowView)))))
+              : h('div', { className: 'dshsc-list' }, visibleRows.map(rowView));
             return h(
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-              updateCount > 0
-                ? h('div', { className: 'dshsc-banner warn' },
-                    h('span', null, `⚠ ${updateCount} ${t('status.update')}`),
-                    h('button', { className: 'dshsc-btn', disabled: !writable || busy !== null, onClick: () => void updateAll() }, t('action.updateAll')))
-                : null,
-              body,
               visibleOnlyBanners(),
+              builtinNotice(),
+              listBar(),
+              visibleRows.length === 0 ? filteredEmpty() : body,
             );
           }
 
+          function builtinNotice() {
+            // DSH 自带技能是说明，不是告警：折叠成一行，点开才列出名字，避免底部一屏文字没人看
+            const items = (data?.visibleOnly || []).filter((item) => item.source === 'bundled');
+            if (items.length === 0) return null;
+            return h('div', { className: 'dshsc-notice' },
+              h(InfoIcon, { size: 13 }),
+              h('span', { className: 'dshsc-notice-text' },
+                `${t('visibleOnlyBuiltin')} · ${items.length}`),
+              h('button', {
+                className: 'dshsc-linkbtn',
+                'aria-expanded': String(builtinOpen),
+                onClick: () => setBuiltinOpen((prev) => !prev),
+              }, builtinOpen ? t('action.hide') : t('action.view')),
+              builtinOpen
+                ? h('div', { className: 'dshsc-notice-list' }, items.map((item) => item.name).join('、'))
+                : null);
+          }
+
           function visibleOnlyBanners() {
-            const items = data?.visibleOnly || [];
-            // bundled 是 DSH 自带（archify / office…），不在 canonical 是设计如此，别当成告警
-            const builtin = items.filter((item) => item.source === 'bundled');
-            const others = items.filter((item) => item.source !== 'bundled');
-            return [
-              others.length > 0
-                ? h('div', { className: 'dshsc-banner warn', key: 'other' },
-                    `${t('visibleOnlyOther')}：${others.map((item) => item.name).join('、')}`)
-                : null,
-              builtin.length > 0
-                ? h('div', { className: 'dshsc-banner info', key: 'builtin' },
-                    `${t('visibleOnlyBuiltin')}：${builtin.map((item) => item.name).join('、')}`)
-                : null,
-            ];
+            // 只有「visible but not canonical」的其他来源才需要告警；bundled 已收进 builtinNotice
+            const others = (data?.visibleOnly || []).filter((item) => item.source !== 'bundled');
+            return others.length > 0
+              ? h('div', { className: 'dshsc-banner warn' },
+                  `${t('visibleOnlyOther')}：${others.map((item) => item.name).join('、')}`)
+              : null;
           }
 
           function subscriptionsTab() {
@@ -946,26 +1297,43 @@ window.__ModuleLoader__.load({
               const open = Boolean(expanded[subscription.id]);
               return h(
                 'div',
-                { className: 'dshsc-row', key: subscription.id },
-                h('div', { className: 'dshsc-row-head' },
-                  h('button', { className: 'dshsc-btn ghost', onClick: () => setExpanded((prev) => ({ ...prev, [subscription.id]: !open })) }, open ? '▾' : '▸'),
+                { className: 'dshsc-sub-block', key: subscription.id },
+                h('div', { className: 'dshsc-sub-row' },
+                  h('button', {
+                    className: 'dshsc-caret',
+                    'aria-expanded': String(open),
+                    'aria-label': `${subscription.source} ${open ? t('action.collapse') : t('action.expand')}`,
+                    onClick: () => setExpanded((prev) => ({ ...prev, [subscription.id]: !open })),
+                  }, h(CaretIcon, { open })),
                   h('span', { className: 'dshsc-name' }, subscription.source),
+                  h('span', { className: 'dshsc-tag' }, subscription.ref || 'default'),
                   h('span', { className: 'dshsc-substat' },
-                    `${subscription.ref || 'default'} · ${entries.length} ${t('skillCount')} · ${t('installed')} ${installedNames.size}`),
+                    `${entries.length} ${t('skillCount')} · ${t('installed')} ${installedNames.size}`),
                   h('div', { className: 'dshsc-actions' },
-                    h('button', { className: 'dshsc-btn ghost', disabled: busy !== null, onClick: () => void refreshSubscription(subscription) }, t('action.refresh')),
-                    h('button', { className: 'dshsc-btn ghost danger', disabled: busy !== null, onClick: () => void deleteSubscription(subscription) }, t('action.delete')))),
+                    h('button', {
+                      className: 'dshsc-btn sq',
+                      disabled: busy !== null,
+                      title: t('action.checkUpdates'),
+                      'aria-label': `${t('action.checkUpdates')} ${subscription.source}`,
+                      onClick: () => void refreshSubscription(subscription),
+                    }, h(RefreshIcon, { size: 13 })),
+                    h('button', { className: 'dshsc-btn ghost danger', disabled: busy !== null, onClick: () => void deleteSubscription(subscription) }, t('action.unsubscribe')))),
                 open
-                  ? h('div', { className: 'dshsc-sub-list' }, entries.map((entry) =>
-                      h('div', { className: 'dshsc-sub-entry', key: entry.name },
+                  ? h('div', { className: 'dshsc-sub-list' }, entries.map((entry) => {
+                      const installedAlready = installedNames.has(entry.name);
+                      return h('div', { className: 'dshsc-sub-entry', key: entry.name },
                         h('span', { className: 'dshsc-name' }, entry.name),
-                        h('span', { className: 'dshsc-substat' }, installedNames.has(entry.name) ? t('installed') : t('notInstalled')),
+                        h('span', { className: `dshsc-state${installedAlready ? ' ok' : ''}` },
+                          installedAlready ? '✓ ' : '', installedAlready ? t('installed') : t('notInstalled')),
                         h('div', { className: 'dshsc-actions' },
-                          h('button', {
-                            className: 'dshsc-btn',
-                            disabled: !writable || busy !== null || installedNames.has(entry.name),
-                            onClick: () => void installFromSubscription(subscription, entry),
-                          }, t('action.install')))))) 
+                          installedAlready
+                            ? null
+                            : h('button', {
+                                className: 'dshsc-btn',
+                                disabled: !writable || busy !== null,
+                                onClick: () => void installFromSubscription(subscription, entry),
+                              }, t('action.install'))));
+                    }))
                   : null,
               );
             }));
@@ -1004,48 +1372,54 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'dshsc-heading-text' },
                   h('div', { className: 'dshsc-title-row' },
                     h('h2', { className: 'dshsc-title' }, page ? t('page.title') : t('section.title')),
-                    // 身份：包名 + 版本，由 Host 从 package.json 注入（lib/routes.js 的 /state）
-                    data?.plugin?.name ? h('span', { className: 'dshsc-pkg' }, data.plugin.name) : null,
-                    data?.plugin?.version
-                      ? h('span', { className: 'dshsc-ver', title: `${t('version.label')} v${data.plugin.version}` },
-                          `v${data.plugin.version}`)
-                      : null,
-                    h('div', { className: 'dshsc-settings' },
-                      h('button', {
-                        className: 'dshsc-pill',
-                        'aria-haspopup': 'dialog',
-                        'aria-expanded': String(settingsOpen),
-                        title: t('settings.title'),
-                        onClick: () => setSettingsOpen((prev) => !prev),
-                      }, h(GearIcon, { size: 13 }), h('span', null, t('settings.pill'))),
-                      settingsOpen
-                        ? h('div', { className: 'dshsc-pop', role: 'dialog', 'aria-label': t('settings.title') },
-                            h('div', { className: 'dshsc-pop-title' }, t('settings.title')),
-                            h('div', { className: 'dshsc-pop-label' },
-                              h('span', { className: 'dshsc-pop-name' },
-                                t('placement.label'), h('em', null, t('placement.effect'))),
-                              h('button', {
-                                className: 'dshsc-switch',
-                                role: 'switch',
-                                'aria-checked': String(placement === 'sidebar'),
-                                'aria-label': `${t('placement.label')}：${placement === 'sidebar' ? t('placement.on') : t('placement.off')}`,
-                                title: t('placement.hint'),
-                                disabled: Boolean(placementBusy) || Boolean(data?.readOnly),
-                                onClick: () => void changePlacement(placement === 'sidebar' ? 'settings' : 'sidebar'),
-                              }, h('span', { className: 'dshsc-knob' }))),
-                            h('div', { className: 'dshsc-pop-hint' }, t('placement.hint')))
-                        : null),
-                    h('a', {
-                      className: 'dshsc-pill',
-                      href: GITHUB_URL,
-                      target: '_blank',
-                      rel: 'noopener noreferrer',
-                      title: t('github.open'),
-                      'aria-label': t('github.open'),
-                    }, h(GitHubIcon, { size: 13 }), h('span', null, t('github.label')),
-                      h('span', { className: 'dshsc-pill-ext' }, '↗'))),
+                    // 身份：包名 + 版本合成一枚低调 chip，由 Host 从 package.json 注入
+                    data?.plugin?.name
+                      ? h('span', { className: 'dshsc-id' },
+                          h('span', { className: 'dshsc-pkg' }, data.plugin.name),
+                          data?.plugin?.version ? h('span', { className: 'dshsc-idsep' }, '|') : null,
+                          data?.plugin?.version
+                            ? h('span', { className: 'dshsc-ver', title: `${t('version.label')} v${data.plugin.version}` },
+                                `v${data.plugin.version}`)
+                            : null)
+                      : null),
                   h('p', { className: 'dshsc-sub' }, t('section.subtitle')))),
+              // 工具入口和业务动作一起右对齐；主按钮保持在最右
               h('div', { className: 'dshsc-head-actions' },
+                h('div', { className: 'dshsc-pills' },
+                  h('div', { className: 'dshsc-settings' },
+                    h('button', {
+                      className: 'dshsc-pill sq',
+                      'aria-haspopup': 'dialog',
+                      'aria-expanded': String(settingsOpen),
+                      'aria-label': t('settings.title'),
+                      title: t('settings.title'),
+                      onClick: () => setSettingsOpen((prev) => !prev),
+                    }, h(GearIcon, { size: 14 })),
+                    settingsOpen
+                      ? h('div', { className: 'dshsc-pop', role: 'dialog', 'aria-label': t('settings.title') },
+                          h('div', { className: 'dshsc-pop-title' }, t('settings.title')),
+                          h('div', { className: 'dshsc-pop-label' },
+                            h('span', { className: 'dshsc-pop-name' },
+                              t('placement.label'), h('em', null, t('placement.effect'))),
+                            h('button', {
+                              className: 'dshsc-switch',
+                              role: 'switch',
+                              'aria-checked': String(placement === 'sidebar'),
+                              'aria-label': `${t('placement.label')}：${placement === 'sidebar' ? t('placement.on') : t('placement.off')}`,
+                              title: t('placement.hint'),
+                              disabled: Boolean(placementBusy) || Boolean(data?.readOnly),
+                              onClick: () => void changePlacement(placement === 'sidebar' ? 'settings' : 'sidebar'),
+                            }, h('span', { className: 'dshsc-knob' }))),
+                          h('div', { className: 'dshsc-pop-hint' }, t('placement.hint')))
+                      : null),
+                  h('a', {
+                    className: 'dshsc-pill sq',
+                    href: GITHUB_URL,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    title: t('github.open'),
+                    'aria-label': t('github.open'),
+                  }, h(GitHubIcon, { size: 14 }))),
                 h('button', {
                   className: 'dshsc-btn',
                   disabled: !writable,
@@ -1066,12 +1440,28 @@ window.__ModuleLoader__.load({
             h('div', { className: 'dshsc-toolbar' },
               h('div', { className: 'dshsc-tabs' },
                 h('button', { className: `dshsc-tab${tab === 'installed' ? ' active' : ''}`, onClick: () => setTab('installed') },
-                  `${t('tab.installed')}（${rows.length}）`),
+                  h('span', null, t('tab.installed')), h('span', { className: 'n' }, rows.length)),
                 h('button', { className: `dshsc-tab${tab === 'subscriptions' ? ' active' : ''}`, onClick: () => setTab('subscriptions') },
-                  `${t('tab.subscriptions')}（${data?.subscriptions?.length || 0}）`)),
+                  h('span', null, t('tab.subscriptions')), h('span', { className: 'n' }, data?.subscriptions?.length || 0))),
               h('div', { className: 'dshsc-spacer' }),
               tab === 'installed' ? [
-                h('button', { key: 'refresh', className: 'dshsc-btn', disabled: busy !== null, onClick: () => void checkUpdates() }, t('action.refresh')),
+                h('div', { key: 'search', className: 'dshsc-search' },
+                  h(SearchIcon, { size: 13 }),
+                  h('input', {
+                    type: 'search',
+                    value: query,
+                    placeholder: t('search.placeholder'),
+                    'aria-label': t('search.placeholder'),
+                    onChange: (event) => setQuery(event.target.value),
+                  }),
+                  query
+                    ? h('button', {
+                        className: 'dshsc-search-clear',
+                        'aria-label': t('search.clear'),
+                        title: t('search.clear'),
+                        onClick: () => setQuery(''),
+                      }, '×')
+                    : null),
                 h('div', { key: 'view', className: 'dshsc-segment' },
                   h('button', { className: 'dshsc-btn', 'aria-pressed': String(view === 'flat'), onClick: () => setView('flat') }, t('view.flat')),
                   h('button', { className: 'dshsc-btn', 'aria-pressed': String(view === 'agent'), onClick: () => setView('agent') }, t('view.agent'))),
@@ -1266,6 +1656,7 @@ window.__ModuleLoader__.load({
           },
           h('div', { className: 'dshsc-group' }, t('links.targets')),
           h('p', { className: 'dshsc-sub' }, t('links.detectedHint')),
+          h('p', { className: 'dshsc-sub' }, t('links.canonical').replace('{path}', `~/.agents/skills/${row.name}`)),
           ...candidates.map((agent) =>
             h('label', { className: 'dshsc-check', key: agent.target },
               h('input', {
@@ -1276,7 +1667,7 @@ window.__ModuleLoader__.load({
               }),
               h('span', null, agent.kind === 'dsh' ? t('links.dshGlobal') : agent.label),
               agent.target === 'dsh-global' ? h('small', null, t('links.required')) : null,
-              h('small', null, agent.dir))),
+              h('small', { title: agent.dir }, agent.dir))),
           h('div', { className: 'dshsc-group' }, t('links.scope')),
           h('label', { className: 'dshsc-check' },
             h('input', { type: 'radio', name: `scope-${row.name}`, checked: scopeMode === 'global', onChange: () => setScopeMode('global') }),

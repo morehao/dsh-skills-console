@@ -303,13 +303,22 @@ test('渲染：三个技能、状态标签、tab 计数、操作列四件套', a
   await new Promise((resolve) => setTimeout(resolve, 20));
   const second = stub.render(Component, {}, first.hooks);
   const text = textOf(second.tree);
-  for (const expected of ['git-kit', 'handoff', 'pdf-tools', '最新', '有新版本', '异常：链接断裂', '已装（3）', '自动链接']) {
+  for (const expected of ['git-kit', 'handoff', 'pdf-tools', '最新', '可更新', '异常：链接断裂', '已安装 3', '自动链接']) {
     assert.ok(text.includes(expected), `缺少文案：${expected}`);
   }
   const labels = collectButtons(second.tree).map((button) => textOf(button).trim());
-  for (const expected of ['更新', '接入设置', '删除', '添加技能', '全部更新']) {
+  for (const expected of ['更新', '接入设置', '添加技能']) {
     assert.ok(labels.includes(expected), `缺少按钮：${expected}`);
   }
+  const named = (label) => collectButtons(second.tree).some(
+    (button) => button.props['aria-label'] === label || button.props.title === label,
+  );
+  assert.ok(named('删除'), '删除是图标按钮，但必须有可访问名称');
+  assert.ok(named('检查更新'), '检查更新是图标按钮，但必须有可访问名称');
+  assert.ok(!labels.includes('删除'), '删除不再占文字宽度');
+  assert.ok(!labels.includes('检查更新'), '检查更新不再占文字宽度');
+  assert.ok(labels.some((label) => label.startsWith('全部更新')), '有可更新行时要出现「全部更新 · n」');
+  assert.ok(!labels.includes('刷新'), '「刷新」已改名为「检查更新」');
   const switches = collectButtons(second.tree).filter((button) => button.props.role === 'switch');
   assert.equal(switches.length, 3, '每个技能一个启停开关');
   assert.equal(switches[2].props['aria-checked'], 'false', '停用的技能开关应为关');
@@ -381,10 +390,17 @@ test('可见性差异：内置技能是说明，其他来源才算告警', async
   assert.ok(!text.includes('不在 canonical 属正常'), '内置技能说明不再重复 canonical 免责声明');
   assert.ok(text.includes('stray-skill'), '非内置的游离技能仍要列出来');
   assert.ok(text.includes('DSH 能看到，但不在本地技能库'));
+  assert.ok(!text.includes('office'), '内置技能名默认收起，避免底部一屏文字');
 
   const banners = collectByType(tree, 'div').filter((node) => String(node.props.className || '').startsWith('dshsc-banner'));
-  assert.ok(banners.some((node) => String(node.props.className).includes('info')), '内置技能用 info 样式');
+  assert.ok(!banners.some((node) => String(node.props.className).includes('info')), '内置技能不再用大块 info 横幅');
   assert.ok(banners.some((node) => String(node.props.className).includes('warn')), '其他来源用 warn 样式');
+
+  const view = collectButtons(tree).find((button) => textOf(button).trim() === '查看');
+  assert.ok(view, '内置技能说明默认折叠，但要给查看入口');
+  view.props.onClick();
+  const expanded = textOf(stub.render(Component, {}, first.hooks).tree);
+  assert.ok(expanded.includes('office'), '点开后列出内置技能名');
 });
 
 test('页头两个动作按钮固定同高，不因文案换行或字体回退一高一低', async () => {
@@ -427,6 +443,19 @@ test('开关开启时旋钮用反色，不能白底白旋钮', async () => {
   assert.ok(!/#fff/i.test(knobOn), '旋钮不能写死白色');
 });
 
+test('方形复选框选中用反色圆点，不能白底白勾', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  const after = (css.match(/\.dshsc-check input\[type="checkbox"\]:checked::after\s*\{[^}]*\}/) || [''])[0];
+  assert.ok(after.includes('border-radius: 50%'), '选中标记应是圆点');
+  assert.ok(after.includes('background: var(--dsw-alias-bg-base)'), '圆点要跟随背景反色');
+  assert.ok(!/#fff/i.test(after), '不能写死白勾（深色主题品牌色可能是白色）');
+});
+
 test('二级弹窗用 bg-base，不用 bg-overlay（深色主题会变灰白）', async () => {
   const { Component, stub } = loadModule(STATE);
   const first = stub.render(Component, {});
@@ -440,7 +469,22 @@ test('二级弹窗用 bg-base，不用 bg-overlay（深色主题会变灰白）'
   assert.ok(css.includes('.dshsc-modal-close'), '弹窗要有显式关闭按钮');
 });
 
-test('页头：GitHub 是一颗带文字的胶囊，不在业务动作区', async () => {
+test('窄面板用容器查询，不能只靠视口 media query', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  assert.match(css, /\.dshsc-root\s*\{[^}]*container-type:\s*inline-size/, '根节点要建立 inline-size 容器');
+  assert.match(css, /\.dshsc-root\s*\{[^}]*container-name:\s*dshsc/, '容器要有名字，避免嵌套时查错');
+  assert.ok(css.includes('@container dshsc (max-width: 900px)'), '窄面板降级要用容器查询');
+  assert.ok(!css.includes('@media (max-width: 900px)'), '不能只看视口宽度：设置面板可能比窗口窄很多');
+  assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) 196px'), '窄面板切两列，Agent 标签回到名字下方');
+  assert.ok(css.includes('grid-row: 1 / span 2'), '操作列跨两行，避免和标签挤在一起');
+});
+
+test('页头：GitHub 是右侧图标按钮，带可访问名称', async () => {
   const { Component, stub } = loadModule(STATE);
   const first = stub.render(Component, {});
   first.effects.forEach((fn) => fn());
@@ -453,11 +497,15 @@ test('页头：GitHub 是一颗带文字的胶囊，不在业务动作区', asyn
   assert.equal(link.props.target, '_blank');
   assert.match(String(link.props.rel), /noopener/);
   assert.equal(link.props['aria-label'], '打开 GitHub 仓库');
-  assert.match(String(link.props.className), /dshsc-pill/, 'GitHub 用胶囊样式，跟标题放一起');
-  assert.equal(textOf(link).trim(), 'GitHub ↗', '胶囊要有文字，不只是一个图标');
+  const actions = collectByType(tree, 'div').find((node) => node.props.className === 'dshsc-head-actions');
+  assert.ok(actions, '页头右侧有动作区');
+  assert.ok(collectByType(actions, 'a').includes(link), 'GitHub 要右对齐到动作区');
+  assert.match(String(link.props.className), /dshsc-pill/, 'GitHub 用胶囊样式');
+  assert.match(String(link.props.className), /\bsq\b/, 'GitHub 是方形图标按钮');
+  assert.equal(textOf(link).trim(), '', '图标按钮不带文字，由 aria-label/title 提供名称');
   const addSkill = collectButtons(tree).find((button) => textOf(button).trim() === '添加技能');
-  assert.ok(addSkill, '业务动作里仍然只有「添加技能」');
-  assert.ok(!String(addSkill.props.className).includes('GitHub'));
+  assert.ok(addSkill, '业务动作仍保留「添加技能」');
+  assert.ok(collectByType(actions, 'button').includes(addSkill), '添加技能也在右侧动作区');
 });
 
 test('页头身份：包名与版本来自 Host 注入的 plugin 字段', async () => {
@@ -515,8 +563,8 @@ test('侧边栏入口：一个开关（不是文字按钮），切换后重新�
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const closed = stub.render(Component, {}, first.hooks).tree;
-  const pill = collectButtons(closed).find((button) => textOf(button).trim() === '插件设置');
-  assert.ok(pill, '标题旁要有「插件设置」胶囊');
+  const pill = collectButtons(closed).find((button) => button.props['aria-label'] === '插件设置');
+  assert.ok(pill, '标题旁要有「插件设置」图标按钮');
   assert.equal(pill.props['aria-expanded'], 'false');
   assert.ok(!textOf(closed).includes('侧边栏入口'), '面板收起时不渲染侧边栏入口');
 
@@ -537,7 +585,7 @@ test('侧边栏入口：一个开关（不是文字按钮），切换后重新�
   assert.ok(layout.selected.includes('dsh-skills-console'), '切到侧栏后选中主面板');
 
   const after = stub.render(Component, {}, first.hooks).tree;
-  const reopened = collectButtons(after).find((button) => textOf(button).trim() === '插件设置');
+  const reopened = collectButtons(after).find((button) => button.props['aria-label'] === '插件设置');
   reopened.props.onClick();
   const openedAgain = stub.render(Component, {}, first.hooks).tree;
   const onToggle = collectButtons(openedAgain).find((button) => button.props.role === 'switch' && button.props['aria-label']?.includes('侧边栏入口'));
@@ -563,7 +611,8 @@ test('入口位置=sidebar：启动时直接注册主面板和侧栏图标', asy
   await new Promise((resolve) => setTimeout(resolve, 20));
   const panel = stub.render(main.Component, {}, first.hooks).tree;
   assert.ok(textOf(panel).includes('技能控制台'), '主面板有独立标题');
-  const pill = collectButtons(panel).find((button) => textOf(button).trim() === '插件设置');
+  const pill = collectButtons(panel).find((button) => button.props['aria-label'] === '插件设置');
+  assert.ok(pill, '主面板也要有「插件设置」图标按钮');
   pill.props.onClick();
   assert.ok(textOf(stub.render(main.Component, {}, first.hooks).tree).includes('侧边栏入口'));
 });
@@ -639,6 +688,8 @@ test('接入设置：只列本机已装 Agent，并可直接勾 DSH 工作区', 
   assert.ok(text.includes('Claude Code'), '已安装的 Agent 要展示');
   assert.ok(!text.includes('CodeBuddy'), '未安装的 Agent 不展示');
   assert.ok(text.includes('只显示本机已安装'), '要有说明');
+  assert.ok(text.includes('~/.agents/skills/git-kit'), '要标出技能本体所在');
+  assert.ok(text.includes('/tmp/.dsh/skills'), 'Agent 的接入目录仍要展示');
 
   const radios = collectByType(modal, 'input').filter((node) => node.props.type === 'radio');
   radios[1].props.onChange();
@@ -668,4 +719,131 @@ test('切到订阅 tab：空态文案跟随 tab', async () => {
   tabs[0].props.onClick();
   const text = textOf(stub.render(Component, {}, first.hooks).tree);
   assert.ok(text.includes('还没有添加订阅'));
+});
+
+test('搜索：按技能名 / 来源 / Agent 过滤，空结果给清除入口', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  let tree = stub.render(Component, {}, first.hooks).tree;
+
+  const search = collectByType(tree, 'input').find((node) => node.props.type === 'search');
+  assert.ok(search, '工具栏要有搜索框');
+  assert.equal(search.props.value, '');
+  search.props.onChange({ target: { value: 'git' } });
+  tree = stub.render(Component, {}, first.hooks).tree;
+  let text = textOf(tree);
+  assert.ok(text.includes('git-kit'), '匹配技能名');
+  assert.ok(!text.includes('handoff'), '不匹配的行隐藏');
+
+  const searchAgain = collectByType(tree, 'input').find((node) => node.props.type === 'search');
+  searchAgain.props.onChange({ target: { value: 'morehao' } });
+  tree = stub.render(Component, {}, first.hooks).tree;
+  assert.ok(textOf(tree).includes('git-kit') && textOf(tree).includes('handoff'), '按来源命中');
+
+  searchAgain.props.onChange({ target: { value: 'zzzz' } });
+  tree = stub.render(Component, {}, first.hooks).tree;
+  assert.ok(textOf(tree).includes('没有匹配的技能'));
+  const clearButton = collectButtons(tree).find((button) => textOf(button).trim() === '清除');
+  assert.ok(clearButton, '空结果要有清除入口');
+  clearButton.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  assert.ok(textOf(tree).includes('handoff'), '清除后恢复全部行');
+
+  const claude = loadModule({
+    ...STATE,
+    installs: [
+      ROW({ name: 'claude-user', links: [{ target: 'agent:claude-code', label: 'Claude Code', linkPath: '/tmp/x', state: 'managed', recorded: true }] }),
+      ROW({ name: 'plain', links: [] }),
+    ],
+  });
+  const claudeFirst = claude.stub.render(claude.Component, {});
+  claudeFirst.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const claudeTree = claude.stub.render(claude.Component, {}, claudeFirst.hooks).tree;
+  const claudeSearch = collectByType(claudeTree, 'input').find((node) => node.props.type === 'search');
+  claudeSearch.props.onChange({ target: { value: 'claude' } });
+  const searched = claude.stub.render(claude.Component, {}, claudeFirst.hooks).tree;
+  assert.ok(textOf(searched).includes('claude-user'), '按 Agent 标签命中');
+  assert.ok(!textOf(searched).includes('plain'), '未接入该 Agent 的行不出现');
+});
+
+test('状态筛选：计数来自全量，点选后只留对应行', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  let tree = stub.render(Component, {}, first.hooks).tree;
+
+  const chip = (prefix) => collectButtons(tree).find((button) => String(textOf(button)).trim().startsWith(prefix));
+  assert.ok(String(textOf(chip('全部'))).includes('3'), '全部计数');
+  assert.ok(String(textOf(chip('可更新'))).includes('1'), '可更新计数');
+  assert.ok(String(textOf(chip('已停用'))).includes('1'), '已停用计数');
+
+  chip('可更新').props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  let text = textOf(tree);
+  assert.ok(text.includes('handoff'), '只剩可更新行');
+  assert.ok(!text.includes('git-kit'), 'current 行被筛掉');
+  assert.ok(String(textOf(collectButtons(tree).find((button) => String(textOf(button)).trim().startsWith('可更新')))).includes('1'),
+    '筛选后计数仍按全量显示');
+
+  chip('已停用').props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  text = textOf(tree);
+  assert.ok(text.includes('pdf-tools'), '已停用行');
+  assert.ok(!text.includes('handoff'), '其它状态被筛掉');
+});
+
+test('未检查：只在筛选计数里提示，不在行内/底部重复', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    installs: [ROW(), ROW({ name: 'mystery', status: 'unknown', links: [] })],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const text = textOf(stub.render(Component, {}, first.hooks).tree);
+  assert.ok(!text.includes('待检查\n'), '行内不再出现「待检查」标签');
+  assert.ok(!text.includes('还有 1 个技能未检查更新。'), '不再在列表底部重复聚合提示');
+  const chip = collectButtons(stub.render(Component, {}, first.hooks).tree)
+    .find((button) => String(textOf(button)).trim().startsWith('待检查'));
+  assert.ok(chip && String(textOf(chip)).includes('1'), '顶部筛选计数保留');
+  assert.ok(String(chip.props.title).includes('1 个技能未检查更新'), '计数 chip 用 tooltip 解释');
+});
+
+test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给未装条目', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    subscriptions: [{
+      id: 'sub-1',
+      source: 'morehao/ai-kit',
+      ref: 'main',
+      snapshot: { entries: [{ name: 'git-kit' }, { name: 'loose-skill' }] },
+    }],
+    installs: [ROW({ subscriptionId: 'sub-1' })],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tabs = collectButtons(stub.render(Component, {}, first.hooks).tree)
+    .filter((button) => String(textOf(button)).startsWith('订阅'));
+  tabs[0].props.onClick();
+  let tree = stub.render(Component, {}, first.hooks).tree;
+  let labels = collectButtons(tree).map((button) => textOf(button).trim());
+  const named = (label) => collectButtons(tree).some(
+    (button) => button.props['aria-label'] === label || button.props.title === label,
+  );
+  assert.ok(named('检查更新'), '订阅行要有「检查更新」图标按钮');
+  assert.ok(labels.includes('取消订阅'), '订阅行要有「取消订阅」');
+  assert.ok(textOf(tree).includes('已安装'), '「已装」统一改名为「已安装」');
+  assert.ok(!labels.includes('⋯'), '不使用折叠菜单');
+
+  const caret = collectButtons(tree).find((button) => String(button.props.className || '').includes('dshsc-caret'));
+  assert.ok(caret, '订阅行要有展开箭头');
+  caret.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  labels = collectButtons(tree).map((button) => textOf(button).trim());
+  assert.ok(labels.filter((label) => label === '安装').length === 1, '只有未装条目给安装按钮');
 });
