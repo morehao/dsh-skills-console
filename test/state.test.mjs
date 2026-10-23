@@ -60,6 +60,28 @@ test('未来版本 → 只读（不猜结构）', () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('v1 的 autoLinkAgents 迁移成 autoLinkTargets', () => {
+  const { root, paths } = sandbox();
+  fs.mkdirSync(paths.stateDir, { recursive: true });
+  fs.writeFileSync(
+    paths.stateFile,
+    JSON.stringify({ version: 1, settings: { autoLinkAgents: false }, installs: [], links: [], subscriptions: [] }),
+  );
+  const store = new StateStore(paths);
+  const state = store.load();
+  assert.equal(store.readOnly, false);
+  assert.deepEqual(state.settings.autoLinkTargets, []);
+  assert.equal('autoLinkAgents' in state.settings, false, '迁移后删掉旧字段');
+
+  fs.writeFileSync(
+    paths.stateFile,
+    JSON.stringify({ version: 1, settings: { autoLinkAgents: true }, installs: [], links: [], subscriptions: [] }),
+  );
+  const second = new StateStore(paths);
+  assert.equal(second.load().settings.autoLinkTargets, null);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('缺字段但结构可信 → 补默认值继续用', () => {
   const { root, paths } = sandbox();
   fs.mkdirSync(paths.stateDir, { recursive: true });
@@ -67,7 +89,7 @@ test('缺字段但结构可信 → 补默认值继续用', () => {
   const store = new StateStore(paths);
   const state = store.load();
   assert.equal(store.readOnly, false);
-  assert.equal(state.settings.autoLinkAgents, true);
+  assert.equal(state.settings.autoLinkTargets, null);
   assert.deepEqual(state.agents.custom, []);
   fs.rmSync(root, { recursive: true, force: true });
 });

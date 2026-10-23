@@ -69,7 +69,7 @@ if (args[0] === 'remove') {
 process.exit(0);
 `;
 
-function setup() {
+function setup(extra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-service-'));
   const home = path.join(root, 'home');
   fs.mkdirSync(path.join(home, '.dsh', 'skills'), { recursive: true });
@@ -98,6 +98,7 @@ function setup() {
     env,
     fetchImpl: async () => new Response('{}', { status: 500 }),
     visibleProvider: async () => ({ skills: [{ name: 'alpha', source: 'user-dsh' }], complete: true }),
+    ...extra,
   });
   return { root, home, paths, store, service, registry };
 }
@@ -126,6 +127,42 @@ test('安装：canonical + lock 断言 + 默认建链 + 记账', async () => {
   const row = state.installs.find((item) => item.name === 'alpha');
   assert.equal(row.managed, true);
   assert.equal(row.visible, true, '可见列要能对上 canonical 条目');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('作用范围：/state 带出可选的 DSH 工作区', async () => {
+  const workspace = { id: 'w1', title: 'my-project', path: '/tmp/my-project' };
+  const { root, service } = setup({ workspacesProvider: async () => [workspace] });
+  const state = await service.getState({});
+  assert.deepEqual(state.workspaces, [workspace]);
+
+  const broken = setup({ workspacesProvider: async () => { throw new Error('registry down'); } });
+  const fallback = await broken.service.getState({});
+  assert.deepEqual(fallback.workspaces, [], '工作区服务失败不影响清单');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(broken.root, { recursive: true, force: true });
+});
+
+test('自动链接：只接入勾选的已探测 Agent，dsh 全局必选', async () => {
+  const { root, home, paths, store, service } = setup();
+  fs.mkdirSync(path.join(home, '.codebuddy', 'skills'), { recursive: true });
+
+  await service.setSettings({ autoLinkTargets: ['agent:claude-code', 'agent:not-detected', 'bad-target'] });
+  assert.deepEqual(store.state.settings.autoLinkTargets, ['agent:claude-code'], '未知/未探测的 Agent 被过滤');
+
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  assert.ok(fs.lstatSync(path.join(home, '.dsh', 'skills', 'alpha')).isSymbolicLink(), 'dsh 全局必建');
+  assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'alpha')).isSymbolicLink(), '勾选的 Agent 要建');
+  assert.equal(fs.existsSync(path.join(home, '.codebuddy', 'skills', 'alpha')), false, '没勾的不能建');
+
+  await service.setSettings({ autoLinkTargets: [] });
+  await service.install({ source: 'morehao/ai-kit', skills: ['beta'] });
+  assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'beta')), false);
+
+  await service.setSettings({ autoLinkTargets: null });
+  await service.install({ source: 'morehao/ai-kit', skills: ['gamma'] });
+  assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'gamma')).isSymbolicLink(), 'null = 所有探测到的 Agent');
+  assert.ok(fs.lstatSync(path.join(home, '.codebuddy', 'skills', 'gamma')).isSymbolicLink());
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -241,7 +278,7 @@ test('只读状态下的写操作被拒绝，也不会自动接管', async () =>
   fs.mkdirSync(paths.stateDir, { recursive: true });
   fs.writeFileSync(paths.stateFile, 'broken');
   store.load();
-  await assert.rejects(() => service.setSettings({ autoLinkAgents: false }), /read-only|state/i);
+  await assert.rejects(() => service.setSettings({ autoLinkTargets: [] }), /read-only|state/i);
 
   const state = await service.getState({});
   assert.equal(state.readOnly, true);

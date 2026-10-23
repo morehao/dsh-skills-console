@@ -52,6 +52,15 @@ window.__ModuleLoader__.load({
         'links.scopeGlobal': '全局（默认）',
         'links.scopeProjects': '仅以下项目',
         'links.targets': '链接到哪些 Agent',
+        'links.detectedHint': '只显示本机已安装（目录存在）的 Agent',
+        'links.workspaces': 'DSH 工作区',
+        'links.noWorkspaces': '还没有 DSH 工作区，可以点下面「选择其他目录」',
+        'links.pickDirectory': '选择其他目录…',
+        'links.selected': '其他已选目录',
+        'links.hint': '保存后按勾选建/删软链；canonical 里的技能真身不会移动。',
+        'autoLink.detected': '安装后自动接入',
+        'autoLink.none': '本机没有检测到其他 Agent',
+        'autoLink.hint': 'dsh（全局）始终接入；这里只影响之后安装时自动建链，已装的技能请在「接入设置」里改。',
         'empty.skills': '还没有安装任何技能',
         'empty.skillsHint': '在终端跑 `npx skills add owner/repo`，或点右上角「添加技能」',
         'empty.subs': '还没有添加订阅',
@@ -126,6 +135,15 @@ window.__ModuleLoader__.load({
         'links.scopeGlobal': 'Global (default)',
         'links.scopeProjects': 'Only these projects',
         'links.targets': 'Link to agents',
+        'links.detectedHint': 'Only agents installed on this machine (directory exists)',
+        'links.workspaces': 'DSH workspaces',
+        'links.noWorkspaces': 'No DSH workspaces yet; use "Choose another folder" below',
+        'links.pickDirectory': 'Choose another folder…',
+        'links.selected': 'Other selected folders',
+        'links.hint': 'Saving creates/removes only symlinks; the skill itself stays in canonical.',
+        'autoLink.detected': 'Auto-link after install',
+        'autoLink.none': 'No other agents detected on this machine',
+        'autoLink.hint': 'dsh (global) is always linked; this only affects future installs. Change existing skills under "Link settings".',
         'empty.skills': 'No skills installed yet',
         'empty.skillsHint': 'Run `npx skills add owner/repo` or use "Add skill".',
         'empty.subs': 'No subscriptions yet',
@@ -211,7 +229,8 @@ window.__ModuleLoader__.load({
       .dshsm-field input { font: inherit; font-size: 13px; padding: 7px 9px; border-radius: 7px;
         border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
       .dshsm-check { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
-      .dshsm-check small { color: var(--dsw-alias-label-secondary); }
+      .dshsm-check small { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+      .dshsm-check span { white-space: nowrap; }
       .dshsm-modal-foot { display: flex; justify-content: flex-end; gap: 8px; }
       .dshsm-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 9px 12px; border-radius: 9px;
         background: var(--dsw-alias-bg-overlay); border: 1px solid var(--dsw-alias-border-l2); max-width: 420px; }
@@ -656,9 +675,11 @@ window.__ModuleLoader__.load({
           }
 
           const autolinkTargets = (data?.agents?.detected || []).filter((agent) => agent.kind === 'agent');
-          const autoLinkLabel = data?.settings?.autoLinkAgents
-            ? [t('links.dshGlobal'), ...autolinkTargets.map((agent) => agent.label)].join('、')
-            : t('links.dshGlobal');
+          const autoLinkSelection = data?.settings?.autoLinkTargets;
+          const autoLinkAgents = Array.isArray(autoLinkSelection)
+            ? autolinkTargets.filter((agent) => autoLinkSelection.includes(agent.target))
+            : autolinkTargets;
+          const autoLinkLabel = [t('links.dshGlobal'), ...autoLinkAgents.map((agent) => agent.label)].join('、');
 
           return h(
             'div',
@@ -728,6 +749,7 @@ window.__ModuleLoader__.load({
               return h(LinksModal, {
                 row: modal.row,
                 agents: data?.agents?.all || [],
+                workspaces: data?.workspaces || [],
                 onCancel: () => setModal(null),
                 onSave: (targets, scopeProjects) => {
                   setModal(null);
@@ -740,9 +762,9 @@ window.__ModuleLoader__.load({
                 settings: data?.settings || {},
                 agents: autolinkTargets,
                 onCancel: () => setModal(null),
-                onSave: async (enabled) => {
+                onSave: async (targets) => {
                   setModal(null);
-                  await run('settings', () => apiCall('POST', '/settings', { autoLinkAgents: enabled }));
+                  await run('settings', () => apiCall('POST', '/settings', { autoLinkTargets: targets }));
                 },
               });
             }
@@ -829,22 +851,36 @@ window.__ModuleLoader__.load({
           }, h('p', { className: 'dshsm-sub', style: { whiteSpace: 'pre-wrap' } }, body));
         }
 
-        function LinksModal({ row, agents, onCancel, onSave }) {
-          const linked = new Set(row.links.map((link) => link.target));
+        function LinksModal({ row, agents, workspaces, onCancel, onSave }) {
+          // 本机没有目录的 Agent 不展示；dsh（全局）必选，永远显示
+          const candidates = agents.filter(
+            (agent) => agent.kind === 'dsh' || (agent.kind !== 'project' && agent.exists),
+          );
           const [targets, setTargets] = React.useState(() => {
-            const initial = new Set(linked);
+            // 只保留还能展示的目标：agent 目录都没了就别在保存时把它重新建出来
+            const visible = new Set(candidates.map((agent) => agent.target));
+            const initial = new Set(row.links.map((link) => link.target).filter((target) => visible.has(target)));
             initial.add('dsh-global');
             return initial;
           });
           const [scopeProjects, setScopeProjects] = React.useState(row.scopeProjects || []);
           const [scopeMode, setScopeMode] = React.useState((row.scopeProjects || []).length > 0 ? 'projects' : 'global');
-          const candidates = agents.filter((agent) => agent.kind !== 'project');
+          const workspacePaths = new Set(workspaces.map((workspace) => workspace.path));
+          const otherProjects = scopeProjects.filter((project) => !workspacePaths.has(project));
           const toggle = (target) => setTargets((prev) => {
             const next = new Set(prev);
             if (next.has(target)) next.delete(target);
             else next.add(target);
             return next;
           });
+          const toggleProject = (project) => setScopeProjects((prev) =>
+            prev.includes(project) ? prev.filter((item) => item !== project) : [...prev, project]);
+          const pickDirectory = async () => {
+            const picker = ctx.get('uiWorkspace');
+            const dir = await picker?.pickDirectory?.();
+            if (!dir) return;
+            setScopeProjects((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
+          };
           return h(Overlay, {
             title: `${t('action.links')} · ${row.name}`,
             onCancel,
@@ -858,6 +894,7 @@ window.__ModuleLoader__.load({
             ],
           },
           h('div', { className: 'dshsm-group' }, t('links.targets')),
+          h('p', { className: 'dshsm-sub' }, t('links.detectedHint')),
           ...candidates.map((agent) =>
             h('label', { className: 'dshsm-check', key: agent.target },
               h('input', {
@@ -868,8 +905,7 @@ window.__ModuleLoader__.load({
               }),
               h('span', null, agent.kind === 'dsh' ? t('links.dshGlobal') : agent.label),
               agent.target === 'dsh-global' ? h('small', null, t('links.required')) : null,
-              h('small', null, agent.dir),
-              agent.exists ? null : h('small', null, '· not detected'))),
+              h('small', null, agent.dir))),
           h('div', { className: 'dshsm-group' }, t('links.scope')),
           h('label', { className: 'dshsm-check' },
             h('input', { type: 'radio', name: `scope-${row.name}`, checked: scopeMode === 'global', onChange: () => setScopeMode('global') }),
@@ -879,7 +915,22 @@ window.__ModuleLoader__.load({
             h('span', null, t('links.scopeProjects'))),
           scopeMode === 'projects'
             ? h('div', null,
-                ...scopeProjects.map((project) =>
+                h('div', { className: 'dshsm-group' }, t('links.workspaces')),
+                workspaces.length === 0
+                  ? h('p', { className: 'dshsm-sub' }, t('links.noWorkspaces'))
+                  : workspaces.map((workspace) =>
+                      h('label', { className: 'dshsm-check', key: workspace.id },
+                        h('input', {
+                          type: 'checkbox',
+                          checked: scopeProjects.includes(workspace.path),
+                          onChange: () => toggleProject(workspace.path),
+                        }),
+                        h('span', null, workspace.title),
+                        h('small', null, workspace.path))),
+                otherProjects.length > 0
+                  ? h('div', { className: 'dshsm-group' }, t('links.selected'))
+                  : null,
+                ...otherProjects.map((project) =>
                   h('div', { className: 'dshsm-sub-entry', key: project },
                     h('span', { className: 'dshsm-code' }, project),
                     h('div', { className: 'dshsm-actions' },
@@ -887,33 +938,43 @@ window.__ModuleLoader__.load({
                         className: 'dshsm-btn ghost danger',
                         onClick: () => setScopeProjects((prev) => prev.filter((item) => item !== project)),
                       }, t('action.delete'))))),
-                h('button', {
-                  className: 'dshsm-btn',
-                  onClick: async () => {
-                    const picker = ctx.get('uiWorkspace');
-                    const dir = await picker?.pickDirectory?.();
-                    if (!dir) return;
-                    setScopeProjects((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
-                  },
-                }, t('action.choose')))
+                h('button', { className: 'dshsm-btn', onClick: () => void pickDirectory() }, t('links.pickDirectory')))
             : null,
-          h('p', { className: 'dshsm-sub' }, t('form.hint')));
+          h('p', { className: 'dshsm-sub' }, t('links.hint')));
         }
 
         function AutoLinkModal({ settings, agents, onCancel, onSave }) {
-          const [enabled, setEnabled] = React.useState(Boolean(settings.autoLinkAgents));
+          const [targets, setTargets] = React.useState(() => new Set(
+            Array.isArray(settings.autoLinkTargets) ? settings.autoLinkTargets : agents.map((agent) => agent.target),
+          ));
+          const toggle = (target) => setTargets((prev) => {
+            const next = new Set(prev);
+            if (next.has(target)) next.delete(target);
+            else next.add(target);
+            return next;
+          });
           return h(Overlay, {
             title: t('autoLink'),
             onCancel,
             footer: [
               h('button', { key: 'c', className: 'dshsm-btn ghost', onClick: onCancel }, t('action.cancel')),
-              h('button', { key: 's', className: 'dshsm-btn primary', onClick: () => onSave(enabled) }, t('action.save')),
+              h('button', { key: 's', className: 'dshsm-btn primary', onClick: () => onSave([...targets]) }, t('action.save')),
             ],
           },
           h('p', { className: 'dshsm-sub' }, t('links.dshGlobal') + ' · ' + t('links.required')),
-          h('label', { className: 'dshsm-check' },
-            h('input', { type: 'checkbox', checked: enabled, onChange: () => setEnabled((prev) => !prev) }),
-            h('span', null, t('meta.available') + '：' + agents.map((agent) => agent.label).join('、'))));
+          h('div', { className: 'dshsm-group' }, t('autoLink.detected')),
+          agents.length === 0
+            ? h('p', { className: 'dshsm-sub' }, t('autoLink.none'))
+            : agents.map((agent) =>
+                h('label', { className: 'dshsm-check', key: agent.target },
+                  h('input', {
+                    type: 'checkbox',
+                    checked: targets.has(agent.target),
+                    onChange: () => toggle(agent.target),
+                  }),
+                  h('span', null, agent.label),
+                  h('small', null, agent.dir))),
+          h('p', { className: 'dshsm-sub' }, t('autoLink.hint')));
         }
 
         ctx.effect(
