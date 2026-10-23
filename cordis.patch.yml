@@ -1,0 +1,8 @@
+# dsh-skills-manager bundle patch
+#
+# 一个 Host half（lib/index.js）加一个 Web Client half（client.js）：
+# Host 负责 canonical 扫描 / 软链 / CLI 调用 / 订阅与更新事务，Client 在设置页渲染「技能」分区。
+- insert:
+    - id: dsh-skills-manager
+      name: '@morehao/dsh-skills-manager'
+      config: {}

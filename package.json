@@ -1,0 +1,52 @@
+{
+  "name": "@morehao/dsh-skills-manager",
+  "version": "0.1.0",
+  "description": "技能管理：装 / 更新 / 删除 / 接入其他 Agent / 启停，外加订阅跟踪（canonical 只由 skills CLI 写）。",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "check": "node --check lib/index.js && node --check client.js && node scripts/check-syntax.mjs",
+    "sync:agents": "node scripts/sync-agent-table.mjs"
+  },
+  "engines": {
+    "node": "^22.20.0 || >=24.0.0"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "skills"
+  ]
+}

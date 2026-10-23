@@ -1,0 +1,280 @@
+{
+  "source": "skills CLI agents table",
+  "entries": [
+    {
+      "key": "adal",
+      "name": "AdaL",
+      "dir": ".adal/skills"
+    },
+    {
+      "key": "aider-desk",
+      "name": "AiderDesk",
+      "dir": ".aider-desk/skills"
+    },
+    {
+      "key": "astrbot",
+      "name": "AstrBot",
+      "dir": ".astrbot/data/skills"
+    },
+    {
+      "key": "augment",
+      "name": "Augment",
+      "dir": ".augment/skills"
+    },
+    {
+      "key": "autohand-code",
+      "name": "Autohand Code CLI",
+      "dir": ".autohand/skills"
+    },
+    {
+      "key": "bob",
+      "name": "IBM Bob",
+      "dir": ".bob/skills"
+    },
+    {
+      "key": "claude-code",
+      "name": "Claude Code",
+      "dir": ".claude/skills"
+    },
+    {
+      "key": "codearts-agent",
+      "name": "CodeArts Agent",
+      "dir": ".codeartsdoer/skills"
+    },
+    {
+      "key": "codebuddy",
+      "name": "CodeBuddy",
+      "dir": ".codebuddy/skills"
+    },
+    {
+      "key": "codemaker",
+      "name": "Codemaker",
+      "dir": ".codemaker/skills"
+    },
+    {
+      "key": "codestudio",
+      "name": "Code Studio",
+      "dir": ".codestudio/skills"
+    },
+    {
+      "key": "command-code",
+      "name": "Command Code",
+      "dir": ".commandcode/skills"
+    },
+    {
+      "key": "continue",
+      "name": "Continue",
+      "dir": ".continue/skills"
+    },
+    {
+      "key": "cortex",
+      "name": "Cortex Code",
+      "dir": ".snowflake/cortex/skills"
+    },
+    {
+      "key": "crush",
+      "name": "Crush",
+      "dir": ".config/crush/skills"
+    },
+    {
+      "key": "devin",
+      "name": "Devin for Terminal",
+      "dir": ".devin/skills"
+    },
+    {
+      "key": "eve",
+      "name": "Eve",
+      "dir": "agent/skills"
+    },
+    {
+      "key": "forgecode",
+      "name": "ForgeCode",
+      "dir": ".forge/skills"
+    },
+    {
+      "key": "goose",
+      "name": "Goose",
+      "dir": ".goose/skills"
+    },
+    {
+      "key": "grok",
+      "name": "Grok Build",
+      "dir": ".grok/skills"
+    },
+    {
+      "key": "hermes-agent",
+      "name": "Hermes Agent",
+      "dir": ".hermes/skills"
+    },
+    {
+      "key": "iflow-cli",
+      "name": "iFlow CLI",
+      "dir": ".iflow/skills"
+    },
+    {
+      "key": "inference-sh",
+      "name": "inference.sh",
+      "dir": ".inferencesh/skills"
+    },
+    {
+      "key": "jazz",
+      "name": "Jazz",
+      "dir": ".jazz/skills"
+    },
+    {
+      "key": "junie",
+      "name": "Junie",
+      "dir": ".junie/skills"
+    },
+    {
+      "key": "kimchi",
+      "name": "Kimchi",
+      "dir": ".kimchi/skills"
+    },
+    {
+      "key": "kiro-cli",
+      "name": "Kiro CLI",
+      "dir": ".kiro/skills"
+    },
+    {
+      "key": "kode",
+      "name": "Kode",
+      "dir": ".kode/skills"
+    },
+    {
+      "key": "lingma",
+      "name": "Lingma",
+      "dir": ".lingma/skills"
+    },
+    {
+      "key": "mcpjam",
+      "name": "MCPJam",
+      "dir": ".mcpjam/skills"
+    },
+    {
+      "key": "minimax-code",
+      "name": "MiniMax Code",
+      "dir": ".minimax/skills"
+    },
+    {
+      "key": "mistral-vibe",
+      "name": "Mistral Vibe",
+      "dir": ".vibe/skills"
+    },
+    {
+      "key": "moxby",
+      "name": "Moxby",
+      "dir": ".moxby/skills"
+    },
+    {
+      "key": "mux",
+      "name": "Mux",
+      "dir": ".mux/skills"
+    },
+    {
+      "key": "neovate",
+      "name": "Neovate",
+      "dir": ".neovate/skills"
+    },
+    {
+      "key": "ona",
+      "name": "Ona",
+      "dir": ".ona/skills"
+    },
+    {
+      "key": "openclaw",
+      "name": "OpenClaw",
+      "dir": "skills"
+    },
+    {
+      "key": "openhands",
+      "name": "OpenHands",
+      "dir": ".openhands/skills"
+    },
+    {
+      "key": "pochi",
+      "name": "Pochi",
+      "dir": ".pochi/skills"
+    },
+    {
+      "key": "posit-assistant",
+      "name": "Posit Assistant",
+      "dir": ".posit/assistant/skills"
+    },
+    {
+      "key": "qoder",
+      "name": "Qoder",
+      "dir": ".qoder/skills"
+    },
+    {
+      "key": "qoder-cn",
+      "name": "Qoder CN",
+      "dir": ".qoder-cn/skills"
+    },
+    {
+      "key": "qwen-code",
+      "name": "Qwen Code",
+      "dir": ".qwen/skills"
+    },
+    {
+      "key": "reasonix",
+      "name": "Reasonix",
+      "dir": ".reasonix/skills"
+    },
+    {
+      "key": "roo",
+      "name": "Roo Code",
+      "dir": ".roo/skills"
+    },
+    {
+      "key": "rovodev",
+      "name": "Rovo Dev",
+      "dir": ".rovodev/skills"
+    },
+    {
+      "key": "tabnine-cli",
+      "name": "Tabnine CLI",
+      "dir": ".tabnine/agent/skills"
+    },
+    {
+      "key": "terramind",
+      "name": "Terramind",
+      "dir": ".terramind/skills"
+    },
+    {
+      "key": "tinycloud",
+      "name": "Tinycloud",
+      "dir": ".tinycloud/skills"
+    },
+    {
+      "key": "trae",
+      "name": "Trae",
+      "dir": ".trae/skills"
+    },
+    {
+      "key": "trae-cn",
+      "name": "Trae CN",
+      "dir": ".trae-cn/skills"
+    },
+    {
+      "key": "windsurf",
+      "name": "Windsurf",
+      "dir": ".codeium/windsurf/skills"
+    },
+    {
+      "key": "zcode",
+      "name": "ZCode",
+      "dir": ".zcode/skills"
+    },
+    {
+      "key": "zencoder",
+      "name": "Zencoder",
+      "dir": ".zencoder/skills"
+    },
+    {
+      "key": "zenflow",
+      "name": "Zenflow",
+      "dir": ".zencoder/skills"
+    }
+  ]
+}
