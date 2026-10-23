@@ -22,6 +22,9 @@ const ALLOWED_EXACT = new Set([
 ]);
 const ALLOWED_PREFIX = ["lib/", "locale/"];
 
+// 源码与构建输入一律不进包：npm 只发根 client.js（生成物），client/ 是 esbuild 的输入。
+const FORBIDDEN_PREFIX = ["client/", "scripts/", "test/", ".dsh/", ".github/"];
+
 const required = [
 	"package.json",
 	"README.md",
@@ -50,10 +53,13 @@ try {
 const unwanted = files.filter(
 	(p) => !ALLOWED_EXACT.has(p) && !ALLOWED_PREFIX.some((prefix) => p.startsWith(prefix)),
 );
+// 显式点名最容易被误放进包的源码目录，报错比白名单兜底更好读。
+const leakedSources = files.filter((p) => FORBIDDEN_PREFIX.some((prefix) => p.startsWith(prefix)));
 // 反向检查：必备文件一个都不能少（少了就是空包 / 缺图标缺 locale 缺 client half）。
 const missing = required.filter((p) => !files.includes(p));
 
 for (const p of unwanted) console.error(`✗ 包内出现非白名单文件：${p}`);
+for (const p of leakedSources) console.error(`✗ 源码目录不得入包：${p}`);
 for (const p of missing) console.error(`✗ 包内缺少必备文件：${p}`);
 
 console.log(`包内共 ${files.length} 个文件：\n  ${files.sort().join("\n  ")}`);

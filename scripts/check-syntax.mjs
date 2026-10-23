@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-/** 逐文件语法自检：`node --check` 只看单文件，这里把 lib/ 与 scripts/ 全跑一遍。 */
+/** 逐文件语法自检：`node --check` 只看单文件，这里把 lib/、client/ 与 scripts/ 全跑一遍。 */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const roots = ['lib', 'scripts', 'test'];
+const roots = ['lib', 'client', 'scripts', 'test'];
 const files = [];
 for (const root of roots) {
   const walk = (dir) => {

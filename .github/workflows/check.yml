@@ -1,8 +1,8 @@
 name: check
 
-# 最小 CI：不构建、不装依赖（本包零 runtime 依赖），单测与冒烟全部离线、用临时 HOME。
-# 目标是把「只有真正发版时才会暴露」的机械错误前移到 PR —— 发布是 tag 触发、tag 推上去就不可改，
-# 失败只能事后发现。
+# 最小 CI：只装构建期依赖（esbuild），不跑发布构建——client.js 是提交进仓的生成物。
+# 单测与冒烟全部离线、用临时 HOME。目标是把「只有真正发版时才会暴露」的机械错误前移到 PR ——
+# 发布是 tag 触发、tag 推上去就不可改，失败只能事后发现。
 on:
   pull_request:
   push:
@@ -26,18 +26,23 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          # 本包零 runtime 依赖、CI 不装依赖：显式关掉 setup-node 的自动依赖缓存，
-          # 既省时间也少一个缓存投毒面（v5 起有 packageManager 字段就会自动开缓存）。
+          # 运行时零依赖，但 check:client 需要 esbuild：显式关掉 setup-node 的自动依赖缓存，
+          # 依赖只从 lockfile 装一次（v5 起有 packageManager 字段就会自动开缓存）。
           package-manager-cache: false
+
+      # check:client 在内存里重建 client.js 并与提交的生成物逐字节比对。
+      - name: 安装构建期依赖
+        run: npm ci
 
       # 发布脚本本身是 shell：`bash -n` 先过一遍语法，避免 tag 推上去才发现脚本跑不起来。
       - name: 发布脚本语法
         run: bash -n scripts/ci-publish.sh
 
-      # 语法自检（lib/、scripts/、test/、client.js）+ 命名/导出接线 + 打包白名单 + Release body 投影冒烟。
+      # 语法自检（lib/、client/、scripts/、test/、client.js）+ 生成物一致性 + 命名/导出接线
+      # + 打包白名单 + Release body 投影冒烟。
       - name: 机械校验（npm run check）
         run: npm run check
 
-      # 70 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
+      # 77 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
       - name: 单元测试
         run: npm test
