@@ -99,6 +99,7 @@ async function writeOutput() {
   else await rm(mapfile, { force: true });
   const bytes = Buffer.byteLength(code);
   console.log(`✔ client.js 已重建（${bytes} 字节${sourcemap ? " + client.js.map" : ""}）`);
+  if (sourcemap) console.log("… sourcemap 只用于本机调试：不要提交 client.js.map；提交前重跑不带 --sourcemap 的 npm run build:client");
 }
 
 async function checkOutput() {
@@ -122,32 +123,34 @@ async function checkOutput() {
 }
 
 async function runWatch() {
-  const ctx = await context(options({ write: false }));
-  let writing = false;
-  const rebuild = async (result) => {
-    for (const error of result.errors || []) console.error(error.text || error);
-    if ((result.errors || []).length > 0) return;
-    try {
-      verify(result.metafile);
-      const output = result.outputFiles?.find((file) => file.path === outfile);
-      if (!output) return;
-      writing = true;
-      await writeFile(outfile, output.text);
-      const map = result.outputFiles.find((file) => file.path === mapfile);
-      if (sourcemap && map) await writeFile(mapfile, map.text);
-      else await rm(mapfile, { force: true });
-      console.log(`✔ ${new Date().toLocaleTimeString()} client.js 已重建（${Buffer.byteLength(output.text)} 字节）`);
-    } catch (error) {
-      console.error(`✖ ${error.message}`);
-    } finally {
-      writing = false;
-    }
+  // esbuild 的 watcher 不暴露 onEnd，只能挂插件在每次构建结束时自己写产物。
+  const watcher = {
+    name: "dsh-client-watch-writer",
+    setup(build) {
+      build.onEnd(async (result) => {
+        if ((result.errors || []).length > 0) {
+          for (const error of result.errors) console.error(error.text || error);
+          return;
+        }
+        try {
+          verify(result.metafile);
+          const output = result.outputFiles?.find((file) => file.path === outfile);
+          if (!output) return;
+          await writeFile(outfile, output.text);
+          const map = result.outputFiles.find((file) => file.path === mapfile);
+          if (sourcemap && map) await writeFile(mapfile, map.text);
+          else await rm(mapfile, { force: true });
+          console.log(`✔ ${new Date().toLocaleTimeString()} client.js 已重建（${Buffer.byteLength(output.text)} 字节）`);
+        } catch (error) {
+          console.error(`✖ ${error.message}`);
+        }
+      });
+    },
   };
-  ctx.onEnd((result) => { void rebuild(result); });
+  const ctx = await context({ ...options({ write: false }), plugins: [watcher] });
   await ctx.watch();
   console.log("… 监听 client/ 变化中（Ctrl+C 退出）");
   process.on("SIGINT", async () => {
-    while (writing) await new Promise((resolve) => setTimeout(resolve, 20));
     await ctx.dispose();
     process.exit(0);
   });
