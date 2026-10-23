@@ -82,7 +82,7 @@ function setup(extra = {}) {
   const registry = createRegistry({ paths, getState: () => store.state });
   const env = {
     ...process.env,
-    DSH_SKILLS_MANAGER_CLI: `${process.execPath} ${stub}`,
+    DSH_SKILLS_CONSOLE_CLI: `${process.execPath} ${stub}`,
     TEST_HOME: home,
     TEST_TREE_SHA: TREE_SHA,
     PATH: '',
