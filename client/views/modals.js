@@ -205,6 +205,7 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
   const [options, setOptions] = React.useState([]);
   const [selected, setSelected] = React.useState(() => new Set());
   const [manual, setManual] = React.useState('');
+  const [skipped, setSkipped] = React.useState(0);
   const [error, setError] = React.useState(null);
 
   const reset = (value) => {
@@ -212,6 +213,7 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
     setPhase('idle');
     setOptions([]);
     setSelected(new Set());
+    setSkipped(0);
     setError(null);
   };
 
@@ -225,6 +227,7 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
       const found = Array.isArray(result?.skills) ? result.skills : [];
       setOptions(found);
       setSelected(new Set(found.map((item) => item.name)));
+      setSkipped(Math.max(0, Number(result?.skipped) || 0));
       setPhase(found.length > 0 ? 'picked' : 'empty');
     } catch (err) {
       setError(err?.message || String(err));
@@ -240,6 +243,7 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
   });
 
   const names = manual.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean);
+  const skippedText = skipped > 0 ? t('form.skipped').replace('{n}', String(skipped)) : null;
   const manualMode = phase === 'empty' || phase === 'failed';
   const skills = phase === 'picked' ? [...selected] : names;
   const canSubmit = phase === 'picked' ? selected.size > 0 : manualMode ? names.length > 0 : false;
@@ -290,20 +294,27 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
             onClick: () => setSelected(new Set()),
           }, t('form.selectNone'))),
         h('div', { className: 'dshsc-panel' }, options.map((option) =>
-          h('label', { className: 'dshsc-check', key: option.name },
+          h('label', { className: 'dshsc-check dshsc-skill', key: option.name },
             h('input', {
               type: 'checkbox',
               checked: selected.has(option.name),
               onChange: () => toggle(option.name),
             }),
-            h('span', null, option.name),
-            h('small', null, option.skillPath)))))
+            h('span', { className: 'dshsc-skill-main' },
+              h('span', { className: 'dshsc-skill-name' }, option.name),
+              option.description
+                ? h('small', { className: 'dshsc-skill-desc' }, option.description)
+                : null,
+              h('small', { className: 'dshsc-skill-path' }, option.skillPath))))),
+        skippedText
+          ? h('p', { className: 'dshsc-sub' }, skippedText)
+          : null)
     : null,
   phase === 'probing' ? h('p', { className: 'dshsc-sub' }, t('form.probingHint')) : null,
   manualMode
     ? h('div', { key: 'manual' },
         h('p', { className: 'dshsc-sub' }, phase === 'empty'
-          ? t('form.noSkills')
+          ? skippedText || t('form.noSkills')
           : `${t('form.probeFailed')}${error ? ` · ${error}` : ''}`),
         h('label', { className: 'dshsc-field' },
           h('span', null, t('form.skills')),

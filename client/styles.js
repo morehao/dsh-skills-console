@@ -310,6 +310,14 @@ export const CSS = `
   .dshsc-check input:disabled { opacity: .55; cursor: not-allowed; }
   .dshsc-check small { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .dshsc-check span { white-space: nowrap; }
+  /* 添加技能：每个技能一行，名字 + 两行描述 + 路径；描述太长时截断，不把弹窗撑高 */
+  .dshsc-skill { align-items: flex-start; }
+  .dshsc-skill input[type="checkbox"] { margin-top: 3px; }
+  .dshsc-skill-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+  .dshsc-skill-name { font-weight: 600; }
+  .dshsc-check .dshsc-skill-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; white-space: normal; line-height: 1.4; }
+  .dshsc-check .dshsc-skill-path { font-size: 11px; opacity: .75; }
 
   .dshsc-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
     padding: 4px; max-height: 300px; overflow: auto; display: flex; flex-direction: column; }

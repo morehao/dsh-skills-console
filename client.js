@@ -152,6 +152,7 @@ var DICT = {
     "form.probing": "读取中…",
     "form.probingHint": "正在读仓库的文件树，稍等一下…",
     "form.detected": "检测到 {n} 个技能，勾选要安装的",
+    "form.skipped": "另有 {n} 个 SKILL.md 缺少 name/description，CLI 无法安装，已跳过",
     "form.selectAll": "全选",
     "form.selectNone": "全不选",
     "form.pickHint": "先填来源并检测；仓库里有多个技能时可以多选，只有一个会默认勾上。",
@@ -281,6 +282,7 @@ var DICT = {
     "form.probing": "Reading…",
     "form.probingHint": "Reading the repository tree…",
     "form.detected": "Found {n} skills; pick the ones to install",
+    "form.skipped": "{n} SKILL.md file(s) skipped: missing name/description",
     "form.selectAll": "Select all",
     "form.selectNone": "Clear",
     "form.pickHint": "Enter a source and detect first. Pick one or more when the repo has several.",
@@ -931,6 +933,14 @@ var CSS = `
   .dshsc-check input:disabled { opacity: .55; cursor: not-allowed; }
   .dshsc-check small { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .dshsc-check span { white-space: nowrap; }
+  /* 添加技能：每个技能一行，名字 + 两行描述 + 路径；描述太长时截断，不把弹窗撑高 */
+  .dshsc-skill { align-items: flex-start; }
+  .dshsc-skill input[type="checkbox"] { margin-top: 3px; }
+  .dshsc-skill-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+  .dshsc-skill-name { font-weight: 600; }
+  .dshsc-check .dshsc-skill-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; white-space: normal; line-height: 1.4; }
+  .dshsc-check .dshsc-skill-path { font-size: 11px; opacity: .75; }
 
   .dshsc-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
     padding: 4px; max-height: 300px; overflow: auto; display: flex; flex-direction: column; }
@@ -2067,12 +2077,14 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
   const [options, setOptions] = import_react3.default.useState([]);
   const [selected, setSelected] = import_react3.default.useState(() => /* @__PURE__ */ new Set());
   const [manual, setManual] = import_react3.default.useState("");
+  const [skipped, setSkipped] = import_react3.default.useState(0);
   const [error, setError] = import_react3.default.useState(null);
   const reset = (value) => {
     setSource(value);
     setPhase("idle");
     setOptions([]);
     setSelected(/* @__PURE__ */ new Set());
+    setSkipped(0);
     setError(null);
   };
   const probe = async () => {
@@ -2085,6 +2097,7 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
       const found = Array.isArray(result?.skills) ? result.skills : [];
       setOptions(found);
       setSelected(new Set(found.map((item) => item.name)));
+      setSkipped(Math.max(0, Number(result?.skipped) || 0));
       setPhase(found.length > 0 ? "picked" : "empty");
     } catch (err) {
       setError(err?.message || String(err));
@@ -2098,6 +2111,7 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
     return next;
   });
   const names = manual.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean);
+  const skippedText = skipped > 0 ? t("form.skipped").replace("{n}", String(skipped)) : null;
   const manualMode = phase === "empty" || phase === "failed";
   const skills = phase === "picked" ? [...selected] : names;
   const canSubmit = phase === "picked" ? selected.size > 0 : manualMode ? names.length > 0 : false;
@@ -2162,21 +2176,27 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
       ),
       h("div", { className: "dshsc-panel" }, options.map((option) => h(
         "label",
-        { className: "dshsc-check", key: option.name },
+        { className: "dshsc-check dshsc-skill", key: option.name },
         h("input", {
           type: "checkbox",
           checked: selected.has(option.name),
           onChange: () => toggle(option.name)
         }),
-        h("span", null, option.name),
-        h("small", null, option.skillPath)
-      )))
+        h(
+          "span",
+          { className: "dshsc-skill-main" },
+          h("span", { className: "dshsc-skill-name" }, option.name),
+          option.description ? h("small", { className: "dshsc-skill-desc" }, option.description) : null,
+          h("small", { className: "dshsc-skill-path" }, option.skillPath)
+        )
+      ))),
+      skippedText ? h("p", { className: "dshsc-sub" }, skippedText) : null
     ) : null,
     phase === "probing" ? h("p", { className: "dshsc-sub" }, t("form.probingHint")) : null,
     manualMode ? h(
       "div",
       { key: "manual" },
-      h("p", { className: "dshsc-sub" }, phase === "empty" ? t("form.noSkills") : `${t("form.probeFailed")}${error ? ` · ${error}` : ""}`),
+      h("p", { className: "dshsc-sub" }, phase === "empty" ? skippedText || t("form.noSkills") : `${t("form.probeFailed")}${error ? ` · ${error}` : ""}`),
       h(
         "label",
         { className: "dshsc-field" },

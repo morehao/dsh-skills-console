@@ -754,9 +754,10 @@ test('添加技能：先探测再勾选，仓库有多个技能时可多选', as
           ok: true,
           source: 'morehao/agent-skills',
           ref: 'main',
+          skipped: 1,
           skills: [
-            { name: 'git-kit', skillPath: 'skills/git-kit/SKILL.md' },
-            { name: 'handoff', skillPath: 'skills/handoff/SKILL.md' },
+            { name: 'git-kit', description: 'Git 工作流辅助工具包', skillPath: 'skills/git-kit/SKILL.md' },
+            { name: 'handoff', description: '把会话压成续跑提示', skillPath: 'skills/handoff/SKILL.md' },
           ],
         }),
       };
@@ -787,6 +788,8 @@ test('添加技能：先探测再勾选，仓库有多个技能时可多选', as
   tree = stub.render(Component, {}, first.hooks).tree;
 
   assert.ok(textOf(tree).includes('检测到 2 个技能'), '多技能要提示数量');
+  assert.ok(textOf(tree).includes('Git 工作流辅助工具包'), '列表里要带每个技能的描述');
+  assert.ok(textOf(tree).includes('另有 1 个 SKILL.md'), '缺 name/description 的要提示已跳过');
   let checks = collectByType(tree, 'input').filter((node) => node.props.type === 'checkbox');
   assert.equal(checks.length, 2, '每个技能一个复选框');
   assert.ok(checks.every((node) => node.props.checked), '默认全选');

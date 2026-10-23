@@ -356,12 +356,19 @@ function jsonBody(body) {
 }
 
 /** 可控的 GitHub stub：按路径分派 repo 元数据 / trees / commits，并记录调用。 */
-function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT } = {}) {
-  const control = { defaultBranch, tree, commit, fail: null };
+function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT, contents = {} } = {}) {
+  const control = { defaultBranch, tree, commit, contents, fail: null };
   const calls = [];
   const fetchImpl = async (url) => {
     calls.push(url);
     if (control.fail === 'network') throw new Error('ECONNRESET');
+    // 探测会用 raw.githubusercontent.com 读 SKILL.md 补 frontmatter，不走 API 配额
+    if (String(url).startsWith('https://raw.githubusercontent.com/')) {
+      const parts = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
+      const filePath = parts.slice(3).join('/');
+      if (!(filePath in control.contents)) return new Response('not found', { status: 404 });
+      return new Response(control.contents[filePath], { status: 200 });
+    }
     const { pathname } = new URL(url);
     if (/^\/repos\/[^/]+\/[^/]+$/.test(pathname)) {
       if (control.fail === 'metadata') return new Response('{"message":"Not Found"}', { status: 404 });
@@ -507,6 +514,29 @@ test('探测来源：只读列出技能（多选数据源），不写 state、�
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('探测来源：用 frontmatter 的 name/description（CLI 按 name 安装），缺字段的跳过', async () => {
+  const gh = githubStub({
+    tree: [
+      { path: 'skills/folder-a/SKILL.md', type: 'blob', sha: '1'.repeat(40) },
+      { path: 'skills/folder-b/SKILL.md', type: 'blob', sha: '2'.repeat(40) },
+      { path: 'skills/broken/SKILL.md', type: 'blob', sha: '3'.repeat(40) },
+    ],
+    contents: {
+      'skills/folder-a/SKILL.md': '---\nname: alpha\ndescription: 甲技能\n---\n\n# alpha\n',
+      'skills/folder-b/SKILL.md': '---\nname: "beta"\ndescription: >\n  乙技能\n  跨行描述\n---\n',
+      'skills/broken/SKILL.md': '---\nname: broken\n---\n',
+    },
+  });
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const result = await service.probeSource({ source: 'morehao/agent-skills' });
+  assert.deepEqual(result.skills.map((item) => item.name), ['alpha', 'beta'], '用 frontmatter name，与 CLI 一致');
+  assert.equal(result.skills[0].description, '甲技能');
+  assert.equal(result.skills[1].description, '乙技能 跨行描述', '折叠块拼成一行');
+  assert.equal(result.skipped, 1, '缺 description 的按 CLI 规则跳过');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('探测来源：非法来源报 bad-source，不发请求', async () => {
   const { root, service } = setup();
   await assert.rejects(
@@ -530,10 +560,12 @@ test('探测来源：并发与重复探测复用结果，不重复请求', async
     service.probeSource({ source: 'https://github.com/morehao/agent-skills' }),
   ]);
   assert.deepEqual(first.skills, second.skills, '并发请求拿到同一份结果');
-  assert.equal(gh.calls.length, 2, '元数据 + 文件树各一次，并发只探测一次');
+  const apiCalls = () => gh.calls.filter((url) => url.startsWith('https://api.github.com')).length;
+  assert.equal(apiCalls(), 2, '元数据 + 文件树各一次，并发只探测一次');
 
+  const totalCalls = gh.calls.length;
   const third = await service.probeSource({ source: 'morehao/agent-skills' });
-  assert.equal(gh.calls.length, 2, '60 秒内重复探测命中缓存，不再发请求');
+  assert.equal(gh.calls.length, totalCalls, '60 秒内重复探测命中缓存，不再发请求');
   assert.deepEqual(third.skills, first.skills);
   fs.rmSync(root, { recursive: true, force: true });
 });

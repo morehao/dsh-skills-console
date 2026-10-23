@@ -28,7 +28,7 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，95 例
+npm test          # node --test "test/*.test.mjs"，96 例
 npm run check     # 机械校验：语法 + 生成物一致性（check:client）+ 命名 + 打包 + Release 说明投影
 ```
 
