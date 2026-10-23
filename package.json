@@ -1,7 +1,7 @@
 {
   "name": "@morehao/dsh-skills-console",
   "version": "0.2.0",
-  "description": "DSH 技能控制台：技能真身只由 skills CLI 写，本插件只管可见性、接入与生命周期——装 / 更新 / 删除 / 启停、四态软链、回收站、订阅。",
+  "description": "统一管理本地技能的安装、更新、删除与接入，让同一份技能在多个 Agent 间复用。A skill manager for DeepSeek Harness: install, update, remove, link and toggle agent skills.",
   "license": "MIT",
   "author": "morehao <morehao@qq.com>",
   "repository": {
