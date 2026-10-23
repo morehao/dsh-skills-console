@@ -7,7 +7,7 @@ import { createPaths } from '../lib/core/paths.js';
 import { StateStore, StateReadOnlyError, emptyState } from '../lib/core/state.js';
 
 function sandbox() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-state-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-state-'));
   const paths = createPaths({ HOME: path.join(root, 'home'), DSH_HOME: path.join(root, 'home', '.dsh') });
   return { root, paths };
 }

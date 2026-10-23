@@ -8,7 +8,7 @@ import { createPaths } from '../lib/core/paths.js';
 import { emptyState } from '../lib/core/state.js';
 
 function sandbox() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-agents-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-agents-'));
   const home = path.join(root, 'home');
   fs.mkdirSync(path.join(home, '.dsh', 'skills'), { recursive: true });
   fs.mkdirSync(path.join(home, '.claude', 'skills'), { recursive: true });

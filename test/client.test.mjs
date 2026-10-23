@@ -319,7 +319,7 @@ test('可见性差异：内置技能是说明，其他来源才算告警', async
   assert.ok(text.includes('stray-skill'), '非内置的游离技能仍要列出来');
   assert.ok(text.includes('DSH 能看到、但不在 ~/.agents/skills'));
 
-  const banners = collectByType(tree, 'div').filter((node) => String(node.props.className || '').startsWith('dshsm-banner'));
+  const banners = collectByType(tree, 'div').filter((node) => String(node.props.className || '').startsWith('dshsc-banner'));
   assert.ok(banners.some((node) => String(node.props.className).includes('info')), '内置技能用 info 样式');
   assert.ok(banners.some((node) => String(node.props.className).includes('warn')), '其他来源用 warn 样式');
 });
@@ -331,8 +331,8 @@ test('主按钮文本色不能写死 #fff（深色主题白底白字）', async 
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
-  assert.ok(css.includes('.dshsm-btn.primary'), '应有主按钮样式');
-  assert.ok(!/\.dshsm-btn\.primary[^}]*color:\s*#fff/i.test(css), '主按钮不能写死白色文字');
+  assert.ok(css.includes('.dshsc-btn.primary'), '应有主按钮样式');
+  assert.ok(!/\.dshsc-btn\.primary[^}]*color:\s*#fff/i.test(css), '主按钮不能写死白色文字');
   assert.ok(css.includes('color: var(--dsw-alias-bg-base)'), '主按钮文字应跟随背景反色');
 });
 
@@ -343,8 +343,8 @@ test('开关开启时旋钮用反色，不能白底白旋钮', async () => {
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
-  const on = (css.match(/\.dshsm-switch\[aria-checked="true"\]\s*\{[^}]*\}/) || [''])[0];
-  const knobOn = (css.match(/\.dshsm-switch\[aria-checked="true"\]\s+\.dshsm-knob\s*\{[^}]*\}/) || [''])[0];
+  const on = (css.match(/\.dshsc-switch\[aria-checked="true"\]\s*\{[^}]*\}/) || [''])[0];
+  const knobOn = (css.match(/\.dshsc-switch\[aria-checked="true"\]\s+\.dshsc-knob\s*\{[^}]*\}/) || [''])[0];
   assert.ok(on.includes('background: var(--dsw-alias-brand-primary)'), '开启态轨道用品牌色');
   assert.ok(knobOn.includes('background: var(--dsw-alias-label-primary-foreground)'), '开启态旋钮用前景反色');
   assert.ok(!/#fff/i.test(knobOn), '旋钮不能写死白色');
@@ -357,10 +357,10 @@ test('二级弹窗用 bg-base，不用 bg-overlay（深色主题会变灰白）'
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
-  const modal = (css.match(/\.dshsm-modal\s*\{[^}]*\}/) || [''])[0];
+  const modal = (css.match(/\.dshsc-modal\s*\{[^}]*\}/) || [''])[0];
   assert.ok(modal.includes('background: var(--dsw-alias-bg-base)'), '弹窗要用 bg-base 表面色');
   assert.ok(!modal.includes('--dsw-alias-bg-overlay'), '弹窗不能用 bg-overlay');
-  assert.ok(css.includes('.dshsm-modal-close'), '弹窗要有显式关闭按钮');
+  assert.ok(css.includes('.dshsc-modal-close'), '弹窗要有显式关闭按钮');
 });
 
 test('插件主页：右上角 GitHub 仓库入口', async () => {

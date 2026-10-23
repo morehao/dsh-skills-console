@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Skills Manager">
   <defs>
-    <linearGradient id="dshsm-icon-bg" x1="6" y1="2" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+    <linearGradient id="dshsc-icon-bg" x1="6" y1="2" x2="58" y2="62" gradientUnits="userSpaceOnUse">
       <stop stop-color="#3b82f6"/>
       <stop offset="1" stop-color="#1d4ed8"/>
     </linearGradient>
   </defs>
-  <rect x="3" y="3" width="58" height="58" rx="14" fill="url(#dshsm-icon-bg)"/>
+  <rect x="3" y="3" width="58" height="58" rx="14" fill="url(#dshsc-icon-bg)"/>
   <path d="M32 32 18 17M32 32 46 17M32 32 32 49" stroke="#ffffff" stroke-opacity=".55" stroke-width="2.6" stroke-linecap="round"/>
   <circle cx="18" cy="17" r="4.6" fill="#7ef0c0"/>
   <circle cx="46" cy="17" r="4.6" fill="#ffffff"/>

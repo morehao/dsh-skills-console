@@ -21,7 +21,7 @@ else { console.log(JSON.stringify({ ok: true })); process.exit(0); }
 `;
 
 function sandbox() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-cli-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-cli-'));
   const stubPath = path.join(root, 'stub.cjs');
   fs.writeFileSync(stubPath, STUB);
   const log = path.join(root, 'argv.log');

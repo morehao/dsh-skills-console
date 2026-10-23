@@ -6,7 +6,7 @@ import test from 'node:test';
 import { contentHash } from '../lib/core/hash.js';
 
 function tempDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-hash-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-hash-'));
 }
 
 test('contentHash 稳定、与文件顺序无关', () => {

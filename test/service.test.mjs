@@ -70,7 +70,7 @@ process.exit(0);
 `;
 
 function setup(extra = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-service-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-service-'));
   const home = path.join(root, 'home');
   fs.mkdirSync(path.join(home, '.dsh', 'skills'), { recursive: true });
   fs.mkdirSync(path.join(home, '.claude', 'skills'), { recursive: true });
