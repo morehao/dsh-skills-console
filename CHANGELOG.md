@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.2.2] - 2026-10-24
+
+### Fixes
+
+- **skills**: 订阅跟随仓库默认分支，添加技能先探测再选择 (#18)
+
+### Docs
+
+- 补充本地 link 验证与回退步骤 (#19)
+- 聚焦当前插件说明，移除旧包名与迁移内容 (#17)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.2.1...v0.2.2
+
 ## [v0.2.1] - 2026-10-23
 
 ### Features
