@@ -67,7 +67,7 @@
 | 目的 | 命令 |
 |---|---|
 | 全量机械校验（语法 + 命名 + 打包 + Release 说明冒烟） | `npm run check` |
-| 单元测试（70 例，离线） | `npm test` |
+| 单元测试（77 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
