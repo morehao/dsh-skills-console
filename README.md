@@ -47,6 +47,9 @@ npm run check          # 语法自检 + 命名/导出接线 + 打包白名单 + 
 npm run sync:agents    # 从 skills CLI 的 dist 重新导出 agent 目录表
 ```
 
+目录结构、测试策略（离线 / stub CLI / 各用例覆盖什么）与调试手段见 [docs/development.md](docs/development.md)；
+在本仓工作的 AI agent 请先读 [AGENTS.md](AGENTS.md)（硬约束与任务路由）。
+
 ## 发布
 
 打注记 tag `vX.Y.Z` → GitHub Actions（OIDC / Trusted Publishing）自动发布到 npm → 用 tag 注记正文建 GitHub Release；不需要任何 npm token。完整流程、一次性建包配置与排障清单见 [docs/publishing.md](docs/publishing.md)。
