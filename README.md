@@ -59,6 +59,8 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 > 本机可能还装着 `@michengai/dsh-skills-manager`（显示名「技能管理」）。两者互不干扰（路由前缀 `/api/morehao/skills-console/*`、状态目录 `$DSH_HOME/skills-console/` 都不同），但会各出一个设置分区；只想留一个时把另一个 `plugin_manager set_plugin enabled:false` 即可。
 
+如果你从本插件的旧包名 `@morehao/dsh-skills-manager` 升级，新旧对照与账本搬迁见 [迁移说明](docs/migration-from-skills-manager.md)。
+
 ## 快速上手
 
 1. **添加技能**：点右上角「添加技能」，填 `owner/repo`（需要的话再列出技能名），确认即可。安装完成后会在列表里出现。
@@ -91,16 +93,6 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 ## 开发与发布
 
 源码结构、测试策略与调试手段见 [docs/development.md](docs/development.md)；发布流程与排障清单见 [docs/publishing.md](docs/publishing.md)。在本仓工作的 AI agent 请先读 [AGENTS.md](AGENTS.md)。
-
-## 从 `dsh-skills-manager` 迁移
-
-`v0.2.0` 起包名、插件 id、路由前缀、状态目录与环境变量统一改为 `skills-console`，**不提供兼容读旧值**。保住旧账本（订阅、回收站、链接记录、版本缓存）只需搬一次目录：
-
-```bash
-mv ~/.dsh/skills-manager ~/.dsh/skills-console
-```
-
-完整对照、不搬的后果与安装侧改动见 [docs/migration-from-skills-manager.md](docs/migration-from-skills-manager.md)。
 
 ## 边界（明确不做）
 
