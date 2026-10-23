@@ -1,0 +1,36 @@
+name: check
+
+# 最小 CI：不构建、不装依赖（本包零 runtime 依赖），单测与冒烟全部离线、用临时 HOME。
+# 目标是把「只有真正发版时才会暴露」的机械错误前移到 PR —— 发布是 tag 触发、tag 推上去就不可改，
+# 失败只能事后发现。
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  check:
+    name: Pre-publish checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # 发布脚本本身是 shell：`bash -n` 先过一遍语法，避免 tag 推上去才发现脚本跑不起来。
+      - name: 发布脚本语法
+        run: bash -n scripts/ci-publish.sh
+
+      # 语法自检（lib/、scripts/、test/、client.js）+ 命名/导出接线 + 打包白名单 + Release body 投影冒烟。
+      - name: 机械校验（npm run check）
+        run: npm run check
+
+      # 39 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
+      - name: 单元测试
+        run: npm test
