@@ -515,3 +515,39 @@ test('探测来源：非法来源报 bad-source，不发请求', async () => {
   );
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('探测来源：并发与重复探测复用结果，不重复请求', async () => {
+  const gh = githubStub({
+    tree: [
+      { path: 'SKILL.md', type: 'blob', sha: '5'.repeat(40) },
+      { path: 'skills/alpha/SKILL.md', type: 'blob', sha: '6'.repeat(40) },
+    ],
+  });
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const [first, second] = await Promise.all([
+    service.probeSource({ source: 'morehao/agent-skills' }),
+    service.probeSource({ source: 'https://github.com/morehao/agent-skills' }),
+  ]);
+  assert.deepEqual(first.skills, second.skills, '并发请求拿到同一份结果');
+  assert.equal(gh.calls.length, 2, '元数据 + 文件树各一次，并发只探测一次');
+
+  const third = await service.probeSource({ source: 'morehao/agent-skills' });
+  assert.equal(gh.calls.length, 2, '60 秒内重复探测命中缓存，不再发请求');
+  assert.deepEqual(third.skills, first.skills);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：失败不进缓存，重试会重新请求', async () => {
+  const gh = githubStub({ tree: [{ path: 'SKILL.md', type: 'blob', sha: '7'.repeat(40) }] });
+  gh.control.fail = 'network';
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  await assert.rejects(() => service.probeSource({ source: 'morehao/agent-skills' }), /读不到 .* 的默认分支/);
+  const callsAfterFailure = gh.calls.length;
+  gh.control.fail = null;
+  const result = await service.probeSource({ source: 'morehao/agent-skills' });
+  assert.equal(result.ok, true, '重试能成功');
+  assert.ok(gh.calls.length > callsAfterFailure, '失败没有留下缓存');
+  fs.rmSync(root, { recursive: true, force: true });
+});
