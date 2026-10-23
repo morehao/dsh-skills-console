@@ -11,16 +11,18 @@ DeepSeek Harness（dsh）的技能管理插件：**装 / 更新 / 删除 / 接�
 
 ## 状态
 
-P0–P2 已实现并通过单测（39 个用例）：
+P0–P2 已实现并通过单测（58 个用例）：
 
 | 能力 | 说明 |
 | --- | --- |
-| 清单 | canonical 扫描 + CLI lock 对账 + `ctx.skills.snapshot` 可见性对账（模型可见 vs 本地账本） |
-| 接入 | 软链四态判定（`managed` / `managed-external` / `foreign-link` / `real`），**绝不覆盖**非本插件创建的东西 |
+| 清单 | canonical 扫描 + CLI lock 对账 + `ctx.skills.snapshot` 可见性对账（模型可见 vs 本地账本）；canonical 里已有的技能首次读取自动纳入追踪，不必逐个「接管」 |
+| 接入 | 软链四态判定（`managed` / `managed-external` / `foreign-link` / `real`），**绝不覆盖**非本插件创建的东西；可接入的 Agent 只列本机已装目录，「自动链接」按 Agent 多选 |
+| 入口 | 默认在设置页「技能」分区；页内可切到左侧栏独立面板，切换立即生效；主页右上角提供 GitHub 仓库入口 |
 | 安装 | `skills add <owner/repo#commit> --skill … -a universal -g -y --json --full-depth`，装完断言 lock 的 `skillFolderHash` 与快照 tree SHA 一致 |
 | 更新 | GitHub Trees API 检测 → 计划（commit 区间 + token）→ 应用（先备份、后重建、失败回滚） |
 | 删除 | 体检（真实目录/外部链接即中止）→ 快照进回收站（7 天）→ `skills remove -s … -g -y`（**不带 `-a`**）→ 清自家链接与记账 |
 | 启停 | `mode: on/off` 只摘 DSH 侧链接，文件与其他 Agent 链接不动 |
+| 作用范围 | 全局，或仅 `project-dsh` 根；项目可直接勾选 DSH 已登记的工作区 |
 | 订阅 | `owner/repo` + ref + 子目录，只记快照不安装 |
 
 ## 安装
@@ -44,7 +46,7 @@ P0–P2 已实现并通过单测（39 个用例）：
 ```bash
 npm test               # node --test，临时 HOME / DSH_HOME，不碰真实目录
 npm run check          # 语法自检 + 命名/导出接线 + 打包白名单 + Release 说明投影冒烟
-npm run sync:agents    # 从 skills CLI 的 dist 重新导出 agent 目录表
+npm run sync:agents -- <skills/dist/cli.mjs>   # 重新导出 agent 目录表（默认写回 lib/agent-table.json）
 ```
 
 目录结构、测试策略（离线 / stub CLI / 各用例覆盖什么）与调试手段见 [docs/development.md](docs/development.md)；

@@ -5,7 +5,7 @@
 ## 1. 项目速览
 
 - 包：`@morehao/dsh-skills-manager`，DeepSeek Harness（dsh）的**技能管理插件**；**仓库根即包根**，无 workspace、无子包目录。
-- 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（[client.js](client.js)，`window.__ModuleLoader__` 预打包 bundle，设置页 `settings.section` 一页两 tab）。
+- 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（[client.js](client.js)，`window.__ModuleLoader__` 预打包 bundle；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板）。
 - 纯 ESM、**零 runtime 依赖**、无构建步骤；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
 - 技能真身只认 [`skills`](https://www.npmjs.com/package/skills) CLI：下载/落盘 canonical（`~/.agents/skills`）/写 lock 全交给它；本插件只做「发链接 + 记账 + 事务编排」。
 - 发布：注记 tag `vX.Y.Z` → GitHub Actions OIDC → npm；发布成功后 CI 用注记正文建 GitHub Release。
@@ -15,7 +15,7 @@
 | [lib/index.js](lib/index.js) | `export const name = "dsh-skills-manager"`、`inject`、`apply()` 装配 |
 | [lib/routes.js](lib/routes.js) | prefix 路由 `/api/morehao/skills-manager/*`，自定义头鉴权，统一 JSON 错误码 |
 | [lib/core/service.js](lib/core/service.js) | 业务编排：清单 / 安装 / 更新 / 回滚 / 删除 / 启停 / 接管 / 订阅 |
-| [lib/core/paths.js](lib/core/paths.js) | 路径与 env 覆盖（`HOME` / `DSH_HOME` / `DSH_SKILLS_MANAGER_HOME`） |
+| [lib/core/paths.js](lib/core/paths.js) | 路径与 env 覆盖（`HOME` / `XDG_CONFIG_HOME` / `DSH_HOME` / `DSH_SKILLS_MANAGER_HOME`） |
 | [lib/core/cli.js](lib/core/cli.js) | `skills` CLI 定位（四层探测 + `npx` 兜底）、能力位、spawn 封装 |
 | [lib/core/hash.js](lib/core/hash.js) | 复刻 CLI 的内容哈希（与 lock 的 `skillFolderHash` 对拍） |
 | [lib/core/state.js](lib/core/state.js) | `state.json` 原子写 + 校验 + 只读降级 |
@@ -67,12 +67,12 @@
 | 目的 | 命令 |
 |---|---|
 | 全量机械校验（语法 + 命名 + 打包 + Release 说明冒烟） | `npm run check` |
-| 单元测试（39 例，离线） | `npm test` |
+| 单元测试（58 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
 | Release body 投影冒烟 | `node scripts/smoke-release-notes.mjs` |
-| 重新导出 agent 目录表（需本机有 `skills` CLI） | `npm run sync:agents` |
+| 重新导出 agent 目录表（需本机有 `skills` CLI） | `npm run sync:agents -- <skills/dist/cli.mjs>` |
 | 发布脚本语法 | `bash -n scripts/ci-publish.sh` |
 
 ## 4. 任务路由

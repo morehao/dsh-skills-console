@@ -12,6 +12,22 @@
       "dir": ".aider-desk/skills"
     },
     {
+      "key": "amp",
+      "name": "Amp",
+      "dir": "agents/skills",
+      "base": "config"
+    },
+    {
+      "key": "antigravity",
+      "name": "Antigravity",
+      "dir": ".gemini/antigravity/skills"
+    },
+    {
+      "key": "antigravity-cli",
+      "name": "Antigravity CLI",
+      "dir": ".gemini/antigravity-cli/skills"
+    },
+    {
       "key": "astrbot",
       "name": "AstrBot",
       "dir": ".astrbot/data/skills"
@@ -74,17 +90,34 @@
     {
       "key": "crush",
       "name": "Crush",
-      "dir": ".config/crush/skills"
+      "dir": "crush/skills",
+      "base": "config"
+    },
+    {
+      "key": "cursor",
+      "name": "Cursor",
+      "dir": ".cursor/skills"
+    },
+    {
+      "key": "deepagents",
+      "name": "Deep Agents",
+      "dir": ".deepagents/agent/skills"
     },
     {
       "key": "devin",
       "name": "Devin for Terminal",
-      "dir": ".devin/skills"
+      "dir": "devin/skills",
+      "base": "config"
     },
     {
-      "key": "eve",
-      "name": "Eve",
-      "dir": "agent/skills"
+      "key": "droid",
+      "name": "Droid",
+      "dir": ".factory/skills"
+    },
+    {
+      "key": "firebender",
+      "name": "Firebender",
+      "dir": ".firebender/skills"
     },
     {
       "key": "forgecode",
@@ -92,9 +125,20 @@
       "dir": ".forge/skills"
     },
     {
+      "key": "gemini-cli",
+      "name": "Gemini CLI",
+      "dir": ".gemini/skills"
+    },
+    {
+      "key": "github-copilot",
+      "name": "GitHub Copilot",
+      "dir": ".copilot/skills"
+    },
+    {
       "key": "goose",
       "name": "Goose",
-      "dir": ".goose/skills"
+      "dir": "goose/skills",
+      "base": "config"
     },
     {
       "key": "grok",
@@ -127,9 +171,15 @@
       "dir": ".junie/skills"
     },
     {
+      "key": "kilo",
+      "name": "Kilo Code",
+      "dir": ".kilo/skills"
+    },
+    {
       "key": "kimchi",
       "name": "Kimchi",
-      "dir": ".kimchi/skills"
+      "dir": "kimchi/harness/skills",
+      "base": "config"
     },
     {
       "key": "kiro-cli",
@@ -184,7 +234,13 @@
     {
       "key": "openclaw",
       "name": "OpenClaw",
-      "dir": "skills"
+      "dir": ".openclaw/skills"
+    },
+    {
+      "key": "opencode",
+      "name": "OpenCode",
+      "dir": "opencode/skills",
+      "base": "config"
     },
     {
       "key": "openhands",
@@ -269,11 +325,6 @@
     {
       "key": "zencoder",
       "name": "Zencoder",
-      "dir": ".zencoder/skills"
-    },
-    {
-      "key": "zenflow",
-      "name": "Zenflow",
       "dir": ".zencoder/skills"
     }
   ]

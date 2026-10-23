@@ -69,7 +69,7 @@ if (args[0] === 'remove') {
 process.exit(0);
 `;
 
-function setup() {
+function setup(extra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsm-service-'));
   const home = path.join(root, 'home');
   fs.mkdirSync(path.join(home, '.dsh', 'skills'), { recursive: true });
@@ -98,6 +98,7 @@ function setup() {
     env,
     fetchImpl: async () => new Response('{}', { status: 500 }),
     visibleProvider: async () => ({ skills: [{ name: 'alpha', source: 'user-dsh' }], complete: true }),
+    ...extra,
   });
   return { root, home, paths, store, service, registry };
 }
@@ -126,6 +127,54 @@ test('安装：canonical + lock 断言 + 默认建链 + 记账', async () => {
   const row = state.installs.find((item) => item.name === 'alpha');
   assert.equal(row.managed, true);
   assert.equal(row.visible, true, '可见列要能对上 canonical 条目');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('作用范围：/state 带出可选的 DSH 工作区', async () => {
+  const workspace = { id: 'w1', title: 'my-project', path: '/tmp/my-project' };
+  const { root, service } = setup({ workspacesProvider: async () => [workspace] });
+  const state = await service.getState({});
+  assert.deepEqual(state.workspaces, [workspace]);
+
+  const broken = setup({ workspacesProvider: async () => { throw new Error('registry down'); } });
+  const fallback = await broken.service.getState({});
+  assert.deepEqual(fallback.workspaces, [], '工作区服务失败不影响清单');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(broken.root, { recursive: true, force: true });
+});
+
+test('自动链接：只接入勾选的已探测 Agent，dsh 全局必选', async () => {
+  const { root, home, paths, store, service } = setup();
+  fs.mkdirSync(path.join(home, '.codebuddy', 'skills'), { recursive: true });
+
+  await service.setSettings({ autoLinkTargets: ['agent:claude-code', 'agent:not-detected', 'bad-target'] });
+  assert.deepEqual(store.state.settings.autoLinkTargets, ['agent:claude-code'], '未知/未探测的 Agent 被过滤');
+
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  assert.ok(fs.lstatSync(path.join(home, '.dsh', 'skills', 'alpha')).isSymbolicLink(), 'dsh 全局必建');
+  assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'alpha')).isSymbolicLink(), '勾选的 Agent 要建');
+  assert.equal(fs.existsSync(path.join(home, '.codebuddy', 'skills', 'alpha')), false, '没勾的不能建');
+
+  await service.setSettings({ autoLinkTargets: [] });
+  await service.install({ source: 'morehao/ai-kit', skills: ['beta'] });
+  assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'beta')), false);
+
+  await service.setSettings({ autoLinkTargets: null });
+  await service.install({ source: 'morehao/ai-kit', skills: ['gamma'] });
+  assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'gamma')).isSymbolicLink(), 'null = 所有探测到的 Agent');
+  assert.ok(fs.lstatSync(path.join(home, '.codebuddy', 'skills', 'gamma')).isSymbolicLink());
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('入口位置：settings / sidebar 持久化，非法值被忽略', async () => {
+  const { root, store, service } = setup();
+  assert.equal(store.state.settings.placement, 'settings');
+  await service.setSettings({ placement: 'sidebar' });
+  assert.equal(store.state.settings.placement, 'sidebar');
+  await service.setSettings({ placement: 'bogus' });
+  assert.equal(store.state.settings.placement, 'sidebar', '非法值不能把入口弄坏');
+  await service.setSettings({ placement: 'settings' });
+  assert.equal(store.state.settings.placement, 'settings');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -172,7 +221,30 @@ test('删除：体检拦截真实目录；通过后进回收站并清记账', as
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('接管：把 CLI 装的技能纳入追踪，并顺带建订阅', async () => {
+test('Agent 目录被删：链接记录保留但清单忽略，自动链接不重建', async () => {
+  const { root, home, store, service } = setup();
+  await service.install({
+    source: 'morehao/ai-kit',
+    skills: ['alpha'],
+    targets: ['dsh-global', 'agent:claude-code'],
+  });
+  assert.ok(fs.existsSync(path.join(home, '.claude', 'skills', 'alpha')));
+  fs.rmSync(path.join(home, '.claude'), { recursive: true, force: true });
+
+  const state = await service.getState({});
+  const row = state.installs.find((item) => item.name === 'alpha');
+  assert.deepEqual(row.links.map((link) => link.target), ['dsh-global'], '断掉的 Agent 链接不进清单');
+  assert.ok(
+    store.state.links.some((link) => link.target === 'agent:claude-code'),
+    '历史记录保留，Agent 重装后还能复用',
+  );
+
+  await service.install({ source: 'morehao/ai-kit', skills: ['beta'] });
+  assert.equal(fs.existsSync(path.join(home, '.claude')), false, '自动链接不能凭空重建已删目录');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('自动接管：CLI 已装好的技能在第一次读取时直接纳入追踪', async () => {
   const { root, home, paths, store, service } = setup();
   // 模拟"CLI 装好但本插件不知道"的状态
   const dir = path.join(paths.canonical, 'alpha');
@@ -195,32 +267,57 @@ test('接管：把 CLI 装的技能纳入追踪，并顺带建订阅', async () 
   );
   fs.symlinkSync(path.join('..', '..', '.agents', 'skills', 'alpha'), path.join(home, '.dsh', 'skills', 'alpha'), 'dir');
 
+  // 没有再点「接管」，第一次 GET /state 就该把账补上
   const before = await service.getState({});
-  assert.equal(before.installs.find((row) => row.name === 'alpha').status, 'unmanaged');
-
-  const result = await service.adopt({ name: 'alpha' });
-  assert.equal(result.ok, true);
-  assert.equal(result.tracked, true, '有远端来源就该能追踪更新');
+  const row = before.installs.find((item) => item.name === 'alpha');
+  assert.equal(row.managed, true);
+  assert.notEqual(row.status, 'unmanaged');
 
   const install = store.findInstall('alpha');
   assert.ok(install.installedHash);
-  assert.ok(install.subscriptionId);
+  assert.ok(install.subscriptionId, '有 lock 来源时自动建订阅');
   const subscription = store.state.subscriptions.find((item) => item.id === install.subscriptionId);
   assert.equal(subscription.source, 'morehao/ai-kit');
-
-  const after = await service.getState({});
-  const row = after.installs.find((item) => item.name === 'alpha');
-  assert.equal(row.managed, true);
-  assert.notEqual(row.status, 'unmanaged');
   assert.ok(row.links.some((link) => link.target === 'dsh-global' && link.state === 'managed'), '已存在的链接要记成自己的');
+
+  const repeat = await service.getState({});
+  assert.equal(store.state.installs.filter((item) => item.name === 'alpha').length, 1, '对账必须幂等');
+  assert.equal(repeat.installs.find((item) => item.name === 'alpha').managed, true);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('只读状态下的写操作被拒绝', async () => {
+test('接管：没有 lock 来源的技能也能纳入追踪，但无法检测更新', async () => {
   const { root, paths, store, service } = setup();
+  const dir = path.join(paths.canonical, 'beta');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: beta\ndescription: demo\n---\nbody\n');
+
+  const result = await service.adopt({ name: 'beta' });
+  assert.equal(result.ok, true);
+  assert.equal(result.tracked, false);
+  assert.match(result.note, /没有可识别的远端来源/);
+  const install = store.findInstall('beta');
+  assert.ok(install);
+  assert.equal(install.subscriptionId, null);
+
+  const state = await service.getState({});
+  assert.equal(state.installs.find((item) => item.name === 'beta').managed, true);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('只读状态下的写操作被拒绝，也不会自动接管', async () => {
+  const { root, paths, store, service } = setup();
+  const dir = path.join(paths.canonical, 'gamma');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: gamma\n---\nbody\n');
   fs.mkdirSync(paths.stateDir, { recursive: true });
   fs.writeFileSync(paths.stateFile, 'broken');
   store.load();
-  await assert.rejects(() => service.setSettings({ autoLinkAgents: false }), /read-only|state/i);
+  await assert.rejects(() => service.setSettings({ autoLinkTargets: [] }), /read-only|state/i);
+
+  const state = await service.getState({});
+  assert.equal(state.readOnly, true);
+  assert.equal(store.findInstall('gamma'), undefined, '只读时绝不对账写盘');
+  assert.equal(state.installs.find((item) => item.name === 'gamma').status, 'unmanaged');
   fs.rmSync(root, { recursive: true, force: true });
 });

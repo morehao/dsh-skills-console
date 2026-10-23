@@ -1,11 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Skills Manager">
-  <rect x="4" y="6" width="56" height="52" rx="12" fill="#1f6feb"/>
-  <rect x="12" y="14" width="40" height="36" rx="7" fill="#ffffff" fill-opacity="0.14"/>
-  <rect x="17" y="20" width="30" height="4" rx="2" fill="#ffffff"/>
-  <rect x="17" y="28" width="21" height="4" rx="2" fill="#ffffff" fill-opacity="0.75"/>
-  <rect x="17" y="36" width="14" height="4" rx="2" fill="#ffffff" fill-opacity="0.5"/>
-  <g transform="translate(36 34)">
-    <circle cx="8" cy="8" r="9" fill="#0b3d91"/>
-    <path d="M4 8.4l3 3 5.2-5.6" fill="none" stroke="#7ef0c0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-  </g>
+  <defs>
+    <linearGradient id="dshsm-icon-bg" x1="6" y1="2" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="14" fill="url(#dshsm-icon-bg)"/>
+  <path d="M32 32 18 17M32 32 46 17M32 32 32 49" stroke="#ffffff" stroke-opacity=".55" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="18" cy="17" r="4.6" fill="#7ef0c0"/>
+  <circle cx="46" cy="17" r="4.6" fill="#ffffff"/>
+  <circle cx="32" cy="49" r="4.6" fill="#ffffff"/>
+  <rect x="21" y="21" width="22" height="22" rx="7" fill="#ffffff"/>
+  <path d="M27 32.5l3.6 3.6 6.8-7.4" fill="none" stroke="#1d4ed8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
