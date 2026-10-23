@@ -1,19 +1,19 @@
 /**
- * Client half：设置页「技能」分区。
+ * Client half：设置页「技能控制台」分区。
  * 一页两 tab：已装 / 订阅。行内操作列 = 开关 + 更新 + 接入设置 + 删除。
- * 所有数据来自 Host 的 /api/morehao/skills-manager/*，这里只做展示与提交。
+ * 所有数据来自 Host 的 /api/morehao/skills-console/*，这里只做展示与提交。
  */
 window.__ModuleLoader__.load({
-  id: '@morehao/dsh-skills-manager',
+  id: '@morehao/dsh-skills-console',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
-    const API = '/api/morehao/skills-manager';
+    const API = '/api/morehao/skills-console';
 
     const DICT = {
       zh: {
-        'section.title': '技能',
-        'page.title': '技能管理',
+        'section.title': '技能控制台',
+        'page.title': '技能控制台',
         'section.subtitle': 'canonical 只由 skills CLI 写入；这里管装、更新、删除与接入。',
         'tab.installed': '已装',
         'tab.subscriptions': '订阅',
@@ -101,8 +101,8 @@ window.__ModuleLoader__.load({
         external: '非本插件创建',
       },
       en: {
-        'section.title': 'Skills',
-        'page.title': 'Skills Manager',
+        'section.title': 'Skills Console',
+        'page.title': 'Skills Console',
         'section.subtitle': 'The skills CLI owns canonical; this page installs, updates, removes and links.',
         'tab.installed': 'Installed',
         'tab.subscriptions': 'Subscriptions',
@@ -326,7 +326,7 @@ window.__ModuleLoader__.load({
     async function apiCall(method, path, body) {
       const response = await fetch(`${API}${path}`, {
         method,
-        headers: { 'content-type': 'application/json', 'x-dsh-skills-manager': '1' },
+        headers: { 'content-type': 'application/json', 'x-dsh-skills-console': '1' },
         body: body === undefined ? undefined : JSON.stringify(body),
         cache: 'no-store',
       });
@@ -360,7 +360,7 @@ window.__ModuleLoader__.load({
       };
     }
 
-    const GITHUB_URL = 'https://github.com/morehao/dsh-skills-manager';
+    const GITHUB_URL = 'https://github.com/morehao/dsh-skills-console';
 
     function Logo({ size = 30 }) {
       return h('svg', {
@@ -1157,7 +1157,7 @@ window.__ModuleLoader__.load({
           h('p', { className: 'dshsm-sub' }, t('autoLink.hint')));
         }
 
-        const PANEL_ID = 'dsh-skills-manager';
+        const PANEL_ID = 'dsh-skills-console';
         const layout = ctx.get('layout');
         let surface = null;
         let userSelected = false;
@@ -1232,7 +1232,7 @@ window.__ModuleLoader__.load({
         ctx.effect(() => () => {
           clearSurface();
           surface = null;
-        }, 'dsh-skills-manager:surface');
+        }, 'dsh-skills-console:surface');
 
         // 读取入口偏好；晚到的响应不能覆盖用户刚才在页面里的选择
         apiCall('GET', '/state')
