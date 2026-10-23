@@ -1,2 +1,17 @@
-# 本地过程性文档 / 原型（DSH 生成的 specs、plans、notes、prototypes）
+# 本地过程性文档 / 原型（DSH 生成的 specs、plans、notes、prototypes）——不进版本库
 .dsh/
+
+# 依赖与构建产物
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# 日志与临时文件
+*.log
+*.tmp
+.DS_Store
+
+# 编辑器 / IDE
+.idea/
+.vscode/
