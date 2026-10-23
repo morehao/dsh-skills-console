@@ -13,7 +13,7 @@ DeepSeek Harness（dsh）的**技能控制台**：**装 / 更新 / 删除 / 接�
 
 ## 状态
 
-P0–P2 已实现并通过单测（77 个用例）：
+P0–P2 已实现并通过单测（80 个用例）：
 
 | 能力 | 说明 |
 | --- | --- |
@@ -68,10 +68,16 @@ mv ~/.dsh/skills-manager ~/.dsh/skills-console
 ## 开发
 
 ```bash
+npm install            # 只装构建期依赖（esbuild）；运行时依赖仍为零
+npm run build:client   # 从 client/ 生成根 client.js（生成物要提交，不要手改）
+npm run dev:client     # 监听 client/ 自动重建（配合 link: 接入，改完刷新即可）
 npm test               # node --test，临时 HOME / DSH_HOME，不碰真实目录
-npm run check          # 语法自检 + 命名/导出接线 + 打包白名单 + Release 说明投影冒烟
+npm run check          # 语法自检 + 生成物一致性 + 命名/导出接线 + 打包白名单 + Release 说明投影冒烟
 npm run sync:agents -- <skills/dist/cli.mjs>   # 重新导出 agent 目录表（默认写回 lib/agent-table.json）
 ```
+
+Web Client 的源码在 `client/`（`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app`），
+仓根 `client.js` 是 `npm run build:client` 的产物；只改产物不改源码，`npm run check` 会直接红。
 
 目录结构、测试策略（离线 / stub CLI / 各用例覆盖什么）与调试手段见 [docs/development.md](docs/development.md)；
 在本仓工作的 AI agent 请先读 [AGENTS.md](AGENTS.md)（硬约束与任务路由）。

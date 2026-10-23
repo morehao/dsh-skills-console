@@ -25,6 +25,8 @@
 | [lib/core/updates.js](lib/core/updates.js) | GitHub Trees 快照、L0–L3 判定、apply/rollback、计划 token |
 | [lib/core/trash.js](lib/core/trash.js) | 删除前快照（回收站）与备份 |
 | [lib/core/log.js](lib/core/log.js) | JSONL 事件日志，1MB 滚动，写失败不阻塞主流程 |
+| [client/](client/) | Web Client 源码（ESM）：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app` |
+| [scripts/build-client.mjs](scripts/build-client.mjs) | esbuild 打包：`client/` → 根 `client.js`，`--check` 校验生成物漂移 |
 | [scripts/](scripts/) | 语法自检、命名/打包校验、agent 表导出、发布与 Release 正文投影 |
 | [test/](test/) | `node --test` 用例（离线、临时 HOME、stub CLI） |
 | [docs/](docs/) | 人类向文档（开发、发布）与 `docs/agents/` 任务手册 |
@@ -82,7 +84,7 @@
 | 监听源码并自动重建（配合 `link:` HMR） | `npm run dev:client` |
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
-| 单元测试（77 例，离线） | `npm test` |
+| 单元测试（80 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |

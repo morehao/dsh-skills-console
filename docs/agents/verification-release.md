@@ -7,9 +7,10 @@
 
 | 改动 | 必跑 | 说明 |
 |---|---|---|
-| `lib/core/*` | `npm run check` + `npm test` | 39 个离线用例覆盖 hash / state / agents / links / cli / inventory / updates |
+| `lib/core/*` | `npm run check` + `npm test` | 48 个离线用例覆盖 hash / state / agents / links / cli / paths / updates / service |
 | `lib/routes.js` | 同上 + 手工打一次接口 | 路由无单测，改 `matchRoute` 后按 §2 的 curl 自测 |
-| `client.js` | 同上 | `test/client.test.mjs` 用 React 存根跑「渲染 → effect → 再渲染」，能抓未定义变量与字段名错，但**不替代真浏览器** |
+| `client/**` | `npm run build:client` + `npm run check` + `npm test` | 源码是唯一事实来源；改完必须重建并一起提交。`test/client.test.mjs` 用 React 存根跑「渲染 → effect → 再渲染」，能抓未定义变量与字段名错，但**不替代真浏览器** |
+| 根 `client.js` | `npm run check:client` | 生成物：不要手改；改 `client/**` 后重建 |
 | `package.json` / `exports` / `files` / 命名 | `node scripts/check-naming.mjs` + `node scripts/check-pack.mjs` | CI 也跑；`exports` 缺 `./client`、`files` 缺 `client.js` 会导致「能装、页面白屏」 |
 | `scripts/*.mjs` | `node --check <file>` + 对应冒烟 | `release-notes` 有自己的冒烟 |
 | CI / release workflow | 本地跑对应脚本 + `bash -n scripts/ci-publish.sh` | 不要只改 YAML 不验证 |
@@ -29,11 +30,12 @@ curl -s -H 'x-dsh-skills-console: 1' -X POST 'http://127.0.0.1:<port>/api/moreha
 
 ## 3. CI 实际跑什么（`check.yml`）
 
-PR 与 push `main` 触发，**不装依赖、不联网**：
+PR 与 push `main` 触发，**只装构建期依赖**（esbuild），不跑发布构建、不联网：
 
-1. `bash -n scripts/ci-publish.sh`
-2. `npm run check` → `check-syntax.mjs`（lib/、scripts/、test/、client.js 逐文件 `node --check`）→ `check-naming` → `check-pack` → `smoke-release-notes`
-3. `npm test` → 70 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
+1. `npm ci`（`check:client` 需要 esbuild）
+2. `bash -n scripts/ci-publish.sh`
+3. `npm run check` → `check-syntax.mjs`（lib/、client/、scripts/、test/、client.js 逐文件 `node --check`）→ `check:client`（按 `client/` 重建并与提交的 `client.js` 逐字节比对）→ `check-naming` → `check-pack` → `smoke-release-notes`
+4. `npm test` → 80 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
 
 注意：
 
@@ -45,7 +47,7 @@ PR 与 push `main` 触发，**不装依赖、不联网**：
 ## 4. 打包与命名
 
 - 白名单校验（[check-pack.mjs](../../scripts/check-pack.mjs)）允许：`package.json`、`README.md`、`LICENSE`、`cordis.patch.yml`、`icon.svg`、`client.js`、`lib/`、`locale/`；必备文件少一个就红。
-- 不允许：`.dsh/`、`docs/`、`scripts/`、`test/`、`node_modules`、`*.tgz`。
+- 不允许：`.dsh/`、`docs/`、`scripts/`、`test/`、`client/`、`node_modules`、`*.tgz`。`client/` 是源码目录，npm 只发根 `client.js`（生成物）。
 - 命名与接线（[check-naming.mjs](../../scripts/check-naming.mjs)）：
   - `package.json.name` == `cordis.patch.yml` 的 `insert[0].name`
   - `lib/index.js` 的 `export const name` == `insert[0].id`
@@ -73,7 +75,9 @@ PR 与 push `main` 触发，**不装依赖、不联网**：
 
 | 症状 | 先查 |
 |---|---|
-| `check-pack` 多出文件 | 本地残留 `*.tgz`、`node_modules`，或新增目录未加白名单 |
+| `check-pack` 多出文件 | 本地残留 `*.tgz`、`node_modules`，或新增目录未加白名单（`client/` 绝不能进包） |
+| `check:client` 报生成物不一致 | 改了 `client/**` 没重建：`npm run build:client` 后把两者一起提交 |
+| `npm ci` / `npm run check` 报找不到 `esbuild` | `package-lock.json` 与 `package.json` 不同步，或本地没装构建期依赖 |
 | `check-naming` 失败 | 三处命名不一致 / `exports` 缺 `./client` / `files` 缺 `client.js` |
 | `npm test` 碰到真实目录 | 用例忘了把 `HOME` / `DSH_HOME` 指到临时目录 |
 | OIDC `404` | workflow `name:` 是否等于 `release.yml`；npm registry 是否降级 |

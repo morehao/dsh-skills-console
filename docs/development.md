@@ -5,7 +5,7 @@
 ## 1. 环境
 
 - Node.js ≥ 22.20（`engines`：`^22.20.0 || >=24.0.0`），npm 随 Node。
-- **没有依赖**：`package.json` 无 `dependencies`，克隆下来直接跑；`npm install` 只会在需要打包校验时读 `package.json`。
+- **零 runtime 依赖**：`package.json` 无 `dependencies`，只有一个构建期 devDependency `esbuild`（精确锁版本，`package-lock.json` 已提交）。`npm test` 不装依赖也能跑；`npm run check` 含 `check:client`（会重建 bundle），开发机需要先 `npm install`。
 - `skills` CLI 不在本包内：运行时由宿主环境提供（四层探测：`DSH_SKILLS_CONSOLE_CLI` 覆盖 → `PATH` → `$DSH_HOME/profiles/*/node_modules/skills` → `npx`）。
 
 ## 2. 目录结构
@@ -14,7 +14,10 @@
 lib/index.js        Host 入口：装配 paths / state / registry / cli / service / routes
 lib/routes.js       HTTP 路由（prefix /api/morehao/skills-console）
 lib/core/           领域逻辑：清单、软链、安装、更新、删除、订阅、哈希、状态、日志
-client.js           Web Client half：设置页 settings.section（一页两 tab）
+client/             Web Client 源码（ESM）：host / copy / styles / api / icons /
+                    hooks / actions / views/* / section / surface / app / index
+client.js           Web Client 构建产物（npm run build:client 生成，不要手改，但要提交）
+scripts/build-client.mjs  esbuild 打包脚本（--check 校验漂移 / --watch / --sourcemap）
 locale/{zh,en}.json 分区标题与描述
 scripts/            语法自检、命名/打包校验、agent 表导出、发布与 Release 正文投影
 test/               node:test 用例（离线）
@@ -25,8 +28,8 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，77 例
-npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投影
+npm test          # node --test "test/*.test.mjs"，80 例
+npm run check     # 机械校验：语法 + 生成物一致性（check:client）+ 命名 + 打包 + Release 说明投影
 ```
 
 两条硬规矩：
@@ -43,7 +46,8 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 | `cli.test.mjs` | CLI 定位、argv 形状（`add` 带全参数 / `remove` 不带 `-a`）、能力位、硬超时、非零退出 |
 | `updates.test.mjs` | 快照解析、subpath 过滤、L0–L3 判定、哈希形态不配对 → `unknown`、计划 token 稳定性、Trees 200/304/401/404 |
 | `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、自动接入多选、入口位置持久化、启停、删除（回收站）、Agent 删除后的链接降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘 |
-| `client.test.mjs` | `client.js` 在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动接入多选 / 工作区勾选 / 入口位置切换（先开「插件设置」面板）/ 页头身份与 ⚙·GitHub 工具组 / Agent `+n` 悬浮列表 / 设置导航图标认领与卸载还原，并检查主按钮反色、开关旋钮反色、弹窗表面色、方形复选框圆点与开关禁用 |
+| `client.test.mjs` | 读**已提交的** `client.js` 产物，在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动接入多选 / 工作区勾选 / 入口位置切换（先开「插件设置」面板）/ 页头身份与 ⚙·GitHub 工具组 / Agent `+n` 悬浮列表 / 设置导航图标认领与卸载还原，并检查主按钮反色、开关旋钮反色、弹窗表面色、方形复选框圆点与开关禁用 |
+| `client-copy.test.mjs` | 直接 import `client/copy.js`：zh / en 键集合一致、`{n}` / `{path}` 占位符一致、文案非空 |
 | `routes.test.mjs` | `/state` 下发插件身份（包名去 scope + 版本，与 `package.json` 同源）、缺鉴权头 → 403 |
 
 ## 4. 调试
@@ -51,7 +55,7 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 - **事件日志**：`$DSH_HOME/skills-console/dsh-skills-console.log`（JSONL，1MB 滚动到 `.1`），每条带 `at` / `event` / 上下文。
 - **状态文件**：`$DSH_HOME/skills-console/state.json`；坏掉时插件降级只读（写接口 409），删掉重建即可恢复。`DSH_SKILLS_CONSOLE_HOME` 可整体挪到临时目录做实验。
 - **接口**：所有路由要带 `x-dsh-skills-console: 1` 请求头，否则 403。
-- **生效方式**：`plugin_manager install_bundle(target = 本仓绝对路径)` 时是 `link:`，改 `client.js` / `lib/` 后刷新页面即可；npm 安装版是拷贝，需要重装并重启 dsh web。
+- **生效方式**：`plugin_manager install_bundle(target = 本仓绝对路径)` 时是 `link:`：改 `client/` 后跑 `npm run dev:client`（宿主只 watch 根 `client.js`，产物一变就刷新），改 `lib/` 后刷新页面即可；npm 安装版是拷贝，需要重新 `npm run build:client`、重装并重启 dsh web。
 - **别在本机真实目录上试破坏性操作**：删除、更新 apply 会动 `~/.agents/skills` 与各 Agent 的软链；用临时 `HOME` 起一个干净宿主更安全。接管只补记账、不碰文件。
 - **自动接管**：`GET /state` 会扫描 canonical，把账本里还没有的技能补成 `installs`（有 lock 来源时顺带建订阅）；只读状态或在途写操作时跳过。
 
@@ -59,6 +63,11 @@ npm run check     # 机械校验：语法 + 命名 + 打包 + Release 说明投�
 
 | 症状 | 原因与处理 |
 |---|---|
+| 改了 `client/` 页面没变化 | 忘了重建：`npm run build:client`；`link:` 调试时挂着 `npm run dev:client` |
+| 手改了 `client.js` | 不要改生成物；`npm run check` 的 `check:client` 会按 `client/` 重建并逐字节比对，直接报不一致 |
+| `npm run check` 报找不到 `esbuild` | 构建期依赖还没装：`npm install`（`npm test` 不需要） |
+| `client/` 出现在 `npm pack` 清单里 | 源码目录不入包，`check-pack.mjs` 会红；不要把 `client/` 加进 `package.json.files` |
+| 想调试 `client/` 但产物不可读 | `npm run build:client -- --sourcemap`（或 `npm run dev:client -- --sourcemap`）生成 `client.js.map`；它不提交，`client.js` 也会因此与正常产物不同，提交前重跑不带 `--sourcemap` 的构建 |
 | 面板里 CLI 显示 `npx` 且每次慢 2–3 秒 | GUI 启动的宿主进程拿不到 `DSH_PROFILE_DIR`；靠 `$DSH_HOME/profiles/*/node_modules/skills` 探测兜底，或显式设 `DSH_SKILLS_CONSOLE_CLI` |
 | 手工改了 `state.json` 页面没反应 | 已改成每请求前重读，但若写入队列有在途写，会等 pending 归零再读 |
 | `npm pack` 报 `EPERM ~/.npm/_cacache` | 本机 `~/.npm` 有 root 属主文件；`check-pack.mjs` 用临时 cache 规避，手动跑可 `sudo chown -R 501:20 ~/.npm` |
