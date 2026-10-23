@@ -1,7 +1,9 @@
-# npm 发包流程（`@morehao/dsh-skills-manager`，OIDC / Trusted Publishing）
+# npm 发包流程（`@morehao/dsh-skills-console`，OIDC / Trusted Publishing）
 
 > 这份文档的目的是「下次发版不用再想」。核心只有一条：**打注记 tag → CI 用 OIDC 发 npm → 成功后用 tag 正文建 GitHub Release**，全程不需要任何长效 token。
-> 首次建包的一次性配置见 §3（已在本仓完成，2026-10-23），日常发版看 §4，出问题先看 §6。
+> 首次建包的一次性配置见 §3，日常发版看 §4，出问题先看 §6。
+>
+> ⚠️ **包名变更**：`v0.2.0` 起包名从 `@morehao/dsh-skills-manager` 改为 `@morehao/dsh-skills-console`，因此 **§3 必须对新包名重做一次**（建包 + 重配 Trusted Publisher，`Repository` 字段要填改名后的 `dsh-skills-console`）。旧包先 `npm deprecate`，等新包稳定后再 `npm unpublish`（npm 超过 72h 的下架条件：无依赖、近一周下载 < 300、单一 owner，本包三条都满足）。
 
 ## 1. 三条速查
 
@@ -50,7 +52,7 @@ CI 侧前置校验由 `check.yml` 负责（PR / push main）：`bash -n scripts/
 npm config delete //registry.npmjs.org/:_authToken
 
 npm login --registry https://registry.npmjs.org      # 开浏览器授权
-mkdir -p /tmp/placeholder && printf '{"name":"@morehao/dsh-skills-manager","version":"0.0.0","description":"placeholder for OIDC trusted publishing","license":"MIT"}' > /tmp/placeholder/package.json
+mkdir -p /tmp/placeholder && printf '{"name":"@morehao/dsh-skills-console","version":"0.0.0","description":"placeholder for OIDC trusted publishing","license":"MIT"}' > /tmp/placeholder/package.json
 cd /tmp/placeholder && npm publish --registry https://registry.npmjs.org --access public   # 会要 6 位 OTP
 cd ~ && npm logout --registry https://registry.npmjs.org && npm config get //registry.npmjs.org/:_authToken   # 期望 undefined
 ```
@@ -59,7 +61,7 @@ cd ~ && npm logout --registry https://registry.npmjs.org && npm config get //reg
 
 ```bash
 read -s NPM_TOKEN && export NPM_TOKEN
-npx --yes setup-npm-trusted-publish @morehao/dsh-skills-manager --registry https://registry.npmjs.org
+npx --yes setup-npm-trusted-publish @morehao/dsh-skills-console --registry https://registry.npmjs.org
 # 关键判据：输出里必须有「🔑 Using NPM_TOKEN for authentication」
 unset NPM_TOKEN    # 用完去 npm 页面删掉该 token
 ```
@@ -68,21 +70,21 @@ unset NPM_TOKEN    # 用完去 npm 页面删掉该 token
 
 ### 3.2 配置 Trusted Publisher
 
-打开 <https://www.npmjs.com/package/@morehao/dsh-skills-manager/access>：
+打开 <https://www.npmjs.com/package/@morehao/dsh-skills-console/access>：
 
 | 字段 | 值 | 备注 |
 |---|---|---|
 | Provider | GitHub Actions | |
 | Owner | `morehao` | |
-| Repository | `dsh-skills-manager` | 换仓/改名必须同步改这里，否则 OIDC 被拒 |
+| Repository | `dsh-skills-console` | 换仓/改名必须同步改这里，否则 OIDC 被拒 |
 | Workflow filename | `release.yml` | **必须是文件名**；且 workflow 的 `name:` 也写成 `release.yml`，两边才精确匹配 |
 | Environment | 留空 | 用了 environment 才填 |
 | Allowed actions | **勾上 `npm publish`** | 默认只允许 `npm stage publish`，不勾会 `403 permission denied` |
 
 ### 3.3 一次性核对清单
 
-- [ ] `curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/@morehao%2Fdsh-skills-manager/0.0.0` → `200`
-- [ ] `curl -s https://registry.npmjs.org/-/package/@morehao/dsh-skills-manager/dist-tags` → 有输出
+- [ ] `curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/@morehao%2Fdsh-skills-console/0.0.0` → `200`
+- [ ] `curl -s https://registry.npmjs.org/-/package/@morehao/dsh-skills-console/dist-tags` → 有输出
 - [ ] `~/.npmrc` 已无 `_authToken`（`npm logout`）
 - [ ] npm Access 页面能看到 trusted publisher 记录，Allowed actions 含 `npm publish`
 - [ ] GitHub 仓库没有残留 `NPM_TOKEN` secret（OIDC 不需要）
@@ -128,11 +130,11 @@ unset NPM_TOKEN    # 用完去 npm 页面删掉该 token
 
 ```bash
 # 1) 版本是否真的上线（单版本端点最准）
-curl -s -o /dev/null -w '%{http_code}\n' https://registry.npmjs.org/@morehao%2Fdsh-skills-manager/0.2.0   # 期望 200
-curl -s https://registry.npmjs.org/-/package/@morehao/dsh-skills-manager/dist-tags                     # 期望 {"latest":"0.2.0"}
+curl -s -o /dev/null -w '%{http_code}\n' https://registry.npmjs.org/@morehao%2Fdsh-skills-console/0.2.0   # 期望 200
+curl -s https://registry.npmjs.org/-/package/@morehao/dsh-skills-console/dist-tags                     # 期望 {"latest":"0.2.0"}
 
 # 2) 产物元信息（fileCount 应与本地 check-pack 数目一致；attestations 存在说明是 OIDC 发的）
-curl -s https://registry.npmjs.org/@morehao/dsh-skills-manager/0.2.0 \
+curl -s https://registry.npmjs.org/@morehao/dsh-skills-console/0.2.0 \
   | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s);console.log(j.dist.fileCount,'files',j.dist.unpackedSize,'bytes',JSON.stringify(j._npmUser),Object.keys(j.dist.attestations||{}))})"
 
 # 3) Release 正文是否与注记一致
@@ -140,7 +142,7 @@ gh release view v0.2.0 --json tagName,body --jq '{tag:.tagName,len:(.body|length
 git for-each-ref --format='%(contents)' refs/tags/v0.2.0 | tail -n +2 | head -5
 
 # 4) 每一步的结论（日志下载受限时用这个）
-gh api repos/morehao/dsh-skills-manager/actions/runs/<run-id>/jobs \
+gh api repos/morehao/dsh-skills-console/actions/runs/<run-id>/jobs \
   --jq '.jobs[].steps[] | {name, conclusion}'
 ```
 
@@ -155,7 +157,7 @@ gh api repos/morehao/dsh-skills-manager/actions/runs/<run-id>/jobs \
 | `403 permission denied for this action` | Trusted Publisher 的 Allowed actions 只允许 stage | 勾上**允许 `npm publish`**（无视 “Not recommended”） |
 | OIDC `404 Not found`（配置看似无误） | ① workflow `name:` 与 npm 里填的文件名不一致；② Owner/Repo 与实际仓库不符；③ registry 降级（PUT 直接 404） | 对齐 `name: release.yml`；核对仓库名；查 <https://status.npmjs.org> |
 | `publish` 绿色但没发出去 | `@actions/exec` 不做 shell 解析，`a && b` 只执行 `a` | 用**单一命令** `bash ./scripts/ci-publish.sh` |
-| 发布成功但 `npm view` 还是旧的 | 读端点 CDN 缓存（1–2 分钟，偶尔完整 packument 直接 404） | 看**单版本端点** `.../dsh-skills-manager/0.2.0` 与 `/-/package/<name>/dist-tags` |
+| 发布成功但 `npm view` 还是旧的 | 读端点 CDN 缓存（1–2 分钟，偶尔完整 packument 直接 404） | 看**单版本端点** `.../dsh-skills-console/0.2.0` 与 `/-/package/<name>/dist-tags` |
 | 发布成功但没有 Release | 注记 tag 没正文（轻量 tag / 只有首行） | 本地 `node scripts/release-notes.mjs vX.Y.Z` 复现；补注记后重跑该 run |
 | `npm pack` 本机报 `EPERM ~/.npm/_cacache` | `~/.npm` 里有 root 属主文件 | `check-pack.mjs` 已用临时 cache 规避；手动跑可 `sudo chown -R 501:20 ~/.npm` |
 | 本地 `npm login` 弹 CNPM/npmmirror | 全局 `~/.npmrc` 的 registry 是 npmmirror | 所有 npm 命令显式 `--registry https://registry.npmjs.org` |
@@ -186,14 +188,16 @@ gh api repos/morehao/dsh-skills-manager/actions/runs/<run-id>/jobs \
 
 ## 9. 本仓 `v0.1.0` 实录（2026-10-23，作为参照）
 
+> 这一节记录的是**旧包名** `@morehao/dsh-skills-manager` 时期的真实过程，保留原样作为排障参照；`v0.2.0` 起包名、仓库名与 Workflow 的 `Repository` 字段都已改为 `dsh-skills-console`。
+
 | 步骤 | 动作 | 结果 |
 |---|---|---|
 | 1 | `setup-npm-trusted-publish`（token 路线） | ❌ `404 PUT`：token 没进子进程（输出缺 `🔑`），回落到 `~/.npmrc` 里的失效 token |
-| 2 | `npm login --registry https://registry.npmjs.org` + 手发占位包 | ✅ `@morehao/dsh-skills-manager@0.0.0` |
+| 2 | `npm login --registry https://registry.npmjs.org` + 手发占位包 | ✅ `@morehao/dsh-skills-manager@0.0.0`（旧名） |
 | 3 | 配 Trusted Publisher（Owner / Repo / `release.yml` / 允许 `npm publish`） | ✅ |
 | 4 | `npm logout` 清凭据 | ✅ `~/.npmrc` 无 `_authToken` |
 | 5 | 打注记 tag `v0.1.0` 并推送（正文＝摘要层 + 折叠原文层） | ✅ `TAG_PUSH_OK` |
 | 6 | `release.yml` run `39926359691` | ✅ 18s，Publish + Create Release 均 success |
 | 7 | 验证 | `dist-tags.latest=0.1.0`、22 files / 145,878 bytes、SLSA provenance、`_npmUser: GitHub Actions` |
 
-Release：<https://github.com/morehao/dsh-skills-manager/releases/tag/v0.1.0>
+Release：<https://github.com/morehao/dsh-skills-manager/releases/tag/v0.1.0>（旧仓名，GitHub 改名后自动 301 重定向）

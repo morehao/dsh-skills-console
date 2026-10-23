@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tag 触发发布（git tag vX.Y.Z -> 发布 @morehao/dsh-skills-manager@X.Y.Z，经 OIDC）。
+# tag 触发发布（git tag vX.Y.Z -> 发布 @morehao/dsh-skills-console@X.Y.Z，经 OIDC）。
 # 本仓根即包根：无 pnpm workspace、无子包目录，`package.json` 就在脚本的上一级。
 # 由 .github/workflows/release.yml 的 publish 步骤调用（action 用 @actions/exec 执行单一命令，
 # 不做 shell 解析，所以是 `bash <此脚本>` 这种单命令，逻辑都在本脚本里）。
@@ -16,7 +16,7 @@ PKG_VERSION="${TAG#v}"   # v1.2.3 -> 1.2.3
 # 仓根 = 包根：没有子包目录，package.json 就在脚本的上一级。
 cd "$(dirname "$0")/.."
 
-name="@morehao/dsh-skills-manager"
+name="@morehao/dsh-skills-console"
 PKG_JSON_VERSION="$(node -p "require('./package.json').version")"
 
 echo "Publish check: ${name}@${PKG_JSON_VERSION} (tag=${TAG})"
