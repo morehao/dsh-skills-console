@@ -49,6 +49,7 @@
 - 新逻辑先想「怎么在不联网、不碰真目录的前提下断言」，再落代码；网络相关分支（Trees API、CLI 退出码/超时/无 JSON）用 stub 覆盖。
 - 破坏性操作（删除技能、`updates/apply`、push、tag、publish、改真实 HOME、覆盖或删除软链）先征得用户确认。
 - 改 `lib/` 后需重启 dsh web；只有 `link:` 接入时源码即时生效，npm 版是拷贝。
+- 本地用 `link:` 验证未发布改动、以及验证后回退：流程见 [docs/development.md](docs/development.md) §5；会改真实 profile，先确认 + 先备份，切换/回退后都要完全重启宿主。
 
 ### Client 源码与生成物
 
@@ -101,6 +102,7 @@
 | `client/**`（Web Client UI） | `client/index.js` + `test/client.test.mjs` | `npm run build:client` + `npm run check` + `npm test` |
 | 根 `client.js`（生成物） | 不要改；改 `client/**` 后重建 | `npm run check:client` |
 | `package.json` / `exports` / `files` / 命名 / CI / 发布 | [验证与发布](docs/agents/verification-release.md) | `npm run check`（含命名与打包） |
+| 本地 link 验证 / 预览未发布改动 | [docs/development.md](docs/development.md) §5 | 验证后按 §5.3 回退 |
 | 纯文档 | 对应人类文档；链接与事实核对 | 不跑代码检查 |
 
 ## 5. 完成定义
