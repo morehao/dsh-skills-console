@@ -150,9 +150,11 @@ var DICT = {
     "form.sourceHint": "例如 morehao/ai-kit",
     "form.skills": "技能名（多个用逗号分隔）",
     "form.ref": "ref（分支 / tag，可空）",
+    "form.refHint": "留空则自动跟随仓库默认分支",
     "form.subpath": "子目录（可空）",
     "form.hint": "会立即下载并写入 ~/.agents/skills，并按「自动接入」设置接到对应 Agent。",
     "form.subHint": "只记录你关注这个仓库，不会安装任何技能。",
+    "subscription.defaultRef": "默认分支",
     "confirm.deleteTitle": "删除技能",
     "confirm.deleteBody": "会从本机移除，断开本插件建立的软链并调 skills CLI 卸载；目录先备份到回收站（保留 7 天）。不会删除你的源仓库。",
     "confirm.updateTitle": "本地有改动",
@@ -268,9 +270,11 @@ var DICT = {
     "form.sourceHint": "e.g. morehao/ai-kit",
     "form.skills": "Skill names (comma separated)",
     "form.ref": "ref (branch / tag, optional)",
+    "form.refHint": "empty follows the repository default branch",
     "form.subpath": "Subdirectory (optional)",
     "form.hint": "Downloads into ~/.agents/skills and links agents per the auto-link setting.",
     "form.subHint": "Only records the repository; installs nothing.",
+    "subscription.defaultRef": "default branch",
     "confirm.deleteTitle": "Delete skill",
     "confirm.deleteBody": "Removes it locally, disconnects this plugin’s links and calls skills remove. A snapshot stays in trash for 7 days. Your source repo is untouched.",
     "confirm.updateTitle": "Local changes",
@@ -1768,7 +1772,7 @@ function SubscriptionsTab({
           onClick: () => onToggle(subscription.id)
         }, h(CaretIcon, { open })),
         h("span", { className: "dshsc-name" }, subscription.source),
-        h("span", { className: "dshsc-tag" }, subscription.ref || "default"),
+        h("span", { className: "dshsc-tag" }, subscription.ref || t("subscription.defaultRef")),
         h(
           "span",
           { className: "dshsc-substat" },
@@ -2050,7 +2054,7 @@ function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClos
       hint: t("form.subHint"),
       fields: [
         { key: "source", label: t("form.source"), placeholder: t("form.sourceHint") },
-        { key: "ref", label: t("form.ref"), placeholder: "main" },
+        { key: "ref", label: t("form.ref"), placeholder: t("form.refHint") },
         { key: "subpath", label: t("form.subpath"), placeholder: "skills" }
       ],
       onCancel: onClose,

@@ -212,7 +212,7 @@ export function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions,
       hint: t('form.subHint'),
       fields: [
         { key: 'source', label: t('form.source'), placeholder: t('form.sourceHint') },
-        { key: 'ref', label: t('form.ref'), placeholder: 'main' },
+        { key: 'ref', label: t('form.ref'), placeholder: t('form.refHint') },
         { key: 'subpath', label: t('form.subpath'), placeholder: 'skills' },
       ],
       onCancel: onClose,
