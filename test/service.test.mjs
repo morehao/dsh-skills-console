@@ -72,7 +72,7 @@ if (args[0] === 'remove') {
 process.exit(0);
 `;
 
-function setup(extra = {}) {
+function setup(extra = {}, envExtra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-service-'));
   const home = path.join(root, 'home');
   fs.mkdirSync(path.join(home, '.dsh', 'skills'), { recursive: true });
@@ -89,6 +89,7 @@ function setup(extra = {}) {
     TEST_HOME: home,
     TEST_TREE_SHA: TREE_SHA,
     PATH: '',
+    ...envExtra,
   };
   const logger = () => {};
   const cli = createCli({ env, logger });
@@ -449,6 +450,27 @@ test('添加订阅：同一来源重复添加幂等', async () => {
   assert.equal(second.existing, true);
   assert.equal(second.subscription.id, first.subscription.id);
   assert.equal(store.state.subscriptions.length, 1);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('限流安装（lock 写 64 位内容哈希）：无假警告，按记录的 tree SHA 判定更新（T2）', async () => {
+  const CONTENT_HASH = 'a'.repeat(64);
+  const ENTRY_TREE_SHA = '2'.repeat(40);
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, { TEST_TREE_SHA: CONTENT_HASH });
+
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  const result = await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.installed[0].lockHash, CONTENT_HASH, 'lockHash 保持 lock 原值');
+  assert.equal(result.installed[0].lockHashShape, 'content', '形态要透出给诊断用');
+  assert.deepEqual(result.warnings, [], '64 位内容哈希不能触发「哈希不一致」假警告');
+  assert.equal(store.findInstall('alpha').treeSha, ENTRY_TREE_SHA, '安装时要记下快照里的 tree 基线');
+
+  const checked = await service.checkUpdates({});
+  assert.equal(checked.checks[0].status, 'current', '不再恒为 unknown，也不误报有更新');
+  assert.equal(checked.checks[0].baseline, 'recorded');
   fs.rmSync(root, { recursive: true, force: true });
 });
 

@@ -4,6 +4,7 @@ import {
   checkSkill,
   fetchDefaultBranch,
   fetchTree,
+  hashShape,
   listSkillsFromTree,
   parseSource,
   planToken,
@@ -57,15 +58,82 @@ test('L2/L3 判定：一致 → current，不同 → update-available，缺失 �
   assert.equal(checkSkill({ lockHash: DIR_SHA_1, snapshotEntry: null, tree: TREE, rootSha: ROOT_SHA }).status, 'upstream-deleted');
 });
 
-test('哈希形态不配对（64 位内容哈希）→ unknown，不误判成有更新（F19）', () => {
+test('哈希形态不配对（64 位内容哈希）+ 无安装基线 → unknown，不误判成有更新（F19）', () => {
   const verdict = checkSkill({
     lockHash: 'f'.repeat(64),
+    recordedTreeSha: null,
     snapshotEntry: { skillPath: 'skills/alpha/SKILL.md' },
     tree: TREE,
     rootSha: ROOT_SHA,
   });
   assert.equal(verdict.status, 'unknown');
-  assert.match(verdict.detail, /形态不配对/);
+  assert.match(verdict.detail, /未记录/);
+});
+
+test('哈希形态：40 位 = tree，64 位/其他 = content，缺失 = missing', () => {
+  assert.equal(hashShape(DIR_SHA_1), 'tree');
+  assert.equal(hashShape('f'.repeat(64)), 'content');
+  assert.equal(hashShape('nope'), 'content');
+  assert.equal(hashShape(null), 'missing');
+  assert.equal(hashShape(undefined), 'missing');
+});
+
+test('lock 是 64 位内容哈希时，用安装时记录的 tree SHA 当基线（T2 主用例）', () => {
+  const entry = { skillPath: 'skills/alpha/SKILL.md' };
+  const current = checkSkill({
+    lockHash: 'f'.repeat(64),
+    recordedTreeSha: DIR_SHA_1,
+    snapshotEntry: entry,
+    tree: TREE,
+    rootSha: ROOT_SHA,
+  });
+  assert.equal(current.status, 'current');
+  assert.equal(current.baseline, 'recorded');
+  assert.match(current.detail, /安装时记录/);
+
+  const drifted = checkSkill({
+    lockHash: 'f'.repeat(64),
+    recordedTreeSha: DIR_SHA_2,
+    snapshotEntry: entry,
+    tree: TREE,
+    rootSha: ROOT_SHA,
+  });
+  assert.equal(drifted.status, 'update-available');
+  assert.equal(drifted.baseline, 'recorded');
+  assert.equal(drifted.targetTreeSha, DIR_SHA_1);
+  assert.match(drifted.detail, /基线来自 recorded/);
+});
+
+test('lock 缺失时同样可以按记录的基线判定', () => {
+  const verdict = checkSkill({
+    lockHash: null,
+    recordedTreeSha: DIR_SHA_1,
+    snapshotEntry: { skillPath: 'skills/alpha/SKILL.md' },
+    tree: TREE,
+    rootSha: ROOT_SHA,
+  });
+  assert.equal(verdict.status, 'current');
+
+  const stillUnknown = checkSkill({
+    lockHash: null,
+    recordedTreeSha: null,
+    snapshotEntry: { skillPath: 'skills/alpha/SKILL.md' },
+    tree: TREE,
+    rootSha: ROOT_SHA,
+  });
+  assert.equal(stillUnknown.status, 'unknown');
+});
+
+test('lock 与 recorded 同时存在时以 lock 为准（CLI 才是真身）', () => {
+  const verdict = checkSkill({
+    lockHash: DIR_SHA_2,
+    recordedTreeSha: DIR_SHA_1,
+    snapshotEntry: { skillPath: 'skills/alpha/SKILL.md' },
+    tree: TREE,
+    rootSha: ROOT_SHA,
+  });
+  assert.equal(verdict.status, 'update-available', 'lock 说 B，上游是 A → 有更新');
+  assert.equal(verdict.baseline, 'lock');
 });
 
 test('fetchTree: 200 解析、304 只回 notModified', async () => {
