@@ -8,7 +8,7 @@
 
 DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入其他 Agent、随时启停，外加一份订阅清单。
 
-它不搬技能。技能真身始终由 [`skills`](https://www.npmjs.com/package/skills) CLI 写进 `~/.agents/skills`；本插件只在 DSH 这一侧做控制台：决定**哪些技能、对谁、在哪一层可见**，并把每次改动做成可回滚的事务。
+它不搬技能。技能真身由插件内的 **native installer** 写进 `~/.agents/skills`，并维护 v3 lock；本插件只在 DSH 这一侧做控制台：决定**哪些技能、对谁、在哪一层可见**，并把每次改动做成可回滚的事务。更新流程仍在迁移中（P2 前复用 `skills` CLI 的应用步骤）。
 
 ## 为什么需要它
 
@@ -22,10 +22,10 @@ DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入
 
 | 能力 | 说明 |
 | --- | --- |
-| 清单 | canonical 扫描 + CLI lock 对账 + DSH 实际可见性对账；canonical 里已有的技能首次读取自动纳入追踪，不必逐个「接管」 |
-| 安装 | 填 `owner/repo`（可只装其中几个技能），下载、落盘、写 lock 全部交给 CLI；来自订阅快照时核对 lock 哈希，不一致会提示 |
+| 清单 | canonical 扫描 + v3 lock 对账 + DSH 实际可见性对账；canonical 里已有的技能首次读取自动纳入追踪，不必逐个「接管」 |
+| 安装 | 填 `owner/repo`（可只装其中几个技能），native installer 下载 codeload tarball → 安全解压 → 本地计算 tree SHA → 原子落盘 canonical + v3 lock；来自订阅快照时核对哈希，不一致会提示 |
 | 更新 | GitHub Trees 检测上游新 commit → 计划（commit 区间 + 影响范围 + 防抖 token）→ 应用前备份，失败自动回滚上一版 |
-| 删除 | 先体检（真实目录 / 外部链接直接中止）→ 快照进回收站 → 只删本插件建的链接与记账，CLI 的 `remove` 不带 `-a` |
+| 删除 | 先体检（真实目录 / 外部链接直接中止）→ 快照进回收站 → installer 删 lock 条目与真身（lock 写失败从回收站恢复）→ 只清本插件建的链接与记账 |
 | 接入 | 软链四态判定（`managed` / `managed-external` / `foreign-link` / `real`），**绝不覆盖**别人创建的东西；只列本机已安装目录，已删的 Agent 自动从列表消失 |
 | 启停 | `mode: on/off` 只摘或重建 DSH 侧链接，不动 `SKILL.md`，其他 Agent 的链接也不受影响 |
 | 作用范围 | 全局 `~/.dsh/skills`，或仅指定项目；项目可直接勾选 DSH 已登记的工作区，也可手动选目录 |
@@ -41,7 +41,7 @@ DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入
 
 ## 安装
 
-插件依赖里自带 `skills@1.7.4`，**不需要用户预装 Node / npm / npx**：CLI 由宿主自带的 Node 启动，装插件时随依赖一起落盘。安装技能仍需要**本机有 git**（CLI 会 `git clone` 仓库）；首次装插件需要联网拉取依赖。
+插件依赖里自带 `tar@7.5.22`（native installer 解压）与过渡期的 `skills@1.7.4`（更新仍暂用），**不需要用户预装 Node / npm / npx**。安装/删除不再需要本机有 git；更新在 P2 迁移完成前仍会调用 CLI，那条路径需要 git。首次装插件需要联网拉取依赖。
 
 在 Harness 里装本地 link：
 
@@ -57,7 +57,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
       name: '@morehao/dsh-skills-console'
 ```
 
-客户端 half 只注册 `platform: web`，面板出现在 DSH Web 的设置页 / 侧栏。本地 `link:` 开发时，先在仓库跑一次 `npm install`（装上 `skills`），否则 CLI 依赖层不会命中。
+客户端 half 只注册 `platform: web`，面板出现在 DSH Web 的设置页 / 侧栏。本地 `link:` 开发时，先在仓库跑一次 `npm install`（装上 `tar` 与过渡期 `skills`），否则解压与更新依赖层不会命中。
 
 ## 快速上手
 
@@ -68,7 +68,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 ## 可靠性
 
-- **canonical 与 CLI lock 只读**：`~/.agents/skills`、`~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时为 `$XDG_STATE_HOME/skills/.skill-lock.json`）的增删改只经 `skills` CLI，插件不直接写；探测 / 更新检查会把仓库临时 clone 到 `os.tmpdir()`（只读、用完即删），结果绝不落进 canonical 或 lock。
+- **canonical 与 v3 lock 的写入口**：安装/删除由 native installer 统一处理（下载/解压/发现/tree SHA/原子 promote/lock 事务）；更新在 P2 迁移前仍复用 `skills` CLI。插件其他模块只读。探测 / 更新检查的临时 git clone 只在 `os.tmpdir()` 里读，结果绝不落进 canonical 或 lock。
 - **只动自己的东西**：只处理本插件创建的 `managed` 链接，以及已记账的 `managed-external`；`real` 目录和 `foreign-link` 永不改写，删除前体检直接中止。
 - **启停不改正文**：`mode` 只增删 DSH 侧链接，避免本地修改被下一次 `add` 覆盖。
 - **可回滚**：删除进回收站（7 天）；更新前快照到 `backups/`，失败自动还原（接口另提供手动回滚）。
@@ -79,8 +79,8 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 | 项 | 路径 | 归属 |
 | --- | --- | --- |
-| canonical 真身 | `~/.agents/skills` | `skills` CLI 独占 |
-| CLI lock | `~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时为 `$XDG_STATE_HOME/skills/.skill-lock.json`） | `skills` CLI 独占（本插件只读） |
+| canonical 真身 | `~/.agents/skills` | native installer（安装/删除/更新） |
+| v3 lock | `~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时为 `$XDG_STATE_HOME/skills/.skill-lock.json`） | native installer（安装/删除；更新在 P2 前经 CLI） |
 | DSH 全局根 | `~/.dsh/skills` | 本插件写软链 |
 | 插件状态 | `$DSH_HOME/skills-console/state.json` | 本插件（`DSH_SKILLS_CONSOLE_HOME` 可覆盖） |
 | 备份 / 回收站 | `$DSH_HOME/skills-console/{backups,trash}` | 本插件 |
@@ -91,7 +91,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 | 变量 | 默认 | 作用 |
 | --- | --- | --- |
 | `DSH_SKILLS_CONSOLE_HOME` | `$DSH_HOME/skills-console` | 状态、备份、回收站与事件日志的根 |
-| `DSH_SKILLS_CONSOLE_CLI` | 自动定位 | 覆盖 `skills` CLI（测试桩也走这里） |
+| `DSH_SKILLS_CONSOLE_CLI` | 自动定位 | 覆盖过渡期的 `skills` CLI（更新路径与测试桩；P2 后移除） |
 | `DSH_SKILLS_CONSOLE_NPX_SPEC` | `skills` | 仅 legacy `npx` 兜底用；桌面端没有 npx，正常应显示 `dependency` |
 | `DSH_SKILLS_CONSOLE_TIMEOUT_MS` | `120000` | 单次 CLI 调用超时 |
 | `DSH_SKILLS_CONSOLE_GIT` | `auto` | 设为 `off` 关闭 git 通道，强制只走 GitHub REST |
@@ -101,7 +101,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 关于 GitHub 配额：**匿名 REST 是 60 次/小时，按出口 IP 共享**（公司、校园网出口常被同网段的人一起打满），打满后探测与更新会收到 403。本插件默认让探测、更新检查与 git 兜底走系统 `git`（`ls-remote` + `clone --filter=blob:none --no-checkout`），不占 REST 配额、也不需要 token；git 不可用时才回退 REST，所以原本能用的环境不会因为这条路径变坏。限流且 git 也不可用时，错误文案会给出恢复时间，并提示设置 `GITHUB_TOKEN`。
 
-> git 通道只在 `os.tmpdir()` 里读一份临时仓库，用完即删 —— 不写 canonical、不写 CLI lock，落盘始终只交给 `skills` CLI。
+> git 通道只用于探测/更新检查的零配额兜底，在 `os.tmpdir()` 里读一份临时仓库，用完即删；安装/删除已不依赖 git。
 
 
 ## 开发与发布

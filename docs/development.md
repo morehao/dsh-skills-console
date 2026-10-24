@@ -5,16 +5,16 @@
 ## 1. 环境
 
 - Node.js ≥ 22.20（`engines`：`^22.20.0 || >=24.0.0`），npm 随 Node。
-- **runtime 依赖只有 `skills@1.7.4` 与 `tar@7.5.22`**：均随插件安装、精确锁版本；`skills` 是现行 CLI 路径（0.3 native installer 完成后移除），`tar` 供 native installer 解压；构建期 devDependency 只有 `esbuild`（`package-lock.json` 已提交）。`npm test` 仍离线、不依赖真实 CLI；`npm run check` 含 `check:client`（会重建 bundle），开发机需要先 `npm install`。
-- `skills` CLI 由插件依赖自带，用宿主 Node 启动；定位顺序：`DSH_SKILLS_CONSOLE_CLI` 覆盖 → 插件依赖 → `$DSH_PROFILE_DIR` / `$DSH_HOME/profiles/*` → `PATH` → `npx`（legacy）。安装技能还需要本机有 `git`（CLI 会 clone 仓库），没有 git 时接口会返回 `error.skills.git-missing`。
+- **runtime 依赖只有 `skills@1.7.4` 与 `tar@7.5.22`**：均随插件安装、精确锁版本；`skills` 是过渡期更新路径（P2 迁移后移除），`tar` 供 native installer 解压；构建期 devDependency 只有 `esbuild`（`package-lock.json` 已提交）。`npm test` 仍离线、不依赖真实 CLI；`npm run check` 含 `check:client`（会重建 bundle），开发机需要先 `npm install`。
+- `skills` CLI 由插件依赖自带，用宿主 Node 启动；定位顺序：`DSH_SKILLS_CONSOLE_CLI` 覆盖 → 插件依赖 → `$DSH_PROFILE_DIR` / `$DSH_HOME/profiles/*` → `PATH` → `npx`（legacy）。安装/删除已由 native installer 完成，不再需要本机有 git；更新在 P2 前仍走 CLI，那条路径需要 git（没有时返回 `error.skills.git-missing`）。
 
 ## 2. 目录结构
 
 ```
-lib/index.js        Host 入口：装配 paths / state / registry / cli / service / routes
+lib/index.js        Host 入口：装配 paths / state / registry / installer / cli / service / routes
 lib/routes.js       HTTP 路由（prefix /api/morehao/skills-console）
-lib/core/           领域逻辑：清单、软链、安装、更新、删除、订阅、哈希、状态、日志、
-                    git 只读通道（零配额探测 / 基线补录）
+lib/core/           领域逻辑：清单、软链、native installer（下载/解压/发现/tree/lock）、
+                    更新、删除、订阅、哈希、状态、日志、git 只读通道（零配额探测）
 client/             Web Client 源码（ESM）：host / copy / styles / api / icons /
                     hooks / actions / views/* / section / surface / app / index
 client.js           Web Client 构建产物（npm run build:client 生成，不要手改，但要提交）
@@ -29,14 +29,14 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，139 例
+npm test          # node --test "test/*.test.mjs"，199 例
 npm run check     # 机械校验：语法 + 生成物一致性（check:client）+ 命名 + 打包 + Release 说明投影
 ```
 
 两条硬规矩：
 
 1. **离线**：不联网。GitHub Trees API 走 stub（`updates.test.mjs` 直接喂 200 / 304 / 401 / 404 响应）；git 用 PATH 里临时的 `git` shim（`test/git.test.mjs`、`test/service.test.mjs`），真 `git` 不在 PATH 上。
-2. **不碰真实目录**：每个用例自建 `mkdtemp` 出来的临时 `HOME` / `DSH_HOME`；CLI 用 `DSH_SKILLS_CONSOLE_CLI="<node> <stub.cjs>"` 注入 stub（见 `test/cli.test.mjs`，覆盖成功 / 非零退出 / 超时 / 无 JSON 四种形态）。
+2. **不碰真实目录**：每个用例自建 `mkdtemp` 出来的临时 `HOME` / `DSH_HOME`；安装/删除用 fake installer 或本地 tar fixture，更新/探测的 CLI 用 `DSH_SKILLS_CONSOLE_CLI="<node> <stub.cjs>"` 注入 stub（见 `test/cli.test.mjs`，覆盖成功 / 非零退出 / 超时 / 无 JSON 四种形态）。
 
 | 用例文件 | 覆盖什么 |
 |---|---|
@@ -44,10 +44,13 @@ npm run check     # 机械校验：语法 + 生成物一致性（check:client）
 | `state.test.mjs` | 原子写、坏 JSON → 只读、未来版本 → 只读、缺字段补默认、`autoLinkAgents` → `autoLinkTargets` 旧字段升级、`placement` 回退 |
 | `agents.test.mjs` | 注册表探测、排除 universal 伪路径、OpenCode / XDG config、Agent 目录被删 |
 | `links.test.mjs` | 软链四态判定、幂等建链、不覆盖 `real` / `foreign-link` |
+| `installer.test.mjs` | native installer：codeload→解压→发现→canonical→lock 事务、根级/subpath、重名/危险条目、重装备份、lock 写失败回滚、readiness、remove |
+| `discovery.test.mjs` | SKILL.md 发现：frontmatter/目录名/根级、subpath、重名、非法名、隐藏目录 |
+| `native-install.test.mjs` | Service + 真实 installer 端到端（stub REST/codeload）：安装→state/链接→删除→回收站/lock |
 | `cli.test.mjs` | CLI 定位（插件依赖优先 / profile 回落 / 全缺失降级）、argv 形状（`add` 带全参数 / `remove` 不带 `-a`）、能力位、遥测关闭、硬超时、非零退出 |
 | `updates.test.mjs` | 快照解析、subpath 过滤、L0–L3 判定、哈希形态（40 位 tree / 64 位内容哈希）与安装基线回退、默认分支失败分流（限流 reset 时间 / 404 / 403 / 网络）、计划 token 稳定性、Trees 200/304/401/404 |
 | `git.test.mjs` | `repoUrl` 白名单、`ls-remote --symref` 解析、`ls-tree -z`（空格 / 中文 / 根级 SKILL.md）、老 git 去 `--filter` 重试、硬超时 SIGKILL、临时目录清理、错误分类 |
-| `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、64 位 lock 不误报并按 `treeSha` 判定、自动接入多选、入口位置持久化、启停、删除（回收站）、Agent 删除后的链接降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘、探测 git 优先 / `DSH_SKILLS_CONSOLE_GIT=off` / git 缺失回退 / 双通道失败、基线补录、刷新按 commit 短路与 git 兜底 |
+| `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、64 位 lock 不误报并按 `treeSha` 判定、自动接入多选、入口位置持久化、启停、删除（回收站）、Agent 删除后的链接降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘、探测 git 优先 / `DSH_SKILLS_CONSOLE_GIT=off` / git 缺失回退 / 双通道失败、刷新按 commit 短路与 git 兜底；安装/删除改为 fake installer |
 | `client.test.mjs` | 读**已提交的** `client.js` 产物，在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动接入多选 / 工作区勾选 / 入口位置切换（先开「插件设置」面板）/ 页头身份与 ⚙·GitHub 工具组 / Agent `+n` 悬浮列表 / 设置导航图标认领与卸载还原，并检查主按钮反色、开关旋钮反色、弹窗表面色、方形复选框圆点与开关禁用 |
 | `client-copy.test.mjs` | 直接 import `client/copy.js`：zh / en 键集合一致、`{n}` / `{path}` 占位符一致、文案非空 |
 | `routes.test.mjs` | `/state` 下发插件身份（包名去 scope + 版本，与 `package.json` 同源）、缺鉴权头 → 403 |

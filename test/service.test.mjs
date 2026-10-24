@@ -7,6 +7,7 @@ import { createCli } from '../lib/core/cli.js';
 import { createPaths } from '../lib/core/paths.js';
 import { createRegistry } from '../lib/core/agents.js';
 import { createService } from '../lib/core/service.js';
+import { contentHash } from '../lib/core/hash.js';
 import { StateStore } from '../lib/core/state.js';
 import { snapshotId } from '../lib/core/updates.js';
 
@@ -72,6 +73,82 @@ if (args[0] === 'remove') {
 process.exit(0);
 `;
 
+/**
+ * Service 测试替身：只模拟 installer 的对外契约（canonical + lock），
+ * 真实下载/解压/tree SHA 在 test/installer.test.mjs 覆盖。
+ */
+function createFakeInstaller({ paths, env, usable = true }) {
+  const flags = { usable };
+  const readLockFile = () => {
+    try {
+      return JSON.parse(fs.readFileSync(paths.lockFile, 'utf8'));
+    } catch {
+      return { version: 3, skills: {} };
+    }
+  };
+  const writeLockFile = (lock) => {
+    fs.mkdirSync(path.dirname(paths.lockFile), { recursive: true });
+    fs.writeFileSync(paths.lockFile, `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
+  };
+
+  return {
+    readiness: () => ({
+      usable: flags.usable,
+      source: 'native',
+      version: null,
+      json: true,
+      fullDepth: true,
+      problem: flags.usable ? null : 'lock-unsupported',
+    }),
+    setUsable(value) {
+      flags.usable = value;
+    },
+    async install({ source, names = [], ref = null }) {
+      // 留空时模拟「整仓全部」：固定两个技能，方便断言按安装结果记账
+      const selected = names.length > 0 ? names : ['all-one', 'all-two'];
+      const hash = env.TEST_TREE_SHA || TREE_SHA;
+      const lock = readLockFile();
+      const installed = [];
+      for (const name of selected) {
+        const dir = path.join(paths.canonical, name);
+        fs.rmSync(dir, { recursive: true, force: true });
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, 'SKILL.md'), `---\nname: ${name}\ndescription: demo\n---\nbody\n`);
+        const src = source || env.TEST_SOURCE || 'morehao/ai-kit';
+        const entry = {
+          source: src,
+          sourceType: 'github',
+          sourceUrl: `https://github.com/${src}.git`,
+          skillPath: `skills/${name}/SKILL.md`,
+          skillFolderHash: hash,
+          installedAt: lock.skills[name]?.installedAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        if (ref) entry.ref = ref;
+        lock.skills[name] = entry;
+        installed.push({
+          name,
+          skillPath: entry.skillPath,
+          lockHash: hash,
+          treeSha: /^[0-9a-f]{40}$/.test(hash) ? hash : null,
+          contentHash: contentHash(dir),
+          backup: null,
+        });
+      }
+      lock.version = 3;
+      writeLockFile(lock);
+      return { installed, warnings: [] };
+    },
+    async remove({ name }) {
+      fs.rmSync(path.join(paths.canonical, name), { recursive: true, force: true });
+      const lock = readLockFile();
+      delete lock.skills[name];
+      writeLockFile(lock);
+      return { removed: true };
+    },
+  };
+}
+
 function setup(extra = {}, envExtra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-service-'));
   const home = path.join(root, 'home');
@@ -93,18 +170,21 @@ function setup(extra = {}, envExtra = {}) {
   };
   const logger = () => {};
   const cli = createCli({ env, logger });
+  const defaultGh = githubStub({ tree: DEFAULT_TREE });
+  const installer = extra.installer || createFakeInstaller({ paths, env, usable: extra.installerUsable !== false });
   const service = createService({
     paths,
     store,
     registry,
     cli,
+    installer,
     logger,
     env,
-    fetchImpl: async () => new Response('{}', { status: 500 }),
+    fetchImpl: defaultGh.fetchImpl,
     visibleProvider: async () => ({ skills: [{ name: 'alpha', source: 'user-dsh' }], complete: true }),
     ...extra,
   });
-  return { root, home, paths, store, service, registry };
+  return { root, home, paths, store, service, registry, installer, gh: defaultGh };
 }
 
 test('安装：canonical + lock 断言 + 默认建链 + 记账', async () => {
@@ -134,7 +214,7 @@ test('安装：canonical + lock 断言 + 默认建链 + 记账', async () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('安装：技能名留空 → CLI 按 --skill * 装全部，并按输出里的真实结果记账', async () => {
+test('安装：技能名留空 → installer 装全部，并按实际发现结果记账', async () => {
   const { root, home, paths, store, service } = setup();
   const result = await service.install({ source: 'https://github.com/alchaincyf/huashu-design', skills: [] });
   assert.equal(result.ok, true);
@@ -229,6 +309,11 @@ test('删除：体检拦截真实目录；通过后进回收站并清记账', as
     },
   );
   assert.ok(fs.existsSync(path.join(paths.canonical, 'alpha', 'SKILL.md')), '拦截时不能动真身');
+
+  await assert.rejects(
+    () => service.remove({ name: '../escape' }),
+    (error) => error.code === 'error.skills.not-found',
+  );
 
   fs.rmSync(claudeLink, { recursive: true, force: true });
   const result = await service.remove({ name: 'alpha' });
@@ -347,6 +432,17 @@ const TREE_MAIN = [
   { path: 'skills', type: 'tree', sha: '1'.repeat(40) },
   { path: 'skills/alpha', type: 'tree', sha: '2'.repeat(40) },
   { path: 'skills/alpha/SKILL.md', type: 'blob', sha: '3'.repeat(40) },
+];
+
+/** setup 默认树：alpha/beta/gamma 三个技能，覆盖大多数安装/链接用例，且不抢 TREE_MAIN 的语义。 */
+const DEFAULT_TREE = [
+  { path: 'skills', type: 'tree', sha: '1'.repeat(40) },
+  { path: 'skills/alpha', type: 'tree', sha: '2'.repeat(40) },
+  { path: 'skills/alpha/SKILL.md', type: 'blob', sha: '3'.repeat(40) },
+  { path: 'skills/beta', type: 'tree', sha: '4'.repeat(40) },
+  { path: 'skills/beta/SKILL.md', type: 'blob', sha: '5'.repeat(40) },
+  { path: 'skills/gamma', type: 'tree', sha: '6'.repeat(40) },
+  { path: 'skills/gamma/SKILL.md', type: 'blob', sha: '7'.repeat(40) },
 ];
 
 function jsonBody(body) {
@@ -809,51 +905,6 @@ test('探测来源：git 与 REST 都失败 → 报限流（T1 文案）', async
   fs.rmSync(shimRoot, { recursive: true, force: true });
 });
 
-test('安装后基线补录：64 位 lock + git 可用 → installs[].treeSha 写入（T3.7）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE });
-  const { root, store, service } = setup(
-    { fetchImpl: async () => new Response('{}', { status: 500 }) },
-    { ...shim.env, TEST_TREE_SHA: 'c'.repeat(64) },
-  );
-
-  // 手填技能名安装：没有订阅、没有快照，lock 又是 64 位内容哈希
-  const result = await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
-  assert.equal(result.ok, true);
-  assert.equal(result.installed[0].lockHashShape, 'content');
-  assert.equal(result.installed[0].treeSha, '2'.repeat(40), '接口要把补录结果带出来');
-  assert.equal(store.findInstall('alpha').treeSha, '2'.repeat(40), 'state 里要落盘');
-  assert.equal(shim.calls().filter((line) => line.startsWith('clone')).length, 1, '一次 clone 拿到基线');
-  fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
-});
-
-test('安装后基线补录：同一来源装两个技能只 clone 一次（T3.7）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE });
-  const { root, store, service } = setup(
-    { fetchImpl: async () => new Response('{}', { status: 500 }) },
-    { ...shim.env, TEST_TREE_SHA: 'c'.repeat(64) },
-  );
-
-  await service.install({ source: 'morehao/ai-kit', skills: ['alpha', 'beta'] });
-  assert.equal(store.findInstall('alpha').treeSha, '2'.repeat(40));
-  assert.equal(store.findInstall('beta').treeSha, '4'.repeat(40));
-  assert.equal(shim.calls().filter((line) => line.startsWith('clone')).length, 1, '共用进程内树缓存');
-  fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
-});
-
-test('安装后基线补录：没有 git 时安装照常成功，treeSha 保持 null（T3.7 降级）', async () => {
-  const { root, store, service } = setup(undefined, { TEST_TREE_SHA: 'c'.repeat(64) });
-  const result = await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
-  assert.equal(result.ok, true, '补录是 best effort，绝不影响安装结果');
-  assert.equal(result.installed[0].lockHashShape, 'content');
-  assert.equal(result.installed[0].treeSha, undefined);
-  assert.equal(store.findInstall('alpha').treeSha, null);
-  fs.rmSync(root, { recursive: true, force: true });
-});
-
 // ---- T4：更新检查 REST 失败转 git，并按 commit 短路 --------------------------
 
 const NEW_COMMIT = 'd'.repeat(40);
@@ -983,8 +1034,8 @@ function unusableCli() {
   return { capabilities: async () => ({ ...MISSING_CAPS }) };
 }
 
-test('CLI 缺失：/state 降级为只读，清单仍可读；install 返回 400 而不是 500', async () => {
-  const { root, paths, service } = setup({ cli: unusableCli() });
+test('安装器不可用：/state cli.usable=false，清单仍可读；install 返回 400 且不动 canonical', async () => {
+  const { root, paths, service } = setup({ installerUsable: false });
   const dir = path.join(paths.canonical, 'alpha');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: alpha\ndescription: demo\n---\nbody\n');
@@ -992,25 +1043,27 @@ test('CLI 缺失：/state 降级为只读，清单仍可读；install 返回 400
   const state = await service.getState({});
   assert.equal(state.ok, true);
   assert.equal(state.cli.usable, false);
-  assert.equal(state.cli.source, 'missing');
-  assert.ok(state.installs.some((item) => item.name === 'alpha'), '清单不能因为 CLI 缺失而消失');
+  assert.equal(state.cli.source, 'native');
+  assert.equal(state.cli.problem, 'lock-unsupported');
+  assert.ok(state.installs.some((item) => item.name === 'alpha'), '清单不能因为安装器不可用而消失');
 
   await assert.rejects(
     () => service.install({ source: 'morehao/ai-kit', skills: ['alpha'] }),
-    (error) => error.code === 'error.skills.cli-missing',
+    (error) => error.code === 'error.skills.installer-unavailable',
   );
+  assert.ok(fs.existsSync(path.join(dir, 'SKILL.md')), '拒绝时不能动真身');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('CLI 缺失：remove 在回收站快照之前拒绝；applyUpdate 在排队之前拒绝', async () => {
-  const { root, paths, service } = setup({ cli: unusableCli() });
+test('安装器不可用：remove 在回收站快照之前拒绝；applyUpdate 在排队之前拒绝', async () => {
+  const { root, paths, service } = setup({ installerUsable: false, cli: unusableCli() });
   const dir = path.join(paths.canonical, 'alpha');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: alpha\ndescription: demo\n---\nbody\n');
 
   await assert.rejects(
     () => service.remove({ name: 'alpha' }),
-    (error) => error.code === 'error.skills.cli-missing',
+    (error) => error.code === 'error.skills.installer-unavailable',
   );
   assert.equal(fs.existsSync(paths.trashDir), false, '拒绝时不能留下孤儿 trash');
   assert.ok(fs.existsSync(path.join(dir, 'SKILL.md')), '拒绝时不能动真身');
@@ -1019,29 +1072,6 @@ test('CLI 缺失：remove 在回收站快照之前拒绝；applyUpdate 在排队
     () => service.applyUpdate({ name: 'alpha' }),
     (error) => error.code === 'error.skills.cli-missing',
   );
-  fs.rmSync(root, { recursive: true, force: true });
-});
-
-test('git 缺失：CLI add 输出 spawn git ENOENT → error.skills.git-missing', async () => {
-  const cli = {
-    capabilities: async () => ({ version: '1.7.4', json: true, fullDepth: true, source: 'dependency', usable: true }),
-    add: async () => ({
-      code: 1,
-      timedOut: false,
-      stdout: '■  Failed to clone repository\n   Error: spawn git ENOENT\n',
-      stderr: '',
-    }),
-  };
-  const { root, paths, service } = setup({ cli });
-  await assert.rejects(
-    () => service.install({ source: 'morehao/ai-kit', skills: ['alpha'] }),
-    (error) => {
-      assert.equal(error.code, 'error.skills.git-missing');
-      assert.match(error.message, /需要本机有 git/);
-      return true;
-    },
-  );
-  assert.equal(fs.existsSync(path.join(paths.canonical, 'alpha')), false, '失败不能落盘');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
