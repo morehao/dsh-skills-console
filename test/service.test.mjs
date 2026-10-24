@@ -853,3 +853,136 @@ test('安装后基线补录：没有 git 时安装照常成功，treeSha 保持 
   assert.equal(store.findInstall('alpha').treeSha, null);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+// ---- T4：更新检查 REST 失败转 git，并按 commit 短路 --------------------------
+
+const NEW_COMMIT = 'd'.repeat(40);
+
+test('刷新订阅：REST 限流时用 git 兜底，快照来自 git（T4）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT, '先由 REST 建了快照');
+
+  gh.control.fail = 'rate-limit';
+  const result = await service.refreshSubscription({ id: added.subscription.id });
+  assert.equal(result.ok, true);
+  assert.equal(result.via, 'git');
+  const row = store.state.subscriptions[0];
+  assert.equal(row.snapshot.commit, NEW_COMMIT, 'commit 来自 git 的 HEAD');
+  assert.equal(row.snapshot.etag, null, 'git 快照不带 ETag，下次刷新会完整读一次');
+  assert.equal(row.lastCheck.status, 'changed');
+  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), '确实先撞了 REST 403');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('刷新订阅：lsRemote 显示 commit 未变 → 不消耗任何 REST（T4 短路）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: COMMIT });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  const callsAfterAdd = gh.calls.length;
+
+  const result = await service.refreshSubscription({ id: added.subscription.id });
+  assert.equal(result.notModified, true);
+  assert.equal(result.changed, false);
+  assert.equal(result.via, 'git');
+  assert.equal(gh.calls.length, callsAfterAdd, '未变更的仓库检查消耗 0 次 REST');
+  const row = store.state.subscriptions[0];
+  assert.equal(row.lastCheck.status, 'unchanged');
+  assert.equal(row.snapshot.commit, COMMIT, '短路时绝不能把快照置空');
+  assert.equal(row.snapshot.entries.length, 1);
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('刷新订阅：lsRemote 变了但 REST 正常 → 仍用 REST 结果（T4 不抢主路径）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+
+  const result = await service.refreshSubscription({ id: added.subscription.id });
+  assert.equal(result.ok, true);
+  assert.equal(result.via, 'rest', 'REST 能通就用 REST（带 ETag）');
+  assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT);
+  assert.equal(store.state.subscriptions[0].lastCheck.treeEtag, 'W/"test"');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('刷新订阅：REST 与 git 都失败 → 报限流并留痕（T4）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT, extra: { SHIM_CLONE_FAIL: '1' } });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+
+  gh.control.fail = 'rate-limit';
+  await assert.rejects(
+    () => service.refreshSubscription({ id: added.subscription.id }),
+    (error) => error.code === 'error.skills.rate-limited',
+  );
+  assert.equal(store.state.subscriptions[0].lastCheck.status, 'unknown');
+  assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT, '失败不能清空上次快照');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('检查更新：配额耗尽时用 git 兜底，判定仍然有效（T4 + T2）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, { ...shim.env, TEST_TREE_SHA: 'a'.repeat(64) });
+
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+  assert.equal(store.findInstall('alpha').treeSha, '2'.repeat(40));
+
+  gh.control.fail = 'rate-limit';
+  const checked = await service.checkUpdates({});
+  assert.equal(checked.checks.length, 1);
+  assert.equal(checked.checks[0].status, 'current', '不再是 unknown，也不误报有更新');
+  assert.equal(checked.checks[0].via, 'git');
+  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), 'REST 确实试过并被限流');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('检查更新：两种通道都不可用 → 每个技能一条带错误码的 unknown（T4 降级）', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+
+  gh.control.fail = 'rate-limit';
+  const checked = await service.checkUpdates({});
+  assert.equal(checked.checks[0].status, 'unknown');
+  assert.equal(checked.checks[0].code, 'error.skills.rate-limited');
+  assert.match(checked.checks[0].detail, /已限流/);
+  assert.equal(store.state.checks.alpha.status, 'unknown');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('更新计划：配额耗尽时用 git 出计划，不出现「查得到更不了」（T4）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
+  const gh = githubStub();
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+
+  gh.control.fail = 'rate-limit';
+  const plan = await service.planUpdate({ name: 'alpha' });
+  assert.equal(plan.ok, true);
+  assert.equal(plan.toCommit, NEW_COMMIT, 'commit 来自 git');
+  assert.equal(plan.targetTreeSha, '2'.repeat(40));
+  assert.equal(plan.ref, 'main');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
