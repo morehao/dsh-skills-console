@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.2.3] - 2026-10-24
+
+### Features
+
+- **updates**: 探测与更新改走 git，修复限流下的哈希形态判定 (#22)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.2.2...v0.2.3
+
 ## [v0.2.2] - 2026-10-24
 
 ### Fixes
