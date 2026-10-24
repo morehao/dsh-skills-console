@@ -7,7 +7,7 @@
 
 | 改动 | 必跑 | 说明 |
 |---|---|---|
-| `lib/core/*` | `npm run check` + `npm test` | 139 个离线用例覆盖 hash / state / agents / links / cli / paths / updates / service |
+| `lib/core/*` | `npm run check` + `npm test` | 184 个离线用例覆盖 hash / state / agents / links / paths / updates / installer / discovery / remote / native-only / service |
 | `lib/routes.js` | 同上 + 手工打一次接口 | 路由无单测，改 `matchRoute` 后按 §2 的 curl 自测 |
 | `client/**` | `npm run build:client` + `npm run check` + `npm test` | 源码是唯一事实来源；改完必须重建并一起提交。`test/client.test.mjs` 用 React 存根跑「渲染 → effect → 再渲染」，能抓未定义变量与字段名错，但**不替代真浏览器** |
 | 根 `client.js` | `npm run check:client` | 生成物：不要手改；改 `client/**` 后重建 |
@@ -35,11 +35,11 @@ PR 与 push `main` 触发，**只按 lockfile 装依赖**（esbuild + 运行时 
 1. `npm ci`（`check:client` 需要 esbuild；`skills` 是运行时依赖，同时被装上）
 2. `bash -n scripts/ci-publish.sh`
 3. `npm run check` → `check-syntax.mjs`（lib/、client/、scripts/、test/、client.js 逐文件 `node --check`）→ `check:client`（按 `client/` 重建并与提交的 `client.js` 逐字节比对）→ `check-naming` → `check-pack` → `smoke-release-notes`
-4. `npm test` → 139 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
+4. `npm test` → 184 个 `node:test` 用例（临时 HOME / DSH_HOME + fake installer / Atom-codeload stub）
 
 注意：
 
-- 需要真实 `skills` CLI 或 GitHub 的动作（`npm run sync:agents`、真实安装/更新）**不在 CI**，本地跑并如实说明。
+- 需要真实 GitHub 的动作（`npm run sync:agents`、真实网络对拍）**不在 CI**，本地跑并如实说明。
 - `check-pack` 用临时 `npm_config_cache`；本机手动 `npm pack` 若报 `EPERM ~/.npm/_cacache`，是 `~/.npm` 里有 root 属主文件，不是包的问题。
 - workflow 用 `actions/checkout@v7` + `actions/setup-node@v7`，且**不设 `registry-url`**（v7 移除了 dummy `NODE_AUTH_TOKEN` 兜底，registry 由 `ci-publish.sh` 显式 `--registry` 指定），并显式 `package-manager-cache: false`。改这两处前先读 [发布流程 §7](../publishing.md)。
 - `runs-on` 写**显式版本** `ubuntu-24.04`，不用 `ubuntu-latest`：`ubuntu-latest` 自 2026-10-19 起分批迁到 26.04（11-19 完成），校验与发布结果不该随镜像漂移。要试新镜像就单独改成 `ubuntu-26.04` 跑一轮再切；`check` job 另有 `permissions: contents: read`（只读校验）。
