@@ -138,7 +138,7 @@ var DICT = {
     "links.hint": "保存后按勾选建立或移除接入；技能本体保留在原位置，不会移动。",
     "autoLink.detected": "安装后自动接入",
     "autoLink.none": "本机没有检测到其他 Agent",
-    "autoLink.hint": "dsh（全局）始终接入；这里只影响之后安装时的自动接入，已安装的技能请在「接入设置」里改。",
+    "autoLink.hint": "列表里的「dsh（全局）」固定勾选、不能取消；这里只影响之后安装时的自动接入，已安装的技能请在「接入设置」里改。",
     "empty.skills": "还没有安装任何技能",
     "empty.skillsHint": "在终端跑 `npx skills add owner/repo`，或点右上角「添加技能」",
     "empty.subs": "还没有添加订阅",
@@ -268,7 +268,7 @@ var DICT = {
     "links.hint": "Saving only adds or removes links; the skill itself stays where it is.",
     "autoLink.detected": "Auto-link after install",
     "autoLink.none": "No other agents detected on this machine",
-    "autoLink.hint": 'dsh (global) is always linked; this only affects future installs. Change existing skills under "Link settings".',
+    "autoLink.hint": 'The "dsh (global)" entry is always checked and cannot be unchecked; this only affects future installs. Change existing skills under "Link settings".',
     "empty.skills": "No skills installed yet",
     "empty.skillsHint": 'Run `npx skills add owner/repo` or use "Add skill".',
     "empty.subs": "No subscriptions yet",
@@ -945,6 +945,9 @@ var CSS = `
   .dshsc-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
     padding: 4px; max-height: 300px; overflow: auto; display: flex; flex-direction: column; }
   .dshsc-panel .dshsc-check:hover { background: var(--dsw-alias-bg-layer-2); }
+  /* 必选项（dsh 全局）：勾着但不可改，别让它看起来能点 */
+  .dshsc-panel .dshsc-check.locked { cursor: default; }
+  .dshsc-panel .dshsc-check.locked:hover { background: transparent; }
 
   .dshsc-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
   .dshsc-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 10px 13px; border-radius: 9px;
@@ -1976,7 +1979,7 @@ function LinksModal({ t, row, agents, workspaces, pickDirectory, onCancel, onSav
     h("p", { className: "dshsc-sub" }, t("links.canonical").replace("{path}", `~/.agents/skills/${row.name}`)),
     ...candidates.map((agent) => h(
       "label",
-      { className: "dshsc-check", key: agent.target },
+      { className: `dshsc-check${agent.target === "dsh-global" ? " locked" : ""}`, key: agent.target },
       h("input", {
         type: "checkbox",
         checked: agent.target === "dsh-global" ? true : targets.has(agent.target),
@@ -2034,7 +2037,7 @@ function LinksModal({ t, row, agents, workspaces, pickDirectory, onCancel, onSav
     h("p", { className: "dshsc-sub" }, t("links.hint"))
   );
 }
-function AutoLinkModal({ t, settings, agents, onCancel, onSave }) {
+function AutoLinkModal({ t, settings, agents, dsh, onCancel, onSave }) {
   const [targets, setTargets] = import_react3.default.useState(() => new Set(
     Array.isArray(settings.autoLinkTargets) ? settings.autoLinkTargets : agents.map((agent) => agent.target)
   ));
@@ -2055,19 +2058,39 @@ function AutoLinkModal({ t, settings, agents, onCancel, onSave }) {
         h("button", { key: "s", className: "dshsc-btn primary", onClick: () => onSave([...targets]) }, t("action.save"))
       ]
     },
-    h("p", { className: "dshsc-sub" }, t("links.dshGlobal") + " · " + t("links.required")),
     h("div", { className: "dshsc-group" }, t("autoLink.detected")),
-    agents.length === 0 ? h("p", { className: "dshsc-sub" }, t("autoLink.none")) : h("div", { className: "dshsc-panel" }, agents.map((agent) => h(
-      "label",
-      { className: "dshsc-check", key: agent.target },
-      h("input", {
-        type: "checkbox",
-        checked: targets.has(agent.target),
-        onChange: () => toggle(agent.target)
-      }),
-      h("span", null, agent.label),
-      h("small", null, agent.dir)
-    ))),
+    h(
+      "div",
+      { className: "dshsc-panel" },
+      // dsh（全局）始终接入：列表里也勾上，只是不能改，勾选数与页头的计数器才对得上
+      h(
+        "label",
+        { className: "dshsc-check locked", key: "dsh-global" },
+        h("input", {
+          type: "checkbox",
+          checked: true,
+          disabled: true,
+          readOnly: true,
+          onChange: () => {
+          }
+        }),
+        h("span", null, dsh?.label || t("links.dshGlobal")),
+        h("small", null, t("links.required")),
+        dsh?.dir ? h("small", { title: dsh.dir }, dsh.dir) : null
+      ),
+      ...agents.map((agent) => h(
+        "label",
+        { className: "dshsc-check", key: agent.target },
+        h("input", {
+          type: "checkbox",
+          checked: targets.has(agent.target),
+          onChange: () => toggle(agent.target)
+        }),
+        h("span", null, agent.label),
+        h("small", null, agent.dir)
+      ))
+    ),
+    agents.length === 0 ? h("p", { className: "dshsc-sub" }, t("autoLink.none")) : null,
     h("p", { className: "dshsc-sub" }, t("autoLink.hint"))
   );
 }
@@ -2211,7 +2234,7 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
     h("p", { className: "dshsc-sub" }, t("form.hint"))
   );
 }
-function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClose, onSaveAutoLink }) {
+function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirectory, actions, onClose, onSaveAutoLink }) {
   if (modal.type === "add-skill") {
     return h(AddSkillModal, {
       t,
@@ -2253,6 +2276,7 @@ function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClos
       t,
       settings: data?.settings || {},
       agents: autoLinkAgents,
+      dsh: autoLinkDsh,
       onCancel: onClose,
       onSave: (targets) => void onSaveAutoLink(targets)
     });
@@ -2327,6 +2351,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const autolinkTargets = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent");
   const autoLinkSelection = data?.settings?.autoLinkTargets;
   const autoLinkAgents = Array.isArray(autoLinkSelection) ? autolinkTargets.filter((agent) => autoLinkSelection.includes(agent.target)) : autolinkTargets;
+  const autoLinkDsh = (data?.agents?.all || []).find((agent) => agent.target === "dsh-global") || null;
   const autoLinkLabel = [t("links.dshGlobal"), ...autoLinkAgents.map((agent) => agent.label)].join("、");
   const placement = (placementOverride ?? data?.settings?.placement) === "sidebar" ? "sidebar" : "settings";
   async function changePlacement(next) {
@@ -2442,6 +2467,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       modal,
       data,
       autoLinkAgents: autolinkTargets,
+      autoLinkDsh,
       pickDirectory,
       actions: {
         probeSkills: actions.probeSkills,

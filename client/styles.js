@@ -322,6 +322,9 @@ export const CSS = `
   .dshsc-panel { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1);
     padding: 4px; max-height: 300px; overflow: auto; display: flex; flex-direction: column; }
   .dshsc-panel .dshsc-check:hover { background: var(--dsw-alias-bg-layer-2); }
+  /* 必选项（dsh 全局）：勾着但不可改，别让它看起来能点 */
+  .dshsc-panel .dshsc-check.locked { cursor: default; }
+  .dshsc-panel .dshsc-check.locked:hover { background: transparent; }
 
   .dshsc-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
   .dshsc-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 10px 13px; border-radius: 9px;

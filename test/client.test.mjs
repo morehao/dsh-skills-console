@@ -679,7 +679,7 @@ test('设置导航：只把自己那一行从齿轮换成本插件图标，卸�
   assert.equal(dom.styles.length, 0, '卸载时移除样式');
 });
 
-test('自动接入：按 Agent 多选，只列本机已装的', async () => {
+test('自动接入：按 Agent 多选，只列本机已装的，dsh 全局固定勾选', async () => {
   const { Component, stub } = loadModule(STATE);
   const first = stub.render(Component, {});
   first.effects.forEach((fn) => fn());
@@ -697,14 +697,38 @@ test('自动接入：按 Agent 多选，只列本机已装的', async () => {
   assert.ok(text.includes('安装后自动接入'));
   assert.ok(text.includes('Claude Code'));
   assert.ok(!text.includes('CodeBuddy'), '未安装的 Agent 不展示');
+  assert.ok(text.includes('dsh（全局）'), 'dsh（全局）要出现在列表里');
+  assert.ok(text.includes('/tmp/.dsh/skills'), 'dsh（全局）要带接入目录');
   const checks = collectByType(modal, 'input').filter((node) => node.props.type === 'checkbox');
-  assert.equal(checks.length, 1, '只展示探测到的 Agent');
-  assert.equal(checks[0].props.checked, true, 'settings 里已勾选');
+  assert.equal(checks.length, 2, 'dsh 全局 + 一个探测到的 Agent');
+  assert.equal(checks[0].props.checked, true, 'dsh（全局）默认勾选');
+  assert.equal(checks[0].props.disabled, true, 'dsh（全局）勾着但不能改');
+  assert.equal(checks[1].props.checked, true, 'settings 里已勾选');
+  const checkedCount = checks.filter((node) => node.props.checked).length;
+  assert.equal(checkedCount, 2, '列表里的勾选数要和页头的「自动接入 · 2」一致');
 
-  checks[0].props.onChange();
+  checks[1].props.onChange();
   const toggled = stub.render(Component, {}, first.hooks).tree;
   const nextChecks = collectByType(toggled, 'input').filter((node) => node.props.type === 'checkbox');
-  assert.equal(nextChecks[0].props.checked, false, '取消勾选要生效');
+  assert.equal(nextChecks[0].props.checked, true, 'dsh（全局）始终勾着');
+  assert.equal(nextChecks[1].props.checked, false, '取消勾选要生效');
+});
+
+test('自动接入：一个 Agent 都没探测到时，仍列出固定勾选的 dsh 全局', async () => {
+  const { Component, stub } = loadModule({ ...STATE, agents: { all: STATE.agents.all, detected: [STATE.agents.detected[0]] } });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const header = collectButtons(tree).find((button) => String(textOf(button)).startsWith('自动接入'));
+  assert.match(String(textOf(header)), /自动接入 · 1/, '只有 dsh 时计数为 1');
+  header.props.onClick();
+  const modal = stub.render(Component, {}, first.hooks).tree;
+  const checks = collectByType(modal, 'input').filter((node) => node.props.type === 'checkbox');
+  assert.equal(checks.length, 1, '只有 dsh 一行');
+  assert.equal(checks[0].props.checked, true);
+  assert.equal(checks[0].props.disabled, true);
+  assert.ok(textOf(modal).includes('本机没有检测到其他 Agent'));
 });
 
 test('接入设置：只列本机已装 Agent，并可直接勾 DSH 工作区', async () => {

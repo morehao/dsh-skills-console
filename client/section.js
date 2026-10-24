@@ -59,6 +59,8 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const autoLinkAgents = Array.isArray(autoLinkSelection)
     ? autolinkTargets.filter((agent) => autoLinkSelection.includes(agent.target))
     : autolinkTargets;
+  // dsh（全局）始终接入：弹窗里作为固定勾选的一行展示，计数也含它
+  const autoLinkDsh = (data?.agents?.all || []).find((agent) => agent.target === 'dsh-global') || null;
   const autoLinkLabel = [t('links.dshGlobal'), ...autoLinkAgents.map((agent) => agent.label)].join('、');
   const placement = (placementOverride ?? data?.settings?.placement) === 'sidebar' ? 'sidebar' : 'settings';
 
@@ -182,6 +184,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       modal,
       data,
       autoLinkAgents: autolinkTargets,
+      autoLinkDsh,
       pickDirectory,
       actions: {
         probeSkills: actions.probeSkills,
