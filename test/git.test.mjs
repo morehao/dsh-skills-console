@@ -115,9 +115,18 @@ function shimSandbox(extraEnv = {}, records = null) {
   return { root, env, calls, shim };
 }
 
-/** 测试期间对比 tmpdir 里是否残留临时仓库。 */
-function tmpDirs() {
-  return new Set(fs.readdirSync(os.tmpdir()).filter((name) => name.startsWith('dsh-skills-git-')));
+/** 每个用例自己的临时目录根：不扫全局 /tmp，避免与其他测试文件并行时互相看见。 */
+function tmpRootFor(root) {
+  return path.join(root, 'tmp');
+}
+
+/** 该用例的临时目录根里是否还残留仓库。 */
+function leftovers(tmpRoot) {
+  try {
+    return fs.readdirSync(tmpRoot);
+  } catch {
+    return [];
+  }
 }
 
 test('repoUrl 只认 owner/repo，重建 https URL 并拒绝不安全形态', () => {
@@ -153,8 +162,8 @@ test('lsTree 解析 -z 输出：路径含空格 / 中文、根级 SKILL.md 都�
     ['100644', 'blob', '5'.repeat(40), '技能/中文/SKILL.md'],
     ['160000', 'commit', '6'.repeat(40), 'vendor/sub'],
   ]);
-  const before = tmpDirs();
-  const result = await lsTree({ url: repoUrl('morehao/agent-skills'), ref: 'main', env, timeoutMs: 5000 });
+  const tmpRoot = tmpRootFor(root);
+  const result = await lsTree({ url: repoUrl('morehao/agent-skills'), ref: 'main', env, timeoutMs: 5000, tmpRoot });
   assert.equal(result.commit, COMMIT);
   assert.equal(result.rootSha, ROOT_SHA);
   assert.deepEqual(
@@ -164,8 +173,7 @@ test('lsTree 解析 -z 输出：路径含空格 / 中文、根级 SKILL.md 都�
   );
   assert.deepEqual(result.entries[2], { type: 'blob', path: 'skills/a b/SKILL.md', sha: '3'.repeat(40) });
 
-  const leaked = [...tmpDirs()].filter((name) => !before.has(name));
-  assert.deepEqual(leaked, [], '临时仓库必须清理干净');
+  assert.deepEqual(leftovers(tmpRoot), [], '临时仓库必须清理干净');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -182,15 +190,14 @@ test('lsTree: git < 2.19 不认 --filter 时去掉重试一次', async () => {
 
 test('lsTree: 超时被 SIGKILL，返回 git-timeout（临时目录照样清理）', async () => {
   const { root, env } = shimSandbox({ SHIM_SLEEP: '1' });
-  const before = tmpDirs();
+  const tmpRoot = tmpRootFor(root);
   const startedAt = Date.now();
   await assert.rejects(
-    () => lsTree({ url: repoUrl('morehao/agent-skills'), ref: 'main', env, timeoutMs: 300 }),
+    () => lsTree({ url: repoUrl('morehao/agent-skills'), ref: 'main', env, timeoutMs: 300, tmpRoot }),
     (error) => error.kind === 'git-timeout',
   );
   assert.ok(Date.now() - startedAt < 3000, '必须硬超时，不能等 shim 睡完');
-  const leaked = [...tmpDirs()].filter((name) => !before.has(name));
-  assert.deepEqual(leaked, [], '超时也要清理临时目录');
+  assert.deepEqual(leftovers(tmpRoot), [], '超时也要清理临时目录');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
