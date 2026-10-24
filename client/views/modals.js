@@ -112,7 +112,7 @@ export function LinksModal({ t, row, agents, workspaces, pickDirectory, onCancel
   h('p', { className: 'dshsc-sub' }, t('links.detectedHint')),
   h('p', { className: 'dshsc-sub' }, t('links.canonical').replace('{path}', `~/.agents/skills/${row.name}`)),
   ...candidates.map((agent) =>
-    h('label', { className: 'dshsc-check', key: agent.target },
+    h('label', { className: `dshsc-check${agent.target === 'dsh-global' ? ' locked' : ''}`, key: agent.target },
       h('input', {
         type: 'checkbox',
         checked: agent.target === 'dsh-global' ? true : targets.has(agent.target),
@@ -159,7 +159,7 @@ export function LinksModal({ t, row, agents, workspaces, pickDirectory, onCancel
   h('p', { className: 'dshsc-sub' }, t('links.hint')));
 }
 
-export function AutoLinkModal({ t, settings, agents, onCancel, onSave }) {
+export function AutoLinkModal({ t, settings, agents, dsh, onCancel, onSave }) {
   const [targets, setTargets] = React.useState(() => new Set(
     Array.isArray(settings.autoLinkTargets) ? settings.autoLinkTargets : agents.map((agent) => agent.target),
   ));
@@ -178,19 +178,32 @@ export function AutoLinkModal({ t, settings, agents, onCancel, onSave }) {
       h('button', { key: 's', className: 'dshsc-btn primary', onClick: () => onSave([...targets]) }, t('action.save')),
     ],
   },
-  h('p', { className: 'dshsc-sub' }, t('links.dshGlobal') + ' · ' + t('links.required')),
   h('div', { className: 'dshsc-group' }, t('autoLink.detected')),
+  h('div', { className: 'dshsc-panel' },
+    // dsh（全局）始终接入：列表里也勾上，只是不能改，勾选数与页头的计数器才对得上
+    h('label', { className: 'dshsc-check locked', key: 'dsh-global' },
+      h('input', {
+        type: 'checkbox',
+        checked: true,
+        disabled: true,
+        readOnly: true,
+        onChange: () => {},
+      }),
+      h('span', null, dsh?.label || t('links.dshGlobal')),
+      h('small', null, t('links.required')),
+      dsh?.dir ? h('small', { title: dsh.dir }, dsh.dir) : null),
+    ...agents.map((agent) =>
+      h('label', { className: 'dshsc-check', key: agent.target },
+        h('input', {
+          type: 'checkbox',
+          checked: targets.has(agent.target),
+          onChange: () => toggle(agent.target),
+        }),
+        h('span', null, agent.label),
+        h('small', null, agent.dir)))),
   agents.length === 0
     ? h('p', { className: 'dshsc-sub' }, t('autoLink.none'))
-    : h('div', { className: 'dshsc-panel' }, agents.map((agent) =>
-        h('label', { className: 'dshsc-check', key: agent.target },
-          h('input', {
-            type: 'checkbox',
-            checked: targets.has(agent.target),
-            onChange: () => toggle(agent.target),
-          }),
-          h('span', null, agent.label),
-          h('small', null, agent.dir)))),
+    : null,
   h('p', { className: 'dshsc-sub' }, t('autoLink.hint')));
 }
 
@@ -328,7 +341,7 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
 }
 
 /** 按 modal.type 分发；未识别的类型不渲染。 */
-export function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions, onClose, onSaveAutoLink }) {
+export function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirectory, actions, onClose, onSaveAutoLink }) {
   if (modal.type === 'add-skill') {
     return h(AddSkillModal, {
       t,
@@ -370,6 +383,7 @@ export function Modals({ t, modal, data, autoLinkAgents, pickDirectory, actions,
       t,
       settings: data?.settings || {},
       agents: autoLinkAgents,
+      dsh: autoLinkDsh,
       onCancel: onClose,
       onSave: (targets) => void onSaveAutoLink(targets),
     });
