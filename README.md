@@ -41,7 +41,7 @@ DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入
 
 ## 安装
 
-插件依赖里自带 `tar@7.5.22`（native installer 解压）；`skills@1.7.4` 仅作为过渡期依赖随包安装，运行时代码已不调用，P3 移除。**不需要用户预装 Node / npm / npx / git**。首次装插件需要联网拉取依赖。
+插件只带 `tar@7.5.22`（native installer 解压），**不需要用户预装 Node / npm / npx / git**。首次装插件需要联网拉取依赖。
 
 在 Harness 里装本地 link：
 

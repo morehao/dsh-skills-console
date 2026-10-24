@@ -6,7 +6,7 @@
 
 - 包：`@morehao/dsh-skills-console`（显示名「技能控制台」），DeepSeek Harness（dsh）的**技能控制台插件**；**仓库根即包根**，无 workspace、无子包目录。
 - 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（源码 `client/`，构建产物 [client.js](client.js)，`window.__ModuleLoader__` bundle；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板）。
-- 纯 ESM、**runtime 依赖只有 `skills@1.7.4` 与 `tar@7.5.22`（均精确锁版本）**：`skills` 仅为过渡期依赖（P2 起运行时代码不再调用，P3 移除），`tar` 供 native installer 解压；Host 无构建，Web Client 由 esbuild 打包（构建期 devDependency，生成物提交）；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
+- 纯 ESM、**runtime 依赖只有 `tar@7.5.22`（精确锁版本）**，供 native installer 解压；Host 无构建，Web Client 由 esbuild 打包（构建期 devDependency，生成物提交）；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
 - 技能真身的安装/更新/删除由 native installer 写入：下载/解压/canonical（`~/.agents/skills`）/v3 lock 均由 `lib/core/installer.js` 负责。本插件其余部分只做「发链接 + 记账 + 事务编排」。
 - 发布：注记 tag `vX.Y.Z` → GitHub Actions OIDC → npm；发布成功后 CI 用注记正文建 GitHub Release。
 
@@ -19,7 +19,6 @@
 | [lib/core/installer.js](lib/core/installer.js) | native installer：staging → 原子 promote → v3 lock 事务；安装/更新/删除的 canonical/lock 写入者 |
 | [lib/core/discovery.js](lib/core/discovery.js) | 解压目录里的 `SKILL.md` 发现、subpath/重名/命名校验 |
 | [lib/core/skill-md.js](lib/core/skill-md.js) | `SKILL.md` frontmatter `name`/`description` 解析（Installer 与 Service 共用） |
-| [lib/core/cli.js](lib/core/cli.js) | 过渡模块：`skills` CLI 定位与 spawn；P2 起 Service 不再调用，P3 删除 |
 | [lib/core/hash.js](lib/core/hash.js) | 复刻 CLI 的内容哈希（与 lock 的 `skillFolderHash` 对拍） |
 | [lib/core/remote.js](lib/core/remote.js) | codeload tarball 下载（限额 / 超时 / 重定向 / token 安全）；native installer 模块 |
 | [lib/core/archive.js](lib/core/archive.js) | 安全 tar 解压（拒绝穿越 / 绝对路径 / symlink / hardlink / 超限）；native installer 模块 |
@@ -30,7 +29,6 @@
 | [lib/core/links.js](lib/core/links.js) | 软链四态判定、建/删、幂等 |
 | [lib/core/inventory.js](lib/core/inventory.js) | canonical 扫描 + lock 读取 + 可见性对账 |
 | [lib/core/updates.js](lib/core/updates.js) | GitHub Trees 快照、REST 失败分流（限流/404/网络）、L0–L3 判定、计划 token |
-| [lib/core/git.js](lib/core/git.js) | 过渡模块：只读 git 通道（`ls-remote` / 临时 clone + `ls-tree`）；P2 起不再调用，P3 删除 |
 | [lib/core/trash.js](lib/core/trash.js) | 删除前快照（回收站）与备份 |
 | [lib/core/log.js](lib/core/log.js) | JSONL 事件日志，1MB 滚动，写失败不阻塞主流程 |
 | [client/](client/) | Web Client 源码（ESM）：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app` |
@@ -65,7 +63,7 @@
 - 每次改 `client/**`：先 `npm run build:client`，再把 `client/` 与根 `client.js` 一起提交。`npm run check` 里的 `check:client` 会在内存中重建并逐字节比对，不一致直接红。
 - 生成物必须提交（`link:` 安装与 npm 包都直接读根 `client.js`）；不要加进 `.gitignore`，也不要把 `client/` 加进 `package.json.files`。
 - 客户端只允许 `require('react')` / `require('react-dom')`（后者可选）；其它宿主模块或 npm 包一律不许。源码内的相对 `import` 由构建内联；运行时不解析相对 `require`。
-- 构建期依赖只有 esbuild（devDependency）；runtime **只允许** `skills@1.7.4`（过渡依赖，P2 后无调用，P3 移除）与 `tar@7.5.22`（native installer）两个依赖，均为精确版本，不要新增其他 `dependencies`。
+- 构建期依赖只有 esbuild（devDependency）；runtime **只允许** `tar@7.5.22`（native installer）一个依赖，精确版本，不要新增其他 `dependencies`。
 - `client.js.map` 只用于本地调试（`npm run build:client -- --sourcemap`）：不提交、不入包。
 - 文案：`client/copy.js` 的 `zh` / `en` 键集合与 `{n}` / `{path}` 占位符必须一一对应；新增文案必须两份一起加。
 - 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app` / `index`；禁止循环依赖；`hooks` / `actions` 只依赖 `api`，`views` 不直接发请求。
@@ -88,17 +86,17 @@
 
 | 目的 | 命令 |
 |---|---|
-| 首次安装依赖（构建期 + tar/skills） | `npm install` |
+| 首次安装依赖（构建期 + tar） | `npm install` |
 | 从 `client/` 生成根 `client.js` | `npm run build:client` |
 | 监听源码并自动重建（配合 `link:` HMR） | `npm run dev:client` |
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
-| 单元测试（205 例，离线；真实网络对拍默认 skip） | `npm test` |
+| 单元测试（184 例，离线；真实网络对拍默认 skip） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
 | Release body 投影冒烟 | `node scripts/smoke-release-notes.mjs` |
-| 重新导出 agent 目录表（需本机有 `skills` CLI） | `npm run sync:agents -- <skills/dist/cli.mjs>` |
+| 重新导出 agent 目录表（仅开发脚本，需外部 `skills` CLI） | `npm run sync:agents -- <skills/dist/cli.mjs>` |
 | 发布脚本语法 | `bash -n scripts/ci-publish.sh` |
 
 ## 4. 任务路由

@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createCli } from '../lib/core/cli.js';
 import { createPaths } from '../lib/core/paths.js';
 import { createRegistry } from '../lib/core/agents.js';
 import { createService } from '../lib/core/service.js';
@@ -15,65 +14,6 @@ import { writeTarFixture } from './helpers/tar-fixture.mjs';
 
 const TREE_SHA = 'e'.repeat(40);
 const COMMIT = 'f'.repeat(40);
-
-// 模拟 skills CLI：add 会重建 canonical 目录并写 lock；remove 会删目录与 lock 条目
-const STUB = `#!/usr/bin/env node
-const fs = require('node:fs');
-const path = require('node:path');
-const args = process.argv.slice(2);
-const home = process.env.TEST_HOME;
-const canonical = path.join(home, '.agents', 'skills');
-const lockPath = path.join(home, '.agents', '.skill-lock.json');
-const readLock = () => { try { return JSON.parse(fs.readFileSync(lockPath, 'utf8')); } catch { return { version: 3, skills: {} }; } };
-const writeLock = (lock) => { fs.mkdirSync(path.dirname(lockPath), { recursive: true }); fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2)); };
-const namesAfter = (flag) => {
-  const out = [];
-  const index = args.indexOf(flag);
-  if (index < 0) return out;
-  for (let i = index + 1; i < args.length && !args[i].startsWith('-'); i += 1) out.push(args[i]);
-  return out;
-};
-if (args.includes('--version')) { console.log('1.7.4'); process.exit(0); }
-if (args[0] === 'add' && args.includes('--help')) { console.log('--json --full-depth --skill'); process.exit(0); }
-if (args[0] === 'list') { console.log('[]'); process.exit(0); }
-if (args[0] === 'add') {
-  let names = namesAfter('--skill');
-  // \`--skill '*'\` = 整仓全部；stub 固定回两个，方便断言"留空装全部"
-  if (names.includes('*')) names = ['all-one', 'all-two'];
-  const lock = readLock();
-  for (const name of names) {
-    const dir = path.join(canonical, name);
-    fs.rmSync(dir, { recursive: true, force: true });
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\\nname: ' + name + '\\ndescription: demo\\n---\\nbody\\n');
-    lock.skills[name] = {
-      source: process.env.TEST_SOURCE || 'morehao/ai-kit',
-      sourceType: 'github',
-      sourceUrl: 'https://github.com/morehao/ai-kit.git',
-      skillPath: 'skills/' + name + '/SKILL.md',
-      skillFolderHash: process.env.TEST_TREE_SHA || '${TREE_SHA}',
-      installedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  }
-  lock.version = 3;
-  writeLock(lock);
-  console.log(JSON.stringify(names.map((name) => ({ name, status: 'installed' }))));
-  process.exit(0);
-}
-if (args[0] === 'remove') {
-  const names = namesAfter('-s');
-  const lock = readLock();
-  for (const name of names) {
-    fs.rmSync(path.join(canonical, name), { recursive: true, force: true });
-    delete lock.skills[name];
-  }
-  writeLock(lock);
-  console.log('removed');
-  process.exit(0);
-}
-process.exit(0);
-`;
 
 /**
  * Service 测试替身：只模拟 installer 的对外契约（canonical + lock），
@@ -156,29 +96,18 @@ function setup(extra = {}, envExtra = {}) {
   const home = path.join(root, 'home');
   fs.mkdirSync(path.join(home, '.dsh', 'skills'), { recursive: true });
   fs.mkdirSync(path.join(home, '.claude', 'skills'), { recursive: true });
-  const stub = path.join(root, 'stub.cjs');
-  fs.writeFileSync(stub, STUB);
   const paths = createPaths({ HOME: home, DSH_HOME: path.join(home, '.dsh') });
   const store = new StateStore(paths);
   store.load();
   const registry = createRegistry({ paths, getState: () => store.state });
-  const env = {
-    ...process.env,
-    DSH_SKILLS_CONSOLE_CLI: `${process.execPath} ${stub}`,
-    TEST_HOME: home,
-    TEST_TREE_SHA: TREE_SHA,
-    PATH: '',
-    ...envExtra,
-  };
+  const env = { ...process.env, TEST_TREE_SHA: TREE_SHA, ...envExtra };
   const logger = () => {};
-  const cli = createCli({ env, logger });
   const defaultGh = githubStub({ tree: DEFAULT_TREE });
   const installer = extra.installer || createFakeInstaller({ paths, env, usable: extra.installerUsable !== false });
   const service = createService({
     paths,
     store,
     registry,
-    cli,
     installer,
     logger,
     env,
