@@ -5,7 +5,7 @@
 ## 1. 环境
 
 - Node.js ≥ 22.20（`engines`：`^22.20.0 || >=24.0.0`），npm 随 Node。
-- **runtime 依赖只有 `skills@1.7.4`**：随插件安装，精确锁版本；构建期 devDependency 只有 `esbuild`（`package-lock.json` 已提交）。`npm test` 仍离线、不依赖真实 CLI；`npm run check` 含 `check:client`（会重建 bundle），开发机需要先 `npm install`。
+- **runtime 依赖只有 `skills@1.7.4` 与 `tar@7.5.22`**：均随插件安装、精确锁版本；`skills` 是现行 CLI 路径（0.3 native installer 完成后移除），`tar` 供 native installer 解压；构建期 devDependency 只有 `esbuild`（`package-lock.json` 已提交）。`npm test` 仍离线、不依赖真实 CLI；`npm run check` 含 `check:client`（会重建 bundle），开发机需要先 `npm install`。
 - `skills` CLI 由插件依赖自带，用宿主 Node 启动；定位顺序：`DSH_SKILLS_CONSOLE_CLI` 覆盖 → 插件依赖 → `$DSH_PROFILE_DIR` / `$DSH_HOME/profiles/*` → `PATH` → `npx`（legacy）。安装技能还需要本机有 `git`（CLI 会 clone 仓库），没有 git 时接口会返回 `error.skills.git-missing`。
 
 ## 2. 目录结构

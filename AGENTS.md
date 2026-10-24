@@ -6,7 +6,7 @@
 
 - 包：`@morehao/dsh-skills-console`（显示名「技能控制台」），DeepSeek Harness（dsh）的**技能控制台插件**；**仓库根即包根**，无 workspace、无子包目录。
 - 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（源码 `client/`，构建产物 [client.js](client.js)，`window.__ModuleLoader__` bundle；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板）。
-- 纯 ESM、**唯一 runtime 依赖是 `skills`（精确锁版本，随插件安装）**；Host 无构建，Web Client 由 esbuild 打包（构建期 devDependency，生成物提交）；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
+- 纯 ESM、**runtime 依赖只有 `skills@1.7.4` 与 `tar@7.5.22`（均精确锁版本）**：`skills` 是现行 CLI 路径（0.3 native installer 完成后移除），`tar` 供 native installer 解压；Host 无构建，Web Client 由 esbuild 打包（构建期 devDependency，生成物提交）；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
 - 技能真身只认 [`skills`](https://www.npmjs.com/package/skills) CLI：下载/落盘 canonical（`~/.agents/skills`）/写 lock 全交给它；本插件只做「发链接 + 记账 + 事务编排」。
 - 发布：注记 tag `vX.Y.Z` → GitHub Actions OIDC → npm；发布成功后 CI 用注记正文建 GitHub Release。
 
@@ -18,6 +18,10 @@
 | [lib/core/paths.js](lib/core/paths.js) | 路径与 env 覆盖（`HOME` / `XDG_CONFIG_HOME` / `DSH_HOME` / `DSH_SKILLS_CONSOLE_HOME`） |
 | [lib/core/cli.js](lib/core/cli.js) | `skills` CLI 定位（插件依赖优先 → profile → PATH → `npx` 兜底）、能力位、spawn 封装 |
 | [lib/core/hash.js](lib/core/hash.js) | 复刻 CLI 的内容哈希（与 lock 的 `skillFolderHash` 对拍） |
+| [lib/core/remote.js](lib/core/remote.js) | codeload tarball 下载（限额 / 超时 / 重定向 / token 安全）；native installer 模块，P1 接线 |
+| [lib/core/archive.js](lib/core/archive.js) | 安全 tar 解压（拒绝穿越 / 绝对路径 / symlink / hardlink / 超限）；native installer 模块，P1 接线 |
+| [lib/core/git-tree.js](lib/core/git-tree.js) | 本地 Git tree SHA（40 位），与 CLI lock 的 `skillFolderHash` 对拍 |
+| [lib/core/lock.js](lib/core/lock.js) | v3 lock 原子读改写（保留未知字段 / 版本守卫 / `expectedDigest`）；P1 接线 |
 | [lib/core/state.js](lib/core/state.js) | `state.json` 原子写 + 校验 + 只读降级 |
 | [lib/core/agents.js](lib/core/agents.js) | 目标注册表（`dsh-global` / `agent:*` / `project:*` / `custom:*`） |
 | [lib/core/links.js](lib/core/links.js) | 软链四态判定、建/删、幂等 |
@@ -58,7 +62,7 @@
 - 每次改 `client/**`：先 `npm run build:client`，再把 `client/` 与根 `client.js` 一起提交。`npm run check` 里的 `check:client` 会在内存中重建并逐字节比对，不一致直接红。
 - 生成物必须提交（`link:` 安装与 npm 包都直接读根 `client.js`）；不要加进 `.gitignore`，也不要把 `client/` 加进 `package.json.files`。
 - 客户端只允许 `require('react')` / `require('react-dom')`（后者可选）；其它宿主模块或 npm 包一律不许。源码内的相对 `import` 由构建内联；运行时不解析相对 `require`。
-- 构建期依赖只有 esbuild（devDependency）；runtime **只允许** `skills` 一个依赖（精确锁版本，随插件安装），不要新增其他 `dependencies`。
+- 构建期依赖只有 esbuild（devDependency）；runtime **只允许** `skills@1.7.4`（现行 CLI 路径，0.3 P3 移除）与 `tar@7.5.22`（native installer）两个依赖，均为精确版本，不要新增其他 `dependencies`。
 - `client.js.map` 只用于本地调试（`npm run build:client -- --sourcemap`）：不提交、不入包。
 - 文案：`client/copy.js` 的 `zh` / `en` 键集合与 `{n}` / `{path}` 占位符必须一一对应；新增文案必须两份一起加。
 - 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app` / `index`；禁止循环依赖；`hooks` / `actions` 只依赖 `api`，`views` 不直接发请求。
@@ -86,7 +90,7 @@
 | 监听源码并自动重建（配合 `link:` HMR） | `npm run dev:client` |
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
-| 单元测试（139 例，离线） | `npm test` |
+| 单元测试（186 例，离线；真实网络对拍默认 skip） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
