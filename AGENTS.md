@@ -22,7 +22,8 @@
 | [lib/core/agents.js](lib/core/agents.js) | 目标注册表（`dsh-global` / `agent:*` / `project:*` / `custom:*`） |
 | [lib/core/links.js](lib/core/links.js) | 软链四态判定、建/删、幂等 |
 | [lib/core/inventory.js](lib/core/inventory.js) | canonical 扫描 + lock 读取 + 可见性对账 |
-| [lib/core/updates.js](lib/core/updates.js) | GitHub Trees 快照、L0–L3 判定、apply/rollback、计划 token |
+| [lib/core/updates.js](lib/core/updates.js) | GitHub Trees 快照、REST 失败分流（限流/404/网络）、L0–L3 判定、计划 token |
+| [lib/core/git.js](lib/core/git.js) | 只读 git 通道（`ls-remote` / 临时 clone + `ls-tree`），零配额探测与基线补录 |
 | [lib/core/trash.js](lib/core/trash.js) | 删除前快照（回收站）与备份 |
 | [lib/core/log.js](lib/core/log.js) | JSONL 事件日志，1MB 滚动，写失败不阻塞主流程 |
 | [client/](client/) | Web Client 源码（ESM）：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app` |
@@ -85,7 +86,7 @@
 | 监听源码并自动重建（配合 `link:` HMR） | `npm run dev:client` |
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
-| 单元测试（96 例，离线） | `npm test` |
+| 单元测试（131 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
