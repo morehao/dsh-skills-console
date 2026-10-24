@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.0] - 2026-10-24
+
+### Features
+
+- **installer**: native-only 0.3.0 installer（去 CLI/git） (#28)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.2.4...v0.3.0
+
 ## [v0.2.4] - 2026-10-24
 
 ### Features
