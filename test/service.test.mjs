@@ -72,7 +72,7 @@ if (args[0] === 'remove') {
 process.exit(0);
 `;
 
-function setup(extra = {}) {
+function setup(extra = {}, envExtra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-service-'));
   const home = path.join(root, 'home');
   fs.mkdirSync(path.join(home, '.dsh', 'skills'), { recursive: true });
@@ -89,6 +89,7 @@ function setup(extra = {}) {
     TEST_HOME: home,
     TEST_TREE_SHA: TREE_SHA,
     PATH: '',
+    ...envExtra,
   };
   const logger = () => {};
   const cli = createCli({ env, logger });
@@ -355,9 +356,86 @@ function jsonBody(body) {
   });
 }
 
+// 模拟 git：按 argv 输出固定内容，不联网。用于「探测/基线补录走 git」的用例。
+const GIT_SHIM = `#!/bin/sh
+echo "$@" >> "$SHIM_LOG"
+case "$1" in
+  --version)
+    echo "git version 2.40.0"
+    exit 0
+    ;;
+  ls-remote)
+    printf 'ref: refs/heads/%s\\tHEAD\\n' "\${SHIM_BRANCH:-main}"
+    printf '%s\\tHEAD\\n' "$SHIM_COMMIT"
+    exit 0
+    ;;
+  clone)
+    for last in "$@"; do :; done
+    mkdir -p "$last"
+    if [ "$SHIM_CLONE_FAIL" = "1" ]; then
+      echo "fatal: could not read Username for 'https://github.com': terminal prompts disabled" >&2
+      rm -rf "$last"
+      exit 128
+    fi
+    exit 0
+    ;;
+  -C)
+    shift
+    shift
+    cmd="$1"
+    shift
+    case "$cmd" in
+      rev-parse)
+        case "$*" in
+          *'^{tree}'*) echo "$SHIM_ROOT_SHA" ;;
+          *) echo "$SHIM_COMMIT" ;;
+        esac
+        exit 0
+        ;;
+      ls-tree)
+        tr '\\n' '\\0' < "$SHIM_TREE_FILE"
+        exit 0
+        ;;
+    esac
+    ;;
+esac
+exit 0
+`;
+
+/** 临时 git shim 目录 + 环境变量（PATH 只含 shim，外加 /usr/bin:/bin 给 tr）。 */
+function gitShim(root, { tree = [], commit = COMMIT, rootSha = TREE_SHA, extra = {} } = {}) {
+  const bin = path.join(root, 'git-bin');
+  fs.mkdirSync(bin, { recursive: true });
+  const shim = path.join(bin, 'git');
+  fs.writeFileSync(shim, GIT_SHIM);
+  fs.chmodSync(shim, 0o755);
+  const log = path.join(root, 'git.log');
+  fs.writeFileSync(log, '');
+  const treeFile = path.join(root, 'tree.txt');
+  fs.writeFileSync(
+    treeFile,
+    `${tree.map(([mode, type, sha, entryPath]) => `${mode} ${type} ${sha}\t${entryPath}`).join('\n')}\n`,
+  );
+  const env = {
+    PATH: `${bin}:/usr/bin:/bin`,
+    SHIM_LOG: log,
+    SHIM_TREE_FILE: treeFile,
+    SHIM_COMMIT: commit,
+    SHIM_ROOT_SHA: rootSha,
+    SHIM_BRANCH: 'main',
+    ...extra,
+  };
+  const calls = () => fs.readFileSync(log, 'utf8').trim().split('\n').filter(Boolean);
+  return { env, calls, bin };
+}
+
+function gitSandbox() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-gitshim-'));
+}
+
 /** 可控的 GitHub stub：按路径分派 repo 元数据 / trees / commits，并记录调用。 */
-function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT, contents = {} } = {}) {
-  const control = { defaultBranch, tree, commit, contents, fail: null };
+function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT, contents = {}, resetAt = 1_780_000_000 } = {}) {
+  const control = { defaultBranch, tree, commit, contents, fail: null, resetAt };
   const calls = [];
   const fetchImpl = async (url) => {
     calls.push(url);
@@ -370,6 +448,14 @@ function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT,
       return new Response(control.contents[filePath], { status: 200 });
     }
     const { pathname } = new URL(url);
+    if (control.fail === 'rate-limit') {
+      return new Response('{"message":"API rate limit exceeded"}', {
+        status: 403,
+        headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(control.resetAt) },
+      });
+    }
+    if (control.fail === 'forbidden') return new Response('{"message":"Forbidden"}', { status: 403 });
+    if (control.fail === 'server') return new Response('{"message":"boom"}', { status: 502 });
     if (/^\/repos\/[^/]+\/[^/]+$/.test(pathname)) {
       if (control.fail === 'metadata') return new Response('{"message":"Not Found"}', { status: 404 });
       return jsonBody({ default_branch: control.defaultBranch });
@@ -449,6 +535,27 @@ test('添加订阅：同一来源重复添加幂等', async () => {
   assert.equal(second.existing, true);
   assert.equal(second.subscription.id, first.subscription.id);
   assert.equal(store.state.subscriptions.length, 1);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('限流安装（lock 写 64 位内容哈希）：无假警告，按记录的 tree SHA 判定更新（T2）', async () => {
+  const CONTENT_HASH = 'a'.repeat(64);
+  const ENTRY_TREE_SHA = '2'.repeat(40);
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, { TEST_TREE_SHA: CONTENT_HASH });
+
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  const result = await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.installed[0].lockHash, CONTENT_HASH, 'lockHash 保持 lock 原值');
+  assert.equal(result.installed[0].lockHashShape, 'content', '形态要透出给诊断用');
+  assert.deepEqual(result.warnings, [], '64 位内容哈希不能触发「哈希不一致」假警告');
+  assert.equal(store.findInstall('alpha').treeSha, ENTRY_TREE_SHA, '安装时要记下快照里的 tree 基线');
+
+  const checked = await service.checkUpdates({});
+  assert.equal(checked.checks[0].status, 'current', '不再恒为 unknown，也不误报有更新');
+  assert.equal(checked.checks[0].baseline, 'recorded');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -575,11 +682,307 @@ test('探测来源：失败不进缓存，重试会重新请求', async () => {
   gh.control.fail = 'network';
   const { root, service } = setup({ fetchImpl: gh.fetchImpl });
 
-  await assert.rejects(() => service.probeSource({ source: 'morehao/agent-skills' }), /读不到 .* 的默认分支/);
+  await assert.rejects(
+    () => service.probeSource({ source: 'morehao/agent-skills' }),
+    (error) => error.code === 'error.skills.network',
+  );
   const callsAfterFailure = gh.calls.length;
   gh.control.fail = null;
   const result = await service.probeSource({ source: 'morehao/agent-skills' });
   assert.equal(result.ok, true, '重试能成功');
   assert.ok(gh.calls.length > callsAfterFailure, '失败没有留下缓存');
   fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：四种上游失败分成四个错误码与四句不同文案（T1）', async () => {
+  const cases = [
+    ['rate-limit', 'error.skills.rate-limited', /已限流[\s\S]*后自动恢复[\s\S]*5000 次\/小时/],
+    ['metadata', 'error.skills.repo-not-found', /仓库不存在或为私有/],
+    ['forbidden', 'error.skills.repo-forbidden', /被拒绝（HTTP 403）/],
+    ['server', 'error.skills.upstream-failed', /HTTP 502/],
+    ['network', 'error.skills.network', /无法连接 GitHub/],
+  ];
+  const messages = new Set();
+  for (const [fail, code, pattern] of cases) {
+    const gh = githubStub();
+    gh.control.fail = fail;
+    const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+    await assert.rejects(
+      () => service.probeSource({ source: 'morehao/agent-skills' }),
+      (error) => {
+        assert.equal(error.code, code, `${fail} 必须报 ${code}`);
+        assert.match(error.message, pattern);
+        messages.add(error.message);
+        if (fail === 'rate-limit') {
+          assert.match(error.message, /\d{2}:\d{2}/, '限流文案要带本机时区的重置时间');
+          assert.equal(typeof error.detail.resetAt, 'number');
+          assert.equal(error.detail.status, 403);
+        }
+        return true;
+      },
+    );
+    assert.equal(store.state.subscriptions.length, 0, '失败不能留下订阅');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+  assert.equal(messages.size, cases.length, '四种失败必须是四句不同的话');
+});
+
+// ---- T3：探测优先走 git；T3.7 安装后补录 tree 基线 --------------------------
+
+const SKILL_TREE = [
+  ['040000', 'tree', '2'.repeat(40), 'skills/alpha'],
+  ['100644', 'blob', '3'.repeat(40), 'skills/alpha/SKILL.md'],
+  ['040000', 'tree', '4'.repeat(40), 'skills/beta'],
+  ['100644', 'blob', '5'.repeat(40), 'skills/beta/SKILL.md'],
+];
+const SKILL_CONTENTS = {
+  'skills/alpha/SKILL.md': '---\nname: alpha\ndescription: 甲\n---\n',
+  'skills/beta/SKILL.md': '---\nname: beta\ndescription: 乙\n---\n',
+};
+
+test('探测来源：git 可用时优先走 git，零 REST 调用（T3）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE });
+  const gh = githubStub({ contents: SKILL_CONTENTS });
+  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+
+  const result = await service.probeSource({ source: 'https://github.com/morehao/agent-skills' });
+  assert.equal(result.ok, true);
+  assert.equal(result.via, 'git');
+  assert.equal(result.ref, 'main', '默认分支来自 ls-remote --symref');
+  assert.deepEqual(result.skills.map((item) => item.name), ['alpha', 'beta']);
+  assert.equal(
+    gh.calls.filter((url) => url.startsWith('https://api.github.com')).length,
+    0,
+    '走 git 时完全不碰 REST 配额',
+  );
+  assert.ok(gh.calls.some((url) => url.includes(`/${COMMIT}/`)), '描述按 commit 抓（不可变、可缓存）');
+  assert.equal(fs.existsSync(paths.stateFile), false, '探测不能写 state');
+  assert.equal(store.state.subscriptions.length, 0);
+  assert.ok(shim.calls().some((line) => line.startsWith('clone')), '确实 clone 了一次');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('探测来源：DSH_SKILLS_CONSOLE_GIT=off 强制走 REST（T3 逃生开关）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE });
+  const gh = githubStub({ contents: SKILL_CONTENTS });
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl }, { ...shim.env, DSH_SKILLS_CONSOLE_GIT: 'off' });
+
+  const result = await service.probeSource({ source: 'morehao/agent-skills' });
+  assert.equal(result.via, 'rest');
+  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), '关掉后走 REST');
+  assert.deepEqual(shim.calls(), [], '关掉后连 git --version 都不该跑');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('探测来源：git 缺失 → 回退 REST（不新增故障面）', async () => {
+  const gh = githubStub({
+    contents: SKILL_CONTENTS,
+    tree: [
+      { path: 'skills/alpha/SKILL.md', type: 'blob', sha: '3'.repeat(40) },
+      { path: 'skills/beta/SKILL.md', type: 'blob', sha: '5'.repeat(40) },
+    ],
+  });
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl });
+  const result = await service.probeSource({ source: 'morehao/agent-skills' });
+  assert.equal(result.via, 'rest');
+  assert.deepEqual(result.skills.map((item) => item.name), ['alpha', 'beta']);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('探测来源：git 与 REST 都失败 → 报限流（T1 文案）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, extra: { SHIM_CLONE_FAIL: '1' } });
+  const gh = githubStub();
+  gh.control.fail = 'rate-limit';
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+
+  await assert.rejects(
+    () => service.probeSource({ source: 'morehao/agent-skills' }),
+    (error) => error.code === 'error.skills.rate-limited' && /已限流/.test(error.message),
+  );
+  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), 'git 失败后确实回退了 REST');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('安装后基线补录：64 位 lock + git 可用 → installs[].treeSha 写入（T3.7）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE });
+  const { root, store, service } = setup(
+    { fetchImpl: async () => new Response('{}', { status: 500 }) },
+    { ...shim.env, TEST_TREE_SHA: 'c'.repeat(64) },
+  );
+
+  // 手填技能名安装：没有订阅、没有快照，lock 又是 64 位内容哈希
+  const result = await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  assert.equal(result.ok, true);
+  assert.equal(result.installed[0].lockHashShape, 'content');
+  assert.equal(result.installed[0].treeSha, '2'.repeat(40), '接口要把补录结果带出来');
+  assert.equal(store.findInstall('alpha').treeSha, '2'.repeat(40), 'state 里要落盘');
+  assert.equal(shim.calls().filter((line) => line.startsWith('clone')).length, 1, '一次 clone 拿到基线');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('安装后基线补录：同一来源装两个技能只 clone 一次（T3.7）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE });
+  const { root, store, service } = setup(
+    { fetchImpl: async () => new Response('{}', { status: 500 }) },
+    { ...shim.env, TEST_TREE_SHA: 'c'.repeat(64) },
+  );
+
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha', 'beta'] });
+  assert.equal(store.findInstall('alpha').treeSha, '2'.repeat(40));
+  assert.equal(store.findInstall('beta').treeSha, '4'.repeat(40));
+  assert.equal(shim.calls().filter((line) => line.startsWith('clone')).length, 1, '共用进程内树缓存');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('安装后基线补录：没有 git 时安装照常成功，treeSha 保持 null（T3.7 降级）', async () => {
+  const { root, store, service } = setup(undefined, { TEST_TREE_SHA: 'c'.repeat(64) });
+  const result = await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  assert.equal(result.ok, true, '补录是 best effort，绝不影响安装结果');
+  assert.equal(result.installed[0].lockHashShape, 'content');
+  assert.equal(result.installed[0].treeSha, undefined);
+  assert.equal(store.findInstall('alpha').treeSha, null);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+// ---- T4：更新检查 REST 失败转 git，并按 commit 短路 --------------------------
+
+const NEW_COMMIT = 'd'.repeat(40);
+
+test('刷新订阅：REST 限流时用 git 兜底，快照来自 git（T4）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT, '先由 REST 建了快照');
+
+  gh.control.fail = 'rate-limit';
+  const result = await service.refreshSubscription({ id: added.subscription.id });
+  assert.equal(result.ok, true);
+  assert.equal(result.via, 'git');
+  const row = store.state.subscriptions[0];
+  assert.equal(row.snapshot.commit, NEW_COMMIT, 'commit 来自 git 的 HEAD');
+  assert.equal(row.snapshot.etag, null, 'git 快照不带 ETag，下次刷新会完整读一次');
+  assert.equal(row.lastCheck.status, 'changed');
+  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), '确实先撞了 REST 403');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('刷新订阅：lsRemote 显示 commit 未变 → 不消耗任何 REST（T4 短路）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: COMMIT });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  const callsAfterAdd = gh.calls.length;
+
+  const result = await service.refreshSubscription({ id: added.subscription.id });
+  assert.equal(result.notModified, true);
+  assert.equal(result.changed, false);
+  assert.equal(result.via, 'git');
+  assert.equal(gh.calls.length, callsAfterAdd, '未变更的仓库检查消耗 0 次 REST');
+  const row = store.state.subscriptions[0];
+  assert.equal(row.lastCheck.status, 'unchanged');
+  assert.equal(row.snapshot.commit, COMMIT, '短路时绝不能把快照置空');
+  assert.equal(row.snapshot.entries.length, 1);
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('刷新订阅：lsRemote 变了但 REST 正常 → 仍用 REST 结果（T4 不抢主路径）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+
+  const result = await service.refreshSubscription({ id: added.subscription.id });
+  assert.equal(result.ok, true);
+  assert.equal(result.via, 'rest', 'REST 能通就用 REST（带 ETag）');
+  assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT);
+  assert.equal(store.state.subscriptions[0].lastCheck.treeEtag, 'W/"test"');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('刷新订阅：REST 与 git 都失败 → 报限流并留痕（T4）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT, extra: { SHIM_CLONE_FAIL: '1' } });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+
+  gh.control.fail = 'rate-limit';
+  await assert.rejects(
+    () => service.refreshSubscription({ id: added.subscription.id }),
+    (error) => error.code === 'error.skills.rate-limited',
+  );
+  assert.equal(store.state.subscriptions[0].lastCheck.status, 'unknown');
+  assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT, '失败不能清空上次快照');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('检查更新：配额耗尽时用 git 兜底，判定仍然有效（T4 + T2）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, { ...shim.env, TEST_TREE_SHA: 'a'.repeat(64) });
+
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+  assert.equal(store.findInstall('alpha').treeSha, '2'.repeat(40));
+
+  gh.control.fail = 'rate-limit';
+  const checked = await service.checkUpdates({});
+  assert.equal(checked.checks.length, 1);
+  assert.equal(checked.checks[0].status, 'current', '不再是 unknown，也不误报有更新');
+  assert.equal(checked.checks[0].via, 'git');
+  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), 'REST 确实试过并被限流');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
+});
+
+test('检查更新：两种通道都不可用 → 每个技能一条带错误码的 unknown（T4 降级）', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+
+  gh.control.fail = 'rate-limit';
+  const checked = await service.checkUpdates({});
+  assert.equal(checked.checks[0].status, 'unknown');
+  assert.equal(checked.checks[0].code, 'error.skills.rate-limited');
+  assert.match(checked.checks[0].detail, /已限流/);
+  assert.equal(store.state.checks.alpha.status, 'unknown');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('更新计划：配额耗尽时用 git 出计划，不出现「查得到更不了」（T4）', async () => {
+  const shimRoot = gitSandbox();
+  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
+  const gh = githubStub();
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+
+  gh.control.fail = 'rate-limit';
+  const plan = await service.planUpdate({ name: 'alpha' });
+  assert.equal(plan.ok, true);
+  assert.equal(plan.toCommit, NEW_COMMIT, 'commit 来自 git');
+  assert.equal(plan.targetTreeSha, '2'.repeat(40));
+  assert.equal(plan.ref, 'main');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(shimRoot, { recursive: true, force: true });
 });

@@ -66,7 +66,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 ## 可靠性
 
-- **canonical 与 CLI lock 只读**：`~/.agents/skills`、`~/.agents/.skill-lock.json` 的增删改只经 `skills` CLI，插件不直接写、不克隆仓库、不代理来源。
+- **canonical 与 CLI lock 只读**：`~/.agents/skills`、`~/.agents/.skill-lock.json` 的增删改只经 `skills` CLI，插件不直接写；探测 / 更新检查会把仓库临时 clone 到 `os.tmpdir()`（只读、用完即删），结果绝不落进 canonical 或 lock。
 - **只动自己的东西**：只处理本插件创建的 `managed` 链接，以及已记账的 `managed-external`；`real` 目录和 `foreign-link` 永不改写，删除前体检直接中止。
 - **启停不改正文**：`mode` 只增删 DSH 侧链接，避免本地修改被下一次 `add` 覆盖。
 - **可回滚**：删除进回收站（7 天）；更新前快照到 `backups/`，失败自动还原（接口另提供手动回滚）。
@@ -84,7 +84,22 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 | 备份 / 回收站 | `$DSH_HOME/skills-console/{backups,trash}` | 本插件 |
 | 事件日志 | `$DSH_HOME/skills-console/dsh-skills-console.log` | 本插件（JSONL，1MB 滚动） |
 
-环境变量：`DSH_SKILLS_CONSOLE_HOME`、`DSH_SKILLS_CONSOLE_CLI`、`DSH_SKILLS_CONSOLE_NPX_SPEC`、`DSH_SKILLS_CONSOLE_TIMEOUT_MS`、`GITHUB_TOKEN` / `GH_TOKEN`。
+### 环境变量
+
+| 变量 | 默认 | 作用 |
+| --- | --- | --- |
+| `DSH_SKILLS_CONSOLE_HOME` | `$DSH_HOME/skills-console` | 状态、备份、回收站与事件日志的根 |
+| `DSH_SKILLS_CONSOLE_CLI` | 自动定位 | 覆盖 `skills` CLI（测试桩也走这里） |
+| `DSH_SKILLS_CONSOLE_NPX_SPEC` | `skills` | 需要 `npx` 兜底时用的包名 / 版本 |
+| `DSH_SKILLS_CONSOLE_TIMEOUT_MS` | `120000` | 单次 CLI 调用超时 |
+| `DSH_SKILLS_CONSOLE_GIT` | `auto` | 设为 `off` 关闭 git 通道，强制只走 GitHub REST |
+| `DSH_SKILLS_CONSOLE_GIT_TIMEOUT_MS` | `60000` | git 单次操作（`ls-remote` / `clone`）超时 |
+| `GITHUB_TOKEN` / `GH_TOKEN` | 无 | 只读环境变量；带上后 REST 配额从匿名 60 次/小时提到 5000 次/小时 |
+
+关于 GitHub 配额：**匿名 REST 是 60 次/小时，按出口 IP 共享**（公司、校园网出口常被同网段的人一起打满），打满后探测与更新会收到 403。本插件默认让探测、更新检查与 git 兜底走系统 `git`（`ls-remote` + `clone --filter=blob:none --no-checkout`），不占 REST 配额、也不需要 token；git 不可用时才回退 REST，所以原本能用的环境不会因为这条路径变坏。限流且 git 也不可用时，错误文案会给出恢复时间，并提示设置 `GITHUB_TOKEN`。
+
+> git 通道只在 `os.tmpdir()` 里读一份临时仓库，用完即删 —— 不写 canonical、不写 CLI lock，落盘始终只交给 `skills` CLI。
+
 
 ## 开发与发布
 

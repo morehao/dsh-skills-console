@@ -38,6 +38,34 @@ test('保存 → 读取 → 内容一致（原子写）', () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('installs[].treeSha 读写往返（新增字段不需要升 STATE_VERSION）', () => {
+  const { root, paths } = sandbox();
+  const store = new StateStore(paths);
+  store.load();
+  const next = emptyState();
+  next.installs.push({
+    name: 'handoff',
+    mode: 'on',
+    scopeProjects: [],
+    installedHash: 'x',
+    treeSha: 'a'.repeat(40),
+  });
+  next.installs.push({ name: 'legacy', mode: 'on', scopeProjects: [], installedHash: 'y' });
+  store.save(next);
+
+  const reloaded = new StateStore(paths);
+  const state = reloaded.load();
+  assert.equal(reloaded.readOnly, false);
+  assert.equal(state.version, 1, '版本仍是 1');
+  assert.equal(state.installs.find((item) => item.name === 'handoff').treeSha, 'a'.repeat(40));
+  assert.equal(
+    state.installs.find((item) => item.name === 'legacy').treeSha,
+    undefined,
+    '老记录没有该字段也不能被判成坏状态',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('坏 JSON → 只读降级，写入抛错', () => {
   const { root, paths } = sandbox();
   fs.mkdirSync(paths.stateDir, { recursive: true });
