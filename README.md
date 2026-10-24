@@ -41,6 +41,8 @@ DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入
 
 ## 安装
 
+插件依赖里自带 `skills@1.7.4`，**不需要用户预装 Node / npm / npx**：CLI 由宿主自带的 Node 启动，装插件时随依赖一起落盘。安装技能仍需要**本机有 git**（CLI 会 `git clone` 仓库）；首次装插件需要联网拉取依赖。
+
 在 Harness 里装本地 link：
 
 ```bash
@@ -55,7 +57,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
       name: '@morehao/dsh-skills-console'
 ```
 
-客户端 half 只注册 `platform: web`，面板出现在 DSH Web 的设置页 / 侧栏。
+客户端 half 只注册 `platform: web`，面板出现在 DSH Web 的设置页 / 侧栏。本地 `link:` 开发时，先在仓库跑一次 `npm install`（装上 `skills`），否则 CLI 依赖层不会命中。
 
 ## 快速上手
 
@@ -66,7 +68,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 ## 可靠性
 
-- **canonical 与 CLI lock 只读**：`~/.agents/skills`、`~/.agents/.skill-lock.json` 的增删改只经 `skills` CLI，插件不直接写；探测 / 更新检查会把仓库临时 clone 到 `os.tmpdir()`（只读、用完即删），结果绝不落进 canonical 或 lock。
+- **canonical 与 CLI lock 只读**：`~/.agents/skills`、`~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时为 `$XDG_STATE_HOME/skills/.skill-lock.json`）的增删改只经 `skills` CLI，插件不直接写；探测 / 更新检查会把仓库临时 clone 到 `os.tmpdir()`（只读、用完即删），结果绝不落进 canonical 或 lock。
 - **只动自己的东西**：只处理本插件创建的 `managed` 链接，以及已记账的 `managed-external`；`real` 目录和 `foreign-link` 永不改写，删除前体检直接中止。
 - **启停不改正文**：`mode` 只增删 DSH 侧链接，避免本地修改被下一次 `add` 覆盖。
 - **可回滚**：删除进回收站（7 天）；更新前快照到 `backups/`，失败自动还原（接口另提供手动回滚）。
@@ -78,7 +80,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 | 项 | 路径 | 归属 |
 | --- | --- | --- |
 | canonical 真身 | `~/.agents/skills` | `skills` CLI 独占 |
-| CLI lock | `~/.agents/.skill-lock.json` | `skills` CLI 独占（本插件只读） |
+| CLI lock | `~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时为 `$XDG_STATE_HOME/skills/.skill-lock.json`） | `skills` CLI 独占（本插件只读） |
 | DSH 全局根 | `~/.dsh/skills` | 本插件写软链 |
 | 插件状态 | `$DSH_HOME/skills-console/state.json` | 本插件（`DSH_SKILLS_CONSOLE_HOME` 可覆盖） |
 | 备份 / 回收站 | `$DSH_HOME/skills-console/{backups,trash}` | 本插件 |
@@ -90,11 +92,12 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 | --- | --- | --- |
 | `DSH_SKILLS_CONSOLE_HOME` | `$DSH_HOME/skills-console` | 状态、备份、回收站与事件日志的根 |
 | `DSH_SKILLS_CONSOLE_CLI` | 自动定位 | 覆盖 `skills` CLI（测试桩也走这里） |
-| `DSH_SKILLS_CONSOLE_NPX_SPEC` | `skills` | 需要 `npx` 兜底时用的包名 / 版本 |
+| `DSH_SKILLS_CONSOLE_NPX_SPEC` | `skills` | 仅 legacy `npx` 兜底用；桌面端没有 npx，正常应显示 `dependency` |
 | `DSH_SKILLS_CONSOLE_TIMEOUT_MS` | `120000` | 单次 CLI 调用超时 |
 | `DSH_SKILLS_CONSOLE_GIT` | `auto` | 设为 `off` 关闭 git 通道，强制只走 GitHub REST |
 | `DSH_SKILLS_CONSOLE_GIT_TIMEOUT_MS` | `60000` | git 单次操作（`ls-remote` / `clone`）超时 |
 | `GITHUB_TOKEN` / `GH_TOKEN` | 无 | 只读环境变量；带上后 REST 配额从匿名 60 次/小时提到 5000 次/小时 |
+| `XDG_STATE_HOME` | 未设置 | 设置后 CLI lock 移到 `$XDG_STATE_HOME/skills/.skill-lock.json`，插件跟随读取 |
 
 关于 GitHub 配额：**匿名 REST 是 60 次/小时，按出口 IP 共享**（公司、校园网出口常被同网段的人一起打满），打满后探测与更新会收到 403。本插件默认让探测、更新检查与 git 兜底走系统 `git`（`ls-remote` + `clone --filter=blob:none --no-checkout`），不占 REST 配额、也不需要 token；git 不可用时才回退 REST，所以原本能用的环境不会因为这条路径变坏。限流且 git 也不可用时，错误文案会给出恢复时间，并提示设置 `GITHUB_TOKEN`。
 

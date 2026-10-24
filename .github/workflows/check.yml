@@ -1,6 +1,6 @@
 name: check
 
-# 最小 CI：只装构建期依赖（esbuild），不跑发布构建——client.js 是提交进仓的生成物。
+# 最小 CI：按 lockfile 装依赖（esbuild + 运行时 skills），不跑发布构建——client.js 是提交进仓的生成物。
 # 单测与冒烟全部离线、用临时 HOME。目标是把「只有真正发版时才会暴露」的机械错误前移到 PR ——
 # 发布是 tag 触发、tag 推上去就不可改，失败只能事后发现。
 on:
@@ -26,12 +26,12 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          # 运行时零依赖，但 check:client 需要 esbuild：显式关掉 setup-node 的自动依赖缓存，
+          # check:client 需要 esbuild，运行时还需要 skills：显式关掉 setup-node 的自动依赖缓存，
           # 依赖只从 lockfile 装一次（v5 起有 packageManager 字段就会自动开缓存）。
           package-manager-cache: false
 
       # check:client 在内存里重建 client.js 并与提交的生成物逐字节比对。
-      - name: 安装构建期依赖
+      - name: 安装依赖
         run: npm ci
 
       # 发布脚本本身是 shell：`bash -n` 先过一遍语法，避免 tag 推上去才发现脚本跑不起来。
@@ -43,6 +43,6 @@ jobs:
       - name: 机械校验（npm run check）
         run: npm run check
 
-      # 96 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
+      # 139 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
       - name: 单元测试
         run: npm test

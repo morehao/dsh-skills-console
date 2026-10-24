@@ -5,8 +5,8 @@
 ## 1. 环境
 
 - Node.js ≥ 22.20（`engines`：`^22.20.0 || >=24.0.0`），npm 随 Node。
-- **零 runtime 依赖**：`package.json` 无 `dependencies`，只有一个构建期 devDependency `esbuild`（精确锁版本，`package-lock.json` 已提交）。`npm test` 不装依赖也能跑；`npm run check` 含 `check:client`（会重建 bundle），开发机需要先 `npm install`。
-- `skills` CLI 不在本包内：运行时由宿主环境提供（四层探测：`DSH_SKILLS_CONSOLE_CLI` 覆盖 → `PATH` → `$DSH_HOME/profiles/*/node_modules/skills` → `npx`）。
+- **runtime 依赖只有 `skills@1.7.4`**：随插件安装，精确锁版本；构建期 devDependency 只有 `esbuild`（`package-lock.json` 已提交）。`npm test` 仍离线、不依赖真实 CLI；`npm run check` 含 `check:client`（会重建 bundle），开发机需要先 `npm install`。
+- `skills` CLI 由插件依赖自带，用宿主 Node 启动；定位顺序：`DSH_SKILLS_CONSOLE_CLI` 覆盖 → 插件依赖 → `$DSH_PROFILE_DIR` / `$DSH_HOME/profiles/*` → `PATH` → `npx`（legacy）。安装技能还需要本机有 `git`（CLI 会 clone 仓库），没有 git 时接口会返回 `error.skills.git-missing`。
 
 ## 2. 目录结构
 
@@ -29,7 +29,7 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，131 例
+npm test          # node --test "test/*.test.mjs"，139 例
 npm run check     # 机械校验：语法 + 生成物一致性（check:client）+ 命名 + 打包 + Release 说明投影
 ```
 
@@ -44,7 +44,7 @@ npm run check     # 机械校验：语法 + 生成物一致性（check:client）
 | `state.test.mjs` | 原子写、坏 JSON → 只读、未来版本 → 只读、缺字段补默认、`autoLinkAgents` → `autoLinkTargets` 旧字段升级、`placement` 回退 |
 | `agents.test.mjs` | 注册表探测、排除 universal 伪路径、OpenCode / XDG config、Agent 目录被删 |
 | `links.test.mjs` | 软链四态判定、幂等建链、不覆盖 `real` / `foreign-link` |
-| `cli.test.mjs` | CLI 定位、argv 形状（`add` 带全参数 / `remove` 不带 `-a`）、能力位、硬超时、非零退出 |
+| `cli.test.mjs` | CLI 定位（插件依赖优先 / profile 回落 / 全缺失降级）、argv 形状（`add` 带全参数 / `remove` 不带 `-a`）、能力位、遥测关闭、硬超时、非零退出 |
 | `updates.test.mjs` | 快照解析、subpath 过滤、L0–L3 判定、哈希形态（40 位 tree / 64 位内容哈希）与安装基线回退、默认分支失败分流（限流 reset 时间 / 404 / 403 / 网络）、计划 token 稳定性、Trees 200/304/401/404 |
 | `git.test.mjs` | `repoUrl` 白名单、`ls-remote --symref` 解析、`ls-tree -z`（空格 / 中文 / 根级 SKILL.md）、老 git 去 `--filter` 重试、硬超时 SIGKILL、临时目录清理、错误分类 |
 | `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、64 位 lock 不误报并按 `treeSha` 判定、自动接入多选、入口位置持久化、启停、删除（回收站）、Agent 删除后的链接降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘、探测 git 优先 / `DSH_SKILLS_CONSOLE_GIT=off` / git 缺失回退 / 双通道失败、基线补录、刷新按 commit 短路与 git 兜底 |
@@ -121,7 +121,7 @@ dsh plugin --profile desktop install --frozen-lockfile
 | `npm run check` 报找不到 `esbuild` | 构建期依赖还没装：`npm install`（`npm test` 不需要） |
 | `client/` 出现在 `npm pack` 清单里 | 源码目录不入包，`check-pack.mjs` 会红；不要把 `client/` 加进 `package.json.files` |
 | 想调试 `client/` 但产物不可读 | `npm run build:client -- --sourcemap`（或 `npm run dev:client -- --sourcemap`）生成 `client.js.map`；它不提交，`client.js` 也会因此与正常产物不同，提交前重跑不带 `--sourcemap` 的构建 |
-| 面板里 CLI 显示 `npx` 且每次慢 2–3 秒 | GUI 启动的宿主进程拿不到 `DSH_PROFILE_DIR`；靠 `$DSH_HOME/profiles/*/node_modules/skills` 探测兜底，或显式设 `DSH_SKILLS_CONSOLE_CLI` |
+| 面板里 CLI 显示 `npx` 且每次慢 2–3 秒 | 正常桌面端应显示 `dependency`；看到 `npx` 说明插件依赖层没命中（常见于 `link:` 仓库还没 `npm install`）。先 `npm install`，或设 `DSH_SKILLS_CONSOLE_CLI` 指到实际 CLI |
 | 手工改了 `state.json` 页面没反应 | 已改成每请求前重读，但若写入队列有在途写，会等 pending 归零再读 |
 | `npm pack` 报 `EPERM ~/.npm/_cacache` | 本机 `~/.npm` 有 root 属主文件；`check-pack.mjs` 用临时 cache 规避，手动跑可 `sudo chown -R 501:20 ~/.npm` |
 | 技能装了但 DSH 里没有 | 看是不是只建了项目级链（`scopeProjects`）或 `mode: off`；再跑 `GET /state` 看 `visible` 与 `ledger` 对账 |
