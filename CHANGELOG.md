@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.2.4] - 2026-10-24
+
+### Features
+
+- **skills**: bundle CLI dependency for no-Node setups (#26)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.2.3...v0.2.4
+
 ## [v0.2.3] - 2026-10-24
 
 ### Features
