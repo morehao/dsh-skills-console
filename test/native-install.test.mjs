@@ -91,7 +91,6 @@ test('Service + 真实 installer：REST 解析 → codeload 下载 → canonical
     paths,
     store,
     registry,
-    cli: { capabilities: async () => ({ usable: false }) },
     installer,
     logger: () => {},
     env: {},

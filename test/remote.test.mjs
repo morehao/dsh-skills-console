@@ -3,7 +3,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { RemoteError, codeloadUrl, downloadTarball } from '../lib/core/remote.js';
+import { gitTreeSha } from '../lib/core/git-tree.js';
+import {
+  RemoteError,
+  codeloadUrl,
+  downloadTarball,
+  fetchAtomCommit,
+  parseAtomCommit,
+  snapshotFromTarball,
+} from '../lib/core/remote.js';
+import { writeTarFixture } from './helpers/tar-fixture.mjs';
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-remote-'));
@@ -241,6 +250,109 @@ test('downloadTarball 网络失败映射为 download-failed', async () => {
         fetchImpl: () => Promise.reject(new Error('ECONNRESET')),
       }),
       (error) => error instanceof RemoteError && error.code === 'download-failed',
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('parseAtomCommit：取第一条 Grit commit（id 或 link 退化）', () => {
+  const id = '<feed><entry><id>tag:github.com,2008:Grit::Commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</id></entry></feed>';
+  assert.equal(parseAtomCommit(id), 'a'.repeat(40));
+  const link = '<entry><link rel="alternate" href="https://github.com/o/r/commit/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"/></entry>';
+  assert.equal(parseAtomCommit(link), 'b'.repeat(40));
+  assert.equal(parseAtomCommit('<feed></feed>'), null);
+  assert.equal(parseAtomCommit(''), null);
+});
+
+test('fetchAtomCommit：默认分支与指定 ref 的 URL，token 只进 header', async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url: String(url), headers: options.headers });
+    return new Response(
+      '<feed><entry><id>tag:github.com,2008:Grit::Commit/cccccccccccccccccccccccccccccccccccccccc</id></entry></feed>',
+      { status: 200 },
+    );
+  };
+  const first = await fetchAtomCommit({ source: 'morehao/ai-kit', fetchImpl, token: 'secret' });
+  assert.equal(first.commit, 'c'.repeat(40));
+  assert.equal(calls[0].url, 'https://github.com/morehao/ai-kit/commits.atom');
+  assert.equal(calls[0].headers.authorization, 'Bearer secret');
+
+  await fetchAtomCommit({ source: 'morehao/ai-kit', ref: 'feat/native-installer', fetchImpl });
+  assert.equal(
+    calls[1].url,
+    'https://github.com/morehao/ai-kit/commits/feat/native-installer.atom',
+    '分支名里的 / 保留为路径分隔符，其余段做编码',
+  );
+  assert.equal(calls[1].headers.authorization, undefined);
+
+  await assert.rejects(
+    fetchAtomCommit({ source: 'a/b', fetchImpl: async () => new Response('nope', { status: 404 }) }),
+    (error) => error instanceof RemoteError && error.code === 'http-error' && error.status === 404,
+  );
+  await assert.rejects(
+    fetchAtomCommit({ source: 'a/b', fetchImpl: async () => new Response('<feed></feed>', { status: 200 }) }),
+    (error) => error instanceof RemoteError && error.code === 'atom-empty',
+  );
+});
+
+test('snapshotFromTarball：解压→发现→本地 tree SHA，组装 REST 同形快照', async () => {
+  const root = tempDir();
+  const commit = 'd'.repeat(40);
+  try {
+    const files = {
+      'skills/alpha/SKILL.md': '---\nname: alpha\ndescription: alpha\n---\n',
+      'skills/beta/README.md': 'beta',
+      'skills/beta/SKILL.md': '---\nname: beta\n---\n',
+      'README.md': 'root',
+    };
+    const entries = [{ name: `repo-${commit}`, type: 'dir' }];
+    for (const [filePath, content] of Object.entries(files)) {
+      entries.push({ name: `repo-${commit}/${filePath}`, content });
+    }
+    const tarball = writeTarFixture(root, entries, { name: 'repo.tar.gz' });
+
+    const sourceDir = path.join(root, 'expected');
+    for (const [filePath, content] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(sourceDir, filePath)), { recursive: true });
+      fs.writeFileSync(path.join(sourceDir, filePath), content);
+    }
+    const alphaTree = gitTreeSha(path.join(sourceDir, 'skills/alpha'));
+    const betaTree = gitTreeSha(path.join(sourceDir, 'skills/beta'));
+    const rootSha = gitTreeSha(sourceDir);
+
+    const snapshot = await snapshotFromTarball({
+      source: 'morehao/agent-skills',
+      commit,
+      ref: 'main',
+      fetchImpl: async (url) => {
+        assert.equal(String(url), `https://codeload.github.com/morehao/agent-skills/tar.gz/${commit}`);
+        const body = fs.readFileSync(tarball);
+        return new Response(body, { status: 200, headers: { 'content-length': String(body.length) } });
+      },
+    });
+
+    assert.equal(snapshot.via, 'codeload');
+    assert.equal(snapshot.branch, 'main');
+    assert.equal(snapshot.rootSha, rootSha);
+    assert.equal(snapshot.snapshot.commit, commit);
+    assert.equal(snapshot.snapshot.etag, null);
+    assert.deepEqual(snapshot.snapshot.entries, [
+      { name: 'alpha', skillPath: 'skills/alpha/SKILL.md', treeSha: alphaTree },
+      { name: 'beta', skillPath: 'skills/beta/SKILL.md', treeSha: betaTree },
+    ]);
+    assert.deepEqual(
+      snapshot.tree.filter((entry) => entry.type === 'tree'),
+      [
+        { path: 'skills/alpha', type: 'tree', sha: alphaTree },
+        { path: 'skills/beta', type: 'tree', sha: betaTree },
+      ],
+    );
+
+    await assert.rejects(
+      snapshotFromTarball({ source: 'a/b', commit: 'main', fetchImpl: async () => new Response('') }),
+      (error) => error instanceof RemoteError && error.code === 'missing-commit',
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

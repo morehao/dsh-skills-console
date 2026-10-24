@@ -8,8 +8,10 @@ import { createPaths } from '../lib/core/paths.js';
 import { createRegistry } from '../lib/core/agents.js';
 import { createService } from '../lib/core/service.js';
 import { contentHash } from '../lib/core/hash.js';
+import { gitTreeSha } from '../lib/core/git-tree.js';
 import { StateStore } from '../lib/core/state.js';
 import { snapshotId } from '../lib/core/updates.js';
+import { writeTarFixture } from './helpers/tar-fixture.mjs';
 
 const TREE_SHA = 'e'.repeat(40);
 const COMMIT = 'f'.repeat(40);
@@ -452,98 +454,45 @@ function jsonBody(body) {
   });
 }
 
-// 模拟 git：按 argv 输出固定内容，不联网。用于「探测/基线补录走 git」的用例。
-const GIT_SHIM = `#!/bin/sh
-echo "$@" >> "$SHIM_LOG"
-case "$1" in
-  --version)
-    echo "git version 2.40.0"
-    exit 0
-    ;;
-  ls-remote)
-    printf 'ref: refs/heads/%s\\tHEAD\\n' "\${SHIM_BRANCH:-main}"
-    printf '%s\\tHEAD\\n' "$SHIM_COMMIT"
-    exit 0
-    ;;
-  clone)
-    for last in "$@"; do :; done
-    mkdir -p "$last"
-    if [ "$SHIM_CLONE_FAIL" = "1" ]; then
-      echo "fatal: could not read Username for 'https://github.com': terminal prompts disabled" >&2
-      rm -rf "$last"
-      exit 128
-    fi
-    exit 0
-    ;;
-  -C)
-    shift
-    shift
-    cmd="$1"
-    shift
-    case "$cmd" in
-      rev-parse)
-        case "$*" in
-          *'^{tree}'*) echo "$SHIM_ROOT_SHA" ;;
-          *) echo "$SHIM_COMMIT" ;;
-        esac
-        exit 0
-        ;;
-      ls-tree)
-        tr '\\n' '\\0' < "$SHIM_TREE_FILE"
-        exit 0
-        ;;
-    esac
-    ;;
-esac
-exit 0
-`;
-
-/** 临时 git shim 目录 + 环境变量（PATH 只含 shim，外加 /usr/bin:/bin 给 tr）。 */
-function gitShim(root, { tree = [], commit = COMMIT, rootSha = TREE_SHA, extra = {} } = {}) {
-  const bin = path.join(root, 'git-bin');
-  fs.mkdirSync(bin, { recursive: true });
-  const shim = path.join(bin, 'git');
-  fs.writeFileSync(shim, GIT_SHIM);
-  fs.chmodSync(shim, 0o755);
-  const log = path.join(root, 'git.log');
-  fs.writeFileSync(log, '');
-  const treeFile = path.join(root, 'tree.txt');
-  fs.writeFileSync(
-    treeFile,
-    `${tree.map(([mode, type, sha, entryPath]) => `${mode} ${type} ${sha}\t${entryPath}`).join('\n')}\n`,
-  );
-  const env = {
-    PATH: `${bin}:/usr/bin:/bin`,
-    SHIM_LOG: log,
-    SHIM_TREE_FILE: treeFile,
-    SHIM_COMMIT: commit,
-    SHIM_ROOT_SHA: rootSha,
-    SHIM_BRANCH: 'main',
-    ...extra,
-  };
-  const calls = () => fs.readFileSync(log, 'utf8').trim().split('\n').filter(Boolean);
-  return { env, calls, bin };
-}
-
-function gitSandbox() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-gitshim-'));
-}
-
-/** 可控的 GitHub stub：按路径分派 repo 元数据 / trees / commits，并记录调用。 */
-function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT, contents = {}, resetAt = 1_780_000_000 } = {}) {
-  const control = { defaultBranch, tree, commit, contents, fail: null, resetAt };
+/** 可控的 GitHub stub：REST / Atom / codeload 全走同一个 fetchImpl。 */
+function githubStub({
+  defaultBranch = 'main',
+  tree = TREE_MAIN,
+  commit = COMMIT,
+  contents = {},
+  resetAt = 1_780_000_000,
+  atomCommit = commit,
+  tarball = null,
+} = {}) {
+  const control = { defaultBranch, tree, commit, contents, fail: null, resetAt, atomCommit, tarball, atomFail: null, tarFail: null };
   const calls = [];
   const fetchImpl = async (url) => {
     calls.push(url);
-    if (control.fail === 'network') throw new Error('ECONNRESET');
+    const target = String(url);
     // 探测会用 raw.githubusercontent.com 读 SKILL.md 补 frontmatter，不走 API 配额
-    if (String(url).startsWith('https://raw.githubusercontent.com/')) {
-      const parts = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    if (target.startsWith('https://raw.githubusercontent.com/')) {
+      const parts = new URL(target).pathname.split('/').filter(Boolean).map(decodeURIComponent);
       const filePath = parts.slice(3).join('/');
       if (!(filePath in control.contents)) return new Response('not found', { status: 404 });
       return new Response(control.contents[filePath], { status: 200 });
     }
-    const { pathname } = new URL(url);
+    // Atom 与 codeload 不受 REST 限流影响（这也是兜底能成立的前提）
+    if (target.startsWith('https://github.com/') && target.endsWith('.atom')) {
+      if (control.atomFail) return new Response('atom fail', { status: control.atomFail });
+      const xml = `<?xml version="1.0"?><feed><entry><id>tag:github.com,2008:Grit::Commit/${control.atomCommit}</id></entry></feed>`;
+      return new Response(xml, { status: 200, headers: { 'content-type': 'application/atom+xml' } });
+    }
+    if (target.startsWith('https://codeload.github.com/')) {
+      if (control.tarFail) return new Response('tar fail', { status: control.tarFail });
+      if (!control.tarball) return new Response('not found', { status: 404 });
+      const body = typeof control.tarball === 'string' ? fs.readFileSync(control.tarball) : control.tarball;
+      return new Response(body, {
+        status: 200,
+        headers: { 'content-length': String(body.length) },
+      });
+    }
+    if (control.fail === 'network') throw new Error('ECONNRESET');
+    const { pathname } = new URL(target);
     if (control.fail === 'rate-limit') {
       return new Response('{"message":"API rate limit exceeded"}', {
         status: 403,
@@ -564,6 +513,34 @@ function githubStub({ defaultBranch = 'main', tree = TREE_MAIN, commit = COMMIT,
     return new Response('{"message":"Not Found"}', { status: 404 });
   };
   return { control, calls, fetchImpl };
+}
+
+/** 生成一份带 alpha/beta 的仓库 tarball，并算出本地 tree SHA（供兜底断言）。 */
+function snapshotFixture(root, { commit, alpha = 'v1', beta = 'v1' } = {}) {
+  const files = {
+    'skills/alpha/SKILL.md': `---\nname: alpha\ndescription: alpha ${alpha}\n---\nbody ${alpha}\n`,
+    'skills/alpha/scripts/run.sh': `#!/bin/sh\necho ${alpha}\n`,
+    'skills/beta/SKILL.md': `---\nname: beta\ndescription: beta ${beta}\n---\n`,
+  };
+  const sourceDir = path.join(root, `fixture-${commit.slice(0, 8)}`);
+  for (const [name, content] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(sourceDir, name)), { recursive: true });
+    fs.writeFileSync(path.join(sourceDir, name), content);
+  }
+  const alphaTree = gitTreeSha(path.join(sourceDir, 'skills/alpha'));
+  const betaTree = gitTreeSha(path.join(sourceDir, 'skills/beta'));
+  const entries = [{ name: `repo-${commit}`, type: 'dir' }];
+  const dirs = new Set();
+  for (const filePath of Object.keys(files)) {
+    const parts = filePath.split('/');
+    for (let index = 1; index < parts.length; index += 1) dirs.add(parts.slice(0, index).join('/'));
+  }
+  for (const dir of [...dirs].sort()) entries.push({ name: `repo-${commit}/${dir}`, type: 'dir' });
+  for (const [filePath, content] of Object.entries(files)) {
+    entries.push({ name: `repo-${commit}/${filePath}`, content });
+  }
+  const tarball = writeTarFixture(root, entries, { name: `repo-${commit}.tar.gz` });
+  return { tarball, alphaTree, betaTree, contents: files };
 }
 
 test('添加订阅：上游报错时不落盘、接口抛错（回归：不能再出现空订阅）', async () => {
@@ -611,6 +588,7 @@ test('刷新订阅：上游失败要抛错，但保留上次快照并记下 last
   const snapshot = structuredClone(store.state.subscriptions[0].snapshot);
 
   gh.control.fail = 'tree';
+  gh.control.atomCommit = NEW_COMMIT;
   await assert.rejects(
     () => service.refreshSubscription({ id }),
     (error) => error.code === 'error.skills.upstream-failed',
@@ -823,139 +801,134 @@ test('探测来源：四种上游失败分成四个错误码与四句不同文�
   assert.equal(messages.size, cases.length, '四种失败必须是四句不同的话');
 });
 
-// ---- T3：探测优先走 git；T3.7 安装后补录 tree 基线 --------------------------
-
-const SKILL_TREE = [
-  ['040000', 'tree', '2'.repeat(40), 'skills/alpha'],
-  ['100644', 'blob', '3'.repeat(40), 'skills/alpha/SKILL.md'],
-  ['040000', 'tree', '4'.repeat(40), 'skills/beta'],
-  ['100644', 'blob', '5'.repeat(40), 'skills/beta/SKILL.md'],
-];
-const SKILL_CONTENTS = {
-  'skills/alpha/SKILL.md': '---\nname: alpha\ndescription: 甲\n---\n',
-  'skills/beta/SKILL.md': '---\nname: beta\ndescription: 乙\n---\n',
-};
-
-test('探测来源：git 可用时优先走 git，零 REST 调用（T3）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE });
-  const gh = githubStub({ contents: SKILL_CONTENTS });
-  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
-
-  const result = await service.probeSource({ source: 'https://github.com/morehao/agent-skills' });
-  assert.equal(result.ok, true);
-  assert.equal(result.via, 'git');
-  assert.equal(result.ref, 'main', '默认分支来自 ls-remote --symref');
-  assert.deepEqual(result.skills.map((item) => item.name), ['alpha', 'beta']);
-  assert.equal(
-    gh.calls.filter((url) => url.startsWith('https://api.github.com')).length,
-    0,
-    '走 git 时完全不碰 REST 配额',
-  );
-  assert.ok(gh.calls.some((url) => url.includes(`/${COMMIT}/`)), '描述按 commit 抓（不可变、可缓存）');
-  assert.equal(fs.existsSync(paths.stateFile), false, '探测不能写 state');
-  assert.equal(store.state.subscriptions.length, 0);
-  assert.ok(shim.calls().some((line) => line.startsWith('clone')), '确实 clone 了一次');
-  fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
-});
-
-test('探测来源：DSH_SKILLS_CONSOLE_GIT=off 强制走 REST（T3 逃生开关）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE });
-  const gh = githubStub({ contents: SKILL_CONTENTS });
-  const { root, service } = setup({ fetchImpl: gh.fetchImpl }, { ...shim.env, DSH_SKILLS_CONSOLE_GIT: 'off' });
-
-  const result = await service.probeSource({ source: 'morehao/agent-skills' });
-  assert.equal(result.via, 'rest');
-  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), '关掉后走 REST');
-  assert.deepEqual(shim.calls(), [], '关掉后连 git --version 都不该跑');
-  fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
-});
-
-test('探测来源：git 缺失 → 回退 REST（不新增故障面）', async () => {
+test('探测来源：REST 正常时走 REST，不再依赖 git', async () => {
   const gh = githubStub({
-    contents: SKILL_CONTENTS,
+    contents: {
+      'skills/alpha/SKILL.md': '---\nname: alpha\ndescription: 甲\n---\n',
+      'skills/beta/SKILL.md': '---\nname: beta\ndescription: 乙\n---\n',
+    },
     tree: [
+      { path: 'skills/alpha', type: 'tree', sha: '2'.repeat(40) },
       { path: 'skills/alpha/SKILL.md', type: 'blob', sha: '3'.repeat(40) },
+      { path: 'skills/beta', type: 'tree', sha: '4'.repeat(40) },
       { path: 'skills/beta/SKILL.md', type: 'blob', sha: '5'.repeat(40) },
     ],
   });
   const { root, service } = setup({ fetchImpl: gh.fetchImpl });
   const result = await service.probeSource({ source: 'morehao/agent-skills' });
   assert.equal(result.via, 'rest');
+  assert.equal(result.ref, 'main');
   assert.deepEqual(result.skills.map((item) => item.name), ['alpha', 'beta']);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('探测来源：git 与 REST 都失败 → 报限流（T1 文案）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE, extra: { SHIM_CLONE_FAIL: '1' } });
+test('探测来源：REST 限流 → Atom + codeload 兜底，按本地 tree 扫描', async () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-fixture-'));
+  const fixture = snapshotFixture(fixtureRoot, { commit: NEW_COMMIT });
+  const gh = githubStub({
+    atomCommit: NEW_COMMIT,
+    tarball: fixture.tarball,
+    contents: fixture.contents,
+  });
+  gh.control.fail = 'rate-limit';
+  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const result = await service.probeSource({ source: 'https://github.com/morehao/agent-skills' });
+  assert.equal(result.ok, true);
+  assert.equal(result.via, 'codeload');
+  assert.deepEqual(result.skills.map((item) => item.name), ['alpha', 'beta']);
+  assert.equal(result.skills[0].description, 'alpha v1', '描述按 Atom 的 commit 从 raw 拉取');
+  assert.ok(gh.calls.some((url) => url.includes('/commits.atom')), '必须走 Atom 取 commit');
+  assert.ok(gh.calls.some((url) => url.includes('/tar.gz/')), '必须走 codeload 下载');
+  assert.equal(fs.existsSync(paths.stateFile), false, '探测不能写 state');
+  assert.equal(store.state.subscriptions.length, 0);
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(fixtureRoot, { recursive: true, force: true });
+});
+
+test('探测来源：REST 与 Atom/codeload 都失败 → 报限流（T1 文案）', async () => {
   const gh = githubStub();
   gh.control.fail = 'rate-limit';
-  const { root, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
-
+  gh.control.atomFail = 404;
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl });
   await assert.rejects(
     () => service.probeSource({ source: 'morehao/agent-skills' }),
     (error) => error.code === 'error.skills.rate-limited' && /已限流/.test(error.message),
   );
-  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), 'git 失败后确实回退了 REST');
+  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), 'REST 确实试过');
+  assert.ok(gh.calls.some((url) => url.includes('.atom')), 'Atom 也试过');
   fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
 });
 
-// ---- T4：更新检查 REST 失败转 git，并按 commit 短路 --------------------------
+// ---- P2：Atom/codeload 兜底与更新 -------------------------------------------------
 
 const NEW_COMMIT = 'd'.repeat(40);
 
-test('刷新订阅：REST 限流时用 git 兜底，快照来自 git（T4）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
-  const gh = githubStub();
-  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
-  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
-  assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT, '先由 REST 建了快照');
-
+test('添加订阅：首次就限流 → Atom + codeload 仍能建订阅', async () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-fixture-'));
+  const fixture = snapshotFixture(fixtureRoot, { commit: NEW_COMMIT });
+  const gh = githubStub({ atomCommit: NEW_COMMIT, tarball: fixture.tarball });
   gh.control.fail = 'rate-limit';
-  const result = await service.refreshSubscription({ id: added.subscription.id });
-  assert.equal(result.ok, true);
-  assert.equal(result.via, 'git');
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  assert.equal(added.ok, true);
+  assert.equal(store.state.subscriptions.length, 1);
   const row = store.state.subscriptions[0];
-  assert.equal(row.snapshot.commit, NEW_COMMIT, 'commit 来自 git 的 HEAD');
-  assert.equal(row.snapshot.etag, null, 'git 快照不带 ETag，下次刷新会完整读一次');
+  assert.equal(row.snapshot.commit, NEW_COMMIT);
+  assert.deepEqual(row.snapshot.entries.map((item) => item.name), ['alpha', 'beta']);
   assert.equal(row.lastCheck.status, 'changed');
-  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), '确实先撞了 REST 403');
+  assert.ok(gh.calls.some((url) => url.includes('.atom')));
   fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
+  fs.rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
-test('刷新订阅：lsRemote 显示 commit 未变 → 不消耗任何 REST（T4 短路）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: COMMIT });
+test('刷新订阅：Atom 显示 commit 未变 → 不消耗任何 REST（短路）', async () => {
   const gh = githubStub();
-  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
   const added = await service.addSubscription({ source: 'morehao/ai-kit' });
   const callsAfterAdd = gh.calls.length;
 
   const result = await service.refreshSubscription({ id: added.subscription.id });
   assert.equal(result.notModified, true);
   assert.equal(result.changed, false);
-  assert.equal(result.via, 'git');
-  assert.equal(gh.calls.length, callsAfterAdd, '未变更的仓库检查消耗 0 次 REST');
+  assert.equal(result.via, 'atom');
+  const restCalls = gh.calls.slice(callsAfterAdd).filter((url) => url.startsWith('https://api.github.com'));
+  assert.equal(restCalls.length, 0, '未变更时只读 Atom，不再消耗 REST');
   const row = store.state.subscriptions[0];
   assert.equal(row.lastCheck.status, 'unchanged');
   assert.equal(row.snapshot.commit, COMMIT, '短路时绝不能把快照置空');
   assert.equal(row.snapshot.entries.length, 1);
   fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
 });
 
-test('刷新订阅：lsRemote 变了但 REST 正常 → 仍用 REST 结果（T4 不抢主路径）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
-  const gh = githubStub();
-  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+test('刷新订阅：REST 限流 → Atom + codeload 快照', async () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-fixture-'));
+  const fixture = snapshotFixture(fixtureRoot, { commit: NEW_COMMIT, alpha: 'v2' });
+  const gh = githubStub({});
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT, '先由 REST 建了快照');
+
+  gh.control.fail = 'rate-limit';
+  gh.control.atomCommit = NEW_COMMIT;
+  gh.control.tarball = fixture.tarball;
+  const result = await service.refreshSubscription({ id: added.subscription.id });
+  assert.equal(result.ok, true);
+  assert.equal(result.via, 'codeload');
+  const row = store.state.subscriptions[0];
+  assert.equal(row.snapshot.commit, NEW_COMMIT, 'commit 来自 Atom');
+  assert.equal(row.snapshot.etag, null, 'codeload 快照不带 ETag，下次会完整读一次');
+  assert.equal(row.lastCheck.status, 'changed');
+  assert.equal(row.snapshot.entries.find((item) => item.name === 'alpha').treeSha, fixture.alphaTree);
+  assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), '确实先撞了 REST 403');
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(fixtureRoot, { recursive: true, force: true });
+});
+
+test('刷新订阅：Atom 变了但 REST 正常 → 仍用 REST 结果', async () => {
+  const gh = githubStub({ atomCommit: NEW_COMMIT });
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
   const added = await service.addSubscription({ source: 'morehao/ai-kit' });
 
   const result = await service.refreshSubscription({ id: added.subscription.id });
@@ -964,17 +937,15 @@ test('刷新订阅：lsRemote 变了但 REST 正常 → 仍用 REST 结果（T4 
   assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT);
   assert.equal(store.state.subscriptions[0].lastCheck.treeEtag, 'W/"test"');
   fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
 });
 
-test('刷新订阅：REST 与 git 都失败 → 报限流并留痕（T4）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT, extra: { SHIM_CLONE_FAIL: '1' } });
+test('刷新订阅：REST 与兜底都失败 → 报限流并留痕', async () => {
   const gh = githubStub();
-  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
   const added = await service.addSubscription({ source: 'morehao/ai-kit' });
 
   gh.control.fail = 'rate-limit';
+  gh.control.atomFail = 404;
   await assert.rejects(
     () => service.refreshSubscription({ id: added.subscription.id }),
     (error) => error.code === 'error.skills.rate-limited',
@@ -982,36 +953,38 @@ test('刷新订阅：REST 与 git 都失败 → 报限流并留痕（T4）', asy
   assert.equal(store.state.subscriptions[0].lastCheck.status, 'unknown');
   assert.equal(store.state.subscriptions[0].snapshot.commit, COMMIT, '失败不能清空上次快照');
   fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
 });
 
-test('检查更新：配额耗尽时用 git 兜底，判定仍然有效（T4 + T2）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
-  const gh = githubStub();
-  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, { ...shim.env, TEST_TREE_SHA: 'a'.repeat(64) });
+test('检查更新：配额耗尽时用 codeload 兜底，判定仍然有效（T2）', async () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-fixture-'));
+  const fixture = snapshotFixture(fixtureRoot, { commit: NEW_COMMIT });
+  const gh = githubStub({});
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, { TEST_TREE_SHA: fixture.alphaTree });
 
   const added = await service.addSubscription({ source: 'morehao/ai-kit' });
   await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
-  assert.equal(store.findInstall('alpha').treeSha, '2'.repeat(40));
+  assert.equal(store.findInstall('alpha').treeSha, fixture.alphaTree);
 
   gh.control.fail = 'rate-limit';
+  gh.control.atomCommit = NEW_COMMIT;
+  gh.control.tarball = fixture.tarball;
   const checked = await service.checkUpdates({});
   assert.equal(checked.checks.length, 1);
   assert.equal(checked.checks[0].status, 'current', '不再是 unknown，也不误报有更新');
-  assert.equal(checked.checks[0].via, 'git');
+  assert.equal(checked.checks[0].via, 'codeload');
   assert.ok(gh.calls.some((url) => url.startsWith('https://api.github.com')), 'REST 确实试过并被限流');
   fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
+  fs.rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
-test('检查更新：两种通道都不可用 → 每个技能一条带错误码的 unknown（T4 降级）', async () => {
+test('检查更新：所有通道都不可用 → 每个技能一条带错误码的 unknown', async () => {
   const gh = githubStub();
   const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
   const added = await service.addSubscription({ source: 'morehao/ai-kit' });
   await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
 
   gh.control.fail = 'rate-limit';
+  gh.control.atomFail = 404;
   const checked = await service.checkUpdates({});
   assert.equal(checked.checks[0].status, 'unknown');
   assert.equal(checked.checks[0].code, 'error.skills.rate-limited');
@@ -1020,19 +993,7 @@ test('检查更新：两种通道都不可用 → 每个技能一条带错误码
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-// ---- 缺 CLI / 缺 git：降级与错误映射 -----------------------------------------
-
-const MISSING_CAPS = Object.freeze({
-  version: null,
-  json: false,
-  fullDepth: false,
-  source: 'missing',
-  usable: false,
-});
-
-function unusableCli() {
-  return { capabilities: async () => ({ ...MISSING_CAPS }) };
-}
+// ---- 安装器不可用 / 更新失败 ------------------------------------------------
 
 test('安装器不可用：/state cli.usable=false，清单仍可读；install 返回 400 且不动 canonical', async () => {
   const { root, paths, service } = setup({ installerUsable: false });
@@ -1056,7 +1017,7 @@ test('安装器不可用：/state cli.usable=false，清单仍可读；install �
 });
 
 test('安装器不可用：remove 在回收站快照之前拒绝；applyUpdate 在排队之前拒绝', async () => {
-  const { root, paths, service } = setup({ installerUsable: false, cli: unusableCli() });
+  const { root, paths, service } = setup({ installerUsable: false });
   const dir = path.join(paths.canonical, 'alpha');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: alpha\ndescription: demo\n---\nbody\n');
@@ -1070,25 +1031,46 @@ test('安装器不可用：remove 在回收站快照之前拒绝；applyUpdate �
 
   await assert.rejects(
     () => service.applyUpdate({ name: 'alpha' }),
-    (error) => error.code === 'error.skills.cli-missing',
+    (error) => error.code === 'error.skills.installer-unavailable',
   );
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('更新计划：配额耗尽时用 git 出计划，不出现「查得到更不了」（T4）', async () => {
-  const shimRoot = gitSandbox();
-  const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
+test('applyUpdate：installer 失败 → update-failed，canonical 不变', async () => {
   const gh = githubStub();
-  const { root, service } = setup({ fetchImpl: gh.fetchImpl }, shim.env);
+  const { root, paths, store, service, installer } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+  const before = fs.readFileSync(path.join(paths.canonical, 'alpha', 'SKILL.md'), 'utf8');
+
+  installer.install = async () => {
+    throw Object.assign(new Error('tree mismatch'), { code: 'tree-mismatch' });
+  };
+  const result = await service.applyUpdate({ name: 'alpha' });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'error.skills.update-failed');
+  assert.equal(result.detail.reason, 'tree-mismatch');
+  assert.equal(fs.readFileSync(path.join(paths.canonical, 'alpha', 'SKILL.md'), 'utf8'), before);
+  assert.equal(store.findInstall('alpha').commit, COMMIT, 'state 基线不能前进');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('更新计划：配额耗尽时用 codeload 出计划，不出现「查得到更不了」', async () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-fixture-'));
+  const fixture = snapshotFixture(fixtureRoot, { commit: NEW_COMMIT, alpha: 'v2' });
+  const gh = githubStub({});
+  const { root, service } = setup({ fetchImpl: gh.fetchImpl }, { TEST_TREE_SHA: fixture.alphaTree });
   const added = await service.addSubscription({ source: 'morehao/ai-kit' });
   await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
 
   gh.control.fail = 'rate-limit';
+  gh.control.atomCommit = NEW_COMMIT;
+  gh.control.tarball = fixture.tarball;
   const plan = await service.planUpdate({ name: 'alpha' });
   assert.equal(plan.ok, true);
-  assert.equal(plan.toCommit, NEW_COMMIT, 'commit 来自 git');
-  assert.equal(plan.targetTreeSha, '2'.repeat(40));
+  assert.equal(plan.toCommit, NEW_COMMIT, 'commit 来自 Atom');
+  assert.equal(plan.targetTreeSha, fixture.alphaTree);
   assert.equal(plan.ref, 'main');
   fs.rmSync(root, { recursive: true, force: true });
-  fs.rmSync(shimRoot, { recursive: true, force: true });
+  fs.rmSync(fixtureRoot, { recursive: true, force: true });
 });

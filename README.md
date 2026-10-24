@@ -8,7 +8,7 @@
 
 DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入其他 Agent、随时启停，外加一份订阅清单。
 
-它不搬技能。技能真身由插件内的 **native installer** 写进 `~/.agents/skills`，并维护 v3 lock；本插件只在 DSH 这一侧做控制台：决定**哪些技能、对谁、在哪一层可见**，并把每次改动做成可回滚的事务。更新流程仍在迁移中（P2 前复用 `skills` CLI 的应用步骤）。
+它不搬技能。技能真身由插件内的 **native installer** 写进 `~/.agents/skills`，并维护 v3 lock；本插件只在 DSH 这一侧做控制台：决定**哪些技能、对谁、在哪一层可见**，并把每次改动做成可回滚的事务。安装、更新、删除都由 native installer 完成，不依赖 `skills` CLI 或系统 git。
 
 ## 为什么需要它
 
@@ -41,7 +41,7 @@ DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入
 
 ## 安装
 
-插件依赖里自带 `tar@7.5.22`（native installer 解压）与过渡期的 `skills@1.7.4`（更新仍暂用），**不需要用户预装 Node / npm / npx**。安装/删除不再需要本机有 git；更新在 P2 迁移完成前仍会调用 CLI，那条路径需要 git。首次装插件需要联网拉取依赖。
+插件依赖里自带 `tar@7.5.22`（native installer 解压）；`skills@1.7.4` 仅作为过渡期依赖随包安装，运行时代码已不调用，P3 移除。**不需要用户预装 Node / npm / npx / git**。首次装插件需要联网拉取依赖。
 
 在 Harness 里装本地 link：
 
@@ -57,7 +57,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
       name: '@morehao/dsh-skills-console'
 ```
 
-客户端 half 只注册 `platform: web`，面板出现在 DSH Web 的设置页 / 侧栏。本地 `link:` 开发时，先在仓库跑一次 `npm install`（装上 `tar` 与过渡期 `skills`），否则解压与更新依赖层不会命中。
+客户端 half 只注册 `platform: web`，面板出现在 DSH Web 的设置页 / 侧栏。本地 `link:` 开发时，先在仓库跑一次 `npm install`（装上 `tar`），否则 native installer 的解压依赖层不会命中。
 
 ## 快速上手
 
@@ -68,9 +68,9 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 ## 可靠性
 
-- **canonical 与 v3 lock 的写入口**：安装/删除由 native installer 统一处理（下载/解压/发现/tree SHA/原子 promote/lock 事务）；更新在 P2 迁移前仍复用 `skills` CLI。插件其他模块只读。探测 / 更新检查的临时 git clone 只在 `os.tmpdir()` 里读，结果绝不落进 canonical 或 lock。
+- **canonical 与 v3 lock 的写入口**：安装、更新、删除由 native installer 统一处理（下载/解压/发现/tree SHA/原子 promote/lock 事务）；插件其他模块只读。限流兜底的 codeload 扫描只在 `os.tmpdir()` 里解压，结果绝不落进 canonical 或 lock。
 - **只动自己的东西**：只处理本插件创建的 `managed` 链接，以及已记账的 `managed-external`；`real` 目录和 `foreign-link` 永不改写，删除前体检直接中止。
-- **启停不改正文**：`mode` 只增删 DSH 侧链接，避免本地修改被下一次 `add` 覆盖。
+- **启停不改正文**：`mode` 只增删 DSH 侧链接，避免本地修改被下一次安装/更新覆盖。
 - **可回滚**：删除进回收站（7 天）；更新前快照到 `backups/`，失败自动还原（接口另提供手动回滚）。
 - **状态坏了就只读**：`state.json` 是坏 JSON 或版本未知时，插件降级为只读并让写接口返回 409，不猜结构、不自动修复。
 - **不做任意路径**：请求里的目标一律走注册表反查，软链目标恒为 canonical 下同名目录。
@@ -80,7 +80,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 | 项 | 路径 | 归属 |
 | --- | --- | --- |
 | canonical 真身 | `~/.agents/skills` | native installer（安装/删除/更新） |
-| v3 lock | `~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时为 `$XDG_STATE_HOME/skills/.skill-lock.json`） | native installer（安装/删除；更新在 P2 前经 CLI） |
+| v3 lock | `~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时为 `$XDG_STATE_HOME/skills/.skill-lock.json`） | native installer（安装/更新/删除） |
 | DSH 全局根 | `~/.dsh/skills` | 本插件写软链 |
 | 插件状态 | `$DSH_HOME/skills-console/state.json` | 本插件（`DSH_SKILLS_CONSOLE_HOME` 可覆盖） |
 | 备份 / 回收站 | `$DSH_HOME/skills-console/{backups,trash}` | 本插件 |
@@ -91,17 +91,12 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 | 变量 | 默认 | 作用 |
 | --- | --- | --- |
 | `DSH_SKILLS_CONSOLE_HOME` | `$DSH_HOME/skills-console` | 状态、备份、回收站与事件日志的根 |
-| `DSH_SKILLS_CONSOLE_CLI` | 自动定位 | 覆盖过渡期的 `skills` CLI（更新路径与测试桩；P2 后移除） |
-| `DSH_SKILLS_CONSOLE_NPX_SPEC` | `skills` | 仅 legacy `npx` 兜底用；桌面端没有 npx，正常应显示 `dependency` |
-| `DSH_SKILLS_CONSOLE_TIMEOUT_MS` | `120000` | 单次 CLI 调用超时 |
-| `DSH_SKILLS_CONSOLE_GIT` | `auto` | 设为 `off` 关闭 git 通道，强制只走 GitHub REST |
-| `DSH_SKILLS_CONSOLE_GIT_TIMEOUT_MS` | `60000` | git 单次操作（`ls-remote` / `clone`）超时 |
-| `GITHUB_TOKEN` / `GH_TOKEN` | 无 | 只读环境变量；带上后 REST 配额从匿名 60 次/小时提到 5000 次/小时 |
-| `XDG_STATE_HOME` | 未设置 | 设置后 CLI lock 移到 `$XDG_STATE_HOME/skills/.skill-lock.json`，插件跟随读取 |
+| `GITHUB_TOKEN` / `GH_TOKEN` | 无 | 只读环境变量；带上后 REST 配额从匿名 60 次/小时提到 5000 次/小时，私有仓库安装也靠它 |
+| `XDG_STATE_HOME` | 未设置 | 设置后 lock 移到 `$XDG_STATE_HOME/skills/.skill-lock.json`，插件跟随读取 |
 
-关于 GitHub 配额：**匿名 REST 是 60 次/小时，按出口 IP 共享**（公司、校园网出口常被同网段的人一起打满），打满后探测与更新会收到 403。本插件默认让探测、更新检查与 git 兜底走系统 `git`（`ls-remote` + `clone --filter=blob:none --no-checkout`），不占 REST 配额、也不需要 token；git 不可用时才回退 REST，所以原本能用的环境不会因为这条路径变坏。限流且 git 也不可用时，错误文案会给出恢复时间，并提示设置 `GITHUB_TOKEN`。
+关于 GitHub 配额：**匿名 REST 是 60 次/小时，按出口 IP 共享**（公司、校园网出口常被同网段的人一起打满），打满后探测与更新会收到 403。本插件先走 REST；403/429 时改用 **Atom commit feed** 取 commit，再用 **codeload tarball** 在临时目录解压、扫描并本地计算 tree SHA，不占 REST 配额、也不需要 git。兜底也失败时，错误文案会给出恢复时间，并提示设置 `GITHUB_TOKEN`（5000 次/小时）。
 
-> git 通道只用于探测/更新检查的零配额兜底，在 `os.tmpdir()` 里读一份临时仓库，用完即删；安装/删除已不依赖 git。
+> Atom/codeload 兜底只在 `os.tmpdir()` 里解压，用完即删；结果不会落进 canonical 或 lock。
 
 
 ## 开发与发布

@@ -293,3 +293,21 @@ test('install：lock 写失败 → 回滚已替换的 canonical，旧 lock 保�
   assert.deepEqual(leftovers, [], 'staging 临时目录要清干净');
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('install：strict 模式目标 tree 不一致时拒绝，不落 canonical/lock', async () => {
+  const { root, paths, installer } = setup({ files: BASIC });
+  await assert.rejects(
+    () =>
+      installer.install({
+        source: 'morehao/ai-kit',
+        commit: COMMIT,
+        names: ['alpha'],
+        expectedEntries: [{ name: 'alpha', treeSha: 'f'.repeat(40) }],
+        strict: true,
+      }),
+    (error) => error.code === 'tree-mismatch' && error.mismatched?.[0]?.name === 'alpha',
+  );
+  assert.equal(fs.existsSync(path.join(paths.canonical, 'alpha')), false);
+  assert.equal(fs.existsSync(paths.lockFile), false);
+  fs.rmSync(root, { recursive: true, force: true });
+});
