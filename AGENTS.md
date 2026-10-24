@@ -6,7 +6,7 @@
 
 - 包：`@morehao/dsh-skills-console`（显示名「技能控制台」），DeepSeek Harness（dsh）的**技能控制台插件**；**仓库根即包根**，无 workspace、无子包目录。
 - 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（源码 `client/`，构建产物 [client.js](client.js)，`window.__ModuleLoader__` bundle；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板）。
-- 纯 ESM、**零 runtime 依赖**；Host 无构建，Web Client 由 esbuild 打包（构建期 devDependency，生成物提交）；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
+- 纯 ESM、**唯一 runtime 依赖是 `skills`（精确锁版本，随插件安装）**；Host 无构建，Web Client 由 esbuild 打包（构建期 devDependency，生成物提交）；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
 - 技能真身只认 [`skills`](https://www.npmjs.com/package/skills) CLI：下载/落盘 canonical（`~/.agents/skills`）/写 lock 全交给它；本插件只做「发链接 + 记账 + 事务编排」。
 - 发布：注记 tag `vX.Y.Z` → GitHub Actions OIDC → npm；发布成功后 CI 用注记正文建 GitHub Release。
 
@@ -16,7 +16,7 @@
 | [lib/routes.js](lib/routes.js) | prefix 路由 `/api/morehao/skills-console/*`，自定义头鉴权，统一 JSON 错误码 |
 | [lib/core/service.js](lib/core/service.js) | 业务编排：清单 / 安装 / 更新 / 回滚 / 删除 / 启停 / 接管 / 订阅 |
 | [lib/core/paths.js](lib/core/paths.js) | 路径与 env 覆盖（`HOME` / `XDG_CONFIG_HOME` / `DSH_HOME` / `DSH_SKILLS_CONSOLE_HOME`） |
-| [lib/core/cli.js](lib/core/cli.js) | `skills` CLI 定位（四层探测 + `npx` 兜底）、能力位、spawn 封装 |
+| [lib/core/cli.js](lib/core/cli.js) | `skills` CLI 定位（插件依赖优先 → profile → PATH → `npx` 兜底）、能力位、spawn 封装 |
 | [lib/core/hash.js](lib/core/hash.js) | 复刻 CLI 的内容哈希（与 lock 的 `skillFolderHash` 对拍） |
 | [lib/core/state.js](lib/core/state.js) | `state.json` 原子写 + 校验 + 只读降级 |
 | [lib/core/agents.js](lib/core/agents.js) | 目标注册表（`dsh-global` / `agent:*` / `project:*` / `custom:*`） |
@@ -37,7 +37,7 @@
 
 ### 数据边界（最基本的一条）
 
-- **canonical 与 CLI lock 只读**：`~/.agents/skills`、`~/.agents/.skill-lock.json` 一律不直接写；增删改只能经 CLI（`add` 恒带 `-a universal -g -y --json --full-depth`；`remove` 恒**不带** `-a`，避免误删其他 Agent 的目录）。
+- **canonical 与 CLI lock 只读**：`~/.agents/skills`、`~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时是 `$XDG_STATE_HOME/skills/.skill-lock.json`）一律不直接写；增删改只能经 CLI（`add` 恒带 `-a universal -g -y --json --full-depth`；`remove` 恒**不带** `-a`，避免误删其他 Agent 的目录）。
 - **软链四态**：`managed` / `managed-external` / `foreign-link` / `real`。只动自己建的 `managed` 与已记账的 `managed-external`；`real` 与 `foreign-link` 永不改写、删除前体检即中止。
 - **不接收任意路径**：`target` 一律走注册表反查；软链目标恒为 canonical 下同名目录；请求体路径参数不得直接拼到文件系统。
 - **state 只读降级**：坏 JSON / 未知版本 → `readOnly=true` 且写接口 409，**不 fail-open、不猜结构、不自动修复**。
@@ -58,7 +58,7 @@
 - 每次改 `client/**`：先 `npm run build:client`，再把 `client/` 与根 `client.js` 一起提交。`npm run check` 里的 `check:client` 会在内存中重建并逐字节比对，不一致直接红。
 - 生成物必须提交（`link:` 安装与 npm 包都直接读根 `client.js`）；不要加进 `.gitignore`，也不要把 `client/` 加进 `package.json.files`。
 - 客户端只允许 `require('react')` / `require('react-dom')`（后者可选）；其它宿主模块或 npm 包一律不许。源码内的相对 `import` 由构建内联；运行时不解析相对 `require`。
-- 构建期依赖只有 esbuild（devDependency），**零 runtime 依赖**不变；不要新增 `dependencies`。
+- 构建期依赖只有 esbuild（devDependency）；runtime **只允许** `skills` 一个依赖（精确锁版本，随插件安装），不要新增其他 `dependencies`。
 - `client.js.map` 只用于本地调试（`npm run build:client -- --sourcemap`）：不提交、不入包。
 - 文案：`client/copy.js` 的 `zh` / `en` 键集合与 `{n}` / `{path}` 占位符必须一一对应；新增文案必须两份一起加。
 - 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `views/*` / `section` / `surface` / `app` / `index`；禁止循环依赖；`hooks` / `actions` 只依赖 `api`，`views` 不直接发请求。
@@ -81,12 +81,12 @@
 
 | 目的 | 命令 |
 |---|---|
-| 首次安装构建期依赖 | `npm install` |
+| 首次安装依赖（构建期 + skills） | `npm install` |
 | 从 `client/` 生成根 `client.js` | `npm run build:client` |
 | 监听源码并自动重建（配合 `link:` HMR） | `npm run dev:client` |
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
-| 单元测试（131 例，离线） | `npm test` |
+| 单元测试（139 例，离线） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |

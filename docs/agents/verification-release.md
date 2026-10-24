@@ -7,7 +7,7 @@
 
 | 改动 | 必跑 | 说明 |
 |---|---|---|
-| `lib/core/*` | `npm run check` + `npm test` | 48 个离线用例覆盖 hash / state / agents / links / cli / paths / updates / service |
+| `lib/core/*` | `npm run check` + `npm test` | 139 个离线用例覆盖 hash / state / agents / links / cli / paths / updates / service |
 | `lib/routes.js` | 同上 + 手工打一次接口 | 路由无单测，改 `matchRoute` 后按 §2 的 curl 自测 |
 | `client/**` | `npm run build:client` + `npm run check` + `npm test` | 源码是唯一事实来源；改完必须重建并一起提交。`test/client.test.mjs` 用 React 存根跑「渲染 → effect → 再渲染」，能抓未定义变量与字段名错，但**不替代真浏览器** |
 | 根 `client.js` | `npm run check:client` | 生成物：不要手改；改 `client/**` 后重建 |
@@ -30,12 +30,12 @@ curl -s -H 'x-dsh-skills-console: 1' -X POST 'http://127.0.0.1:<port>/api/moreha
 
 ## 3. CI 实际跑什么（`check.yml`）
 
-PR 与 push `main` 触发，**只装构建期依赖**（esbuild），不跑发布构建、不联网：
+PR 与 push `main` 触发，**只按 lockfile 装依赖**（esbuild + 运行时 `skills`），不跑发布构建；测试本身仍不联网：
 
-1. `npm ci`（`check:client` 需要 esbuild）
+1. `npm ci`（`check:client` 需要 esbuild；`skills` 是运行时依赖，同时被装上）
 2. `bash -n scripts/ci-publish.sh`
 3. `npm run check` → `check-syntax.mjs`（lib/、client/、scripts/、test/、client.js 逐文件 `node --check`）→ `check:client`（按 `client/` 重建并与提交的 `client.js` 逐字节比对）→ `check-naming` → `check-pack` → `smoke-release-notes`
-4. `npm test` → 96 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
+4. `npm test` → 139 个 `node:test` 用例（临时 HOME / DSH_HOME + stub CLI）
 
 注意：
 
@@ -48,6 +48,7 @@ PR 与 push `main` 触发，**只装构建期依赖**（esbuild），不跑发�
 
 - 白名单校验（[check-pack.mjs](../../scripts/check-pack.mjs)）允许：`package.json`、`README.md`、`LICENSE`、`cordis.patch.yml`、`icon.svg`、`client.js`、`lib/`、`locale/`；必备文件少一个就红。
 - 不允许：`.dsh/`、`docs/`、`scripts/`、`test/`、`client/`、`node_modules`、`*.tgz`。`client/` 是源码目录，npm 只发根 `client.js`（生成物）。
+- `skills` 是 `package.json` 的 runtime dependency，由 npm/pnpm 在安装时拉取，**不进入 tarball 文件清单**；`check-pack` 不需要为它放行。
 - 命名与接线（[check-naming.mjs](../../scripts/check-naming.mjs)）：
   - `package.json.name` == `cordis.patch.yml` 的 `insert[0].name`
   - `lib/index.js` 的 `export const name` == `insert[0].id`

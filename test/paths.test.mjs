@@ -26,6 +26,15 @@ test('DSH_SKILLS_CONSOLE_HOME 可整体挪走状态目录', () => {
 });
 
 
+test('XDG_STATE_HOME 下的 lock 与 CLI 对齐，canonical 不变', () => {
+  const paths = createPaths(
+    { HOME: '/h', DSH_HOME: '/h/.dsh', XDG_STATE_HOME: '/state' },
+    {},
+  );
+  assert.equal(paths.lockFile, path.join('/state', 'skills', '.skill-lock.json'));
+  assert.equal(paths.canonical, path.join('/h', '.agents', 'skills'));
+});
+
 test('overrides.stateDir 优先级高于任何 env（测试与实验用）', () => {
   const paths = createPaths(
     { HOME: '/h', DSH_HOME: '/h/.dsh', DSH_SKILLS_CONSOLE_HOME: '/tmp/console-home' },

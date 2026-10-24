@@ -969,6 +969,82 @@ test('检查更新：两种通道都不可用 → 每个技能一条带错误码
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+// ---- 缺 CLI / 缺 git：降级与错误映射 -----------------------------------------
+
+const MISSING_CAPS = Object.freeze({
+  version: null,
+  json: false,
+  fullDepth: false,
+  source: 'missing',
+  usable: false,
+});
+
+function unusableCli() {
+  return { capabilities: async () => ({ ...MISSING_CAPS }) };
+}
+
+test('CLI 缺失：/state 降级为只读，清单仍可读；install 返回 400 而不是 500', async () => {
+  const { root, paths, service } = setup({ cli: unusableCli() });
+  const dir = path.join(paths.canonical, 'alpha');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: alpha\ndescription: demo\n---\nbody\n');
+
+  const state = await service.getState({});
+  assert.equal(state.ok, true);
+  assert.equal(state.cli.usable, false);
+  assert.equal(state.cli.source, 'missing');
+  assert.ok(state.installs.some((item) => item.name === 'alpha'), '清单不能因为 CLI 缺失而消失');
+
+  await assert.rejects(
+    () => service.install({ source: 'morehao/ai-kit', skills: ['alpha'] }),
+    (error) => error.code === 'error.skills.cli-missing',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('CLI 缺失：remove 在回收站快照之前拒绝；applyUpdate 在排队之前拒绝', async () => {
+  const { root, paths, service } = setup({ cli: unusableCli() });
+  const dir = path.join(paths.canonical, 'alpha');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: alpha\ndescription: demo\n---\nbody\n');
+
+  await assert.rejects(
+    () => service.remove({ name: 'alpha' }),
+    (error) => error.code === 'error.skills.cli-missing',
+  );
+  assert.equal(fs.existsSync(paths.trashDir), false, '拒绝时不能留下孤儿 trash');
+  assert.ok(fs.existsSync(path.join(dir, 'SKILL.md')), '拒绝时不能动真身');
+
+  await assert.rejects(
+    () => service.applyUpdate({ name: 'alpha' }),
+    (error) => error.code === 'error.skills.cli-missing',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('git 缺失：CLI add 输出 spawn git ENOENT → error.skills.git-missing', async () => {
+  const cli = {
+    capabilities: async () => ({ version: '1.7.4', json: true, fullDepth: true, source: 'dependency', usable: true }),
+    add: async () => ({
+      code: 1,
+      timedOut: false,
+      stdout: '■  Failed to clone repository\n   Error: spawn git ENOENT\n',
+      stderr: '',
+    }),
+  };
+  const { root, paths, service } = setup({ cli });
+  await assert.rejects(
+    () => service.install({ source: 'morehao/ai-kit', skills: ['alpha'] }),
+    (error) => {
+      assert.equal(error.code, 'error.skills.git-missing');
+      assert.match(error.message, /需要本机有 git/);
+      return true;
+    },
+  );
+  assert.equal(fs.existsSync(path.join(paths.canonical, 'alpha')), false, '失败不能落盘');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('更新计划：配额耗尽时用 git 出计划，不出现「查得到更不了」（T4）', async () => {
   const shimRoot = gitSandbox();
   const shim = gitShim(shimRoot, { tree: SKILL_TREE, commit: NEW_COMMIT });
