@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.1] - 2026-10-25
+
+### Fixes
+
+- **autolink**: show dsh global as a checked, locked row (#30)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.0...v0.3.1
+
 ## [v0.3.0] - 2026-10-24
 
 ### Features
