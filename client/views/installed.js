@@ -343,7 +343,7 @@ export function InstalledTab({
     const manualRows = visibleRows.filter((row) => row.mode === 'manual');
     const offRows = visibleRows.filter((row) => row.mode === 'hidden' || row.enabled === false);
     const hiddenRows = visibleRows.filter((row) => row.mode === 'auto' && row.enabled !== false && !row.visible);
-    groups.push({ key: 'visible', title: t('group.visible'), rows: visibleGroup, dot: true });
+    if (visibleGroup.length) groups.push({ key: 'visible', title: t('group.visible'), rows: visibleGroup, dot: true });
     if (manualRows.length) groups.push({ key: 'manual', title: t('group.manual'), rows: manualRows });
     if (offRows.length) groups.push({ key: 'off', title: t('group.off'), rows: offRows });
     if (hiddenRows.length) groups.push({ key: 'hidden', title: t('group.hidden'), rows: hiddenRows });

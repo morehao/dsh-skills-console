@@ -22,12 +22,12 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
   async function setInvocation(row, mode) {
     await run(`invocation:${row.name}`, async () => {
       const result = await apiCall('POST', `/skills/${encodeURIComponent(row.name)}/invocation`, { mode });
-      setToast({
-        kind: 'ok',
-        text: mode === 'hidden'
-          ? `${row.name} · ${t('policy.hidden')}`
-          : `${row.name} · ${t('policy.saved')}`,
-      });
+      const saved = mode === 'hidden'
+        ? t('policy.savedHidden')
+        : mode === 'manual'
+          ? t('policy.savedManual')
+          : t('policy.savedAuto');
+      setToast({ kind: 'ok', text: `${row.name} · ${saved}` });
       return result;
     });
   }

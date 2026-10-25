@@ -160,6 +160,9 @@ var DICT = {
     "policy.hiddenConfirm": "完全停用",
     "policy.saving": "保存中…",
     "policy.saved": "调用策略已更新",
+    "policy.savedManual": "已写入 SKILL.md；更新后自动重放",
+    "policy.savedAuto": "已恢复自动；标记行已移除",
+    "policy.savedHidden": "已完全停用；可随时恢复",
     "policy.unpark": "恢复",
     "policy.unparkTitle": "恢复技能",
     "policy.unparkBody": "将回到停用前的模式（{mode}）。只把文件名改回来，不重新下载，也不用重建导出链。",
@@ -397,6 +400,9 @@ var DICT = {
     "policy.hiddenConfirm": "Disable fully",
     "policy.saving": "Saving…",
     "policy.saved": "Invocation policy updated",
+    "policy.savedManual": "Written to SKILL.md; replayed after updates",
+    "policy.savedAuto": "Auto restored; the marker line was removed",
+    "policy.savedHidden": "Fully disabled; restorable at any time",
     "policy.unpark": "Restore",
     "policy.unparkTitle": "Restore skill",
     "policy.unparkBody": "Returns to the mode before disabling ({mode}). It only renames the file back; no re-download or relink.",
@@ -1732,10 +1738,8 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
   async function setInvocation(row, mode) {
     await run(`invocation:${row.name}`, async () => {
       const result = await apiCall("POST", `/skills/${encodeURIComponent(row.name)}/invocation`, { mode });
-      setToast({
-        kind: "ok",
-        text: mode === "hidden" ? `${row.name} · ${t("policy.hidden")}` : `${row.name} · ${t("policy.saved")}`
-      });
+      const saved = mode === "hidden" ? t("policy.savedHidden") : mode === "manual" ? t("policy.savedManual") : t("policy.savedAuto");
+      setToast({ kind: "ok", text: `${row.name} · ${saved}` });
       return result;
     });
   }
@@ -2810,7 +2814,7 @@ function InstalledTab({
     const manualRows = visibleRows.filter((row) => row.mode === "manual");
     const offRows = visibleRows.filter((row) => row.mode === "hidden" || row.enabled === false);
     const hiddenRows = visibleRows.filter((row) => row.mode === "auto" && row.enabled !== false && !row.visible);
-    groups.push({ key: "visible", title: t("group.visible"), rows: visibleGroup, dot: true });
+    if (visibleGroup.length) groups.push({ key: "visible", title: t("group.visible"), rows: visibleGroup, dot: true });
     if (manualRows.length) groups.push({ key: "manual", title: t("group.manual"), rows: manualRows });
     if (offRows.length) groups.push({ key: "off", title: t("group.off"), rows: offRows });
     if (hiddenRows.length) groups.push({ key: "hidden", title: t("group.hidden"), rows: hiddenRows });

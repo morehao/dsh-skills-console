@@ -1546,3 +1546,32 @@ test('仅手动：原文是 false 时恢复成 false；文件被改回 false 时
   assert.equal(store.findInstall('alpha').manual.drift, true);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('恢复：state=hidden 但 marker / disabled 都没了 → park-broken，不假装成功', async () => {
+  const { root, paths, store, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  await service.setInvocation({ name: 'alpha', mode: 'hidden' });
+  const dir = path.join(paths.canonical, 'alpha');
+  fs.rmSync(path.join(dir, 'SKILL.md.disabled'), { force: true });
+  fs.rmSync(path.join(dir, '.dsh-skills-console.park.json'), { force: true });
+  await assert.rejects(
+    () => service.unpark({ name: 'alpha' }),
+    (error) => error.code === 'error.skills.park-broken',
+  );
+  assert.equal(store.findInstall('alpha').mode, 'hidden', '坏状态不改记账');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('作者声明但 state 还是 auto：展示为只读 manual，不改 state、不误判成自动', async () => {
+  const { root, paths, store, service } = setup({ visibleProvider: async () => ({ skills: [], complete: true }) });
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const file = path.join(paths.canonical, 'alpha', 'SKILL.md');
+  fs.writeFileSync(file, '---\nname: alpha\ndescription: demo\ndisable-model-invocation: true\n---\nbody\n');
+  const state = await service.getState({});
+  const row = state.installs.find((item) => item.name === 'alpha');
+  assert.equal(row.mode, 'manual');
+  assert.equal(row.origin, 'author');
+  assert.notEqual(store.findInstall('alpha').mode, 'manual', '只做展示推断，不改记账');
+  assert.ok(!store.findInstall('alpha').manual);
+  fs.rmSync(root, { recursive: true, force: true });
+});
