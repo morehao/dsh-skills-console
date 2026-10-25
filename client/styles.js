@@ -1,16 +1,28 @@
 /** 客户端全部样式：一个字符串，由根节点注入 <style>。 */
 export const CSS = `
-  /* 主面板形态：与 DSH 自带管理页同一边距/滚动方式。
-     scrollbar-gutter: stable 让滚动条出现/消失都不改变内容宽度——否则列表一长出来，
-     内容就窄 5~15px，贴着断点的布局会整页跳一次。 */
-  .dshsc-page { box-sizing: border-box; width: 100%; height: 100%; overflow: auto;
-    scrollbar-gutter: stable;
+  /* 主面板形态：页面本身固定不滚，滚动条只出现在列表区（.dshsc-listscroll）。
+     页头 / 工具栏 / 筛选条是 flex:none 的固定行，行区域 flex:1 + overflow:auto。
+     scrollbar-gutter 跟着滚动条一起挪到列表区：行区域变长/变短都不改变自身宽度，
+     贴着 860 断点的布局不会因为滚动条出现整页翻面。 */
+  .dshsc-page { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden;
     padding: calc(28px + var(--dsh-frame-top-clearance, 0px)) clamp(24px, 4vw, 48px) 48px; }
   .dshsc-page .dshsc-root { max-width: 980px; margin: 0 auto; }
   .dshsc-page .dshsc-title { font-size: 20px; font-weight: 500; line-height: 28px; }
   .dshsc-page .dshsc-sub { font-size: 13px; line-height: 20px; }
-  .dshsc-root { display: flex; flex-direction: column; gap: 14px; color: var(--dsw-alias-label-primary);
+  /* 高度取满挂载面：侧栏 main 是 100%，设置页是宿主 .options 的内容高。
+     宿主没给确定高度时（height:100% 解析为 auto）退化成外层滚动，不会把内容裁掉。 */
+  .dshsc-root { display: flex; flex-direction: column; gap: 14px; height: 100%; min-height: 0;
+    color: var(--dsw-alias-label-primary);
     container-type: inline-size; container-name: dshsc; }
+  /* 页头 / 工具栏 / 顶部提示条高度不参与压缩；tab 面板吃满剩余高度，
+     面板里的筛选条与说明固定，只有行区域（.dshsc-listscroll）自己出现滚动条。 */
+  .dshsc-root > .dshsc-head, .dshsc-root > .dshsc-toolbar,
+  .dshsc-root > .dshsc-banner, .dshsc-root > .dshsc-meta { flex: none; }
+  .dshsc-tabpane { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+  .dshsc-tabpane > .dshsc-banner, .dshsc-tabpane > .dshsc-notice,
+  .dshsc-tabpane > .dshsc-listbar { flex: none; }
+  .dshsc-listscroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain;
+    scrollbar-gutter: stable; }
   /* 页头：左标题块、右业务动作。动作组不靠固定断点换行——标题块的 flex-basis 用内容宽度
      （auto），放得下就同排、放不下（约 630px 以下）动作组自然换到第二行并靠右。
      这样窄面板（设置页 ~565px）会回到「动作在下、标识在上」，身份胶囊永远是完整的，
@@ -498,8 +510,11 @@ export const CSS = `
   .dshsc-md-table th { background: var(--dsw-alias-bg-layer-2); font-weight: 600; }
   .dshsc-md-table tr:last-child td { border-bottom: 0; }
 
-  /* 整页（A1）：返回条 + hero + 目录 + 720px 正文 */
-  .dshsc-reader-page { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  /* 整页（A1）：返回条 + hero + 目录 + 720px 正文。
+     root 高度固定后，整页阅读器也自己撑满：顶栏 / hero 固定，正文列内部滚动，
+     返回按钮不会跟着长文滚走。 */
+  .dshsc-reader-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+  .dshsc-reader-page > .dshsc-reader-topbar, .dshsc-reader-page > .dshsc-reader-hero { flex: none; }
   .dshsc-reader-topbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .dshsc-reader-topbar .dshsc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px;
     box-sizing: border-box; height: 28px; padding: 0 10px; font-size: 12px; line-height: 1; white-space: nowrap; }
@@ -519,7 +534,8 @@ export const CSS = `
     background: var(--dsw-alias-bg-layer-1); }
   .dshsc-reader-hero .dshsc-reader-head { border-bottom: 0; }
   .dshsc-reader-hero .dshsc-reader-desc { -webkit-line-clamp: 3; max-width: 78ch; }
-  .dshsc-reader-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px; align-items: start; }
+  .dshsc-reader-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 180px minmax(0, 1fr);
+    gap: 18px; align-items: stretch; }
   .dshsc-reader-toc { position: sticky; top: 0; display: flex; flex-direction: column; gap: 1px;
     max-height: 70vh; overflow: auto; padding-right: 4px; }
   .dshsc-reader-toc-title { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
@@ -533,7 +549,8 @@ export const CSS = `
   .dshsc-reader-tocitem.on { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
     color: var(--dsw-alias-brand-primary); }
   .dshsc-reader-tocitem:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
-  .dshsc-reader-col { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--dsw-alias-border-l1);
+  .dshsc-reader-col { display: flex; flex-direction: column; min-width: 0; min-height: 0;
+    border: 1px solid var(--dsw-alias-border-l1);
     border-radius: 12px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
   .dshsc-reader-col .dshsc-reader-tabs { border-top: 0; }
   .dshsc-reader-page .dshsc-reader-body { max-height: none; }

@@ -1,17 +1,12 @@
 /** 弹层：表单 / 确认 / 接入设置 / 自动接入 + 按 modal.type 分发。 */
 import React from 'react';
 
-import { h } from '../host.js';
+import { h, overlayHost, portalize, useOverlayLayer } from '../host.js';
 
 export function Overlay({ t, title, children, footer, onCancel }) {
-  React.useEffect(() => {
-    const onKey = (event) => {
-      if (event.key === 'Escape') onCancel?.();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
-  return h('div', { className: 'dshsc-overlay', onClick: (event) => { if (event.target === event.currentTarget) onCancel?.(); } },
+  // Esc 交给插件浮层栈：只关最上面的弹窗，不连带关掉背后的设置弹窗 / 抽屉
+  useOverlayLayer(true, onCancel);
+  return portalize(h('div', { className: 'dshsc-overlay', onClick: (event) => { if (event.target === event.currentTarget) onCancel?.(); } },
     h('div', { className: 'dshsc-modal', role: 'dialog', 'aria-modal': 'true' },
       h('button', {
         className: 'dshsc-modal-close',
@@ -20,7 +15,7 @@ export function Overlay({ t, title, children, footer, onCancel }) {
       }, '×'),
       h('h3', null, title),
       children,
-      h('div', { className: 'dshsc-modal-foot' }, footer)));
+      h('div', { className: 'dshsc-modal-foot' }, footer))), overlayHost());
 }
 
 export function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {

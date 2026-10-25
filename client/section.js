@@ -4,7 +4,7 @@
  */
 import React from 'react';
 
-import { h } from './host.js';
+import { h, overlayHost, portalize } from './host.js';
 import { apiCall } from './api.js';
 import { CSS } from './styles.js';
 import { useSkillActions } from './actions.js';
@@ -32,6 +32,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const [viewer, setViewer] = React.useState(null);
   const rootRef = React.useRef(null);
   const scrollPos = React.useRef(null);
+  const restoreScroll = React.useRef(null);
   const [filter, setFilter] = React.useState('all');
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
@@ -90,10 +91,17 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     return typeof document !== 'undefined' ? document.scrollingElement || null : null;
   }
 
+  /** 列表自己的滚动容器（行区域独立滚动）；宿主没给确定高度、列表退回外层滚动时再找祖先。 */
+  function listScroller() {
+    const node = rootRef.current?.querySelector?.('.dshsc-listscroll');
+    if (node && node.scrollHeight > node.clientHeight) return node;
+    return getScrollParent(rootRef.current);
+  }
+
   function openViewer(row, mode = 'drawer') {
     if (!row) return;
     if (mode === 'page') {
-      scrollPos.current = getScrollParent(rootRef.current)?.scrollTop ?? 0;
+      scrollPos.current = listScroller()?.scrollTop ?? 0;
     }
     setViewer({ name: row.name, mode });
   }
@@ -101,21 +109,24 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   function openPage() {
     setViewer((prev) => {
       if (!prev) return prev;
-      scrollPos.current = getScrollParent(rootRef.current)?.scrollTop ?? 0;
+      scrollPos.current = listScroller()?.scrollTop ?? 0;
       return { ...prev, mode: 'page' };
     });
   }
 
   function closeViewer() {
-    const restore = viewer?.mode === 'page' ? scrollPos.current : null;
+    if (viewer?.mode === 'page') restoreScroll.current = scrollPos.current;
     setViewer(null);
-    if (restore === null || typeof window === 'undefined') return;
-    const apply = () => {
-      const scroller = getScrollParent(rootRef.current);
-      if (scroller) scroller.scrollTop = restore;
-    };
-    if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(apply);
   }
+
+  // 整页会卸载列表，返回时列表重新挂载：绘制前把行区域滚回原位，避免先闪一下顶部
+  React.useLayoutEffect(() => {
+    if (restoreScroll.current === null) return;
+    const target = restoreScroll.current;
+    restoreScroll.current = null;
+    const scroller = listScroller();
+    if (scroller) scroller.scrollTop = target;
+  }, [viewer]);
 
   async function changePlacement(next) {
     if (next === placement || placementBusy) return;
@@ -257,7 +268,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     h('style', null, CSS),
     viewer?.mode === 'page' ? null : listNode,
     readerNode,
-    toast ? h('div', { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
+    toast ? portalize(h('div', { className: `dshsc-toast ${toast.kind}` }, toast.text), overlayHost()) : null,
     modal ? h(Modals, {
       t,
       modal,

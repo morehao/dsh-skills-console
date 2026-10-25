@@ -6,7 +6,7 @@
  */
 import React from 'react';
 
-import { h, portalize } from '../host.js';
+import { h, overlayHost, portalize, useOverlayLayer } from '../host.js';
 import { short } from '../api.js';
 import { useSkillReader } from '../hooks.js';
 import { ChevronLeftIcon, CopyIcon, FileIcon, FolderIcon } from '../icons.js';
@@ -52,22 +52,25 @@ function extOf(relPath) {
   return match ? match[1].toUpperCase() : 'FILE';
 }
 
+function isScroller(node) {
+  if (!node || typeof getComputedStyle !== 'function') return false;
+  const style = getComputedStyle(node);
+  return Boolean(style && /(auto|scroll)/.test(style.overflowY || '') && node.scrollHeight > node.clientHeight + 4);
+}
+
 /** 最近的滚动祖先：整页挂在设置页里时，真正滚动的是外层容器（侧栏 / 设置页）。 */
 function nearestScroller(node) {
   let current = node?.parentElement || null;
   while (current) {
-    if (typeof getComputedStyle === 'function') {
-      const style = getComputedStyle(current);
-      if (style && /(auto|scroll)/.test(style.overflowY || '') && current.scrollHeight > current.clientHeight + 4) {
-        return current;
-      }
-    }
+    if (isScroller(current)) return current;
     current = current.parentElement || null;
   }
   return typeof document !== 'undefined' ? document.scrollingElement || null : null;
 }
 
 function scrollHost(node) {
+  // 正文自己就是滚动容器（列表之外的区域现在都固定），先认它；抽屉与旧宿主再找祖先
+  if (isScroller(node)) return node;
   return (node && nearestScroller(node)) || node;
 }
 
@@ -250,6 +253,9 @@ export function SkillReader({
   const dialogRef = React.useRef(null);
   const scrollRef = React.useRef(0);
 
+  // 抽屉 / 整页阅读都注册成一层：Esc 只退回列表，不连带关掉背后的宿主设置弹窗
+  useOverlayLayer(variant === 'drawer' || variant === 'page', onClose);
+
   const name = row?.name || '';
   const tree = state.tree;
   const files = tree?.files || [];
@@ -277,18 +283,13 @@ export function SkillReader({
     if (node && scrollRef.current) node.scrollTop = scrollRef.current;
   });
 
-  // 抽屉：Esc 关闭、焦点陷阱、关闭后把焦点还给触发的按钮
+  // 抽屉：Tab 焦点陷阱、关闭后把焦点还给触发的按钮（Esc 由 useOverlayLayer 统一处理）
   React.useEffect(() => {
     if (variant !== 'drawer' || typeof document === 'undefined') return undefined;
     const previous = document.activeElement;
     const node = dialogRef.current;
     node?.focus?.();
     const onKeyDown = (event) => {
-      if (event?.key === 'Escape') {
-        event.stopPropagation?.();
-        onClose?.();
-        return;
-      }
       if (event?.key !== 'Tab' || !node?.querySelectorAll) return;
       const focusables = Array.from(
         node.querySelectorAll('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])'),
@@ -304,9 +305,10 @@ export function SkillReader({
         first.focus?.();
       }
     };
-    document.addEventListener('keydown', onKeyDown);
+    // 捕获阶段先于宿主设置弹窗的 Tab 陷阱，防止焦点跑到遮罩后的设置导航上
+    document.addEventListener('keydown', onKeyDown, true);
     return () => {
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keydown', onKeyDown, true);
       previous?.focus?.();
     };
   }, [variant, onClose]);
@@ -676,8 +678,9 @@ export function SkillReader({
         h('div', { className: 'dshsc-reader-col' }, tabsBar, body)));
   }
 
-  // 抽屉走 portal：设置面板 / 侧栏的 overflow 都裁不到；组件实例仍留在 Section 的树里，
-  // 所以「在整页打开」只换外壳，不卸载、不重拉数据。
+  // 抽屉走 portal：落到当前挂载面所在的层级——设置页里是宿主的设置弹窗，
+  // 侧栏主页是 body。这样 z-index 只在同一层里比较，不会被宿主的模态层压住；
+  // 组件实例仍留在 Section 的树里，所以「在整页打开」只换外壳，不卸载、不重拉数据。
   return portalize(h('div', { className: 'dshsc-drawer-wrap' },
     h('div', { className: 'dshsc-drawer-scrim', onClick: () => onClose?.() }),
     h('aside', {
@@ -687,5 +690,5 @@ export function SkillReader({
       'aria-labelledby': 'dshsc-reader-name',
       ref: dialogRef,
       tabIndex: -1,
-    }, header, tabsBar, body, actionsFooter)));
+    }, header, tabsBar, body, actionsFooter)), overlayHost());
 }

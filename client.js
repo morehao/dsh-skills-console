@@ -470,8 +470,45 @@ try {
 } catch {
   ReactDOM = null;
 }
-function portalize(node) {
-  return ReactDOM?.createPortal && typeof document !== "undefined" && document.body ? ReactDOM.createPortal(node, document.body) : node;
+function overlayHost() {
+  if (typeof document === "undefined") return null;
+  const root = document.querySelector?.(".dshsc-root");
+  const dialog = root?.closest?.('[role="dialog"]');
+  return dialog || document.querySelector?.("body") || null;
+}
+function portalize(node, target) {
+  const host = target || (typeof document !== "undefined" ? document.body : null);
+  return ReactDOM?.createPortal && host ? ReactDOM.createPortal(node, host) : node;
+}
+var overlayLayers = [];
+var escapeGuarded = false;
+function onOverlayEscape(event) {
+  if (event.key !== "Escape" || overlayLayers.length === 0) return;
+  event.preventDefault?.();
+  event.stopPropagation?.();
+  event.stopImmediatePropagation?.();
+  overlayLayers[overlayLayers.length - 1].close();
+}
+function useOverlayLayer(active, close) {
+  const closeRef = import_react.default.useRef(close);
+  closeRef.current = close;
+  import_react.default.useEffect(() => {
+    if (!active || typeof document === "undefined") return void 0;
+    const layer = { close: () => closeRef.current?.() };
+    overlayLayers.push(layer);
+    if (!escapeGuarded) {
+      document.addEventListener("keydown", onOverlayEscape, true);
+      escapeGuarded = true;
+    }
+    return () => {
+      const index = overlayLayers.indexOf(layer);
+      if (index >= 0) overlayLayers.splice(index, 1);
+      if (overlayLayers.length === 0 && escapeGuarded) {
+        document.removeEventListener("keydown", onOverlayEscape, true);
+        escapeGuarded = false;
+      }
+    };
+  }, [active]);
 }
 
 // client/icons.js
@@ -815,17 +852,29 @@ var import_react5 = __toESM(require("react"), 1);
 
 // client/styles.js
 var CSS = `
-  /* 主面板形态：与 DSH 自带管理页同一边距/滚动方式。
-     scrollbar-gutter: stable 让滚动条出现/消失都不改变内容宽度——否则列表一长出来，
-     内容就窄 5~15px，贴着断点的布局会整页跳一次。 */
-  .dshsc-page { box-sizing: border-box; width: 100%; height: 100%; overflow: auto;
-    scrollbar-gutter: stable;
+  /* 主面板形态：页面本身固定不滚，滚动条只出现在列表区（.dshsc-listscroll）。
+     页头 / 工具栏 / 筛选条是 flex:none 的固定行，行区域 flex:1 + overflow:auto。
+     scrollbar-gutter 跟着滚动条一起挪到列表区：行区域变长/变短都不改变自身宽度，
+     贴着 860 断点的布局不会因为滚动条出现整页翻面。 */
+  .dshsc-page { box-sizing: border-box; width: 100%; height: 100%; overflow: hidden;
     padding: calc(28px + var(--dsh-frame-top-clearance, 0px)) clamp(24px, 4vw, 48px) 48px; }
   .dshsc-page .dshsc-root { max-width: 980px; margin: 0 auto; }
   .dshsc-page .dshsc-title { font-size: 20px; font-weight: 500; line-height: 28px; }
   .dshsc-page .dshsc-sub { font-size: 13px; line-height: 20px; }
-  .dshsc-root { display: flex; flex-direction: column; gap: 14px; color: var(--dsw-alias-label-primary);
+  /* 高度取满挂载面：侧栏 main 是 100%，设置页是宿主 .options 的内容高。
+     宿主没给确定高度时（height:100% 解析为 auto）退化成外层滚动，不会把内容裁掉。 */
+  .dshsc-root { display: flex; flex-direction: column; gap: 14px; height: 100%; min-height: 0;
+    color: var(--dsw-alias-label-primary);
     container-type: inline-size; container-name: dshsc; }
+  /* 页头 / 工具栏 / 顶部提示条高度不参与压缩；tab 面板吃满剩余高度，
+     面板里的筛选条与说明固定，只有行区域（.dshsc-listscroll）自己出现滚动条。 */
+  .dshsc-root > .dshsc-head, .dshsc-root > .dshsc-toolbar,
+  .dshsc-root > .dshsc-banner, .dshsc-root > .dshsc-meta { flex: none; }
+  .dshsc-tabpane { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+  .dshsc-tabpane > .dshsc-banner, .dshsc-tabpane > .dshsc-notice,
+  .dshsc-tabpane > .dshsc-listbar { flex: none; }
+  .dshsc-listscroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain;
+    scrollbar-gutter: stable; }
   /* 页头：左标题块、右业务动作。动作组不靠固定断点换行——标题块的 flex-basis 用内容宽度
      （auto），放得下就同排、放不下（约 630px 以下）动作组自然换到第二行并靠右。
      这样窄面板（设置页 ~565px）会回到「动作在下、标识在上」，身份胶囊永远是完整的，
@@ -1313,8 +1362,11 @@ var CSS = `
   .dshsc-md-table th { background: var(--dsw-alias-bg-layer-2); font-weight: 600; }
   .dshsc-md-table tr:last-child td { border-bottom: 0; }
 
-  /* 整页（A1）：返回条 + hero + 目录 + 720px 正文 */
-  .dshsc-reader-page { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  /* 整页（A1）：返回条 + hero + 目录 + 720px 正文。
+     root 高度固定后，整页阅读器也自己撑满：顶栏 / hero 固定，正文列内部滚动，
+     返回按钮不会跟着长文滚走。 */
+  .dshsc-reader-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+  .dshsc-reader-page > .dshsc-reader-topbar, .dshsc-reader-page > .dshsc-reader-hero { flex: none; }
   .dshsc-reader-topbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .dshsc-reader-topbar .dshsc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px;
     box-sizing: border-box; height: 28px; padding: 0 10px; font-size: 12px; line-height: 1; white-space: nowrap; }
@@ -1334,7 +1386,8 @@ var CSS = `
     background: var(--dsw-alias-bg-layer-1); }
   .dshsc-reader-hero .dshsc-reader-head { border-bottom: 0; }
   .dshsc-reader-hero .dshsc-reader-desc { -webkit-line-clamp: 3; max-width: 78ch; }
-  .dshsc-reader-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px; align-items: start; }
+  .dshsc-reader-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 180px minmax(0, 1fr);
+    gap: 18px; align-items: stretch; }
   .dshsc-reader-toc { position: sticky; top: 0; display: flex; flex-direction: column; gap: 1px;
     max-height: 70vh; overflow: auto; padding-right: 4px; }
   .dshsc-reader-toc-title { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
@@ -1348,7 +1401,8 @@ var CSS = `
   .dshsc-reader-tocitem.on { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
     color: var(--dsw-alias-brand-primary); }
   .dshsc-reader-tocitem:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
-  .dshsc-reader-col { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--dsw-alias-border-l1);
+  .dshsc-reader-col { display: flex; flex-direction: column; min-width: 0; min-height: 0;
+    border: 1px solid var(--dsw-alias-border-l1);
     border-radius: 12px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
   .dshsc-reader-col .dshsc-reader-tabs { border-top: 0; }
   .dshsc-reader-page .dshsc-reader-body { max-height: none; }
@@ -2197,17 +2251,35 @@ function InstalledTab({
     ) : null;
   }
   function content() {
-    if (!data) return h("div", { className: "dshsc-empty" }, t("empty.loading"));
+    if (!data) {
+      return h(
+        "div",
+        { className: "dshsc-tabpane" },
+        h(
+          "div",
+          { className: "dshsc-listscroll" },
+          h("div", { className: "dshsc-empty" }, t("empty.loading"))
+        )
+      );
+    }
     if (rows.length === 0) {
       return h(
         "div",
-        { className: "dshsc-empty" },
-        h("div", { className: "dshsc-name" }, t("empty.skills")),
-        h("div", { className: "dshsc-meta", style: { justifyContent: "center" } }, t("empty.skillsHint")),
+        { className: "dshsc-tabpane" },
         h(
           "div",
-          { style: { marginTop: 10 } },
-          h("button", { className: "dshsc-btn primary", disabled: !writable, onClick: actions.onAddSkill }, t("action.addSkill"))
+          { className: "dshsc-listscroll" },
+          h(
+            "div",
+            { className: "dshsc-empty" },
+            h("div", { className: "dshsc-name" }, t("empty.skills")),
+            h("div", { className: "dshsc-meta", style: { justifyContent: "center" } }, t("empty.skillsHint")),
+            h(
+              "div",
+              { style: { marginTop: 10 } },
+              h("button", { className: "dshsc-btn primary", disabled: !writable, onClick: actions.onAddSkill }, t("action.addSkill"))
+            )
+          )
         )
       );
     }
@@ -2225,11 +2297,15 @@ function InstalledTab({
     ))) : h("div", { className: "dshsc-list" }, visibleRows.map(rowView));
     return h(
       "div",
-      { style: { display: "flex", flexDirection: "column", gap: 8 } },
+      { className: "dshsc-tabpane" },
       visibleOnlyBanners(),
       builtinNotice(),
       listBar(),
-      visibleRows.length === 0 ? filteredEmpty() : body
+      h(
+        "div",
+        { className: "dshsc-listscroll" },
+        visibleRows.length === 0 ? filteredEmpty() : body
+      )
     );
   }
   return content();
@@ -2281,90 +2357,100 @@ function SubscriptionsTab({
   if (subscriptions.length === 0) {
     return h(
       "div",
-      { className: "dshsc-empty" },
-      h("div", { className: "dshsc-name" }, t("empty.subs")),
-      h("div", { className: "dshsc-meta", style: { justifyContent: "center" } }, t("empty.subsHint")),
+      { className: "dshsc-tabpane" },
       h(
         "div",
-        { style: { marginTop: 10 } },
-        h("button", { className: "dshsc-btn primary", disabled: !writable, onClick: onAdd }, t("action.addSubscription"))
+        { className: "dshsc-listscroll" },
+        h(
+          "div",
+          { className: "dshsc-empty" },
+          h("div", { className: "dshsc-name" }, t("empty.subs")),
+          h("div", { className: "dshsc-meta", style: { justifyContent: "center" } }, t("empty.subsHint")),
+          h(
+            "div",
+            { style: { marginTop: 10 } },
+            h("button", { className: "dshsc-btn primary", disabled: !writable, onClick: onAdd }, t("action.addSubscription"))
+          )
+        )
       )
     );
   }
-  return h("div", { className: "dshsc-list" }, subscriptions.map((subscription) => {
-    const entries = subscription.snapshot?.entries || [];
-    const installedNames = new Set(rows.filter((row) => row.subscriptionId === subscription.id).map((row) => row.name));
-    const open = Boolean(expanded[subscription.id]);
-    return h(
+  return h(
+    "div",
+    { className: "dshsc-tabpane" },
+    h(
       "div",
-      { className: "dshsc-sub-block", key: subscription.id },
-      h(
-        "div",
-        { className: "dshsc-sub-row" },
-        h("button", {
-          className: "dshsc-caret",
-          "aria-expanded": String(open),
-          "aria-label": `${subscription.source} ${open ? t("action.collapse") : t("action.expand")}`,
-          onClick: () => onToggle(subscription.id)
-        }, h(CaretIcon, { open })),
-        h("span", { className: "dshsc-name" }, subscription.source),
-        h("span", { className: "dshsc-tag" }, subscription.ref || t("subscription.defaultRef")),
-        h(
-          "span",
-          { className: "dshsc-substat" },
-          `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedNames.size}`
-        ),
-        h(
-          "div",
-          { className: "dshsc-actions" },
-          h("button", {
-            className: "dshsc-btn sq",
-            disabled: busy !== null,
-            title: t("action.checkUpdates"),
-            "aria-label": `${t("action.checkUpdates")} ${subscription.source}`,
-            onClick: () => void onRefresh(subscription)
-          }, h(RefreshIcon, { size: 13 })),
-          h("button", { className: "dshsc-btn ghost danger", disabled: busy !== null, onClick: () => void onDelete(subscription) }, t("action.unsubscribe"))
-        )
-      ),
-      open ? h("div", { className: "dshsc-sub-list" }, entries.map((entry) => {
-        const installedAlready = installedNames.has(entry.name);
+      { className: "dshsc-listscroll" },
+      h("div", { className: "dshsc-list" }, subscriptions.map((subscription) => {
+        const entries = subscription.snapshot?.entries || [];
+        const installedNames = new Set(rows.filter((row) => row.subscriptionId === subscription.id).map((row) => row.name));
+        const open = Boolean(expanded[subscription.id]);
         return h(
           "div",
-          { className: "dshsc-sub-entry", key: entry.name },
-          h("span", { className: "dshsc-name" }, entry.name),
-          h(
-            "span",
-            { className: `dshsc-state${installedAlready ? " ok" : ""}` },
-            installedAlready ? "✓ " : "",
-            installedAlready ? t("installed") : t("notInstalled")
-          ),
+          { className: "dshsc-sub-block", key: subscription.id },
           h(
             "div",
-            { className: "dshsc-actions" },
-            installedAlready ? null : h("button", {
-              className: "dshsc-btn",
-              disabled: !writable || busy !== null,
-              onClick: () => void onInstall(subscription, entry)
-            }, t("action.install"))
-          )
+            { className: "dshsc-sub-row" },
+            h("button", {
+              className: "dshsc-caret",
+              "aria-expanded": String(open),
+              "aria-label": `${subscription.source} ${open ? t("action.collapse") : t("action.expand")}`,
+              onClick: () => onToggle(subscription.id)
+            }, h(CaretIcon, { open })),
+            h("span", { className: "dshsc-name" }, subscription.source),
+            h("span", { className: "dshsc-tag" }, subscription.ref || t("subscription.defaultRef")),
+            h(
+              "span",
+              { className: "dshsc-substat" },
+              `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedNames.size}`
+            ),
+            h(
+              "div",
+              { className: "dshsc-actions" },
+              h("button", {
+                className: "dshsc-btn sq",
+                disabled: busy !== null,
+                title: t("action.checkUpdates"),
+                "aria-label": `${t("action.checkUpdates")} ${subscription.source}`,
+                onClick: () => void onRefresh(subscription)
+              }, h(RefreshIcon, { size: 13 })),
+              h("button", { className: "dshsc-btn ghost danger", disabled: busy !== null, onClick: () => void onDelete(subscription) }, t("action.unsubscribe"))
+            )
+          ),
+          open ? h("div", { className: "dshsc-sub-list" }, entries.map((entry) => {
+            const installedAlready = installedNames.has(entry.name);
+            return h(
+              "div",
+              { className: "dshsc-sub-entry", key: entry.name },
+              h("span", { className: "dshsc-name" }, entry.name),
+              h(
+                "span",
+                { className: `dshsc-state${installedAlready ? " ok" : ""}` },
+                installedAlready ? "✓ " : "",
+                installedAlready ? t("installed") : t("notInstalled")
+              ),
+              h(
+                "div",
+                { className: "dshsc-actions" },
+                installedAlready ? null : h("button", {
+                  className: "dshsc-btn",
+                  disabled: !writable || busy !== null,
+                  onClick: () => void onInstall(subscription, entry)
+                }, t("action.install"))
+              )
+            );
+          })) : null
         );
-      })) : null
-    );
-  }));
+      }))
+    )
+  );
 }
 
 // client/views/modals.js
 var import_react3 = __toESM(require("react"), 1);
 function Overlay({ t, title, children, footer, onCancel }) {
-  import_react3.default.useEffect(() => {
-    const onKey = (event) => {
-      if (event.key === "Escape") onCancel?.();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
-  return h(
+  useOverlayLayer(true, onCancel);
+  return portalize(h(
     "div",
     { className: "dshsc-overlay", onClick: (event) => {
       if (event.target === event.currentTarget) onCancel?.();
@@ -2384,7 +2470,7 @@ function Overlay({ t, title, children, footer, onCancel }) {
       children,
       h("div", { className: "dshsc-modal-foot" }, footer)
     )
-  );
+  ), overlayHost());
 }
 function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
   const [form, setForm] = import_react3.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
@@ -3127,20 +3213,21 @@ var MARKDOWN = /\.(md|markdown)$/i;
 function isMarkdownPath(relPath) {
   return MARKDOWN.test(String(relPath || ""));
 }
+function isScroller(node) {
+  if (!node || typeof getComputedStyle !== "function") return false;
+  const style = getComputedStyle(node);
+  return Boolean(style && /(auto|scroll)/.test(style.overflowY || "") && node.scrollHeight > node.clientHeight + 4);
+}
 function nearestScroller(node) {
   let current = node?.parentElement || null;
   while (current) {
-    if (typeof getComputedStyle === "function") {
-      const style = getComputedStyle(current);
-      if (style && /(auto|scroll)/.test(style.overflowY || "") && current.scrollHeight > current.clientHeight + 4) {
-        return current;
-      }
-    }
+    if (isScroller(current)) return current;
     current = current.parentElement || null;
   }
   return typeof document !== "undefined" ? document.scrollingElement || null : null;
 }
 function scrollHost(node) {
+  if (isScroller(node)) return node;
   return node && nearestScroller(node) || node;
 }
 var STATUS_KEY = {
@@ -3332,6 +3419,7 @@ function SkillReader({
   const bodyRef = import_react4.default.useRef(null);
   const dialogRef = import_react4.default.useRef(null);
   const scrollRef = import_react4.default.useRef(0);
+  useOverlayLayer(variant === "drawer" || variant === "page", onClose);
   const name = row?.name || "";
   const tree = state.tree;
   const files = tree?.files || [];
@@ -3358,11 +3446,6 @@ function SkillReader({
     const node = dialogRef.current;
     node?.focus?.();
     const onKeyDown = (event) => {
-      if (event?.key === "Escape") {
-        event.stopPropagation?.();
-        onClose?.();
-        return;
-      }
       if (event?.key !== "Tab" || !node?.querySelectorAll) return;
       const focusables = Array.from(
         node.querySelectorAll('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])')
@@ -3378,9 +3461,9 @@ function SkillReader({
         first.focus?.();
       }
     };
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
       previous?.focus?.();
     };
   }, [variant, onClose]);
@@ -3805,7 +3888,7 @@ function SkillReader({
       ref: dialogRef,
       tabIndex: -1
     }, header, tabsBar, body, actionsFooter)
-  ));
+  ), overlayHost());
 }
 
 // client/section.js
@@ -3822,6 +3905,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const [viewer, setViewer] = import_react5.default.useState(null);
   const rootRef = import_react5.default.useRef(null);
   const scrollPos = import_react5.default.useRef(null);
+  const restoreScroll = import_react5.default.useRef(null);
   const [filter, setFilter] = import_react5.default.useState("all");
   const [builtinOpen, setBuiltinOpen] = import_react5.default.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
@@ -3869,30 +3953,36 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     }
     return typeof document !== "undefined" ? document.scrollingElement || null : null;
   }
+  function listScroller() {
+    const node = rootRef.current?.querySelector?.(".dshsc-listscroll");
+    if (node && node.scrollHeight > node.clientHeight) return node;
+    return getScrollParent(rootRef.current);
+  }
   function openViewer(row, mode = "drawer") {
     if (!row) return;
     if (mode === "page") {
-      scrollPos.current = getScrollParent(rootRef.current)?.scrollTop ?? 0;
+      scrollPos.current = listScroller()?.scrollTop ?? 0;
     }
     setViewer({ name: row.name, mode });
   }
   function openPage() {
     setViewer((prev) => {
       if (!prev) return prev;
-      scrollPos.current = getScrollParent(rootRef.current)?.scrollTop ?? 0;
+      scrollPos.current = listScroller()?.scrollTop ?? 0;
       return { ...prev, mode: "page" };
     });
   }
   function closeViewer() {
-    const restore = viewer?.mode === "page" ? scrollPos.current : null;
+    if (viewer?.mode === "page") restoreScroll.current = scrollPos.current;
     setViewer(null);
-    if (restore === null || typeof window === "undefined") return;
-    const apply2 = () => {
-      const scroller = getScrollParent(rootRef.current);
-      if (scroller) scroller.scrollTop = restore;
-    };
-    if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(apply2);
   }
+  import_react5.default.useLayoutEffect(() => {
+    if (restoreScroll.current === null) return;
+    const target = restoreScroll.current;
+    restoreScroll.current = null;
+    const scroller = listScroller();
+    if (scroller) scroller.scrollTop = target;
+  }, [viewer]);
   async function changePlacement(next) {
     if (next === placement || placementBusy) return;
     setPlacementBusy(next);
@@ -4021,7 +4111,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     h("style", null, CSS),
     viewer?.mode === "page" ? null : listNode,
     readerNode,
-    toast ? h("div", { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
+    toast ? portalize(h("div", { className: `dshsc-toast ${toast.kind}` }, toast.text), overlayHost()) : null,
     modal ? h(Modals, {
       t,
       modal,
