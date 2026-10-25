@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.3.2] - 2026-10-25
+
+### Features
+
+- **skills**: 查看技能内容 —— 列表行新增「查看」，右侧抽屉速览、可升级为整页深读；正文渲染 / 原文切换、文件树与单文件预览、信息 tab；新增 `GET /skills/:name?path=` 与 `GET /skills/:name/files` 两个只读接口，并补上原先缺失的技能名与相对路径校验 (#34)
+- **skills**: 清单状态区分「待检查」与「无上游」—— 没有可用订阅来源的技能不再混进待检查计数
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.1...v0.3.2
+
 ## [v0.3.1] - 2026-10-25
 
 ### Fixes
