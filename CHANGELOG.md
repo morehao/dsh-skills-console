@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.3] - 2026-10-25
+
+### Features
+
+- **skills**: 页头身份改为可复制的安装标识 (#36)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.2...v0.3.3
+
 ## [v0.3.2] - 2026-10-25
 
 ### Features
