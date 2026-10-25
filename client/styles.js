@@ -472,12 +472,20 @@ export const CSS = `
   /* 整页（A1）：返回条 + hero + 目录 + 720px 正文 */
   .dshsc-reader-page { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
   .dshsc-reader-topbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .dshsc-reader-topbar .dshsc-btn { display: inline-flex; align-items: center; gap: 4px; height: 26px; font-size: 12px; }
+  .dshsc-reader-topbar .dshsc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    box-sizing: border-box; height: 28px; padding: 0 10px; font-size: 12px; line-height: 1; white-space: nowrap; }
+  .dshsc-reader-topbar .dshsc-btn.ghost { padding: 0 9px; }
+  .dshsc-reader-topbar .dshsc-btn.sq { width: 28px; padding: 0; }
+  .dshsc-reader-topbar .dshsc-btn.sq svg { width: 14px; height: 14px; }
   .dshsc-reader-crumb { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px;
     color: var(--dsw-alias-label-tertiary); }
   .dshsc-reader-crumb .sep { color: var(--dsw-alias-border-l3); }
   .dshsc-reader-topbar .spacer { flex: 1; }
+  /* 顶栏复用抽屉底栏那份动作组：去掉边框 / 底色 / 内边距，只留一排等高的按钮 */
+  .dshsc-reader-topbar .dshsc-reader-actions { border: 0; background: transparent; padding: 0; gap: 6px;
+    flex-wrap: nowrap; }
   .dshsc-reader-topbar .dshsc-reader-note { display: none; }
+  .dshsc-reader-topbar .dshsc-reader-actions .dshsc-btn:not(.ghost) { padding: 0 11px; }
   .dshsc-reader-hero { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
     background: var(--dsw-alias-bg-layer-1); }
   .dshsc-reader-hero .dshsc-reader-head { border-bottom: 0; }

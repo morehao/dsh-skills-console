@@ -311,6 +311,13 @@ export function SkillReader({
     };
   }, [variant, onClose]);
 
+  // 整页：进来先把焦点放到技能名上，返回时由抽屉 / 行的回调接管
+  React.useEffect(() => {
+    if (variant !== 'page' || typeof document === 'undefined') return;
+    const node = document.getElementById('dshsc-reader-name');
+    node?.focus?.();
+  }, [variant, name]);
+
   // 整页：目录高亮跟着正文滚动走
   React.useEffect(() => {
     if (variant !== 'page' || typeof window === 'undefined') return undefined;
@@ -373,7 +380,7 @@ export function SkillReader({
 
   const header = h('header', { className: 'dshsc-reader-head' },
     h('div', { className: 'dshsc-reader-title' },
-      h('h2', { id: 'dshsc-reader-name' }, name || t('viewer.title')),
+      h('h2', { id: 'dshsc-reader-name', tabIndex: -1 }, name || t('viewer.title')),
       row?.status && STATUS_KEY[row.status]
         ? h('span', { className: `dshsc-tag ${row.status === 'current' ? 'ok' : 'warn'}` }, t(STATUS_KEY[row.status]))
         : null,
@@ -582,12 +589,13 @@ export function SkillReader({
     h('span', { className: 'dshsc-reader-note' }, readOnly ? t('banner.readonly') : t('viewer.readonlyNote')),
     h('button', {
       type: 'button',
-      className: 'dshsc-btn ghost sq',
+      // 抽屉底栏空间紧，图标按钮；整页顶栏跟一排文字按钮并排，用文字更齐
+      className: variant === 'page' ? 'dshsc-btn ghost' : 'dshsc-btn ghost sq',
       title: t('viewer.copyBody'),
       'aria-label': t('viewer.copyBody'),
       disabled: !bodyText,
       onClick: () => void copyTextWithToast(bodyText, 'viewer.copied'),
-    }, h(CopyIcon, null)),
+    }, h(CopyIcon, null), variant === 'page' ? t('viewer.copyBody') : null),
     h('button', {
       type: 'button',
       className: 'dshsc-btn ghost',
