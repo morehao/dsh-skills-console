@@ -109,10 +109,13 @@ dsh plugin --profile desktop install --frozen-lockfile
 
 回退后同样**完全退出再重开**宿主，确认 `readlink` 不再指向本仓、`grep link:` 无输出。
 
+**收尾是强制的**：验证结束（通过或放弃）都要回退，`link:` 不允许留在 profile 里；确认回退无误后删除 `.dsh/link-preview/` 备份（只在验证期间保留）。完整标准流程（备份内容、权限、逐步校验点、失败还原）见 [AGENTS.md](../AGENTS.md) §6。
+
 ### 5.4 注意
 
 - `dsh plugin` 要写 `~/.dsh/profiles/<name>`；在 agent 沙箱里会报 `EPERM ... package.json.lock`，在终端执行或申请更高权限。
 - 验证前先 `npm run build:client`（或 `npm run check:client`），确保 link 读到的是最新 `client.js`。
+- 回退时 pnpm 替换 `link:` 可能连带清掉工作树的 `node_modules`；回退后若 `npm run check` 报 `Cannot find package 'esbuild'`，`npm install` 恢复即可。
 - 别在真实 HOME 上做破坏性验证（删除技能、更新 apply）：用临时 `HOME` / `DSH_HOME` 起干净宿主，见 §3。
 - 只验证 Host 逻辑不必装 link，直接跑 `npm test` / `npm run check`。
 
