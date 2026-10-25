@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.4] - 2026-10-25
+
+### Refactors
+
+- **skills**: 页头安装标识改为只读无边框展示 (#38)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.3...v0.3.4
+
 ## [v0.3.3] - 2026-10-25
 
 ### Features
