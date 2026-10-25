@@ -98,4 +98,4 @@
 - 渲染：`client/markdown.js`（无依赖的最小 Markdown 解析）+ `client/views/skill-reader.js` 的 `Markdown` 组件（`h` 建节点，不使用 `innerHTML`）。
   - 链接协议白名单：`http` / `https` / `mailto` 新窗口；`#anchor` 文内滚动；相对路径交给查看器内部打开；`javascript:` / `data:` 只显示文字。
   - 图片一律占位（路径 + alt），不请求本地文件。
-- 外壳：抽屉 `role="dialog"` + `aria-modal` + 焦点陷阱 + Esc；整页带返回条与目录。窄面板（≤900px 容器宽）隐藏行内「查看」与整页目录，技能名仍可点。
+- 外壳：抽屉 `role="dialog"` + `aria-modal` + 焦点陷阱 + Esc；整页带返回条与目录。窄面板（≤860px 容器宽，与列表两列回落同一断点）隐藏行内「查看」与整页目录，技能名仍可点。

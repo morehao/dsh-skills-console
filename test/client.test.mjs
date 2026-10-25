@@ -500,10 +500,47 @@ test('窄面板用容器查询，不能只靠视口 media query', async () => {
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
   assert.match(css, /\.dshsc-root\s*\{[^}]*container-type:\s*inline-size/, '根节点要建立 inline-size 容器');
   assert.match(css, /\.dshsc-root\s*\{[^}]*container-name:\s*dshsc/, '容器要有名字，避免嵌套时查错');
-  assert.ok(css.includes('@container dshsc (max-width: 900px)'), '窄面板降级要用容器查询');
-  assert.ok(!css.includes('@media (max-width: 900px)'), '不能只看视口宽度：设置面板可能比窗口窄很多');
+  assert.ok(css.includes('@container dshsc (max-width: 860px)'), '窄面板降级要用容器查询');
+  assert.ok(!css.includes('@media (max-width: 860px)'), '不能只看视口宽度：设置面板可能比窗口窄很多');
   assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) 196px'), '窄面板切两列，Agent 标签回到名字下方');
   assert.ok(css.includes('grid-row: 1 / span 2'), '操作列跨两行，避免和标签挤在一起');
+  assert.ok(!css.includes('max-width: 900px'), '页面断点不能贴在面板常见的 ~900px 上（会有几像素就翻面的抖动）');
+});
+
+test('页头动作恒在右上角：不跟页面断点整组换行', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+
+  const head = (css.match(/\.dshsc-head\s*\{[^}]*\}/) || [''])[0];
+  assert.match(head, /display:\s*grid/, '页头用两列网格，动作组不参与页面宽度的换行计算');
+  assert.match(head, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/, '左标题、右动作两列');
+  const titleRow = (css.match(/\.dshsc-title-row\s*\{[^}]*\}/) || [''])[0];
+  const title = (css.match(/\.dshsc-title \{ font-size: 17px[^}]*\}/) || [''])[0];
+  assert.match(titleRow, /flex-wrap:\s*nowrap/, '标题行不折行，身份胶囊自己省略');
+  assert.match(title, /white-space:\s*nowrap/, '标题本身不折行，避免窄面板把页头撑高');
+  assert.ok(
+    !/\.dshsc-head-actions\s*\{[^}]*width:\s*100%/.test(css),
+    '动作组不能被页面断点强制占满整行（这正是右上角跳行的来源）',
+  );
+  assert.match(
+    css,
+    /@container dshsc \(max-width: 520px\) \{\s*\.dshsc-head \{ grid-template-columns: minmax\(0, 1fr\); \}/,
+    '只有极窄面板（≤520）才把页头改成上下两段',
+  );
+});
+
+test('页面预留滚动条槽位：滚动条出现/消失不改变内容宽度', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  assert.match(css, /\.dshsc-page\s*\{[^}]*scrollbar-gutter:\s*stable/, '滚动条不能挤占内容宽度');
 });
 
 test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧', async () => {

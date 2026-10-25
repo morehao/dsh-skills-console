@@ -815,23 +815,33 @@ var import_react5 = __toESM(require("react"), 1);
 
 // client/styles.js
 var CSS = `
-  /* 主面板形态：与 DSH 自带管理页同一边距/滚动方式 */
+  /* 主面板形态：与 DSH 自带管理页同一边距/滚动方式。
+     scrollbar-gutter: stable 让滚动条出现/消失都不改变内容宽度——否则列表一长出来，
+     内容就窄 5~15px，贴着断点的布局会整页跳一次。 */
   .dshsc-page { box-sizing: border-box; width: 100%; height: 100%; overflow: auto;
+    scrollbar-gutter: stable;
     padding: calc(28px + var(--dsh-frame-top-clearance, 0px)) clamp(24px, 4vw, 48px) 48px; }
   .dshsc-page .dshsc-root { max-width: 980px; margin: 0 auto; }
   .dshsc-page .dshsc-title { font-size: 20px; font-weight: 500; line-height: 28px; }
   .dshsc-page .dshsc-sub { font-size: 13px; line-height: 20px; }
   .dshsc-root { display: flex; flex-direction: column; gap: 14px; color: var(--dsw-alias-label-primary);
     container-type: inline-size; container-name: dshsc; }
-  .dshsc-head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
-  .dshsc-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1; }
+  /* 页头两列：左边标题块、右边业务动作。动作组恒在右上角，宽度自动；
+     页面宽度变化只让标题块收窄（身份胶囊省略、工具组内部换行），动作组不会整组跳到第二行。
+     只有面板真的窄（≤520，见下面容器查询）才改成上下两段。 */
+  .dshsc-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 14px; }
+  .dshsc-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
   .dshsc-heading-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .dshsc-logo { flex: none; display: block; border-radius: 8px; }
-  .dshsc-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+  /* 标题不参与收窄：窄面板里让身份胶囊先省略，标题本身不折行 */
+  .dshsc-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; flex: none; white-space: nowrap; }
   .dshsc-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
   .dshsc-spacer { flex: 1; }
-  .dshsc-head-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-  .dshsc-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+  .dshsc-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+  /* 标题行恒为一行：身份胶囊按剩余宽度省略，工具组不被挤走。
+     不用 wrap 是因为一 wrap 就会按「身份胶囊整段」的宽度断行，窄面板里会折成 2~3 行、
+     把页头撑高；省略号 + title 提示比整行折行更稳，也不随版本号变长而改变布局。 */
+  .dshsc-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; min-width: 0; }
 
   /* 身份：按「安装时输入的包名」显示（@scope/name@version），等宽只读、不描边 */
   .dshsc-id { display: inline-flex; align-items: center; box-sizing: border-box; min-width: 0;
@@ -1060,9 +1070,10 @@ var CSS = `
   .dshsc-sub-entry .dshsc-actions { margin-left: auto; display: flex; justify-content: flex-end; }
   .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
   /* 设置页的真实宽度常常远小于窗口（侧栏 + 页面缩放），视口 media query 不可靠；
-     以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。 */
-  @container dshsc (max-width: 900px) {
-    .dshsc-head-actions { width: 100%; justify-content: flex-end; }
+     以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。
+     断点取 860 而不是贴着面板常见的 ~900：三列网格需要 300 + 268 + 2×14 gap + 中间列，
+     860 已经够用；留出 ~40px 余量后，滚动条（5~15px）、窗口微调、页面缩放都不会把整页翻面。 */
+  @container dshsc (max-width: 860px) {
     .dshsc-search input { width: 180px; }
     .dshsc-row { grid-template-columns: minmax(0, 1fr) 196px; row-gap: 3px; padding: 9px 12px; }
     .dshsc-cell { grid-column: 1; }
@@ -1070,8 +1081,11 @@ var CSS = `
     .dshsc-row .dshsc-actions { grid-column: 2; grid-row: 1 / span 2; }
     .dshsc-row .dshsc-btn { padding: 0 5px; }
   }
-  /* 窄面板里工具组会换到下一行，行首的分割线就没有意义了 */
+  /* 页头自己的断点，和上面的页面断点解耦：只有面板窄到放不下「标题块 + 动作组」才上下堆叠。
+     520 远低于设置面板/侧栏面板的实际宽度，正常窗口里页头永远是右上角那一组。 */
   @container dshsc (max-width: 520px) {
+    .dshsc-head { grid-template-columns: minmax(0, 1fr); }
+    .dshsc-head-actions { justify-content: flex-end; }
     .dshsc-tools { border-left: 0; padding-left: 0; margin-left: 0; }
   }
   .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
@@ -1347,7 +1361,8 @@ var CSS = `
   .dshsc-reader-page .dshsc-md { max-width: 720px; }
   .dshsc-reader-page .dshsc-reader-actions { border-radius: 0 0 12px 12px; }
 
-  @container dshsc (max-width: 900px) {
+  /* 与列表同一个页面断点（860）：窄面板里行内「查看」让位、整页目录收起 */
+  @container dshsc (max-width: 860px) {
     /* 行内「查看」先让位：技能名本身仍是入口 */
     .dshsc-row .dshsc-view { display: none; }
     .dshsc-reader-layout { grid-template-columns: minmax(0, 1fr); }
