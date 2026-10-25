@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.5] - 2026-10-25
+
+### Fixes
+
+- **client**: 页头动作固定右上，页面断点与滚动条解耦 (#40)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.4...v0.3.5
+
 ## [v0.3.4] - 2026-10-25
 
 ### Refactors
