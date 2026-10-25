@@ -982,6 +982,31 @@ test('未检查：只在筛选计数里提示，不在行内/底部重复', asyn
   assert.ok(String(chip.props.title).includes('1 个技能未检查更新'), '计数 chip 用 tooltip 解释');
 });
 
+test('无上游：没有订阅来源的行不算待检查，有来源时用标签说明原因', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    installs: [
+      ROW(),
+      ROW({ name: 'local-only', status: 'no-upstream', source: null, ref: null, links: [] }),
+      ROW({ name: 'lost-sub', status: 'no-upstream', links: [] }),
+    ],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const text = textOf(tree);
+  const chip = collectButtons(stub.render(Component, {}, first.hooks).tree)
+    .find((button) => String(textOf(button)).trim().startsWith('待检查'));
+  assert.ok(chip && String(textOf(chip)).includes('0'), '无上游不混进待检查计数');
+  assert.ok(!text.includes('还有 1 个技能未检查更新。'), '也不该出现待检查提示');
+  // 没有来源时由来源行写「无远端来源」，有来源（订阅被删）才补一枚「无上游」标签
+  const tags = collectByType(tree, 'span')
+    .filter((node) => textOf(node) === '无上游' && String(node.props?.title || '').includes('无法检查更新'));
+  assert.equal(tags.length, 1, '只给有来源的那一行加标签');
+  assert.ok(String(tags[0].props.title).includes('无法检查更新'), '标签用 tooltip 解释原因');
+});
+
 test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给未装条目', async () => {
   const { Component, stub } = loadModule({
     ...STATE,

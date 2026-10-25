@@ -336,7 +336,26 @@ test('接管：没有 lock 来源的技能也能纳入追踪，但无法检测�
   assert.equal(install.subscriptionId, null);
 
   const state = await service.getState({});
-  assert.equal(state.installs.find((item) => item.name === 'beta').managed, true);
+  const row = state.installs.find((item) => item.name === 'beta');
+  assert.equal(row.managed, true);
+  assert.equal(row.status, 'no-upstream', '没有订阅来源 → 无上游，不该混进「待检查」');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('删除订阅但保留技能：清单标成「无上游」，不再永久挂在待检查里', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+
+  // keepInstalled 默认 true：技能留着，订阅记录没了 → 检查更新永远轮不到它
+  await service.removeSubscription({ id: added.subscription.id });
+  assert.ok(store.findInstall('alpha').subscriptionId, '保留安装时仍指向旧订阅 id');
+
+  const after = await service.getState({});
+  const row = after.installs.find((item) => item.name === 'alpha');
+  assert.equal(row.status, 'no-upstream');
+  assert.equal(after.installs.filter((item) => item.status === 'unknown').length, 0, '无上游不算待检查');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -393,9 +412,15 @@ function githubStub({
   atomCommit = commit,
   tarball = null,
 } = {}) {
-  const control = { defaultBranch, tree, commit, contents, fail: null, resetAt, atomCommit, tarball, atomFail: null, tarFail: null };
+  const control = {
+    defaultBranch, tree, commit, contents, fail: null, resetAt, atomCommit, tarball, atomFail: null, tarFail: null,
+    // 模拟 ETag 命中：树请求带 If-None-Match 时只回 304，不返回任何树内容
+    etag304: false,
+    failWithoutEtag: false,
+    treeRequests: [],
+  };
   const calls = [];
-  const fetchImpl = async (url) => {
+  const fetchImpl = async (url, init = {}) => {
     calls.push(url);
     const target = String(url);
     // 探测会用 raw.githubusercontent.com 读 SKILL.md 补 frontmatter，不走 API 配额
@@ -436,6 +461,11 @@ function githubStub({
     }
     if (pathname.includes('/git/trees/')) {
       if (control.fail === 'tree') return new Response('{"message":"Not Found"}', { status: 404 });
+      const ifNoneMatch = init.headers?.['if-none-match'] ?? null;
+      control.treeRequests.push({ ifNoneMatch });
+      if (control.etag304 && ifNoneMatch) return new Response(null, { status: 304, headers: { etag: ifNoneMatch } });
+      // 只让「无视 ETag 的完整读」失败：用来测 304 后重读失败仍要留原因
+      if (control.failWithoutEtag && !ifNoneMatch) return new Response('{"message":"Not Found"}', { status: 404 });
       return jsonBody({ sha: TREE_SHA, tree: control.tree, truncated: false });
     }
     if (pathname.includes('/commits/')) return jsonBody({ sha: control.commit });
@@ -918,6 +948,52 @@ test('检查更新：所有通道都不可用 → 每个技能一条带错误码
   assert.equal(checked.checks[0].status, 'unknown');
   assert.equal(checked.checks[0].code, 'error.skills.rate-limited');
   assert.match(checked.checks[0].detail, /已限流/);
+  assert.equal(store.state.checks.alpha.status, 'unknown');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('检查更新：ETag 304 但上次没结论 → 无视 ETag 重读整树（待检查不能永久粘住）', async () => {
+  const gh = githubStub();
+  // lock 里的 tree SHA 与 TREE_MAIN 的 skills/alpha 一致 → 重读后应判 current
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl }, { TEST_TREE_SHA: '2'.repeat(40) });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+  // 更早一次探测失败留下的 unknown —— 用户在「待检查」里看到的就是它
+  store.update((draft) => {
+    draft.checks.alpha = { name: 'alpha', status: 'unknown', detail: '读取失败', checkedAt: new Date().toISOString() };
+  });
+  gh.control.etag304 = true;
+  gh.control.treeRequests.length = 0;
+
+  const first = await service.checkUpdates({});
+  assert.equal(first.checks[0].status, 'current', '304 不足以判定，必须重读后拿到真结论');
+  assert.equal(gh.control.treeRequests.length, 2, '304 之后要再完整读一次整树');
+  assert.notEqual(gh.control.treeRequests[0].ifNoneMatch, null, '第一次照常带 ETag');
+  assert.equal(gh.control.treeRequests[1].ifNoneMatch, null, '强制读不能带 ETag，否则又撞 304');
+  assert.equal(store.state.checks.alpha.status, 'current');
+
+  const second = await service.checkUpdates({});
+  assert.equal(second.checks[0].status, 'current');
+  assert.equal(second.checks[0].detail, 'ETag 未变，沿用上次结论');
+  assert.equal(gh.control.treeRequests.length, 3, '已有结论时 304 直接沿用，不再多读整树');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('检查更新：304 重读仍失败 → 保留 unknown 并写明原因（不假装检查过）', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+  store.update((draft) => {
+    draft.checks.alpha = { name: 'alpha', status: 'unknown', detail: '读取失败', checkedAt: new Date().toISOString() };
+  });
+  gh.control.etag304 = true;
+  // 强制重读那一次拿不到树（404 不是限流，不会走 Atom 兜底）
+  gh.control.failWithoutEtag = true;
+
+  const checked = await service.checkUpdates({});
+  assert.equal(checked.checks[0].status, 'unknown');
+  assert.match(checked.checks[0].detail, /404/);
   assert.equal(store.state.checks.alpha.status, 'unknown');
   fs.rmSync(root, { recursive: true, force: true });
 });
