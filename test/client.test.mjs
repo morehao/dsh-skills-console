@@ -186,7 +186,6 @@ function loadModule(payload, options = {}) {
   if (options.document !== undefined) sandbox.document = options.document;
   if (options.MutationObserver !== undefined) sandbox.MutationObserver = options.MutationObserver;
   if (options.fetch) sandbox.fetch = options.fetch;
-  if (options.navigator) sandbox.navigator = options.navigator;
   sandbox.window.addEventListener = () => {};
   sandbox.window.removeEventListener = () => {};
   vm.createContext(sandbox);
@@ -543,33 +542,33 @@ test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧',
   assert.deepEqual(labels, ['自动接入 · 2 ▾', '添加技能'], '右侧只剩业务动作，主按钮在最右');
 });
 
-test('页头身份：按安装时要输入的包名显示（@scope/name@version），点一下复制', async () => {
-  const written = [];
-  const { Component, stub } = loadModule(
-    {
-      ...STATE,
-      plugin: { name: 'dsh-skills-console', fullName: '@morehao/dsh-skills-console', version: '9.9.9' },
-    },
-    { navigator: { clipboard: { writeText: async (text) => { written.push(text); } } } },
-  );
+test('页头身份：按安装时要输入的包名显示（@scope/name@version），只读不设复制', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    plugin: { name: 'dsh-skills-console', fullName: '@morehao/dsh-skills-console', version: '9.9.9' },
+  });
   const first = stub.render(Component, {});
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
 
-  const chip = collectButtons(tree).find((node) => String(node.props.className).split(' ').includes('dshsc-id'));
+  const chip = collectByType(tree, 'span').find((node) => node.props.className === 'dshsc-id');
   assert.ok(chip, '页头有身份 chip');
   assert.equal(textOf(chip).trim(), '@morehao/dsh-skills-console@9.9.9', '显示完整安装标识，不自造 v 前缀');
-  assert.ok(String(chip.props.title).includes('@morehao/dsh-skills-console@9.9.9'), '标题里给出可复制的完整标识');
-  assert.ok(String(chip.props['aria-label']).includes('复制'), 'chip 是可点击复制的按钮');
-  chip.props.onClick();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.deepEqual(written, ['@morehao/dsh-skills-console@9.9.9'], '点击复制整段安装标识');
+  assert.equal(chip.props.title, '@morehao/dsh-skills-console@9.9.9', '窄面板省略时用标题给出完整标识');
+  assert.ok(!chip.props.onClick, '身份 chip 是纯展示，不挂点击');
+  assert.ok(
+    !collectButtons(tree).some((button) => String(button.props.className).split(' ').includes('dshsc-id')),
+    '身份 chip 不是按钮，不提供复制操作',
+  );
 
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
   const idCss = (css.match(/\.dshsc-id\s*\{[^}]*\}/) || [''])[0];
   assert.ok(idCss.includes('monospace'), '安装标识用等宽字体，像命令行里输入的那段');
-  assert.ok(idCss.includes('border'), '安装标识是一枚 chip');
+  assert.ok(!/(^|[\s;])border(-[a-z]+)?\s*:/.test(idCss), '不描边，直接融进标题行');
+  assert.ok(!/(^|[\s;])background(-[a-z]+)?\s*:/.test(idCss), '不加底色，避免在小面板里像一枚按钮');
+  assert.ok(!idCss.includes('cursor: pointer'), '只读展示不用手型光标');
+  assert.ok(!css.includes('.dshsc-idcopy'), '不再有复制图标样式');
 });
 
 test('页头身份：只有短名时退回短名，不硬编码 scope', async () => {
