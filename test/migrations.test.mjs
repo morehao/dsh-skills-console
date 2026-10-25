@@ -146,7 +146,7 @@ test('v2→v3：旧桩被删掉、legacyShadows 清空、enabled 保持停用、
 
   const store = new StateStore(paths);
   store.load();
-  assert.equal(store.state.version, 3);
+  assert.equal(store.state.version, 4);
   assert.equal(store.findInstall('demo').enabled, false, 'user 级旧桩等价于停用');
   assert.deepEqual(store.state.legacyShadows.map((row) => row.reason), ['pending']);
 

@@ -20,12 +20,13 @@
 | [lib/core/discovery.js](lib/core/discovery.js) | 解压目录里的 `SKILL.md` 发现、subpath/重名/命名校验 |
 | [lib/core/skill-md.js](lib/core/skill-md.js) | `SKILL.md` frontmatter `name`/`description` 解析（Installer 与 Service 共用） |
 | [lib/core/skill-files.js](lib/core/skill-files.js) | 查看器只读读取层：根反查（目录包 / 平铺）、相对路径校验、单文件读取、文件树；`SkillFileError` |
-| [lib/core/hash.js](lib/core/hash.js) | 复刻 CLI 的内容哈希（与 lock 的 `skillFolderHash` 对拍） |
+| [lib/core/hash.js](lib/core/hash.js) | 复刻 CLI 的内容哈希（与 lock 的 `skillFolderHash` 对拍）；`contentHashWith` 供归一化哈希复用 |
+| [lib/core/invocation.js](lib/core/invocation.js) | 三档调用策略的文件侧实现：frontmatter 写/还原（保 BOM/CRLF/注释）、原子写、备份、归一化哈希、A′ park/unpark（marker + `SKILL.md.disabled`） |
 | [lib/core/remote.js](lib/core/remote.js) | codeload tarball 下载（限额 / 超时 / 重定向 / token 安全）；native installer 模块 |
 | [lib/core/archive.js](lib/core/archive.js) | 安全 tar 解压（拒绝穿越 / 绝对路径 / symlink / hardlink / 超限）；native installer 模块 |
 | [lib/core/git-tree.js](lib/core/git-tree.js) | 本地 Git tree SHA（40 位），与 CLI lock 的 `skillFolderHash` 对拍 |
 | [lib/core/lock.js](lib/core/lock.js) | v3 lock 原子读改写（保留未知字段 / 版本守卫 / `expectedDigest`） |
-| [lib/core/state.js](lib/core/state.js) | `state.json`（v3）原子写 + 校验 + v1→v2→v3 纯函数升级 + 只读降级；`shadows[]` 退休，`legacyShadows[]` 只放迁移残桩 |
+| [lib/core/state.js](lib/core/state.js) | `state.json`（v4：`installs[].mode` = `auto`/`manual`/`hidden`，带 `manual`/`hidden` 元数据）原子写 + 校验 + v1→v2→v3→v4 纯函数升级 + 只读降级；`shadows[]` 退休，`legacyShadows[]` 只放迁移残桩 |
 | [lib/core/roots.js](lib/core/roots.js) | 扫描根表（rank 100/200/300/400/500/600）、`findProjectRoot()`（向上找 `.git`）与单根扫描口径 |
 | [lib/core/visibility.js](lib/core/visibility.js) | 按 rank 合并各扫描根 + 宿主 `snapshot()` + `policyHiddenPaths`，得出每个技能到底可不可见 |
 | [lib/core/shadow.js](lib/core/shadow.js) | legacy 停用桩：`SKILL.md` 三字段 + `.dsh-skills-console.json` 标记；只服务迁移清理，不再新建 |
@@ -49,11 +50,15 @@
 
 ### 数据边界（最基本的一条）
 
-- **canonical 与 v3 lock 的写入口**：`~/.agents/skills`、`~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时是 `$XDG_STATE_HOME/skills/.skill-lock.json`）的安装/更新/删除一律走 [lib/core/installer.js](lib/core/installer.js)（下载→安全解压→发现→tree SHA→原子 promote→lock 事务）。其他模块只读，禁止再手写 canonical/lock。
+- **canonical 与 v3 lock 的写入口**：`~/.agents/skills`、`~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时是 `$XDG_STATE_HOME/skills/.skill-lock.json`）的安装/更新/删除一律走 [lib/core/installer.js](lib/core/installer.js)（下载→安全解压→发现→tree SHA→原子 promote→lock 事务）。其他模块只读，禁止再手写 canonical/lock；唯一例外是三档调用策略的文件操作（见下），只改 `SKILL.md` / 改名，不碰 lock。
 - **软链四态**：`managed` / `managed-external` / `foreign-link` / `real`。只动自己建的 `managed` 与已记账的 `managed-external`；`real` 与 `foreign-link` 永不改写、删除前体检即中止。停用不再建桩；`inspectShadow` 只用于迁移清理 legacy 桩：`foreign`/`link` 一律保留并报告，不覆盖。
 - **不接收任意路径**：`target` 一律走注册表反查；软链目标恒为 canonical 下同名目录；请求体路径参数不得直接拼到文件系统。
-- **state 只读降级**：坏 JSON / 未知版本 → `readOnly=true` 且写接口 409，**不 fail-open、不猜结构、不自动修复**。v3 的 `shadows[]` 已退休；旧版本读到 v3 必须只读，不能按“删桩”解释新状态。
-- **启停不改文件**：`enabled` 只写 `state.json` 的 `installs[].enabled`，由每个 live agent scope 的 policy provider 覆盖候选；**不写/删 `~/.dsh/skills`**、不编辑 canonical 的 `SKILL.md`、不碰 v3 lock 与导出链。唯一会碰 `~/.dsh/skills` 的是 v2→v3 迁移清理 legacy 桩。
+- **state 只读降级**：坏 JSON / 未知版本 → `readOnly=true` 且写接口 409，**不 fail-open、不猜结构、不自动修复**。v4 的 `mode`/`manual`/`hidden` 是调用策略的权威记录；旧版本读到 v4 必须只读，不能按 v3 的 `enabled` 解释。
+- **调用策略的文件边界**：
+  - `auto`：只写 `state.json` 的 `installs[].mode`；`enable/disable`（旧 `/mode`）里的 `enabled=false` 仍只由每个 live agent scope 的 policy provider 覆盖候选，**不碰文件**，记为 `legacy: 'dsh-off'`。
+  - `manual`：**唯一允许改 canonical `SKILL.md` 的场景**——只增删/改 frontmatter 的 `disable-model-invocation`，保留 BOM/CRLF/注释/引号/块标量，写前备份到 `backups/invocation/`，原子写；作者已写 `true` 时只记 `origin: 'author'`，不改写。**不碰 v3 lock、导出链、`~/.dsh/skills`，不改正文**。
+  - `hidden`（A′）：只把 `SKILL.md` 改名为 `SKILL.md.disabled` 并写 `.dsh-skills-console.park.json`（marker-first；内容字节不变），恢复时改回并按 state 重放模式；**park 期间拒绝 install / update / rollback**，防止文件被写回。
+  - 唯一会碰 `~/.dsh/skills` 的仍是 v2→v3 迁移清理 legacy 桩。
 - **可见性 = 扫描根 + 每个 agent 的 policy provider**：canonical `~/.agents/skills` 是 DSH 的扫描根；**禁止**往 `~/.dsh/skills` 建指向真身的「可见性链」（两份真相，摘链也不等于不可见）。`~/.dsh/skills` v0.4.0 起不写。provider 注册在每个 live agent 自己的 scope（preset scope 的子层），只在 **canonical 是 native winner** 时才发 `modelInvocable=false` + `userInvocable=false` 的同名候选；项目 100/200、user-dsh 400 有副本时 provider 必须沉默，让副本继续可见。用 `visibility.shadowScopeMismatch` 告知用户，不要「顺便」去删项目里的东西。
 - **导出与可见性解耦**：`exports` 只给不读共享根的其他 Agent 建链，默认空；没有任何导出的技能照样应该对 DSH 可见。
 - **不碰别人的东西**：本机可能并存其他同类技能插件。与本插件无关的插件一律不共用路由前缀与状态目录；也不要为了「统一命名」去凑别人的前缀。
@@ -102,7 +107,7 @@
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
 | import 图循环检测（`client/` + `lib/`） | `npm run check:cycles` |
-| 单元测试（308 例，离线；真实网络对拍默认 skip） | `npm test` |
+| 单元测试（离线；真实网络对拍默认 skip） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |

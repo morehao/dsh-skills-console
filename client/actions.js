@@ -18,6 +18,46 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     await run(`mode:${row.name}`, () => apiCall('POST', `/skills/${encodeURIComponent(row.name)}/mode`, { mode }));
   }
 
+  /** 三档调用策略：auto / manual / hidden；失败由 run 统一 toast。 */
+  async function setInvocation(row, mode) {
+    await run(`invocation:${row.name}`, async () => {
+      const result = await apiCall('POST', `/skills/${encodeURIComponent(row.name)}/invocation`, { mode });
+      setToast({
+        kind: 'ok',
+        text: mode === 'hidden'
+          ? `${row.name} · ${t('policy.hidden')}`
+          : `${row.name} · ${t('policy.saved')}`,
+      });
+      return result;
+    });
+  }
+
+  async function unpark(row) {
+    await run(`unpark:${row.name}`, async () => {
+      const result = await apiCall('POST', `/skills/${encodeURIComponent(row.name)}/unpark`, {});
+      setToast({
+        kind: result.hashMismatch ? 'err' : 'ok',
+        text: result.kept
+          ? `${row.name} · ${t('policy.unparkKept').replace('{path}', result.kept)}`
+          : result.hashMismatch
+            ? `${row.name} · ${t('policy.unparkDrift')}`
+            : `${row.name} · ${t('policy.unparkDone')}`,
+      });
+      return result;
+    });
+  }
+
+  function requestUnpark(row) {
+    setModal({
+      type: 'confirm-unpark',
+      row,
+      onConfirm: () => {
+        setModal(null);
+        void unpark(row);
+      },
+    });
+  }
+
   async function updateOne(row, overwrite) {
     await run(`update:${row.name}`, async () => {
       const result = await apiCall('POST', '/updates/apply', { name: row.name, overwrite });
@@ -166,6 +206,8 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
   return {
     adopt,
     toggleMode,
+    setInvocation,
+    requestUnpark,
     requestUpdate,
     updateAll,
     checkUpdates,

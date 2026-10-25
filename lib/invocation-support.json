@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-10-26",
+  "note": "只承诺已确认的客户端；`disable-model-invocation` 是客户端扩展，不是 Agent Skills 规范字段。",
+  "clients": [
+    {
+      "id": "dsh",
+      "label": "DSH",
+      "manual": "yes",
+      "hidden": "yes",
+      "verifiedAt": "2026-10-26",
+      "source": "宿主 SKILL.md frontmatter + 扫描根"
+    },
+    {
+      "id": "claude",
+      "label": "Claude Code",
+      "manual": "yes",
+      "hidden": "yes",
+      "verifiedAt": "2026-10-26",
+      "source": "Claude Code skills frontmatter"
+    },
+    {
+      "id": "cursor",
+      "label": "Cursor",
+      "manual": "yes",
+      "hidden": "yes",
+      "verifiedAt": "2026-10-26",
+      "source": "Cursor skills frontmatter"
+    },
+    {
+      "id": "opencode",
+      "label": "OpenCode",
+      "manual": "version",
+      "hidden": "yes",
+      "verifiedAt": null,
+      "source": "版本相关，未逐版验证"
+    },
+    {
+      "id": "other",
+      "label": "其他 / 未验证",
+      "manual": "unverified",
+      "hidden": "spec",
+      "verifiedAt": null,
+      "source": "目录里没有 SKILL.md 即不符合规范发现"
+    }
+  ]
+}

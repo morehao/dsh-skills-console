@@ -1,5 +1,33 @@
 # Changelog
 
+## [v0.5.0] - 2026-10-26
+
+### Breaking Changes
+
+- **状态格式升到 v4**：`installs[].mode` = `auto` / `manual` / `hidden` 成为调用策略的权威记录；旧版本读到 v4 只读降级。v3→v4 是纯函数迁移：补 `mode:'auto'`，`enabled=false` 补 `legacy:'dsh-off'`，清掉与 `auto` 冲突的 `manual`/`hidden`。
+- **「仅手动」会写 canonical `SKILL.md`**：只增删/改 frontmatter 的 `disable-model-invocation`，保留 BOM / CRLF / 注释 / 引号 / 块标量；写前备份，原子替换。作者已写 `true` 时只记只读来源，不改写。这是「启停不碰文件」的唯一例外。
+- **「完全停用」采用 A′ park**：`SKILL.md` 改名为 `SKILL.md.disabled` + `.dsh-skills-console.park.json` marker，内容字节不变；停用期间拒绝安装 / 更新 / 回滚，恢复时回到停用前的模式。
+- **旧 `/mode` 只服务 legacy**：`dsh-off` 仍由 policy provider 隐藏；manual / hidden 行调用旧接口返回 409，避免两套开关打架。
+
+### Features
+
+- 行内单一策略 chip（自动 / 仅手动 / 完全停用 / 需修复 / 仅 DSH 隐藏 / 未纳入追踪），点开三档弹层；显示客户端覆盖表、风险说明与完全停用二次确认；作者声明行只读。
+- 新增 `POST /skills/:name/invocation`（auto / manual / hidden）与 `POST /skills/:name/unpark`（含 `keep=current|parked` 冲突处理）。
+- manual 写入失败 / 外部改文件时标 `drift`，不猜、不覆盖；更新、回滚、重装后按状态重放，失败不回滚已成功的更新。
+- 归一化内容哈希：比较 `installedHash` 前先按 state 还原插件写入的那一行，避免「仅手动」被误判成本地改动；作者声明原样计入。
+- 恢复时默认拒绝两份不同内容，可用 `keep` 明确保留当前或停用前版本，冲突副本留在目录里。
+- 已安装列表四列（技能 / 接入 Agent / 调用策略 / 操作），窄屏收为两列；订阅列表四列 + 展开条目子表头；表头 sticky。
+- 设置页手动写入的原文备份到 `backups/invocation/`。
+
+### Fixes
+
+- 停用行不再出现在 `enabledButHidden` 诊断里；`legacy dsh-off` 与三档状态互斥。
+- 状态里 manual 标记缺失 / 值被改时按 drift 报告，不把作者或用户的编辑覆盖掉。
+
+### UI / Docs
+
+- README、AGENTS、开发文档同步 state v4、新接口、文件边界与验收口径。
+
 ## [v0.4.0] - 2026-10-26
 
 ### Breaking Changes

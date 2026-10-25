@@ -7,6 +7,7 @@ import { createPaths } from '../lib/core/paths.js';
 import { createRegistry } from '../lib/core/agents.js';
 import { createService, ServiceError } from '../lib/core/service.js';
 import { contentHash } from '../lib/core/hash.js';
+import { hashWithoutInvocation } from '../lib/core/invocation.js';
 import { gitTreeSha } from '../lib/core/git-tree.js';
 import { StateStore } from '../lib/core/state.js';
 import { createShadow } from '../lib/core/shadow.js';
@@ -1407,5 +1408,141 @@ test('settings：读共享根的 Agent 存不进 exportTargets', async () => {
   assert.ok(!store.state.settings.exportTargets.includes('agent:opencode'));
   assert.ok(store.state.settings.exportTargets.includes('agent:reasonix'));
 
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('调用策略：仅手动写 frontmatter，自动恢复，归一化哈希不被误判', async () => {
+  const { root, paths, store, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const file = path.join(paths.canonical, 'alpha', 'SKILL.md');
+  const before = fs.readFileSync(file, 'utf8');
+
+  const manual = await service.setInvocation({ name: 'alpha', mode: 'manual' });
+  assert.equal(manual.mode, 'manual');
+  assert.match(fs.readFileSync(file, 'utf8'), /disable-model-invocation: true/);
+  let install = store.findInstall('alpha');
+  assert.equal(install.mode, 'manual');
+  assert.deepEqual(
+    { origin: install.manual.origin, original: install.manual.original },
+    { origin: 'plugin', original: 'absent' },
+  );
+  assert.equal(
+    hashWithoutInvocation(path.join(paths.canonical, 'alpha'), install.manual),
+    install.installedHash,
+    '插件写的行不能算成本地改动',
+  );
+
+  const auto = await service.setInvocation({ name: 'alpha', mode: 'auto' });
+  assert.equal(auto.mode, 'auto');
+  assert.equal(fs.readFileSync(file, 'utf8'), before, '恢复原文');
+  install = store.findInstall('alpha');
+  assert.equal(install.mode, 'auto');
+  assert.equal(install.manual, null);
+
+  await assert.rejects(
+    () => service.setInvocation({ name: 'alpha', mode: 'on' }),
+    (error) => error.code === 'error.skills.bad-mode',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('完全停用：park 期间拒绝改模式 / 更新 / 安装，恢复后内容一字节不差', async () => {
+  const { root, paths, store, service } = setup({ visibleProvider: async () => ({ skills: [], complete: true }) });
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const dir = path.join(paths.canonical, 'alpha');
+  const file = path.join(dir, 'SKILL.md');
+  const before = fs.readFileSync(file, 'utf8');
+
+  const hidden = await service.setInvocation({ name: 'alpha', mode: 'hidden' });
+  assert.equal(hidden.mode, 'hidden');
+  assert.equal(fs.existsSync(file), false);
+  assert.equal(fs.existsSync(path.join(dir, 'SKILL.md.disabled')), true);
+  assert.equal(fs.existsSync(path.join(dir, '.dsh-skills-console.park.json')), true);
+  assert.equal(store.findInstall('alpha').mode, 'hidden');
+  const visibleState = await service.getState({});
+  const hiddenRow = visibleState.installs.find((row) => row.name === 'alpha');
+  assert.equal(hiddenRow.mode, 'hidden');
+  assert.equal(hiddenRow.park.parked, true);
+  assert.equal(hiddenRow.visible, false);
+  assert.ok(!visibleState.visible.some((row) => row.name === 'alpha'), '停用行不出现在可见列表');
+
+  await assert.rejects(
+    () => service.setInvocation({ name: 'alpha', mode: 'manual' }),
+    (error) => error.code === 'error.skills.parked',
+  );
+  await assert.rejects(
+    () => service.applyUpdate({ name: 'alpha' }),
+    (error) => error.code === 'error.skills.parked',
+  );
+  await assert.rejects(
+    () => service.install({ source: 'morehao/ai-kit', skills: ['alpha'] }),
+    (error) => error.code === 'error.skills.parked',
+  );
+
+  const restored = await service.unpark({ name: 'alpha' });
+  assert.equal(restored.mode, 'auto');
+  assert.equal(fs.readFileSync(file, 'utf8'), before);
+  assert.equal(fs.existsSync(path.join(dir, 'SKILL.md.disabled')), false);
+  assert.equal(fs.existsSync(path.join(dir, '.dsh-skills-console.park.json')), false);
+  assert.equal(store.findInstall('alpha').mode, 'auto');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('调用策略：作者声明仅手动 → 只读，恢复自动 409', async () => {
+  const { root, paths, store, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const file = path.join(paths.canonical, 'alpha', 'SKILL.md');
+  const authorText = '---\nname: alpha\ndescription: demo\ndisable-model-invocation: true\n---\nbody\n';
+  fs.writeFileSync(file, authorText);
+
+  const manual = await service.setInvocation({ name: 'alpha', mode: 'manual' });
+  assert.equal(manual.origin, 'author');
+  assert.equal(fs.readFileSync(file, 'utf8'), authorText, '作者声明不重写');
+  assert.equal(store.findInstall('alpha').manual.origin, 'author');
+
+  await assert.rejects(
+    () => service.setInvocation({ name: 'alpha', mode: 'auto' }),
+    (error) => error.code === 'error.skills.author',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('更新后重放：新内容没有插件行，reconcile 按 state 写回', async () => {
+  const { root, paths, store, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  await service.setInvocation({ name: 'alpha', mode: 'manual' });
+  const file = path.join(paths.canonical, 'alpha', 'SKILL.md');
+  // 模拟 installer 覆盖成上游新内容（不含插件行）
+  fs.writeFileSync(file, '---\nname: alpha\ndescription: v2\n---\nnew body\n');
+
+  const reports = service.reconcileInvocations();
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].ok, true);
+  assert.match(fs.readFileSync(file, 'utf8'), /disable-model-invocation: true/);
+  assert.equal(store.findInstall('alpha').mode, 'manual');
+  assert.equal(store.findInstall('alpha').manual.drift, false);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('仅手动：原文是 false 时恢复成 false；文件被改回 false 时标记 drift', async () => {
+  const { root, paths, store, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const file = path.join(paths.canonical, 'alpha', 'SKILL.md');
+  const original = '---\nname: alpha\ndescription: demo\ndisable-model-invocation: false\n---\nbody\n';
+  fs.writeFileSync(file, original);
+
+  await service.setInvocation({ name: 'alpha', mode: 'manual' });
+  assert.match(fs.readFileSync(file, 'utf8'), /disable-model-invocation: true/);
+  assert.equal(store.findInstall('alpha').manual.original, 'false');
+  await service.setInvocation({ name: 'alpha', mode: 'auto' });
+  assert.equal(fs.readFileSync(file, 'utf8'), original);
+
+  // 外部把 true 改回 false：reconcile 不能猜，标记 drift 让 UI 报「需修复」
+  await service.setInvocation({ name: 'alpha', mode: 'manual' });
+  fs.writeFileSync(file, original);
+  store.load();
+  const reports = service.reconcileInvocations();
+  assert.equal(reports[0].ok, false);
+  assert.equal(store.findInstall('alpha').manual.drift, true);
   fs.rmSync(root, { recursive: true, force: true });
 });

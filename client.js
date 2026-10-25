@@ -135,6 +135,49 @@ var DICT = {
     "mode.on": "启用",
     "mode.off": "停用",
     "mode.offHint": "已停用：DSH 的模型调用与 `/` 手动调用都看不到它；技能文件、导出关系与其他 Agent 都不受影响",
+    "policy.auto": "自动",
+    "policy.manual": "仅手动",
+    "policy.hidden": "完全停用",
+    "policy.legacy": "仅 DSH 隐藏",
+    "policy.author": "仅手动 · 只读",
+    "policy.drift": "需修复",
+    "policy.unmanaged": "未纳入追踪",
+    "policy.flat": "平铺 .md 不支持",
+    "policy.open": "设置调用策略",
+    "policy.title": "调用策略",
+    "policy.subtitle": "只改 canonical 的 SKILL.md frontmatter；项目副本不受影响。",
+    "policy.autoDesc": "模型与 / 都能调用。",
+    "policy.manualDesc": "模型不自动调用，手动 / 仍可用。",
+    "policy.hiddenDesc": "改成 SKILL.md.disabled；所有 Agent 都看不到，可随时恢复。",
+    "policy.authorHint": "作者已在 SKILL.md 里声明 disable-model-invocation；插件只读，改回自动请编辑文件。",
+    "policy.legacyHint": "旧版 DSH-only 停用：只隐藏 DSH 的模型调用；选择任一模式完成迁移。",
+    "policy.driftHint": "文件里的标记与记录不一致，可能被外部改过；选择「仅手动」可重试写入。",
+    "policy.coverage": "客户端覆盖",
+    "policy.coverageHint": "disable-model-invocation 不是规范字段；只承诺已确认的客户端。",
+    "policy.risk": "「完全停用」会改名文件，所有客户端一致不可见；恢复只改文件名，不重新下载。",
+    "policy.hiddenConfirmTitle": "完全停用这个技能？",
+    "policy.hiddenConfirmBody": "会把 SKILL.md 改名为 SKILL.md.disabled，并写一个恢复标记；所有 Agent 都看不到。不会删除内容，随时可恢复。",
+    "policy.hiddenConfirm": "完全停用",
+    "policy.saving": "保存中…",
+    "policy.saved": "调用策略已更新",
+    "policy.unpark": "恢复",
+    "policy.unparkTitle": "恢复技能",
+    "policy.unparkBody": "将回到停用前的模式（{mode}）。只把文件名改回来，不重新下载，也不用重建导出链。",
+    "policy.unparkDone": "已恢复；模型与 / 按停用前的模式生效",
+    "policy.manualOnlyHint": "仅手动：模型不会自动调用，手动 / 仍可用",
+    "policy.hiddenHint": "完全停用：目录里没有 SKILL.md；随时可恢复",
+    "policy.legacyNote": "当前仍是旧版 DSH-only 停用",
+    "policy.driftNote": "仅手动标记需修复",
+    "policy.authorNote": "作者已在 SKILL.md 声明，插件不覆盖",
+    "policy.hiddenNote": "恢复后回到停用前的模式；停用期间不能更新或重装",
+    "policy.unparkKept": "已恢复；冲突文件保留在 {path}",
+    "policy.unparkDrift": "已恢复，但文件内容与停用时不一致；请检查或重新检查更新",
+    "coverage.yes": "支持",
+    "coverage.no": "不支持",
+    "coverage.version": "版本相关",
+    "coverage.unverified": "未验证",
+    "coverage.spec": "按规范不可见",
+    "filter.manual": "仅手动",
     "visibility.hiddenHint": "已启用，但扫描目录里没有它：确认 ~/.agents/skills 下真有这个技能，或检查 DSH_AGENTS_HOME。",
     "visibility.manualOnlyHint": "该技能自己声明了 `disable-model-invocation`：模型调用看不到它，手动 `/` 调用仍可用。",
     "visibility.scopeMismatch": "当前有另一份同名技能排在前面（项目或用户目录）；停用只影响 canonical，不会隐藏它。",
@@ -200,6 +243,7 @@ var DICT = {
     "empty.filteredHint": "换个关键词，或清除筛选条件",
     "hint.unknown": "还有 {n} 个技能未检查更新。",
     "group.visible": "模型可见",
+    "group.manual": "仅手动",
     "group.off": "已停用",
     "group.hidden": "启用但不可见",
     installed: "已安装",
@@ -328,6 +372,49 @@ var DICT = {
     "mode.on": "Enabled",
     "mode.off": "Disabled",
     "mode.offHint": "Disabled for DSH’s model and `/` calls; the skill files, exports, and other agents are untouched",
+    "policy.auto": "Auto",
+    "policy.manual": "Manual only",
+    "policy.hidden": "Fully disabled",
+    "policy.legacy": "DSH-only hidden",
+    "policy.author": "Manual · read-only",
+    "policy.drift": "Needs repair",
+    "policy.unmanaged": "Untracked",
+    "policy.flat": "Flat .md unsupported",
+    "policy.open": "Set invocation policy",
+    "policy.title": "Invocation policy",
+    "policy.subtitle": "Only edits the canonical SKILL.md frontmatter; project copies are untouched.",
+    "policy.autoDesc": "The model and `/` can invoke it.",
+    "policy.manualDesc": "The model will not invoke it; `/` still works.",
+    "policy.hiddenDesc": "Renames SKILL.md to SKILL.md.disabled; invisible to every agent, restorable.",
+    "policy.authorHint": "The author declares disable-model-invocation in SKILL.md; the plugin is read-only — edit the file to restore auto.",
+    "policy.legacyHint": "Legacy DSH-only disable: only hides DSH model calls; pick a mode to migrate.",
+    "policy.driftHint": "The file marker and the record disagree; it may have been edited externally. Pick “Manual only” to retry.",
+    "policy.coverage": "Client coverage",
+    "policy.coverageHint": "disable-model-invocation is a client extension, not part of the spec; only verified clients are promised.",
+    "policy.risk": "“Fully disabled” renames the file so every client agrees; restoring only renames it back, with no re-download.",
+    "policy.hiddenConfirmTitle": "Fully disable this skill?",
+    "policy.hiddenConfirmBody": "SKILL.md becomes SKILL.md.disabled and a restore marker is written; every agent stops seeing it. Nothing is deleted, and you can restore at any time.",
+    "policy.hiddenConfirm": "Disable fully",
+    "policy.saving": "Saving…",
+    "policy.saved": "Invocation policy updated",
+    "policy.unpark": "Restore",
+    "policy.unparkTitle": "Restore skill",
+    "policy.unparkBody": "Returns to the mode before disabling ({mode}). It only renames the file back; no re-download or relink.",
+    "policy.unparkDone": "Restored; the model and `/` follow the previous mode",
+    "policy.manualOnlyHint": "Manual only: the model will not invoke it; `/` still works",
+    "policy.hiddenHint": "Fully disabled: no SKILL.md in the directory; restorable",
+    "policy.legacyNote": "Still on the legacy DSH-only disable",
+    "policy.driftNote": "The manual-only marker needs repair",
+    "policy.authorNote": "Declared in SKILL.md by the author; the plugin will not overwrite it",
+    "policy.hiddenNote": "Restores to the previous mode; updates and reinstalls are blocked while parked",
+    "policy.unparkKept": "Restored; conflict copy kept at {path}",
+    "policy.unparkDrift": "Restored, but the file differs from when it was parked; review or check for updates",
+    "coverage.yes": "Supported",
+    "coverage.no": "Not supported",
+    "coverage.version": "Version dependent",
+    "coverage.unverified": "Unverified",
+    "coverage.spec": "Hidden by spec discovery",
+    "filter.manual": "Manual only",
     "visibility.hiddenHint": "Enabled, but no copy sits in a scan directory: check that the skill really exists under ~/.agents/skills, or inspect DSH_AGENTS_HOME.",
     "visibility.manualOnlyHint": "This skill declares `disable-model-invocation`: the model cannot invoke it, but manual `/` invocation still works.",
     "visibility.scopeMismatch": "Another copy of this skill ranks first (project or user directory); disabling only affects the canonical copy.",
@@ -393,6 +480,7 @@ var DICT = {
     "empty.filteredHint": "Try another keyword, or clear the filters",
     "hint.unknown": "{n} skills have not been checked for updates.",
     "group.visible": "Model visible",
+    "group.manual": "Manual only",
     "group.off": "Disabled",
     "group.hidden": "Enabled but hidden",
     installed: "installed",
@@ -902,7 +990,7 @@ function FolderIcon({ size = 12 }) {
 }
 
 // client/section.js
-var import_react6 = __toESM(require("react"), 1);
+var import_react8 = __toESM(require("react"), 1);
 
 // client/scroll.js
 function isScroller(node, tolerance = 4) {
@@ -1259,17 +1347,81 @@ var CSS = `
   }
   .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
-  /* 与 DSH 自带开关同尺寸/同 token：关是 border-l3 轨道，开是 brand-primary 轨道 */
-  .dshsc-switch { box-sizing: border-box; position: relative; flex: none; width: 36px; height: 20px; padding: 2px;
-    border: 0; border-radius: 999px; background: var(--dsw-alias-border-l3); cursor: pointer;
-    transition: background .14s ease; }
-  .dshsc-switch:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
-  .dshsc-switch:disabled { cursor: not-allowed; opacity: .5; }
-  .dshsc-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
-  .dshsc-knob { display: block; width: 16px; height: 16px; border-radius: 50%;
-    background: var(--dsw-alias-switch-thumb); box-shadow: 0 1px 2px rgba(0, 0, 0, .28);
-    transition: transform .12s ease, background .12s ease; }
-  .dshsc-switch[aria-checked="true"] .dshsc-knob { transform: translateX(16px); background: var(--dsw-alias-label-primary-foreground); }
+  /* 调用策略 chip：一个入口显示当前模式；点开三档弹层。窄列里允许省略，不撑破 102px */
+  .dshsc-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+    height: 24px; padding: 0 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px;
+    background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary); font-family: inherit;
+    font-size: 11.5px; font-weight: 500; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    cursor: pointer; transition: background .12s ease, border-color .12s ease; }
+  .dshsc-chip::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; opacity: .9; }
+  .dshsc-chip:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l3); }
+  .dshsc-chip:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+  .dshsc-chip:disabled { cursor: not-allowed; opacity: .55; }
+  .dshsc-chip.auto { color: var(--dsw-alias-state-success-primary);
+    border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 34%, var(--dsw-alias-border-l2));
+    background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 9%, transparent); }
+  .dshsc-chip.manual { color: var(--dsw-alias-brand-primary);
+    border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l2));
+    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 9%, transparent); }
+  .dshsc-chip.hidden { color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-2); }
+  .dshsc-chip.author, .dshsc-chip.drift { color: var(--dsw-alias-state-warn-primary);
+    border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 34%, var(--dsw-alias-border-l2));
+    background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); }
+  .dshsc-chip.legacy { color: var(--dsw-alias-label-tertiary); background: var(--dsw-alias-bg-layer-2); }
+  .dshsc-chip.muted { color: var(--dsw-alias-label-tertiary); cursor: default; opacity: .8; }
+
+  .dshsc-policy-pop { position: fixed; z-index: 70; box-sizing: border-box; width: min(380px, calc(100vw - 16px));
+    max-height: min(600px, calc(100vh - 16px)); overflow: auto; padding: 14px;
+    background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px;
+    box-shadow: 0 18px 48px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16);
+    display: flex; flex-direction: column; gap: 10px; }
+  .dshsc-policy-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .dshsc-policy-title { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+  .dshsc-policy-sub { margin: 2px 0 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-policy-close { flex: none; width: 24px; height: 24px; margin: -4px -4px 0 0; border: 0; border-radius: 6px;
+    background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
+  .dshsc-policy-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+  .dshsc-policy-options { display: flex; flex-direction: column; gap: 6px; }
+  .dshsc-policyopt { box-sizing: border-box; display: flex; align-items: flex-start; gap: 10px; width: 100%;
+    padding: 9px 10px; text-align: left; border: 1px solid var(--dsw-alias-border-l1); border-radius: 9px;
+    background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font-family: inherit; cursor: pointer; }
+  .dshsc-policyopt:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l2); }
+  .dshsc-policyopt.active { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, var(--dsw-alias-border-l1));
+    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 7%, transparent); }
+  .dshsc-policyopt:disabled { cursor: not-allowed; opacity: .55; }
+  .dshsc-policyopt.static { cursor: default; }
+  .dshsc-policyopt-dot { flex: none; width: 14px; height: 14px; margin-top: 1px; border-radius: 50%;
+    border: 1.5px solid var(--dsw-alias-border-l3); }
+  .dshsc-policyopt.active .dshsc-policyopt-dot { border-color: var(--dsw-alias-brand-primary);
+    background: radial-gradient(circle, var(--dsw-alias-brand-primary) 0 40%, transparent 47%); }
+  .dshsc-policyopt-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .dshsc-policyopt-body b { font-size: 12px; font-weight: 600; }
+  .dshsc-policyopt-body small { font-size: 11px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-policy-note { padding: 7px 9px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2);
+    color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 15px; }
+  .dshsc-policy-note.warn, .dshsc-policy-note.author { color: var(--dsw-alias-state-warn-primary);
+    background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 9%, transparent); }
+  .dshsc-policy-hidden { display: flex; flex-direction: column; gap: 8px; }
+  .dshsc-policy-restore { align-self: flex-start; }
+  .dshsc-policy-coverage { padding-top: 9px; border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-policy-coverage-head, .dshsc-policy-coverage-row { display: grid;
+    grid-template-columns: minmax(0, 1fr) 88px 92px; gap: 6px; align-items: center; }
+  .dshsc-policy-coverage-head { padding-bottom: 4px; color: var(--dsw-alias-label-tertiary);
+    font-size: 10.5px; font-weight: 600; letter-spacing: .02em; }
+  .dshsc-policy-coverage-row { padding: 3px 0; color: var(--dsw-alias-label-secondary); font-size: 11px; }
+  .dshsc-policy-coverage-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cov { font-size: 10.5px; }
+  .cov.yes { color: var(--dsw-alias-state-success-primary); }
+  .cov.version { color: var(--dsw-alias-state-warn-primary); }
+  .cov.unverified, .cov.spec { color: var(--dsw-alias-label-tertiary); }
+  .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; }
+  .dshsc-policy-risk { margin: 0; font-size: 10.5px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-policy-confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 9px;
+    border: 1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 34%, var(--dsw-alias-border-l1));
+    background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 7%, transparent); }
+  .dshsc-policy-confirm b { font-size: 12px; }
+  .dshsc-policy-confirm p { margin: 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-secondary); }
 
   .dshsc-overlay { position: fixed; inset: 0; background: rgba(4,6,9,.55); display: flex; align-items: center; justify-content: center;
     z-index: 60; padding: 20px; backdrop-filter: blur(2px); }
@@ -1577,6 +1729,36 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
     const mode = row.enabled === false ? "on" : "off";
     await run(`mode:${row.name}`, () => apiCall("POST", `/skills/${encodeURIComponent(row.name)}/mode`, { mode }));
   }
+  async function setInvocation(row, mode) {
+    await run(`invocation:${row.name}`, async () => {
+      const result = await apiCall("POST", `/skills/${encodeURIComponent(row.name)}/invocation`, { mode });
+      setToast({
+        kind: "ok",
+        text: mode === "hidden" ? `${row.name} · ${t("policy.hidden")}` : `${row.name} · ${t("policy.saved")}`
+      });
+      return result;
+    });
+  }
+  async function unpark(row) {
+    await run(`unpark:${row.name}`, async () => {
+      const result = await apiCall("POST", `/skills/${encodeURIComponent(row.name)}/unpark`, {});
+      setToast({
+        kind: result.hashMismatch ? "err" : "ok",
+        text: result.kept ? `${row.name} · ${t("policy.unparkKept").replace("{path}", result.kept)}` : result.hashMismatch ? `${row.name} · ${t("policy.unparkDrift")}` : `${row.name} · ${t("policy.unparkDone")}`
+      });
+      return result;
+    });
+  }
+  function requestUnpark(row) {
+    setModal({
+      type: "confirm-unpark",
+      row,
+      onConfirm: () => {
+        setModal(null);
+        void unpark(row);
+      }
+    });
+  }
   async function updateOne(row, overwrite) {
     await run(`update:${row.name}`, async () => {
       const result = await apiCall("POST", "/updates/apply", { name: row.name, overwrite });
@@ -1704,6 +1886,8 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
   return {
     adopt,
     toggleMode,
+    setInvocation,
+    requestUnpark,
     requestUpdate,
     updateAll,
     checkUpdates,
@@ -2130,6 +2314,195 @@ function Toolbar({
 }
 
 // client/views/installed.js
+var import_react4 = __toESM(require("react"), 1);
+
+// client/views/policy-popover.js
+var import_react3 = __toESM(require("react"), 1);
+function coverageLabel(t, value) {
+  if (value === "yes") return t("coverage.yes");
+  if (value === "no") return t("coverage.no");
+  if (value === "version") return t("coverage.version");
+  if (value === "spec") return t("coverage.spec");
+  return t("coverage.unverified");
+}
+function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSave, onUnpark }) {
+  const initial = row.mode === "hidden" ? "auto" : row.mode;
+  const [mode, setMode] = import_react3.default.useState(initial);
+  const [confirming, setConfirming] = import_react3.default.useState(false);
+  const ref = import_react3.default.useRef(null);
+  const [pos, setPos] = import_react3.default.useState({ left: 0, top: 0, visibility: "hidden" });
+  useOverlayLayer(true, onClose);
+  import_react3.default.useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node || !anchor || typeof window === "undefined") return;
+    const rect = node.getBoundingClientRect();
+    const width = rect.width || 360;
+    const height = rect.height || 320;
+    let left = anchor.left + anchor.width / 2 - width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+    let top = anchor.bottom + 8;
+    if (top + height > window.innerHeight - 8) {
+      top = Math.max(8, anchor.top - height - 8);
+    }
+    setPos({ left, top, visibility: "visible" });
+  }, [anchor, confirming, mode]);
+  import_react3.default.useEffect(() => {
+    if (typeof document === "undefined") return void 0;
+    const onPointerDown = (event) => {
+      const target = event?.target;
+      if (ref.current?.contains?.(target)) return;
+      if (anchorEl?.contains?.(target)) return;
+      onClose();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [anchorEl, onClose]);
+  const hidden = row.mode === "hidden";
+  const author = row.origin === "author" && row.mode === "manual";
+  const flat = row.kind === "file";
+  const clients = support?.clients || [];
+  const dirty = mode !== initial || Boolean(row.legacy) || Boolean(row.drift);
+  function choose(next) {
+    setMode(next);
+    setConfirming(false);
+  }
+  function submit() {
+    if (mode === "hidden" && !hidden && !confirming) {
+      setConfirming(true);
+      return;
+    }
+    onSave(mode);
+  }
+  const option = (id, label, desc) => h(
+    "button",
+    {
+      type: "button",
+      key: `policy-${id}`,
+      className: `dshsc-policyopt${mode === id ? " active" : ""}`,
+      "aria-pressed": String(mode === id),
+      disabled: busy || flat,
+      onClick: () => choose(id)
+    },
+    h("span", { className: "dshsc-policyopt-dot", "aria-hidden": "true" }),
+    h(
+      "span",
+      { className: "dshsc-policyopt-body" },
+      h("b", null, label),
+      h("small", null, desc)
+    )
+  );
+  return portalize(h(
+    "div",
+    {
+      ref,
+      className: "dshsc-policy-pop",
+      role: "dialog",
+      "aria-label": t("policy.title"),
+      style: { left: `${pos.left}px`, top: `${pos.top}px`, visibility: pos.visibility }
+    },
+    h(
+      "div",
+      { className: "dshsc-policy-head" },
+      h(
+        "div",
+        null,
+        h("div", { className: "dshsc-policy-title" }, t("policy.title")),
+        h("div", { className: "dshsc-policy-sub" }, t("policy.subtitle"))
+      ),
+      h("button", {
+        type: "button",
+        className: "dshsc-policy-close",
+        "aria-label": t("action.close"),
+        onClick: onClose
+      }, "×")
+    ),
+    author ? h("div", { className: "dshsc-policy-note author" }, t("policy.authorHint")) : null,
+    row.legacy ? h("div", { className: "dshsc-policy-note" }, t("policy.legacyHint")) : null,
+    row.drift ? h("div", { className: "dshsc-policy-note warn" }, t("policy.driftHint")) : null,
+    hidden ? h(
+      "div",
+      { className: "dshsc-policy-hidden" },
+      h(
+        "div",
+        { className: "dshsc-policyopt active static" },
+        h("span", { className: "dshsc-policyopt-dot" }),
+        h(
+          "span",
+          { className: "dshsc-policyopt-body" },
+          h("b", null, t("policy.hidden")),
+          h("small", null, t("policy.hiddenDesc"))
+        )
+      ),
+      h("button", {
+        type: "button",
+        className: "dshsc-btn primary dshsc-policy-restore",
+        disabled: busy,
+        onClick: onUnpark
+      }, t("policy.unpark")),
+      h("p", { className: "dshsc-policy-sub" }, t("policy.hiddenHint"))
+    ) : h(
+      "div",
+      { className: "dshsc-policy-options" },
+      option("auto", t("policy.auto"), t("policy.autoDesc")),
+      option("manual", t("policy.manual"), t("policy.manualDesc")),
+      option("hidden", t("policy.hidden"), t("policy.hiddenDesc"))
+    ),
+    clients.length > 0 ? h(
+      "div",
+      { className: "dshsc-policy-coverage" },
+      h(
+        "div",
+        { className: "dshsc-policy-coverage-head" },
+        h("span", null, t("policy.coverage")),
+        h("span", null, t("policy.manual")),
+        h("span", null, t("policy.hidden"))
+      ),
+      clients.map((client) => h(
+        "div",
+        { className: "dshsc-policy-coverage-row", key: client.id },
+        h("span", { title: client.source || "" }, client.label),
+        h("span", { className: `cov ${client.manual}` }, coverageLabel(t, client.manual)),
+        h("span", { className: `cov ${client.hidden}` }, coverageLabel(t, client.hidden))
+      )),
+      h("p", { className: "dshsc-policy-sub" }, t("policy.coverageHint"))
+    ) : null,
+    confirming ? h(
+      "div",
+      { className: "dshsc-policy-confirm" },
+      h("b", null, t("policy.hiddenConfirmTitle")),
+      h("p", null, t("policy.hiddenConfirmBody")),
+      h(
+        "div",
+        { className: "dshsc-policy-foot" },
+        h("button", {
+          type: "button",
+          className: "dshsc-btn ghost",
+          disabled: busy,
+          onClick: () => setConfirming(false)
+        }, t("action.cancel")),
+        h("button", {
+          type: "button",
+          className: "dshsc-btn danger",
+          disabled: busy,
+          onClick: () => onSave("hidden")
+        }, busy ? t("policy.saving") : t("policy.hiddenConfirm"))
+      )
+    ) : h(
+      "div",
+      { className: "dshsc-policy-foot" },
+      h("button", { type: "button", className: "dshsc-btn ghost", onClick: onClose }, t("action.cancel")),
+      hidden ? null : h("button", {
+        type: "button",
+        className: "dshsc-btn primary",
+        disabled: busy || !dirty || flat,
+        onClick: submit
+      }, busy ? t("policy.saving") : t("action.save"))
+    ),
+    h("p", { className: "dshsc-policy-risk" }, t("policy.risk"))
+  ), overlayHost());
+}
+
+// client/views/installed.js
 var UPDATABLE = /* @__PURE__ */ new Set(["update-available", "locally-modified", "conflict"]);
 function InstalledTab({
   t,
@@ -2148,7 +2521,87 @@ function InstalledTab({
   actions
 }) {
   const updatable = (row) => UPDATABLE.has(row.status);
+  const [policy, setPolicy] = import_react4.default.useState(null);
   const sharedTargets = new Set((data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.sharedHome === "yes").map((agent) => agent.target));
+  import_react4.default.useEffect(() => {
+    if (!policy) return;
+    if (rows.some((row) => row.name === policy.row.name)) return;
+    setPolicy(null);
+  }, [policy, rows]);
+  function openPolicy(event, row) {
+    if (busy !== null || row.kind === "file") return;
+    if (row.mode === "manual" && row.origin === "author") return;
+    const el = event.currentTarget;
+    const rect = el.getBoundingClientRect();
+    setPolicy({
+      row,
+      anchorEl: el,
+      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height }
+    });
+  }
+  function policyChip(row) {
+    if (row.status === "unmanaged") {
+      return h("span", { className: "dshsc-chip muted", title: t("adopt.switchHint") }, t("policy.unmanaged"));
+    }
+    if (row.kind === "file") {
+      return h("span", { className: "dshsc-chip muted", title: t("policy.flat") }, t("policy.flat"));
+    }
+    const mode = row.mode || "auto";
+    if (mode === "hidden") {
+      return h("button", {
+        type: "button",
+        className: "dshsc-chip hidden",
+        disabled: busy !== null,
+        title: t("policy.hiddenHint"),
+        "aria-haspopup": "dialog",
+        onClick: (event) => openPolicy(event, row)
+      }, t("policy.hidden"));
+    }
+    if (mode === "manual" && row.origin === "author") {
+      return h("span", {
+        className: "dshsc-chip author",
+        title: t("policy.authorHint")
+      }, t("policy.author"));
+    }
+    if (row.drift) {
+      return h("button", {
+        type: "button",
+        className: "dshsc-chip drift",
+        disabled: busy !== null,
+        title: t("policy.driftHint"),
+        "aria-haspopup": "dialog",
+        onClick: (event) => openPolicy(event, row)
+      }, t("policy.drift"));
+    }
+    if (row.legacy === "dsh-off") {
+      return h("button", {
+        type: "button",
+        className: "dshsc-chip legacy",
+        disabled: busy !== null,
+        title: t("policy.legacyHint"),
+        "aria-haspopup": "dialog",
+        onClick: (event) => openPolicy(event, row)
+      }, t("policy.legacy"));
+    }
+    if (mode === "manual") {
+      return h("button", {
+        type: "button",
+        className: "dshsc-chip manual",
+        disabled: busy !== null,
+        title: t("policy.manualOnlyHint"),
+        "aria-haspopup": "dialog",
+        onClick: (event) => openPolicy(event, row)
+      }, t("policy.manual"));
+    }
+    return h("button", {
+      type: "button",
+      className: "dshsc-chip auto",
+      disabled: busy !== null,
+      title: t("policy.open"),
+      "aria-haspopup": "dialog",
+      onClick: (event) => openPolicy(event, row)
+    }, t("policy.auto"));
+  }
   function statusTag(row) {
     if (row.status === "unknown") return null;
     if (row.status === "no-upstream") {
@@ -2240,8 +2693,8 @@ function InstalledTab({
     return h("div", { className: "dshsc-list" }, headView(), listRows);
   }
   function rowView(row) {
-    const off = row.enabled === false;
-    const tracked = row.status !== "unmanaged";
+    const parked = row.mode === "hidden";
+    const off = parked || row.enabled === false;
     const canUpdate = writable && updatable(row);
     const hidden = !off && !row.visible;
     const manualOnly = hidden && Boolean(row.visibility?.selfHidden);
@@ -2268,18 +2721,13 @@ function InstalledTab({
             "aria-haspopup": "dialog",
             onClick: () => actions.onView(row)
           }, row.name),
-          statusTag(row),
-          manualOnly ? h("span", {
-            className: "dshsc-tag off",
-            title: t("visibility.manualOnlyHint"),
-            "aria-label": t("visibility.manualOnlyHint")
-          }, t("meta.manualOnly")) : null,
-          off ? h("span", { className: "dshsc-tag off" }, t("status.off")) : null
+          statusTag(row)
         ),
         sourceLine(row),
-        off ? h("div", { className: "dshsc-note" }, t("mode.offHint")) : null,
-        // manual-only 用名字旁的「仅手动」标志表达，不占一行警告；
-        // 被更靠前的同名副本盖住时由下面的 foreignWinner 点名，这里不再补「扫描目录里没有它」。
+        parked ? h("div", { className: "dshsc-note" }, t("policy.hiddenNote")) : row.legacy === "dsh-off" ? h("div", { className: "dshsc-note" }, t("policy.legacyNote")) : null,
+        row.origin === "author" && row.mode === "manual" ? h("div", { className: "dshsc-note" }, t("policy.authorNote")) : null,
+        row.drift ? h("div", { className: "dshsc-note warn" }, t("policy.driftNote")) : null,
+        // 仅手动用行内 chip 表达；被更靠前的同名副本盖住时由下面的 foreignWinner 点名。
         hidden && !manualOnly && row.visibility?.winnerIsCanonical !== false ? h("div", { className: "dshsc-note warn" }, t("visibility.hiddenHint")) : null,
         row.visibility?.shadowScopeMismatch ? h("div", { className: "dshsc-note warn" }, t("visibility.scopeMismatch")) : null,
         // 同名副本在更小的 rank 上：模型看到的不是这一份，必须点名路径
@@ -2291,67 +2739,79 @@ function InstalledTab({
         row.status === "broken-link" ? h("div", { className: "dshsc-note warn" }, t("status.brokenHint")) : null
       ),
       h("div", { className: "dshsc-agents" }, agentChips(row)),
-      // 调用策略列暂时仍放现有启停开关：三档 chip 属于行为改动，等用户确认后再替换。
-      h(
-        "div",
-        { className: "dshsc-policy" },
-        h("button", {
-          className: "dshsc-switch",
-          role: "switch",
-          "aria-checked": String(tracked && row.enabled !== false),
-          "aria-label": `${row.name} ${t("mode.on")}/${t("mode.off")}`,
-          // 未纳入追踪时调 setMode 只会报「没有安装记录」，不如直接禁用
-          disabled: busy !== null || !tracked,
-          onClick: () => void actions.onToggleMode(row),
-          title: tracked ? row.enabled !== false ? t("mode.off") : t("mode.on") : t("adopt.switchHint")
-        }, h("span", { className: "dshsc-knob" }))
-      ),
+      h("div", { className: "dshsc-policy" }, policyChip(row)),
       h(
         "div",
         { className: "dshsc-actions" },
-        h("button", {
-          className: "dshsc-btn ghost sq dshsc-view",
-          disabled: busy !== null,
-          "aria-haspopup": "dialog",
-          title: t("action.view"),
-          "aria-label": `${t("action.view")} ${row.name}`,
-          onClick: () => actions.onView(row)
-        }, h(EyeIcon, { size: 13 })),
-        row.status === "unmanaged" ? h("button", {
-          className: "dshsc-btn ghost",
-          disabled: !writable || busy !== null,
-          title: row.source ? row.source : t("meta.none"),
-          onClick: () => void actions.onAdopt(row)
-        }, t("action.adopt")) : h("button", {
-          className: `dshsc-btn ghost sq${canUpdate ? " dshsc-update" : ""}`,
-          disabled: !canUpdate || busy !== null,
-          title: t("action.update"),
-          "aria-label": `${t("action.update")} ${row.name}`,
-          onClick: () => actions.onUpdate(row)
-        }, h(DownloadIcon, { size: 13 })),
-        h("button", {
-          className: "dshsc-btn ghost sq",
-          disabled: busy !== null,
-          title: t("action.exports"),
-          "aria-label": `${t("action.exports")} ${row.name}`,
-          onClick: () => actions.onExports(row)
-        }, h(PlugIcon, { size: 13 })),
-        h("button", {
-          className: "dshsc-btn ghost danger sq",
-          disabled: !writable || busy !== null,
-          title: t("action.delete"),
-          "aria-label": `${t("action.delete")} ${row.name}`,
-          onClick: () => actions.onDelete(row)
-        }, h(TrashIcon, { size: 13 }))
+        parked ? [
+          h("button", {
+            key: "restore",
+            className: "dshsc-btn ghost sq dshsc-restore",
+            disabled: !writable || busy !== null,
+            title: t("policy.unpark"),
+            "aria-label": `${t("policy.unpark")} ${row.name}`,
+            onClick: () => actions.onRequestUnpark(row)
+          }, h(RefreshIcon, { size: 13 })),
+          h("button", {
+            key: "delete",
+            className: "dshsc-btn ghost danger sq",
+            disabled: !writable || busy !== null,
+            title: t("action.delete"),
+            "aria-label": `${t("action.delete")} ${row.name}`,
+            onClick: () => actions.onDelete(row)
+          }, h(TrashIcon, { size: 13 }))
+        ] : [
+          h("button", {
+            key: "view",
+            className: "dshsc-btn ghost sq dshsc-view",
+            disabled: busy !== null,
+            "aria-haspopup": "dialog",
+            title: t("action.view"),
+            "aria-label": `${t("action.view")} ${row.name}`,
+            onClick: () => actions.onView(row)
+          }, h(EyeIcon, { size: 13 })),
+          row.status === "unmanaged" ? h("button", {
+            key: "adopt",
+            className: "dshsc-btn ghost",
+            disabled: !writable || busy !== null,
+            title: row.source ? row.source : t("meta.none"),
+            onClick: () => void actions.onAdopt(row)
+          }, t("action.adopt")) : h("button", {
+            key: "update",
+            className: `dshsc-btn ghost sq${canUpdate ? " dshsc-update" : ""}`,
+            disabled: !canUpdate || busy !== null,
+            title: t("action.update"),
+            "aria-label": `${t("action.update")} ${row.name}`,
+            onClick: () => actions.onUpdate(row)
+          }, h(DownloadIcon, { size: 13 })),
+          h("button", {
+            key: "exports",
+            className: "dshsc-btn ghost sq",
+            disabled: busy !== null,
+            title: t("action.exports"),
+            "aria-label": `${t("action.exports")} ${row.name}`,
+            onClick: () => actions.onExports(row)
+          }, h(PlugIcon, { size: 13 })),
+          h("button", {
+            key: "delete",
+            className: "dshsc-btn ghost danger sq",
+            disabled: !writable || busy !== null,
+            title: t("action.delete"),
+            "aria-label": `${t("action.delete")} ${row.name}`,
+            onClick: () => actions.onDelete(row)
+          }, h(TrashIcon, { size: 13 }))
+        ]
       )
     );
   }
   function groupedRows() {
     const groups = [];
-    const visibleGroup = visibleRows.filter((row) => row.enabled !== false && row.visible);
-    const offRows = visibleRows.filter((row) => row.enabled === false);
-    const hiddenRows = visibleRows.filter((row) => row.enabled !== false && !row.visible);
+    const visibleGroup = visibleRows.filter((row) => row.mode === "auto" && row.enabled !== false && row.visible);
+    const manualRows = visibleRows.filter((row) => row.mode === "manual");
+    const offRows = visibleRows.filter((row) => row.mode === "hidden" || row.enabled === false);
+    const hiddenRows = visibleRows.filter((row) => row.mode === "auto" && row.enabled !== false && !row.visible);
     groups.push({ key: "visible", title: t("group.visible"), rows: visibleGroup, dot: true });
+    if (manualRows.length) groups.push({ key: "manual", title: t("group.manual"), rows: manualRows });
     if (offRows.length) groups.push({ key: "off", title: t("group.off"), rows: offRows });
     if (hiddenRows.length) groups.push({ key: "hidden", title: t("group.hidden"), rows: hiddenRows });
     for (const agent of data?.agents?.detected || []) {
@@ -2383,6 +2843,7 @@ function InstalledTab({
         filterChip("all", t("filter.all")),
         filterChip("update", t("filter.update"), h("i", { className: "dshsc-fdot" })),
         filterChip("unknown", t("filter.unknown")),
+        filterChip("manual", t("filter.manual")),
         filterChip("off", t("filter.off"))
       ),
       h(
@@ -2508,7 +2969,26 @@ function InstalledTab({
       )
     );
   }
-  return content();
+  const popover = policy ? h(PolicyPopover, {
+    t,
+    row: policy.row,
+    support: data?.invocation?.support || null,
+    anchor: policy.anchor,
+    anchorEl: policy.anchorEl,
+    busy: busy !== null,
+    onClose: () => setPolicy(null),
+    onSave: (mode) => {
+      const target = policy.row;
+      setPolicy(null);
+      void actions.onSetInvocation(target, mode);
+    },
+    onUnpark: () => {
+      const target = policy.row;
+      setPolicy(null);
+      actions.onRequestUnpark(target);
+    }
+  }) : null;
+  return h(import_react4.default.Fragment, null, content(), popover);
 }
 
 // client/views/agent-tip.js
@@ -2678,10 +3158,10 @@ function SubscriptionsTab({
 }
 
 // client/views/modals.js
-var import_react4 = __toESM(require("react"), 1);
+var import_react6 = __toESM(require("react"), 1);
 
 // client/views/add-skill.js
-var import_react3 = __toESM(require("react"), 1);
+var import_react5 = __toESM(require("react"), 1);
 
 // client/views/overlay.js
 function Overlay({ t, title, children, footer, onCancel }) {
@@ -2711,13 +3191,13 @@ function Overlay({ t, title, children, footer, onCancel }) {
 
 // client/views/add-skill.js
 function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
-  const [source, setSource] = import_react3.default.useState("");
-  const [phase, setPhase] = import_react3.default.useState("idle");
-  const [options, setOptions] = import_react3.default.useState([]);
-  const [selected, setSelected] = import_react3.default.useState(() => /* @__PURE__ */ new Set());
-  const [manual, setManual] = import_react3.default.useState("");
-  const [skipped, setSkipped] = import_react3.default.useState(0);
-  const [error, setError] = import_react3.default.useState(null);
+  const [source, setSource] = import_react5.default.useState("");
+  const [phase, setPhase] = import_react5.default.useState("idle");
+  const [options, setOptions] = import_react5.default.useState([]);
+  const [selected, setSelected] = import_react5.default.useState(() => /* @__PURE__ */ new Set());
+  const [manual, setManual] = import_react5.default.useState("");
+  const [skipped, setSkipped] = import_react5.default.useState(0);
+  const [error, setError] = import_react5.default.useState(null);
   const reset = (value) => {
     setSource(value);
     setPhase("idle");
@@ -2853,7 +3333,7 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
 
 // client/views/modals.js
 function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
-  const [form, setForm] = import_react4.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
+  const [form, setForm] = import_react6.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
   const incomplete = fields.some(
     (field) => field.required !== false && !String(form[field.key] || "").trim()
   );
@@ -2901,7 +3381,7 @@ function ExportsModal({ t, row, agents, onCancel, onSave }) {
   const candidates = agents.filter(
     (agent) => agent.kind === "agent" && agent.exists && agent.exportable
   );
-  const [targets, setTargets] = import_react4.default.useState(() => {
+  const [targets, setTargets] = import_react6.default.useState(() => {
     const available = new Set(candidates.map((agent) => agent.target));
     return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
   });
@@ -2943,7 +3423,7 @@ function ExportsModal({ t, row, agents, onCancel, onSave }) {
   );
 }
 function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
-  const [targets, setTargets] = import_react4.default.useState(() => new Set(
+  const [targets, setTargets] = import_react6.default.useState(() => new Set(
     Array.isArray(settings.exportTargets) ? settings.exportTargets : []
   ));
   const toggle = (target) => setTargets((prev) => {
@@ -3022,6 +3502,17 @@ function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLi
       onSave: (targets) => void onSaveAutoLink(targets)
     });
   }
+  if (modal.type === "confirm-unpark") {
+    const previous = modal.row?.park?.previousMode === "manual" ? t("policy.manual") : t("policy.auto");
+    return h(ConfirmModal, {
+      t,
+      title: t("policy.unparkTitle"),
+      body: t("policy.unparkBody").replace("{mode}", previous),
+      confirmLabel: t("policy.unpark"),
+      onCancel: onClose,
+      onConfirm: modal.onConfirm
+    });
+  }
   if (modal.type === "confirm-delete") {
     return h(ConfirmModal, {
       t,
@@ -3061,7 +3552,7 @@ ${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join("\n")}`,
 }
 
 // client/views/skill-reader.js
-var import_react5 = __toESM(require("react"), 1);
+var import_react7 = __toESM(require("react"), 1);
 
 // client/markdown.js
 function classifyHref(href) {
@@ -3557,17 +4048,17 @@ function SkillReader({
   onToast
 }) {
   const { state, file, loadFile, retry } = useSkillReader(row);
-  const [tab, setTab] = import_react5.default.useState(initialTab);
-  const [format, setFormat] = import_react5.default.useState("rendered");
-  const [docOverride, setDocOverride] = import_react5.default.useState(null);
-  const [fileFormat, setFileFormat] = import_react5.default.useState("rendered");
-  const [tocActive, setTocActive] = import_react5.default.useState(null);
-  const [descOpen, setDescOpen] = import_react5.default.useState(false);
-  const [descClamped, setDescClamped] = import_react5.default.useState(false);
-  const bodyRef = import_react5.default.useRef(null);
-  const dialogRef = import_react5.default.useRef(null);
-  const descRef = import_react5.default.useRef(null);
-  const scrollRef = import_react5.default.useRef(0);
+  const [tab, setTab] = import_react7.default.useState(initialTab);
+  const [format, setFormat] = import_react7.default.useState("rendered");
+  const [docOverride, setDocOverride] = import_react7.default.useState(null);
+  const [fileFormat, setFileFormat] = import_react7.default.useState("rendered");
+  const [tocActive, setTocActive] = import_react7.default.useState(null);
+  const [descOpen, setDescOpen] = import_react7.default.useState(false);
+  const [descClamped, setDescClamped] = import_react7.default.useState(false);
+  const bodyRef = import_react7.default.useRef(null);
+  const dialogRef = import_react7.default.useRef(null);
+  const descRef = import_react7.default.useRef(null);
+  const scrollRef = import_react7.default.useRef(0);
   useOverlayLayer(variant === "drawer" || variant === "page", onClose);
   const name = row?.name || "";
   const tree = state.tree;
@@ -3576,18 +4067,18 @@ function SkillReader({
   const bodyText = docOverride ? docOverride.content : state.body?.content || "";
   const description = row?.description || state.body?.meta?.description || "";
   const headings = tab === "doc" && bodyText ? parseCached(bodyText).headings : [];
-  import_react5.default.useEffect(() => {
+  import_react7.default.useEffect(() => {
     setDocOverride(null);
     scrollRef.current = 0;
   }, [name]);
-  const descOwnerRef = import_react5.default.useRef(name);
-  import_react5.default.useEffect(() => {
+  const descOwnerRef = import_react7.default.useRef(name);
+  import_react7.default.useEffect(() => {
     if (descOwnerRef.current === name) return;
     descOwnerRef.current = name;
     setDescOpen(false);
     setDescClamped(false);
   }, [name]);
-  import_react5.default.useLayoutEffect(() => {
+  import_react7.default.useLayoutEffect(() => {
     const node = descRef.current;
     if (!node) return void 0;
     const measure = () => {
@@ -3609,16 +4100,16 @@ function SkillReader({
       window.removeEventListener("resize", measure);
     };
   }, [description, descOpen]);
-  import_react5.default.useEffect(() => {
+  import_react7.default.useEffect(() => {
     if (!initialFile) return;
     setTab("files");
     void loadFile(initialFile);
   }, [initialFile, loadFile]);
-  import_react5.default.useEffect(() => {
+  import_react7.default.useEffect(() => {
     const node = bodyRef.current;
     if (node && scrollRef.current) node.scrollTop = scrollRef.current;
   });
-  import_react5.default.useEffect(() => {
+  import_react7.default.useEffect(() => {
     if (variant !== "drawer" || typeof document === "undefined") return void 0;
     const previous = document.activeElement;
     const node = dialogRef.current;
@@ -3645,12 +4136,12 @@ function SkillReader({
       previous?.focus?.();
     };
   }, [variant, onClose]);
-  import_react5.default.useEffect(() => {
+  import_react7.default.useEffect(() => {
     if (variant !== "page" || typeof document === "undefined") return;
     const node = document.getElementById("dshsc-reader-name");
     node?.focus?.();
   }, [variant, name]);
-  import_react5.default.useEffect(() => {
+  import_react7.default.useEffect(() => {
     if (variant !== "page" || typeof window === "undefined") return void 0;
     const node = bodyRef.current;
     if (!node?.querySelectorAll) return void 0;
@@ -4088,19 +4579,19 @@ function SkillReader({
 var UPDATABLE2 = /* @__PURE__ */ new Set(["update-available", "locally-modified", "conflict"]);
 function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();
-  const [tab, setTab] = import_react6.default.useState("installed");
-  const [view, setView] = import_react6.default.useState("flat");
-  const [modal, setModal] = import_react6.default.useState(null);
-  const [expanded, setExpanded] = import_react6.default.useState({});
-  const [placementBusy, setPlacementBusy] = import_react6.default.useState(null);
-  const [placementOverride, setPlacementOverride] = import_react6.default.useState(null);
-  const [query, setQuery] = import_react6.default.useState("");
-  const [viewer, setViewer] = import_react6.default.useState(null);
-  const rootRef = import_react6.default.useRef(null);
-  const scrollPos = import_react6.default.useRef(null);
-  const restoreScroll = import_react6.default.useRef(null);
-  const [filter, setFilter] = import_react6.default.useState("all");
-  const [builtinOpen, setBuiltinOpen] = import_react6.default.useState(false);
+  const [tab, setTab] = import_react8.default.useState("installed");
+  const [view, setView] = import_react8.default.useState("flat");
+  const [modal, setModal] = import_react8.default.useState(null);
+  const [expanded, setExpanded] = import_react8.default.useState({});
+  const [placementBusy, setPlacementBusy] = import_react8.default.useState(null);
+  const [placementOverride, setPlacementOverride] = import_react8.default.useState(null);
+  const [query, setQuery] = import_react8.default.useState("");
+  const [viewer, setViewer] = import_react8.default.useState(null);
+  const rootRef = import_react8.default.useRef(null);
+  const scrollPos = import_react8.default.useRef(null);
+  const restoreScroll = import_react8.default.useRef(null);
+  const [filter, setFilter] = import_react8.default.useState("all");
+  const [builtinOpen, setBuiltinOpen] = import_react8.default.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
   const { agentTip, agentTipPos, agentTipRef, openAgentTip, closeAgentTip } = useAgentTip();
   const rows = data?.installs || [];
@@ -4110,18 +4601,20 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const updateCount = rows.filter(updatable).length;
   const bulkCount = rows.filter((row) => row.status === "update-available").length;
   const unknownCount = rows.filter((row) => row.status === "unknown").length;
-  const offCount = rows.filter((row) => row.enabled === false).length;
-  const counts = { all: rows.length, update: updateCount, unknown: unknownCount, off: offCount };
+  const offCount = rows.filter((row) => row.mode === "hidden" || row.enabled === false).length;
+  const manualCount = rows.filter((row) => row.mode === "manual").length;
+  const counts = { all: rows.length, update: updateCount, unknown: unknownCount, manual: manualCount, off: offCount };
   const queryText = query.trim().toLowerCase();
   const visibleRows = rows.filter((row) => {
     if (filter === "update" && !updatable(row)) return false;
     if (filter === "unknown" && row.status !== "unknown") return false;
-    if (filter === "off" && row.enabled !== false) return false;
+    if (filter === "manual" && row.mode !== "manual") return false;
+    if (filter === "off" && row.mode !== "hidden" && row.enabled !== false) return false;
     if (!queryText) return true;
     const agentLabels = row.exports.map((item) => item.label);
     return [row.name, row.source || "", ...agentLabels].join(" ").toLowerCase().includes(queryText);
   });
-  import_react6.default.useEffect(() => {
+  import_react8.default.useEffect(() => {
     if (!viewer || !data) return;
     if (rows.some((row) => row.name === viewer.name)) return;
     setViewer(null);
@@ -4155,7 +4648,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     if (viewer?.mode === "page") restoreScroll.current = scrollPos.current;
     setViewer(null);
   }
-  import_react6.default.useLayoutEffect(() => {
+  import_react8.default.useLayoutEffect(() => {
     if (restoreScroll.current === null) return;
     const target = restoreScroll.current;
     restoreScroll.current = null;
@@ -4184,6 +4677,8 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onView: (row) => openViewer(row),
     onAdopt: actions.adopt,
     onToggleMode: actions.toggleMode,
+    onSetInvocation: actions.setInvocation,
+    onRequestUnpark: actions.requestUnpark,
     onUpdate: actions.requestUpdate,
     onDelete: actions.requestDelete,
     onExports: (row) => setModal({ type: "exports", row }),
@@ -4222,7 +4717,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onToast: (next) => setToast(next)
   }) : null;
   const listNode = h(
-    import_react6.default.Fragment,
+    import_react8.default.Fragment,
     null,
     h(Header, {
       t,
