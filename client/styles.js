@@ -378,6 +378,11 @@ export const CSS = `
     word-break: break-word; }
   .dshsc-reader-actions { flex: none; display: flex; align-items: center; gap: 7px; padding: 9px 20px;
     border-top: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); flex-wrap: wrap; }
+  /* 底栏按钮统一 28px 高；图标按钮做成 28×28 的方正位，避免图标在方框里偏 */
+  .dshsc-reader-actions .dshsc-btn { box-sizing: border-box; height: 28px; font-size: 12px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  .dshsc-reader-actions .dshsc-btn.sq { width: 28px; padding: 0; }
+  .dshsc-reader-actions .dshsc-btn.sq svg { width: 14px; height: 14px; }
   .dshsc-reader-note { margin-right: auto; font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-reader-skeleton { display: flex; flex-direction: column; gap: 8px; }
   .dshsc-reader-skeleton i { display: block; height: 12px; border-radius: 5px;

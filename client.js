@@ -764,8 +764,8 @@ function CopyIcon({ size = 13 }) {
       "aria-hidden": true,
       style: { display: "block" }
     },
-    h("rect", { x: 9, y: 9, width: 11, height: 11, rx: 2.5 }),
-    h("path", { d: "M15 5.5A2.5 2.5 0 0 0 12.5 3h-6A3.5 3.5 0 0 0 3 6.5v6A2.5 2.5 0 0 0 5.5 15" })
+    h("rect", { x: 8, y: 8, width: 14, height: 14, rx: 2 }),
+    h("path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" })
   );
 }
 function ChevronLeftIcon({ size = 14 }) {
@@ -779,7 +779,7 @@ function ChevronLeftIcon({ size = 14 }) {
       "aria-hidden": true,
       style: { display: "block" }
     },
-    h("path", { d: "M14.5 5.5 8 12l6.5 6.5" })
+    h("path", { d: "m15 18-6-6 6-6" })
   );
 }
 function FileIcon({ size = 12 }) {
@@ -1195,6 +1195,11 @@ var CSS = `
     word-break: break-word; }
   .dshsc-reader-actions { flex: none; display: flex; align-items: center; gap: 7px; padding: 9px 20px;
     border-top: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); flex-wrap: wrap; }
+  /* 底栏按钮统一 28px 高；图标按钮做成 28×28 的方正位，避免图标在方框里偏 */
+  .dshsc-reader-actions .dshsc-btn { box-sizing: border-box; height: 28px; font-size: 12px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  .dshsc-reader-actions .dshsc-btn.sq { width: 28px; padding: 0; }
+  .dshsc-reader-actions .dshsc-btn.sq svg { width: 14px; height: 14px; }
   .dshsc-reader-note { margin-right: auto; font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-reader-skeleton { display: flex; flex-direction: column; gap: 8px; }
   .dshsc-reader-skeleton i { display: block; height: 12px; border-radius: 5px;

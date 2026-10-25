@@ -220,14 +220,17 @@ export function EyeIcon({ size = 13 }) {
   h('circle', { cx: 12, cy: 12, r: 3 }));
 }
 
-/** 复制。 */
+/**
+ * 复制。几何取自 lucide 的 copy（14×14 方块 + 左上回字），
+ * 包围盒严格对称于 (12,12)，小尺寸下不会看起来偏左上。
+ */
 export function CopyIcon({ size = 13 }) {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
     style: { display: 'block' },
   },
-  h('rect', { x: 9, y: 9, width: 11, height: 11, rx: 2.5 }),
-  h('path', { d: 'M15 5.5A2.5 2.5 0 0 0 12.5 3h-6A3.5 3.5 0 0 0 3 6.5v6A2.5 2.5 0 0 0 5.5 15' }));
+  h('rect', { x: 8, y: 8, width: 14, height: 14, rx: 2 }),
+  h('path', { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' }));
 }
 
 /** 返回 / 上一级。 */
@@ -236,7 +239,7 @@ export function ChevronLeftIcon({ size = 14 }) {
     width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
     style: { display: 'block' },
   },
-  h('path', { d: 'M14.5 5.5 8 12l6.5 6.5' }));
+  h('path', { d: 'm15 18-6-6 6-6' }));
 }
 
 /** 文件。 */
