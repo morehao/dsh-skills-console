@@ -6,6 +6,7 @@ import React from 'react';
 
 import { h, overlayHost, portalize } from './host.js';
 import { apiCall } from './api.js';
+import { isScroller, nearestScroller } from './scroll.js';
 import { CSS } from './styles.js';
 import { useSkillActions } from './actions.js';
 import { useAgentTip, useSettingsPopover, useSkillsData } from './hooks.js';
@@ -76,26 +77,11 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const autoLinkLabel = [t('links.dshGlobal'), ...autoLinkAgents.map((agent) => agent.label)].join('、');
   const placement = (placementOverride ?? data?.settings?.placement) === 'sidebar' ? 'sidebar' : 'settings';
 
-  /** 最近的滚动容器：整页会替换列表，返回时要按原位置还原。 */
-  function getScrollParent(node) {
-    let current = node?.parentElement || null;
-    while (current) {
-      if (typeof getComputedStyle === 'function') {
-        const style = getComputedStyle(current);
-        if (style && /(auto|scroll)/.test(style.overflowY || '') && current.scrollHeight > current.clientHeight) {
-          return current;
-        }
-      }
-      current = current.parentElement || null;
-    }
-    return typeof document !== 'undefined' ? document.scrollingElement || null : null;
-  }
-
   /** 列表自己的滚动容器（行区域独立滚动）；宿主没给确定高度、列表退回外层滚动时再找祖先。 */
   function listScroller() {
     const node = rootRef.current?.querySelector?.('.dshsc-listscroll');
-    if (node && node.scrollHeight > node.clientHeight) return node;
-    return getScrollParent(rootRef.current);
+    if (isScroller(node)) return node;
+    return nearestScroller(rootRef.current);
   }
 
   function openViewer(row, mode = 'drawer') {

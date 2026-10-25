@@ -850,6 +850,25 @@ function FolderIcon({ size = 12 }) {
 // client/section.js
 var import_react5 = __toESM(require("react"), 1);
 
+// client/scroll.js
+function isScroller(node, tolerance = 4) {
+  if (!node || typeof getComputedStyle !== "function") return false;
+  const style = getComputedStyle(node);
+  return Boolean(style && /(auto|scroll)/.test(style.overflowY || "") && node.scrollHeight > node.clientHeight + tolerance);
+}
+function nearestScroller(node, tolerance = 4) {
+  let current = node?.parentElement || null;
+  while (current) {
+    if (isScroller(current, tolerance)) return current;
+    current = current.parentElement || null;
+  }
+  return typeof document !== "undefined" ? document.scrollingElement || null : null;
+}
+function scrollHost(node, tolerance = 4) {
+  if (isScroller(node, tolerance)) return node;
+  return node && nearestScroller(node, tolerance) || node;
+}
+
 // client/styles.js
 var CSS = `
   /* 主面板形态：页面本身固定不滚，滚动条只出现在列表区（.dshsc-listscroll）。
@@ -3226,23 +3245,6 @@ var MARKDOWN = /\.(md|markdown)$/i;
 function isMarkdownPath(relPath) {
   return MARKDOWN.test(String(relPath || ""));
 }
-function isScroller(node) {
-  if (!node || typeof getComputedStyle !== "function") return false;
-  const style = getComputedStyle(node);
-  return Boolean(style && /(auto|scroll)/.test(style.overflowY || "") && node.scrollHeight > node.clientHeight + 4);
-}
-function nearestScroller(node) {
-  let current = node?.parentElement || null;
-  while (current) {
-    if (isScroller(current)) return current;
-    current = current.parentElement || null;
-  }
-  return typeof document !== "undefined" ? document.scrollingElement || null : null;
-}
-function scrollHost(node) {
-  if (isScroller(node)) return node;
-  return node && nearestScroller(node) || node;
-}
 var STATUS_KEY = {
   current: "status.current",
   "update-available": "status.update",
@@ -4001,23 +4003,10 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const autoLinkDsh = (data?.agents?.all || []).find((agent) => agent.target === "dsh-global") || null;
   const autoLinkLabel = [t("links.dshGlobal"), ...autoLinkAgents.map((agent) => agent.label)].join("、");
   const placement = (placementOverride ?? data?.settings?.placement) === "sidebar" ? "sidebar" : "settings";
-  function getScrollParent(node) {
-    let current = node?.parentElement || null;
-    while (current) {
-      if (typeof getComputedStyle === "function") {
-        const style = getComputedStyle(current);
-        if (style && /(auto|scroll)/.test(style.overflowY || "") && current.scrollHeight > current.clientHeight) {
-          return current;
-        }
-      }
-      current = current.parentElement || null;
-    }
-    return typeof document !== "undefined" ? document.scrollingElement || null : null;
-  }
   function listScroller() {
     const node = rootRef.current?.querySelector?.(".dshsc-listscroll");
-    if (node && node.scrollHeight > node.clientHeight) return node;
-    return getScrollParent(rootRef.current);
+    if (isScroller(node)) return node;
+    return nearestScroller(rootRef.current);
   }
   function openViewer(row, mode = "drawer") {
     if (!row) return;

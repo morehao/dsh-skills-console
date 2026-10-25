@@ -11,6 +11,7 @@ import { short } from '../api.js';
 import { useSkillReader } from '../hooks.js';
 import { ChevronLeftIcon, CopyIcon, FileIcon, FolderIcon } from '../icons.js';
 import { parseMarkdown, resolveRelativeHref, stripFrontmatter } from '../markdown.js';
+import { scrollHost } from '../scroll.js';
 
 /** 解析结果按正文缓存：切 tab / 切渲染不重复解析，最多留 8 份。 */
 const PARSE_CACHE = new Map();
@@ -50,28 +51,6 @@ function isMarkdownPath(relPath) {
 function extOf(relPath) {
   const match = /\.([a-z0-9]+)$/i.exec(String(relPath || ''));
   return match ? match[1].toUpperCase() : 'FILE';
-}
-
-function isScroller(node) {
-  if (!node || typeof getComputedStyle !== 'function') return false;
-  const style = getComputedStyle(node);
-  return Boolean(style && /(auto|scroll)/.test(style.overflowY || '') && node.scrollHeight > node.clientHeight + 4);
-}
-
-/** 最近的滚动祖先：整页挂在设置页里时，真正滚动的是外层容器（侧栏 / 设置页）。 */
-function nearestScroller(node) {
-  let current = node?.parentElement || null;
-  while (current) {
-    if (isScroller(current)) return current;
-    current = current.parentElement || null;
-  }
-  return typeof document !== 'undefined' ? document.scrollingElement || null : null;
-}
-
-function scrollHost(node) {
-  // 正文自己就是滚动容器（列表之外的区域现在都固定），先认它；抽屉与旧宿主再找祖先
-  if (isScroller(node)) return node;
-  return (node && nearestScroller(node)) || node;
 }
 
 const STATUS_KEY = {
