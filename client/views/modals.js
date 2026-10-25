@@ -86,7 +86,12 @@ export function ExportsModal({ t, row, agents, onCancel, onSave }) {
         onChange: () => toggle(agent.target),
       }),
       h('span', null, agent.label),
-      h('small', null, agent.sharedHome === 'yes' ? t('exports.sharedYes') : t('exports.sharedUnknown')),
+      // 'no' 是常态（确实只读自己的目录），不用额外标注；只提示「本来就能看见」与「没验证过」
+      agent.sharedHome === 'yes'
+        ? h('small', null, t('exports.sharedYes'))
+        : agent.sharedHome === 'unknown'
+          ? h('small', null, t('exports.sharedUnknown'))
+          : null,
       h('small', { title: agent.dir }, agent.dir))),
   h('p', { className: 'dshsc-sub' }, t('exports.hint')));
 }

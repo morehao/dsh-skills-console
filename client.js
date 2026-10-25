@@ -131,7 +131,7 @@ var DICT = {
     "exports.canonical": "技能本体：{path}；下面的链只是把它暴露给不读共享根的 Agent。",
     "exports.none": "本机没有其他 Agent 的目录",
     "exports.hint": "保存后按勾选建立或移除软链；技能本体留在原位置，不会移动。",
-    "exports.sharedYes": "读共享根",
+    "exports.sharedYes": "本来就读共享根，不必导出",
     "exports.sharedUnknown": "共享根未验证",
     "exportDefault.detected": "装完后默认导出到",
     "exportDefault.none": "本机没有检测到其他 Agent",
@@ -310,7 +310,7 @@ var DICT = {
     "exports.canonical": "Skill source: {path}; the entries below only expose it to agents that do not read the shared root.",
     "exports.none": "No other agent directories on this machine",
     "exports.hint": "Saving only adds or removes links; the skill itself stays where it is.",
-    "exports.sharedYes": "reads shared root",
+    "exports.sharedYes": "already reads the shared root",
     "exports.sharedUnknown": "shared root unverified",
     "exportDefault.detected": "Export new installs to",
     "exportDefault.none": "No other agents detected on this machine",
@@ -2723,7 +2723,8 @@ function ExportsModal({ t, row, agents, onCancel, onSave }) {
         onChange: () => toggle(agent.target)
       }),
       h("span", null, agent.label),
-      h("small", null, agent.sharedHome === "yes" ? t("exports.sharedYes") : t("exports.sharedUnknown")),
+      // 'no' 是常态（确实只读自己的目录），不用额外标注；只提示「本来就能看见」与「没验证过」
+      agent.sharedHome === "yes" ? h("small", null, t("exports.sharedYes")) : agent.sharedHome === "unknown" ? h("small", null, t("exports.sharedUnknown")) : null,
       h("small", { title: agent.dir }, agent.dir)
     )),
     h("p", { className: "dshsc-sub" }, t("exports.hint"))
