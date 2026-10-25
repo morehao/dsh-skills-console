@@ -6,7 +6,7 @@
 
 - Node.js ≥ 22.20（`engines`：`^22.20.0 || >=24.0.0`），npm 随 Node。
 - **runtime 依赖只有 `tar@7.5.22`**：随插件安装、精确锁版本，供 native installer 解压；构建期 devDependency 只有 `esbuild`（`package-lock.json` 已提交）。`npm test` 仍离线；`npm run check` 含 `check:client`（会重建 bundle），开发机需要先 `npm install`。
-- 安装/更新/删除都由 native installer 完成，不需要 `skills` CLI / 系统 git / Node / npm / npx。REST 403/429 时，探测与更新检查用 Atom commit feed + codeload tarball 兜底，在 `os.tmpdir()` 解压扫描后即删。
+- 安装/更新/删除都由 native installer 独立完成（下载 → 安全解压 → 发现 → tree SHA → 原子 promote → lock），运行时不调用任何外部命令。REST 403/429 时，探测与更新检查用 Atom commit feed + codeload tarball 兜底，在 `os.tmpdir()` 解压扫描后即删。
 
 ## 2. 目录结构
 
