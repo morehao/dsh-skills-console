@@ -407,6 +407,13 @@ export const CSS = `
   .dshsc-reader-tools:empty { display: none; }
   .dshsc-reader-tools .dshsc-segment { height: 22px; }
   .dshsc-reader-tools .dshsc-seg { margin-left: 0; }
+  /* 预览头在深色 bg-layer-2 上，默认边框太淡：抬高一级，让它一眼是按钮 */
+  .dshsc-reader-tools > .dshsc-btn { border: 1px solid var(--dsw-alias-border-l2);
+    background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font-weight: 500; }
+  .dshsc-reader-tools > .dshsc-btn:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-3);
+    border-color: var(--dsw-alias-border-l3); }
+  .dshsc-reader-tools > .dshsc-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+  .dshsc-reader-filebar .dshsc-btn { border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); }
   .dshsc-reader-tdir { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 11.5px;
     color: var(--dsw-alias-label-tertiary); }
   .dshsc-reader-tdir .n { margin-left: auto; font-variant-numeric: tabular-nums; }

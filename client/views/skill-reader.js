@@ -447,7 +447,7 @@ export function SkillReader({
           h('span', { className: 'mono' }, docOverride.relPath),
           h('button', {
             type: 'button',
-            className: 'dshsc-btn ghost',
+            className: 'dshsc-btn',
             onClick: () => setDocOverride(null),
           }, t('viewer.backToBody'))),
         h(Markdown, { text: docOverride.content, onOpenFile: openLinkedFile, onOpenAnchor: scrollToAnchor }));
@@ -548,7 +548,7 @@ export function SkillReader({
             active && !file.loading && !file.error && isMarkdownPath(active)
               ? h('button', {
                   type: 'button',
-                  className: 'dshsc-btn ghost',
+                  className: 'dshsc-btn',
                   onClick: () => {
                     setDocOverride({ relPath: file.relPath || active, content: file.content });
                     setTab('doc');
