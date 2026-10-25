@@ -106,7 +106,7 @@
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
 | Release body 投影冒烟 | `node scripts/smoke-release-notes.mjs` |
-| 重新导出 agent 目录表（仅开发脚本，需外部 `skills` 仓；`dist/cli.mjs` 或 `src/agents.ts` 都收） | `npm run sync:agents -- <skills/src/agents.ts>` |
+| 重新导出 agent 目录表（仅开发脚本；`src/agents.ts` 或发布包的 `dist/cli.mjs` 都收，表头记 upstream 版本） | `npm run sync:agents -- <path/to/skills/{src/agents.ts,dist/cli.mjs}>` |
 | 发布脚本语法 | `bash -n scripts/ci-publish.sh` |
 
 ## 4. 任务路由

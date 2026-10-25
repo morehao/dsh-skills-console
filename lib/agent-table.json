@@ -1,5 +1,10 @@
 {
-  "source": "skills CLI agents table (src/agents.ts)",
+  "source": "skills CLI agents table",
+  "upstream": {
+    "name": "skills",
+    "version": "1.7.4",
+    "from": "dist/cli.mjs"
+  },
   "entries": [
     {
       "key": "adal",

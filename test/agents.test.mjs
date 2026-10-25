@@ -3,9 +3,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { CLI_AGENT_DIRS, SHARED_HOME_VERIFIED, createRegistry, sharedHomeOf } from '../lib/core/agents.js';
 import { createPaths } from '../lib/core/paths.js';
 import { emptyState } from '../lib/core/state.js';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-agents-'));
@@ -101,6 +104,12 @@ test('共享根：由 agent 表的 universal 位决定，不再靠手写猜测',
   }
   assert.ok(CLI_AGENT_DIRS.some((entry) => entry.universal), '至少要有一个读共享根的条目');
   assert.ok(CLI_AGENT_DIRS.some((entry) => !entry.universal), '至少要有一个需要导出的条目');
+
+  // 出处可追溯：表是从上游 skills 的产物生成的，别让人以为是手抄的
+  const table = JSON.parse(fs.readFileSync(path.join(here, '..', 'lib', 'agent-table.json'), 'utf8'));
+  assert.equal(table.upstream?.name, 'skills', '要记录上游包名');
+  assert.match(table.upstream?.version || '', /^\d+\.\d+\.\d+/, '要记录上游版本');
+  assert.ok(['dist/cli.mjs', 'src/agents.ts'].includes(table.upstream?.from), '要记录是从哪个文件读的');
 
   const { root, paths } = sandbox();
   const registry = createRegistry({ paths, getState: () => emptyState() });

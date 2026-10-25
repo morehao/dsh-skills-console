@@ -162,10 +162,38 @@ for (const entry of entries.sort((a, b) => a.key.localeCompare(b.key))) {
 const out = [...seen.values()].sort((a, b) => a.key.localeCompare(b.key));
 
 const universalCount = out.filter((entry) => entry.universal).length;
+
+/**
+ * 记下上游身份，方便以后判断这张表落后了几版：
+ * - 输入是发布包里的 `dist/cli.mjs` → 包根就是它的上上级；
+ * - 输入是仓库里的 `src/agents.ts` → 仓库根是它的上级。
+ */
+function readUpstreamIdentity(sourcePath) {
+  const candidates = [];
+  if (/dist[\\/]cli\.mjs$/.test(sourcePath)) candidates.push(path.join(path.dirname(sourcePath), '..'));
+  candidates.push(path.join(path.dirname(sourcePath), '..'), path.dirname(sourcePath));
+  for (const dir of candidates) {
+    const manifest = path.join(dir, 'package.json');
+    if (!fs.existsSync(manifest)) continue;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+      if (pkg.name === 'skills' && pkg.version) {
+        return { name: pkg.name, version: pkg.version, from: path.relative(dir, sourcePath) };
+      }
+    } catch {
+      // 坏 package.json 不影响出表，只是少一条出处
+    }
+  }
+  return null;
+}
+
+const upstream = readUpstreamIdentity(source);
 const sourceLabel = /src\/agents\.ts|agents\.ts$/.test(source)
   ? 'skills CLI agents table (src/agents.ts)'
   : 'skills CLI agents table';
-fs.writeFileSync(output, `${JSON.stringify({ source: sourceLabel, entries: out }, null, 2)}\n`);
+const payload = { source: sourceLabel, ...(upstream ? { upstream } : {}), entries: out };
+fs.writeFileSync(output, `${JSON.stringify(payload, null, 2)}\n`);
+console.log(`upstream: ${upstream ? `${upstream.name}@${upstream.version} (${upstream.from})` : '未知（输入旁边没有 skills 的 package.json）'}`);
 console.log(
   `${out.length} agents (${universalCount} universal → 读共享根，不必导出); ` +
     `sample: ${out.slice(0, 8).map((entry) => `${entry.key}→${entry.dir}${entry.universal ? '*' : ''}`).join(', ')}`,
