@@ -203,6 +203,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       onOpenAutoLink: () => setModal({ type: 'autolink' }),
       onAddSkill: actions.requestAddSkill,
       onAddSubscription: actions.requestAddSubscription,
+      onToast: (next) => setToast(next),
     }),
 
     error ? h('div', { className: 'dshsc-banner err' }, `${error} · `, h('button', { className: 'dshsc-btn ghost', onClick: () => void reload() }, t('action.retry'))) : null,

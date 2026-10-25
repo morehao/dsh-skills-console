@@ -31,7 +31,7 @@ function makeHandler() {
   return createRoutes({ service, logger: () => {} });
 }
 
-test('/state：下发插件身份（包名去 scope + 版本），顺手保留原字段', async () => {
+test('/state：下发插件身份（短名 + 带 scope 包名 + 版本），顺手保留原字段', async () => {
   const handler = makeHandler();
   const res = fakeRes();
   await handler(
@@ -42,13 +42,15 @@ test('/state：下发插件身份（包名去 scope + 版本），顺手保留�
   assert.equal(res.out.status, 200);
   const body = JSON.parse(res.out.body);
   assert.equal(body.ok, true, '原字段不丢');
-  assert.equal(body.plugin.name, 'dsh-skills-console', '页头显示不带 scope 的包名');
+  assert.equal(body.plugin.name, 'dsh-skills-console', '短名保留给老前端');
+  assert.equal(body.plugin.fullName, pkg.name, '带 scope 的包名用拼安装标识');
   assert.equal(body.plugin.version, pkg.version, '版本必须来自 package.json');
   assert.equal(res.out.headers['cache-control'], 'no-store');
 });
 
 test('PLUGIN_INFO 与 package.json 同源', () => {
   assert.equal(PLUGIN_INFO.name, pkg.name.replace(/^@[^/]+\//, ''));
+  assert.equal(PLUGIN_INFO.fullName, pkg.name);
   assert.equal(PLUGIN_INFO.version, pkg.version);
 });
 

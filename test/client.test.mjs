@@ -186,6 +186,7 @@ function loadModule(payload, options = {}) {
   if (options.document !== undefined) sandbox.document = options.document;
   if (options.MutationObserver !== undefined) sandbox.MutationObserver = options.MutationObserver;
   if (options.fetch) sandbox.fetch = options.fetch;
+  if (options.navigator) sandbox.navigator = options.navigator;
   sandbox.window.addEventListener = () => {};
   sandbox.window.removeEventListener = () => {};
   vm.createContext(sandbox);
@@ -301,7 +302,7 @@ const STATE = {
   visibleComplete: true,
   visibleOnly: [],
   checks: {},
-  plugin: { name: 'dsh-skills-console', version: '0.2.0' },
+  plugin: { name: 'dsh-skills-console', fullName: '@morehao/dsh-skills-console', version: '0.2.0' },
   cli: { version: '1.7.4', json: true, fullDepth: true, source: 'profile-dependency', usable: true },
   paths: {},
   scannedAt: 'now',
@@ -542,19 +543,46 @@ test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧',
   assert.deepEqual(labels, ['自动接入 · 2 ▾', '添加技能'], '右侧只剩业务动作，主按钮在最右');
 });
 
-test('页头身份：包名与版本来自 Host 注入的 plugin 字段', async () => {
-  const { Component, stub } = loadModule({ ...STATE, plugin: { name: 'dsh-skills-console', version: '9.9.9' } });
+test('页头身份：按安装时要输入的包名显示（@scope/name@version），点一下复制', async () => {
+  const written = [];
+  const { Component, stub } = loadModule(
+    {
+      ...STATE,
+      plugin: { name: 'dsh-skills-console', fullName: '@morehao/dsh-skills-console', version: '9.9.9' },
+    },
+    { navigator: { clipboard: { writeText: async (text) => { written.push(text); } } } },
+  );
   const first = stub.render(Component, {});
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
-  const text = textOf(tree);
-  assert.ok(text.includes('dsh-skills-console'), '页头要显示包名');
-  assert.ok(text.includes('v9.9.9'), '页头要显示版本');
+
+  const chip = collectButtons(tree).find((node) => String(node.props.className).split(' ').includes('dshsc-id'));
+  assert.ok(chip, '页头有身份 chip');
+  assert.equal(textOf(chip).trim(), '@morehao/dsh-skills-console@9.9.9', '显示完整安装标识，不自造 v 前缀');
+  assert.ok(String(chip.props.title).includes('@morehao/dsh-skills-console@9.9.9'), '标题里给出可复制的完整标识');
+  assert.ok(String(chip.props['aria-label']).includes('复制'), 'chip 是可点击复制的按钮');
+  chip.props.onClick();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(written, ['@morehao/dsh-skills-console@9.9.9'], '点击复制整段安装标识');
+
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
-  const ver = (css.match(/\.dshsc-ver\s*\{[^}]*\}/) || [''])[0];
-  assert.ok(ver.includes('tabular-nums'), '版本数字等宽');
-  assert.ok(!ver.includes('border'), '版本用普通灰字，不加描边');
+  const idCss = (css.match(/\.dshsc-id\s*\{[^}]*\}/) || [''])[0];
+  assert.ok(idCss.includes('monospace'), '安装标识用等宽字体，像命令行里输入的那段');
+  assert.ok(idCss.includes('border'), '安装标识是一枚 chip');
+});
+
+test('页头身份：只有短名时退回短名，不硬编码 scope', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    plugin: { name: 'dsh-skills-console', version: '9.9.9' },
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const text = textOf(stub.render(Component, {}, first.hooks).tree);
+  assert.ok(text.includes('dsh-skills-console@9.9.9'), '缺 fullName 时只拼短名');
+  assert.ok(!text.includes('@morehao/'), 'scope 只能来自 Host，不在前端硬编码');
 });
 
 test('页头副标题：讲清本地技能与跨 Agent 复用，不出现技术名词', async () => {
@@ -585,7 +613,7 @@ test('页头身份：Host 没下发 plugin 时不渲染包名/版本，也不崩
   await new Promise((resolve) => setTimeout(resolve, 20));
   const text = textOf(stub.render(Component, {}, first.hooks).tree);
   assert.ok(text.includes('技能控制台'), '标题照常渲染');
-  assert.ok(!text.includes('v0.2.0'), '没有版本就不画版本徽标');
+  assert.ok(!text.includes('dsh-skills-console@'), '没有 plugin 就不画身份 chip');
 });
 
 test('侧边栏入口：一个开关（不是文字按钮），切换后重新注册 slot', async () => {

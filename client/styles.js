@@ -18,13 +18,19 @@ export const CSS = `
   .dshsc-head-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
   .dshsc-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 
-  /* 身份：包名 + 版本合成一枚低调 chip，不再各占一段 */
-  .dshsc-id { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 22px; padding: 0 7px;
-    border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px; background: var(--dsw-alias-bg-layer-1); }
-  .dshsc-pkg { font-size: 11px; line-height: 1; color: var(--dsw-alias-label-tertiary); white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace); }
-  .dshsc-idsep { flex: none; font-size: 10px; color: var(--dsw-alias-border-l3); }
-  .dshsc-ver { flex: none; font-size: 11px; line-height: 1; color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+  /* 身份：按「安装时输入的包名」显示（@scope/name@version），等宽 + 可点复制 */
+  .dshsc-id { display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; min-width: 0;
+    max-width: 100%; height: 22px; padding: 0 6px 0 7px; border: 1px solid var(--dsw-alias-border-l1);
+    border-radius: 6px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-tertiary);
+    font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 11px; line-height: 1; white-space: nowrap; cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease; }
+  .dshsc-id:hover { border-color: var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2);
+    color: var(--dsw-alias-label-primary); }
+  .dshsc-id:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+  .dshsc-spec { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+  .dshsc-idcopy { display: inline-flex; flex: none; opacity: .5; transition: opacity .12s ease; }
+  .dshsc-id:hover .dshsc-idcopy, .dshsc-id:focus-visible .dshsc-idcopy { opacity: 1; }
 
   /* 插件级工具（设置 / GitHub）：跟在身份胶囊后面，用细线分组；鬼影按钮不和业务按钮抢权重 */
   .dshsc-tools { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: 2px;
