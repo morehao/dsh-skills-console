@@ -3215,7 +3215,7 @@ function resolveRelativeHref(currentDir, href) {
   return { relPath: out.join("/"), anchor: target.kind === "anchor" ? target.href : "" };
 }
 
-// client/views/skill-reader.js
+// client/views/markdown-view.js
 var PARSE_CACHE = /* @__PURE__ */ new Map();
 function parseCached(text) {
   const key = String(text ?? "");
@@ -3228,32 +3228,6 @@ function parseCached(text) {
   }
   return parsed;
 }
-function formatBytes(bytes) {
-  const value = Number(bytes) || 0;
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-function formatWhen(iso) {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-var MARKDOWN = /\.(md|markdown)$/i;
-function isMarkdownPath(relPath) {
-  return MARKDOWN.test(String(relPath || ""));
-}
-var STATUS_KEY = {
-  current: "status.current",
-  "update-available": "status.update",
-  "locally-modified": "status.local",
-  conflict: "status.conflict",
-  "upstream-deleted": "status.deleted",
-  "broken-link": "status.broken",
-  unmanaged: "status.unmanaged"
-};
 function inlineNodes(nodes, { onOpenFile, onOpenAnchor, keyPrefix = "i" }) {
   if (!Array.isArray(nodes)) return null;
   return nodes.map((node, index) => {
@@ -3386,6 +3360,34 @@ function Markdown({ text, onOpenFile, onOpenAnchor }) {
   const { blocks } = parseCached(text);
   return h("div", { className: "dshsc-md" }, blockNodes(blocks, { onOpenFile, onOpenAnchor }));
 }
+
+// client/views/skill-reader.js
+function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+function formatWhen(iso) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+var MARKDOWN = /\.(md|markdown)$/i;
+function isMarkdownPath(relPath) {
+  return MARKDOWN.test(String(relPath || ""));
+}
+var STATUS_KEY = {
+  current: "status.current",
+  "update-available": "status.update",
+  "locally-modified": "status.local",
+  conflict: "status.conflict",
+  "upstream-deleted": "status.deleted",
+  "broken-link": "status.broken",
+  unmanaged: "status.unmanaged"
+};
 function TabButton({ id, label, count, active, onSelect }) {
   return h("button", {
     type: "button",
