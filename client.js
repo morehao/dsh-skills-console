@@ -3680,7 +3680,7 @@ function SkillReader({
       )
     );
   }
-  return h(
+  return portalize(h(
     "div",
     { className: "dshsc-drawer-wrap" },
     h("div", { className: "dshsc-drawer-scrim", onClick: () => onClose?.() }),
@@ -3692,7 +3692,7 @@ function SkillReader({
       ref: dialogRef,
       tabIndex: -1
     }, header, tabsBar, body, actionsFooter)
-  );
+  ));
 }
 
 // client/section.js
@@ -3839,92 +3839,93 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onLinks: (row) => setModal({ type: "links", row }),
     onToast: (next) => setToast(next)
   }) : null;
+  const listNode = h(
+    import_react5.default.Fragment,
+    null,
+    h(Header, {
+      t,
+      page,
+      plugin: data?.plugin,
+      writable,
+      autoLinkLabel,
+      autoLinkCount: autoLinkAgents.length + 1,
+      tab,
+      settingsOpen,
+      settingsRef,
+      settingsPlacement,
+      placement,
+      placementBusy,
+      readOnly: Boolean(data?.readOnly),
+      onToggleSettings: toggleSettings,
+      onChangePlacement: (next) => void changePlacement(next),
+      onOpenAutoLink: () => setModal({ type: "autolink" }),
+      onAddSkill: actions.requestAddSkill,
+      onAddSubscription: actions.requestAddSubscription
+    }),
+    error ? h("div", { className: "dshsc-banner err" }, `${error} · `, h("button", { className: "dshsc-btn ghost", onClick: () => void reload() }, t("action.retry"))) : null,
+    data?.readOnly ? h("div", { className: "dshsc-banner warn" }, t("banner.readonly")) : null,
+    data && !data.cli?.usable ? h("div", { className: "dshsc-banner err" }, `${t("banner.cli")} · ${data.cli?.source || ""} ${data.cli?.version || ""}`) : null,
+    h(Toolbar, {
+      t,
+      tab,
+      onTabChange: setTab,
+      installedCount: rows.length,
+      subscriptionCount: data?.subscriptions?.length || 0,
+      query,
+      onQueryChange: setQuery,
+      view,
+      onViewChange: setView
+    }),
+    tab === "installed" ? h(InstalledTab, {
+      t,
+      data,
+      rows,
+      visibleRows,
+      counts,
+      bulkCount,
+      filter,
+      query,
+      view,
+      busy,
+      writable,
+      agentTip,
+      builtinOpen,
+      actions: installedActions
+    }) : h(SubscriptionsTab, {
+      t,
+      subscriptions: data?.subscriptions || [],
+      rows,
+      expanded,
+      busy,
+      writable,
+      ...subscriptionActions
+    }),
+    busy ? h("div", { className: "dshsc-meta" }, `${t("busy.working")} ${busy}`) : null
+  );
   const root = h(
     "div",
     { className: "dshsc-root", ref: rootRef },
     h("style", null, CSS),
-    viewer?.mode === "page" && readerNode ? readerNode : h(
-      import_react5.default.Fragment,
-      null,
-      h(Header, {
-        t,
-        page,
-        plugin: data?.plugin,
-        writable,
-        autoLinkLabel,
-        autoLinkCount: autoLinkAgents.length + 1,
-        tab,
-        settingsOpen,
-        settingsRef,
-        settingsPlacement,
-        placement,
-        placementBusy,
-        readOnly: Boolean(data?.readOnly),
-        onToggleSettings: toggleSettings,
-        onChangePlacement: (next) => void changePlacement(next),
-        onOpenAutoLink: () => setModal({ type: "autolink" }),
-        onAddSkill: actions.requestAddSkill,
-        onAddSubscription: actions.requestAddSubscription
-      }),
-      error ? h("div", { className: "dshsc-banner err" }, `${error} · `, h("button", { className: "dshsc-btn ghost", onClick: () => void reload() }, t("action.retry"))) : null,
-      data?.readOnly ? h("div", { className: "dshsc-banner warn" }, t("banner.readonly")) : null,
-      data && !data.cli?.usable ? h("div", { className: "dshsc-banner err" }, `${t("banner.cli")} · ${data.cli?.source || ""} ${data.cli?.version || ""}`) : null,
-      h(Toolbar, {
-        t,
-        tab,
-        onTabChange: setTab,
-        installedCount: rows.length,
-        subscriptionCount: data?.subscriptions?.length || 0,
-        query,
-        onQueryChange: setQuery,
-        view,
-        onViewChange: setView
-      }),
-      tab === "installed" ? h(InstalledTab, {
-        t,
-        data,
-        rows,
-        visibleRows,
-        counts,
-        bulkCount,
-        filter,
-        query,
-        view,
-        busy,
-        writable,
-        agentTip,
-        builtinOpen,
-        actions: installedActions
-      }) : h(SubscriptionsTab, {
-        t,
-        subscriptions: data?.subscriptions || [],
-        rows,
-        expanded,
-        busy,
-        writable,
-        ...subscriptionActions
-      }),
-      busy ? h("div", { className: "dshsc-meta" }, `${t("busy.working")} ${busy}`) : null,
-      toast ? h("div", { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
-      modal ? h(Modals, {
-        t,
-        modal,
-        data,
-        autoLinkAgents: autolinkTargets,
-        autoLinkDsh,
-        pickDirectory,
-        actions: {
-          probeSkills: actions.probeSkills,
-          installSkills: actions.installSkills,
-          addSubscription: actions.addSubscription,
-          saveLinks: actions.saveLinks
-        },
-        onClose: () => setModal(null),
-        onSaveAutoLink: saveAutoLink
-      }) : null,
-      agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null
-    ),
-    viewer?.mode === "drawer" && readerNode ? portalize(readerNode) : null
+    viewer?.mode === "page" ? null : listNode,
+    readerNode,
+    toast ? h("div", { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
+    modal ? h(Modals, {
+      t,
+      modal,
+      data,
+      autoLinkAgents: autolinkTargets,
+      autoLinkDsh,
+      pickDirectory,
+      actions: {
+        probeSkills: actions.probeSkills,
+        installSkills: actions.installSkills,
+        addSubscription: actions.addSubscription,
+        saveLinks: actions.saveLinks
+      },
+      onClose: () => setModal(null),
+      onSaveAutoLink: saveAutoLink
+    }) : null,
+    agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null
   );
   return page ? h("div", { className: "dshsc-page" }, root) : root;
 }

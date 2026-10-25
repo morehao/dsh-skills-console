@@ -6,7 +6,7 @@
  */
 import React from 'react';
 
-import { h } from '../host.js';
+import { h, portalize } from '../host.js';
 import { short } from '../api.js';
 import { useSkillReader } from '../hooks.js';
 import { ChevronLeftIcon, CopyIcon, FileIcon, FolderIcon } from '../icons.js';
@@ -613,7 +613,9 @@ export function SkillReader({
         h('div', { className: 'dshsc-reader-col' }, tabsBar, body)));
   }
 
-  return h('div', { className: 'dshsc-drawer-wrap' },
+  // 抽屉走 portal：设置面板 / 侧栏的 overflow 都裁不到；组件实例仍留在 Section 的树里，
+  // 所以「在整页打开」只换外壳，不卸载、不重拉数据。
+  return portalize(h('div', { className: 'dshsc-drawer-wrap' },
     h('div', { className: 'dshsc-drawer-scrim', onClick: () => onClose?.() }),
     h('aside', {
       className: 'dshsc-drawer',
@@ -622,5 +624,5 @@ export function SkillReader({
       'aria-labelledby': 'dshsc-reader-name',
       ref: dialogRef,
       tabIndex: -1,
-    }, header, tabsBar, body, actionsFooter));
+    }, header, tabsBar, body, actionsFooter)));
 }

@@ -4,7 +4,7 @@
  */
 import React from 'react';
 
-import { h, portalize } from './host.js';
+import { h } from './host.js';
 import { apiCall } from './api.js';
 import { CSS } from './styles.js';
 import { useSkillActions } from './actions.js';
@@ -181,14 +181,10 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       })
     : null;
 
-  const root = h(
-    'div',
-    { className: 'dshsc-root', ref: rootRef },
-    h('style', null, CSS),
-    viewer?.mode === 'page' && readerNode
-      ? readerNode
-      : h(React.Fragment, null,
-        h(Header, {
+  // 查看器的位置固定（列表区之后、toast 之前）：抽屉 / 整页只换外壳不换位置，
+  // 这样「在整页打开」不会卸载 SkillReader，tab、渲染 / 原文与已加载的正文都留着。
+  const listNode = h(React.Fragment, null,
+    h(Header, {
       t,
       page,
       plugin: data?.plugin,
@@ -253,6 +249,14 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
         }),
 
     busy ? h('div', { className: 'dshsc-meta' }, `${t('busy.working')} ${busy}`) : null,
+  );
+
+  const root = h(
+    'div',
+    { className: 'dshsc-root', ref: rootRef },
+    h('style', null, CSS),
+    viewer?.mode === 'page' ? null : listNode,
+    readerNode,
     toast ? h('div', { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
     modal ? h(Modals, {
       t,
@@ -270,8 +274,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       onClose: () => setModal(null),
       onSaveAutoLink: saveAutoLink,
     }) : null,
-    agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null),
-    viewer?.mode === 'drawer' && readerNode ? portalize(readerNode) : null,
+    agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null,
   );
   return page ? h('div', { className: 'dshsc-page' }, root) : root;
 }
