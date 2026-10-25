@@ -52,9 +52,12 @@ export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, conf
  * 导出设置：把技能暴露给**不读共享根**的其他 Agent。
  * 这里没有作用范围：DSH 的可见性由扫描根 + 停用标记决定，导出只影响别的 agent。
  */
-export function ExportsModal({ t, row, agents, onCancel, onSave }) {
-  // 只列本机真有目录的 agent；dsh 自己的根不出现在导出列表里
-  const candidates = agents.filter((agent) => agent.kind === 'agent' && agent.exists);
+export function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, onSave }) {
+  // 只列本机真有目录、且**不读共享根**的 agent；dsh 自己的根也不出现在导出列表里
+  const candidates = agents.filter(
+    (agent) => agent.kind === 'agent' && agent.exists && agent.sharedHome !== 'yes',
+  );
+  const sharedRoot = sharedRootAgents.filter((agent) => agent.exists);
   const [targets, setTargets] = React.useState(() => {
     const available = new Set(candidates.map((agent) => agent.target));
     return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
@@ -77,6 +80,9 @@ export function ExportsModal({ t, row, agents, onCancel, onSave }) {
   h('div', { className: 'dshsc-group' }, t('exports.targets')),
   h('p', { className: 'dshsc-sub' }, t('exports.detectedHint')),
   h('p', { className: 'dshsc-sub' }, t('exports.canonical').replace('{path}', `~/.agents/skills/${row.name}`)),
+  sharedRoot.length > 0
+    ? h('p', { className: 'dshsc-sub' }, t('exports.sharedRootHint').replace('{names}', sharedRoot.map((agent) => agent.label).join('、')))
+    : null,
   candidates.length === 0 ? h('p', { className: 'dshsc-sub' }, t('exports.none')) : null,
   ...candidates.map((agent) =>
     h('label', { className: 'dshsc-check', key: agent.target },
@@ -86,17 +92,13 @@ export function ExportsModal({ t, row, agents, onCancel, onSave }) {
         onChange: () => toggle(agent.target),
       }),
       h('span', null, agent.label),
-      // 'no' 是常态（确实只读自己的目录），不用额外标注；只提示「本来就能看见」与「没验证过」
-      agent.sharedHome === 'yes'
-        ? h('small', null, t('exports.sharedYes'))
-        : agent.sharedHome === 'unknown'
-          ? h('small', null, t('exports.sharedUnknown'))
-          : null,
+      // 候选里已经没有「读共享根」的 agent 了；'no' 是常态不必标注，只提示没验证过的
+      agent.sharedHome === 'unknown' ? h('small', null, t('exports.sharedUnknown')) : null,
       h('small', { title: agent.dir }, agent.dir))),
   h('p', { className: 'dshsc-sub' }, t('exports.hint')));
 }
 
-export function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
+export function DefaultExportModal({ t, settings, agents, sharedRoot = [], onCancel, onSave }) {
   const [targets, setTargets] = React.useState(() => new Set(
     Array.isArray(settings.exportTargets) ? settings.exportTargets : [],
   ));
@@ -127,11 +129,14 @@ export function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
           }),
           h('span', null, agent.label),
           h('small', null, agent.dir)))),
+  sharedRoot.length > 0
+    ? h('p', { className: 'dshsc-sub' }, t('exportDefault.sharedRootHint').replace('{names}', sharedRoot.map((agent) => agent.label).join('、')))
+    : null,
   h('p', { className: 'dshsc-sub' }, t('exportDefault.hint')));
 }
 
 /** 按 modal.type 分发；未识别的类型不渲染。 */
-export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }) {
+export function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], actions, onClose, onSaveAutoLink }) {
   if (modal.type === 'add-skill') {
     return h(AddSkillModal, {
       t,
@@ -159,6 +164,7 @@ export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSav
       t,
       row: modal.row,
       agents: data?.agents?.all || [],
+      sharedRootAgents,
       onCancel: onClose,
       onSave: (targets) => {
         onClose();
@@ -171,6 +177,7 @@ export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSav
       t,
       settings: data?.settings || {},
       agents: autoLinkAgents,
+      sharedRoot: sharedRootAgents.filter((agent) => agent.exists),
       onCancel: onClose,
       onSave: (targets) => void onSaveAutoLink(targets),
     });

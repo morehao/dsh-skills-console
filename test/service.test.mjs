@@ -1189,3 +1189,24 @@ test('查看：非法技能名与越界路径在 service 层被拒（补上原�
   );
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('settings：读共享根的 Agent 存不进 exportTargets', async () => {
+  const { root, home, service, store } = setup();
+  // OpenCode 读共享根（sharedHome=yes），Reasonix 没验证过（unknown）
+  fs.mkdirSync(path.join(home, '.config', 'opencode', 'skills'), { recursive: true });
+  fs.mkdirSync(path.join(home, '.reasonix', 'skills'), { recursive: true });
+
+  await service.setSettings({ exportTargets: ['agent:opencode', 'agent:reasonix'] });
+  assert.deepEqual(
+    store.state.settings.exportTargets,
+    ['agent:reasonix'],
+    '读共享根的目标不该被持久化：存下来也不会建链，只会让摘要数出一个看不见的 1',
+  );
+
+  // 显式全导出（v1 兼容分支）同样要挡掉共享根
+  await service.setSettings({ autoLinkTargets: null });
+  assert.ok(!store.state.settings.exportTargets.includes('agent:opencode'));
+  assert.ok(store.state.settings.exportTargets.includes('agent:reasonix'));
+
+  fs.rmSync(root, { recursive: true, force: true });
+});

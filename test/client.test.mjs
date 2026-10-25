@@ -819,6 +819,40 @@ test('自动导出：只列本机已装的 Agent，默认不勾任何目标', as
   assert.equal(nextChecks[0].props.checked, false, '取消勾选要生效');
 });
 
+test('自动导出：读共享根的 Agent 不进列表，只作说明', async () => {
+  const payload = {
+    ...STATE,
+    settings: { exportTargets: ['agent:opencode'] },
+    agents: {
+      all: [
+        ...STATE.agents.all,
+        { target: 'agent:opencode', kind: 'agent', key: 'opencode', label: 'OpenCode', dir: '/tmp/.config/opencode/skills', exists: true, sharedHome: 'yes' },
+      ],
+      detected: [
+        ...STATE.agents.detected,
+        { target: 'agent:opencode', kind: 'agent', key: 'opencode', label: 'OpenCode', dir: '/tmp/.config/opencode/skills', exists: true, sharedHome: 'yes' },
+      ],
+    },
+  };
+  const { Component, stub } = loadModule(payload);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const header = collectButtons(tree).find((button) => String(textOf(button)).startsWith('新安装时自动导出'));
+  assert.ok(header, '要有入口');
+  assert.match(String(textOf(header)), /新安装时自动导出 · 0/, 'v1 残留的 opencode 不该再计数');
+
+  header.props.onClick();
+  const modal = stub.render(Component, {}, first.hooks).tree;
+  const text = textOf(modal);
+  const checks = collectByType(modal, 'input').filter((node) => node.props.type === 'checkbox');
+  assert.equal(checks.length, 1, '只剩 Claude Code 一个可选目标');
+  assert.ok(!checks.some((node) => node.props.checked), 'opencode 的不该出现「已勾选」');
+  assert.match(text, /OpenCode 读共享根，不在此列/, '要说明为什么不在列表里');
+  assert.ok(!text.includes('/tmp/.config/opencode/skills'), '不该给出它的目录让人去勾');
+});
+
 test('自动导出：一个 Agent 都没探测到时，列表为空并说明原因', async () => {
   const { Component, stub } = loadModule({
     ...STATE,
@@ -1491,3 +1525,4 @@ test('查看：文件 tab 里的 markdown 默认渲染，可切回原文', async
     '切原文后看到源码',
   );
 });
+

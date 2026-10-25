@@ -131,10 +131,11 @@ var DICT = {
     "exports.canonical": "技能本体：{path}；下面的链只是把它暴露给不读共享根的 Agent。",
     "exports.none": "本机没有其他 Agent 的目录",
     "exports.hint": "保存后按勾选建立或移除软链；技能本体留在原位置，不会移动。",
-    "exports.sharedYes": "本来就读共享根，不必导出",
     "exports.sharedUnknown": "共享根未验证",
+    "exports.sharedRootHint": "{names} 读共享根，不在此列；它们已有的多余导出链会在保存时清理。",
     "exportDefault.detected": "装完后默认导出到",
     "exportDefault.none": "本机没有检测到其他 Agent",
+    "exportDefault.sharedRootHint": "{names} 读共享根，不在此列：装到 ~/.agents/skills 它们本来就能看见。",
     "exportDefault.hint": "默认一个都不勾：技能装进 ~/.agents/skills 后 DSH 本来就能看见。导出只用于仍只认私有目录的 Agent，且只影响之后的安装。",
     "empty.skills": "还没有安装任何技能",
     "empty.skillsHint": "在终端跑 `npx skills add owner/repo`，或点右上角「添加技能」",
@@ -310,8 +311,9 @@ var DICT = {
     "exports.canonical": "Skill source: {path}; the entries below only expose it to agents that do not read the shared root.",
     "exports.none": "No other agent directories on this machine",
     "exports.hint": "Saving only adds or removes links; the skill itself stays where it is.",
-    "exports.sharedYes": "already reads the shared root",
     "exports.sharedUnknown": "shared root unverified",
+    "exports.sharedRootHint": "{names} read the shared root, so they are not listed here; any redundant export links they already have are cleaned up on save.",
+    "exportDefault.sharedRootHint": "{names} read the shared root, so they are not listed: anything in ~/.agents/skills is already visible to them.",
     "exportDefault.detected": "Export new installs to",
     "exportDefault.none": "No other agents detected on this machine",
     "exportDefault.hint": "Nothing is checked by default: once a skill lands in ~/.agents/skills, DSH already sees it. Exports only matter for agents that still read their own directory, and only affect future installs.",
@@ -2687,8 +2689,11 @@ function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabe
     ]
   }, h("p", { className: "dshsc-sub", style: { whiteSpace: "pre-wrap" } }, body));
 }
-function ExportsModal({ t, row, agents, onCancel, onSave }) {
-  const candidates = agents.filter((agent) => agent.kind === "agent" && agent.exists);
+function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, onSave }) {
+  const candidates = agents.filter(
+    (agent) => agent.kind === "agent" && agent.exists && agent.sharedHome !== "yes"
+  );
+  const sharedRoot = sharedRootAgents.filter((agent) => agent.exists);
   const [targets, setTargets] = import_react4.default.useState(() => {
     const available = new Set(candidates.map((agent) => agent.target));
     return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
@@ -2713,6 +2718,7 @@ function ExportsModal({ t, row, agents, onCancel, onSave }) {
     h("div", { className: "dshsc-group" }, t("exports.targets")),
     h("p", { className: "dshsc-sub" }, t("exports.detectedHint")),
     h("p", { className: "dshsc-sub" }, t("exports.canonical").replace("{path}", `~/.agents/skills/${row.name}`)),
+    sharedRoot.length > 0 ? h("p", { className: "dshsc-sub" }, t("exports.sharedRootHint").replace("{names}", sharedRoot.map((agent) => agent.label).join("、"))) : null,
     candidates.length === 0 ? h("p", { className: "dshsc-sub" }, t("exports.none")) : null,
     ...candidates.map((agent) => h(
       "label",
@@ -2723,14 +2729,14 @@ function ExportsModal({ t, row, agents, onCancel, onSave }) {
         onChange: () => toggle(agent.target)
       }),
       h("span", null, agent.label),
-      // 'no' 是常态（确实只读自己的目录），不用额外标注；只提示「本来就能看见」与「没验证过」
-      agent.sharedHome === "yes" ? h("small", null, t("exports.sharedYes")) : agent.sharedHome === "unknown" ? h("small", null, t("exports.sharedUnknown")) : null,
+      // 候选里已经没有「读共享根」的 agent 了；'no' 是常态不必标注，只提示没验证过的
+      agent.sharedHome === "unknown" ? h("small", null, t("exports.sharedUnknown")) : null,
       h("small", { title: agent.dir }, agent.dir)
     )),
     h("p", { className: "dshsc-sub" }, t("exports.hint"))
   );
 }
-function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
+function DefaultExportModal({ t, settings, agents, sharedRoot = [], onCancel, onSave }) {
   const [targets, setTargets] = import_react4.default.useState(() => new Set(
     Array.isArray(settings.exportTargets) ? settings.exportTargets : []
   ));
@@ -2763,10 +2769,11 @@ function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
       h("span", null, agent.label),
       h("small", null, agent.dir)
     ))),
+    sharedRoot.length > 0 ? h("p", { className: "dshsc-sub" }, t("exportDefault.sharedRootHint").replace("{names}", sharedRoot.map((agent) => agent.label).join("、"))) : null,
     h("p", { className: "dshsc-sub" }, t("exportDefault.hint"))
   );
 }
-function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }) {
+function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], actions, onClose, onSaveAutoLink }) {
   if (modal.type === "add-skill") {
     return h(AddSkillModal, {
       t,
@@ -2794,6 +2801,7 @@ function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLi
       t,
       row: modal.row,
       agents: data?.agents?.all || [],
+      sharedRootAgents,
       onCancel: onClose,
       onSave: (targets) => {
         onClose();
@@ -2806,6 +2814,7 @@ function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLi
       t,
       settings: data?.settings || {},
       agents: autoLinkAgents,
+      sharedRoot: sharedRootAgents.filter((agent) => agent.exists),
       onCancel: onClose,
       onSave: (targets) => void onSaveAutoLink(targets)
     });
@@ -3911,7 +3920,8 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     setViewer(null);
     setToast({ kind: "err", text: t("viewer.gone") });
   }, [data, rows, t, viewer]);
-  const exportTargetOptions = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent");
+  const exportTargetOptions = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.sharedHome !== "yes");
+  const sharedRootAgents = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.sharedHome === "yes");
   const exportSelection = data?.settings?.exportTargets;
   const autoLinkAgents = Array.isArray(exportSelection) ? exportTargetOptions.filter((agent) => exportSelection.includes(agent.target)) : [];
   const autoLinkLabel = autoLinkAgents.length > 0 ? autoLinkAgents.map((agent) => agent.label).join("、") : t("exportDefault.none");
@@ -4080,6 +4090,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       modal,
       data,
       autoLinkAgents: exportTargetOptions,
+      sharedRootAgents,
       pickDirectory,
       actions: {
         probeSkills: actions.probeSkills,

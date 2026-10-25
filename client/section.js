@@ -68,7 +68,11 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   }, [data, rows, t, viewer]);
 
   // 默认导出的目标：v2 起默认空（导出是逐 agent 的显式动作）
-  const exportTargetOptions = (data?.agents?.detected || []).filter((agent) => agent.kind === 'agent');
+  // 读共享根的 Agent 不参与导出：它们本来就能看见 `~/.agents/skills`
+  const exportTargetOptions = (data?.agents?.detected || [])
+    .filter((agent) => agent.kind === 'agent' && agent.sharedHome !== 'yes');
+  const sharedRootAgents = (data?.agents?.detected || [])
+    .filter((agent) => agent.kind === 'agent' && agent.sharedHome === 'yes');
   const exportSelection = data?.settings?.exportTargets;
   const autoLinkAgents = Array.isArray(exportSelection)
     ? exportTargetOptions.filter((agent) => exportSelection.includes(agent.target))
@@ -261,6 +265,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       modal,
       data,
       autoLinkAgents: exportTargetOptions,
+      sharedRootAgents,
       pickDirectory,
       actions: {
         probeSkills: actions.probeSkills,
