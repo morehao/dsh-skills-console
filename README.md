@@ -8,7 +8,7 @@
 
 DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入其他 Agent、随时启停，外加一份订阅清单。
 
-它不搬技能。技能真身由插件内的 **native installer** 写进 `~/.agents/skills`，并维护 v3 lock；本插件只在 DSH 这一侧做控制台：决定**哪些技能、对谁、在哪一层可见**，并把每次改动做成可回滚的事务。安装、更新、删除都由 native installer 完成，不依赖 `skills` CLI 或系统 git。
+它不搬技能。技能真身由插件内的 **native installer** 写进 `~/.agents/skills`，并维护 v3 lock；本插件只在 DSH 这一侧做控制台：决定**哪些技能、对谁、在哪一层可见**，并把每次改动做成可回滚的事务。
 
 ## 为什么需要它
 
@@ -121,7 +121,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 ## 边界（明确不做）
 
-- 不做技能市场 / 搜索，不接管 CLI 已有的 Agent 分发，不给 CLI 打补丁。
+- 不做技能市场 / 搜索，也不接管或改写其他工具自己的 Agent 分发。
 - 不编辑技能正文（`add` 会整份重建，本地改写必然被覆盖）。
 - 不做技能正文编辑与图片 / 二进制预览；查看器只读，更新会整份覆盖正文。
 - 不做文件级差异预览：只给 commit 区间与受影响技能；要看具体行，终端跑 `git diff <from>..<to> -- <skillDir>`。
