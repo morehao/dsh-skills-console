@@ -101,7 +101,7 @@ test('Service + 真实 installer：REST 解析 → codeload 下载 → canonical
   const result = await service.install({
     source: 'morehao/integration-kit',
     skills: ['alpha'],
-    targets: ['dsh-global'],
+    targets: ['agent:claude-code'],
   });
   assert.equal(result.ok, true);
   assert.equal(result.source, `morehao/integration-kit#${COMMIT}`);
@@ -112,7 +112,9 @@ test('Service + 真实 installer：REST 解析 → codeload 下载 → canonical
 
   assert.ok(fs.existsSync(path.join(paths.canonical, 'alpha', 'scripts', 'run.sh')));
   assert.equal(fs.existsSync(path.join(paths.canonical, 'beta')), false, '只装选中的技能');
-  assert.ok(fs.lstatSync(path.join(home, '.dsh', 'skills', 'alpha')).isSymbolicLink());
+  // 可见性来自 canonical 本身（rank 500），`~/.dsh/skills` 不再建链
+  assert.equal(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')), false);
+  assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'alpha')).isSymbolicLink());
 
   const lock = JSON.parse(fs.readFileSync(paths.lockFile, 'utf8'));
   assert.equal(lock.version, 3);
@@ -121,8 +123,8 @@ test('Service + 真实 installer：REST 解析 → codeload 下载 → canonical
   const row = store.findInstall('alpha');
   assert.equal(row.commit, COMMIT);
   assert.equal(row.treeSha, alphaTree);
-  assert.equal(row.links?.length ?? 0, 0, 'links 在 state.links 里，不在 install 行内');
-  assert.ok(store.state.links.some((link) => link.skill === 'alpha' && link.target === 'dsh-global'));
+  assert.equal(row.exports?.length ?? 0, 0, 'exports 在 state.exports 里，不在 install 行内');
+  assert.ok(store.state.exports.some((link) => link.skill === 'alpha' && link.target === 'agent:claude-code'));
 
   const state = await service.getState({});
   assert.equal(state.cli.usable, true);

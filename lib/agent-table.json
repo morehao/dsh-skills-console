@@ -1,331 +1,400 @@
 {
   "source": "skills CLI agents table",
+  "upstream": {
+    "name": "skills",
+    "version": "1.7.4",
+    "from": "dist/cli.mjs"
+  },
   "entries": [
     {
       "key": "adal",
       "name": "AdaL",
-      "dir": ".adal/skills"
+      "dir": ".adal/skills",
+      "universal": false
     },
     {
       "key": "aider-desk",
       "name": "AiderDesk",
-      "dir": ".aider-desk/skills"
+      "dir": ".aider-desk/skills",
+      "universal": false
     },
     {
       "key": "amp",
       "name": "Amp",
       "dir": "agents/skills",
-      "base": "config"
+      "base": "config",
+      "universal": true
     },
     {
       "key": "antigravity",
       "name": "Antigravity",
-      "dir": ".gemini/antigravity/skills"
+      "dir": ".gemini/antigravity/skills",
+      "universal": true
     },
     {
       "key": "antigravity-cli",
       "name": "Antigravity CLI",
-      "dir": ".gemini/antigravity-cli/skills"
+      "dir": ".gemini/antigravity-cli/skills",
+      "universal": true
     },
     {
       "key": "astrbot",
       "name": "AstrBot",
-      "dir": ".astrbot/data/skills"
+      "dir": ".astrbot/data/skills",
+      "universal": false
     },
     {
       "key": "augment",
       "name": "Augment",
-      "dir": ".augment/skills"
+      "dir": ".augment/skills",
+      "universal": false
     },
     {
       "key": "autohand-code",
       "name": "Autohand Code CLI",
-      "dir": ".autohand/skills"
+      "dir": ".autohand/skills",
+      "universal": false
     },
     {
       "key": "bob",
       "name": "IBM Bob",
-      "dir": ".bob/skills"
+      "dir": ".bob/skills",
+      "universal": false
     },
     {
       "key": "claude-code",
       "name": "Claude Code",
-      "dir": ".claude/skills"
+      "dir": ".claude/skills",
+      "universal": false
     },
     {
       "key": "codearts-agent",
       "name": "CodeArts Agent",
-      "dir": ".codeartsdoer/skills"
+      "dir": ".codeartsdoer/skills",
+      "universal": false
     },
     {
       "key": "codebuddy",
       "name": "CodeBuddy",
-      "dir": ".codebuddy/skills"
+      "dir": ".codebuddy/skills",
+      "universal": false
     },
     {
       "key": "codemaker",
       "name": "Codemaker",
-      "dir": ".codemaker/skills"
+      "dir": ".codemaker/skills",
+      "universal": false
     },
     {
       "key": "codestudio",
       "name": "Code Studio",
-      "dir": ".codestudio/skills"
+      "dir": ".codestudio/skills",
+      "universal": false
     },
     {
       "key": "command-code",
       "name": "Command Code",
-      "dir": ".commandcode/skills"
+      "dir": ".commandcode/skills",
+      "universal": false
     },
     {
       "key": "continue",
       "name": "Continue",
-      "dir": ".continue/skills"
+      "dir": ".continue/skills",
+      "universal": false
     },
     {
       "key": "cortex",
       "name": "Cortex Code",
-      "dir": ".snowflake/cortex/skills"
+      "dir": ".snowflake/cortex/skills",
+      "universal": false
     },
     {
       "key": "crush",
       "name": "Crush",
       "dir": "crush/skills",
-      "base": "config"
+      "base": "config",
+      "universal": false
     },
     {
       "key": "cursor",
       "name": "Cursor",
-      "dir": ".cursor/skills"
+      "dir": ".cursor/skills",
+      "universal": true
     },
     {
       "key": "deepagents",
       "name": "Deep Agents",
-      "dir": ".deepagents/agent/skills"
+      "dir": ".deepagents/agent/skills",
+      "universal": true
     },
     {
       "key": "devin",
       "name": "Devin for Terminal",
       "dir": "devin/skills",
-      "base": "config"
+      "base": "config",
+      "universal": false
     },
     {
       "key": "droid",
       "name": "Droid",
-      "dir": ".factory/skills"
+      "dir": ".factory/skills",
+      "universal": true
     },
     {
       "key": "firebender",
       "name": "Firebender",
-      "dir": ".firebender/skills"
+      "dir": ".firebender/skills",
+      "universal": true
     },
     {
       "key": "forgecode",
       "name": "ForgeCode",
-      "dir": ".forge/skills"
+      "dir": ".forge/skills",
+      "universal": false
     },
     {
       "key": "gemini-cli",
       "name": "Gemini CLI",
-      "dir": ".gemini/skills"
+      "dir": ".gemini/skills",
+      "universal": true
     },
     {
       "key": "github-copilot",
       "name": "GitHub Copilot",
-      "dir": ".copilot/skills"
+      "dir": ".copilot/skills",
+      "universal": true
     },
     {
       "key": "goose",
       "name": "Goose",
       "dir": "goose/skills",
-      "base": "config"
+      "base": "config",
+      "universal": false
     },
     {
       "key": "grok",
       "name": "Grok Build",
-      "dir": ".grok/skills"
+      "dir": ".grok/skills",
+      "universal": false
     },
     {
       "key": "hermes-agent",
       "name": "Hermes Agent",
-      "dir": ".hermes/skills"
+      "dir": ".hermes/skills",
+      "universal": false
     },
     {
       "key": "iflow-cli",
       "name": "iFlow CLI",
-      "dir": ".iflow/skills"
+      "dir": ".iflow/skills",
+      "universal": false
     },
     {
       "key": "inference-sh",
       "name": "inference.sh",
-      "dir": ".inferencesh/skills"
+      "dir": ".inferencesh/skills",
+      "universal": false
     },
     {
       "key": "jazz",
       "name": "Jazz",
-      "dir": ".jazz/skills"
+      "dir": ".jazz/skills",
+      "universal": false
     },
     {
       "key": "junie",
       "name": "Junie",
-      "dir": ".junie/skills"
+      "dir": ".junie/skills",
+      "universal": false
     },
     {
       "key": "kilo",
       "name": "Kilo Code",
-      "dir": ".kilo/skills"
+      "dir": ".kilo/skills",
+      "universal": true
     },
     {
       "key": "kimchi",
       "name": "Kimchi",
       "dir": "kimchi/harness/skills",
-      "base": "config"
+      "base": "config",
+      "universal": false
     },
     {
       "key": "kiro-cli",
       "name": "Kiro CLI",
-      "dir": ".kiro/skills"
+      "dir": ".kiro/skills",
+      "universal": false
     },
     {
       "key": "kode",
       "name": "Kode",
-      "dir": ".kode/skills"
+      "dir": ".kode/skills",
+      "universal": false
     },
     {
       "key": "lingma",
       "name": "Lingma",
-      "dir": ".lingma/skills"
+      "dir": ".lingma/skills",
+      "universal": false
     },
     {
       "key": "mcpjam",
       "name": "MCPJam",
-      "dir": ".mcpjam/skills"
+      "dir": ".mcpjam/skills",
+      "universal": false
     },
     {
       "key": "minimax-code",
       "name": "MiniMax Code",
-      "dir": ".minimax/skills"
+      "dir": ".minimax/skills",
+      "universal": false
     },
     {
       "key": "mistral-vibe",
       "name": "Mistral Vibe",
-      "dir": ".vibe/skills"
+      "dir": ".vibe/skills",
+      "universal": false
     },
     {
       "key": "moxby",
       "name": "Moxby",
-      "dir": ".moxby/skills"
+      "dir": ".moxby/skills",
+      "universal": false
     },
     {
       "key": "mux",
       "name": "Mux",
-      "dir": ".mux/skills"
+      "dir": ".mux/skills",
+      "universal": false
     },
     {
       "key": "neovate",
       "name": "Neovate",
-      "dir": ".neovate/skills"
+      "dir": ".neovate/skills",
+      "universal": false
     },
     {
       "key": "ona",
       "name": "Ona",
-      "dir": ".ona/skills"
+      "dir": ".ona/skills",
+      "universal": false
     },
     {
       "key": "openclaw",
       "name": "OpenClaw",
-      "dir": ".openclaw/skills"
+      "dir": ".openclaw/skills",
+      "universal": false
     },
     {
       "key": "opencode",
       "name": "OpenCode",
       "dir": "opencode/skills",
-      "base": "config"
+      "base": "config",
+      "universal": true
     },
     {
       "key": "openhands",
       "name": "OpenHands",
-      "dir": ".openhands/skills"
+      "dir": ".openhands/skills",
+      "universal": false
     },
     {
       "key": "pochi",
       "name": "Pochi",
-      "dir": ".pochi/skills"
+      "dir": ".pochi/skills",
+      "universal": false
     },
     {
       "key": "posit-assistant",
       "name": "Posit Assistant",
-      "dir": ".posit/assistant/skills"
+      "dir": ".posit/assistant/skills",
+      "universal": false
     },
     {
       "key": "qoder",
       "name": "Qoder",
-      "dir": ".qoder/skills"
+      "dir": ".qoder/skills",
+      "universal": false
     },
     {
       "key": "qoder-cn",
       "name": "Qoder CN",
-      "dir": ".qoder-cn/skills"
+      "dir": ".qoder-cn/skills",
+      "universal": false
     },
     {
       "key": "qwen-code",
       "name": "Qwen Code",
-      "dir": ".qwen/skills"
+      "dir": ".qwen/skills",
+      "universal": false
     },
     {
       "key": "reasonix",
       "name": "Reasonix",
-      "dir": ".reasonix/skills"
+      "dir": ".reasonix/skills",
+      "universal": false
     },
     {
       "key": "roo",
       "name": "Roo Code",
-      "dir": ".roo/skills"
+      "dir": ".roo/skills",
+      "universal": false
     },
     {
       "key": "rovodev",
       "name": "Rovo Dev",
-      "dir": ".rovodev/skills"
+      "dir": ".rovodev/skills",
+      "universal": false
     },
     {
       "key": "tabnine-cli",
       "name": "Tabnine CLI",
-      "dir": ".tabnine/agent/skills"
+      "dir": ".tabnine/agent/skills",
+      "universal": false
     },
     {
       "key": "terramind",
       "name": "Terramind",
-      "dir": ".terramind/skills"
+      "dir": ".terramind/skills",
+      "universal": false
     },
     {
       "key": "tinycloud",
       "name": "Tinycloud",
-      "dir": ".tinycloud/skills"
+      "dir": ".tinycloud/skills",
+      "universal": false
     },
     {
       "key": "trae",
       "name": "Trae",
-      "dir": ".trae/skills"
+      "dir": ".trae/skills",
+      "universal": false
     },
     {
       "key": "trae-cn",
       "name": "Trae CN",
-      "dir": ".trae-cn/skills"
+      "dir": ".trae-cn/skills",
+      "universal": false
     },
     {
       "key": "windsurf",
       "name": "Windsurf",
-      "dir": ".codeium/windsurf/skills"
+      "dir": ".codeium/windsurf/skills",
+      "universal": false
     },
     {
       "key": "zcode",
       "name": "ZCode",
-      "dir": ".zcode/skills"
+      "dir": ".zcode/skills",
+      "universal": false
     },
     {
       "key": "zencoder",
       "name": "Zencoder",
-      "dir": ".zencoder/skills"
+      "dir": ".zencoder/skills",
+      "universal": false
     }
   ]
 }

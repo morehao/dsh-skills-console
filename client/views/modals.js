@@ -36,114 +36,68 @@ export function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
       }))));
 }
 
-export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel }) {
+export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel, hideCancel = false }) {
   return h(Overlay, {
     t,
     title,
     onCancel,
     footer: [
-      h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
+      ...(hideCancel ? [] : [h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel'))]),
       h('button', { key: 'o', className: `dshsc-btn${danger ? ' danger' : ' primary'}`, onClick: onConfirm }, confirmLabel || t('action.save')),
     ],
   }, h('p', { className: 'dshsc-sub', style: { whiteSpace: 'pre-wrap' } }, body));
 }
 
-export function LinksModal({ t, row, agents, workspaces, pickDirectory, onCancel, onSave }) {
-  // 本机没有目录的 Agent 不展示；dsh（全局）必选，永远显示
+/**
+ * 导出设置：把技能暴露给**不读共享根**的其他 Agent。
+ * 这里没有作用范围：DSH 的可见性由本地策略决定，导出只影响别的 agent。
+ */
+export function ExportsModal({ t, row, agents, onCancel, onSave }) {
+  // 只列本机真有目录、且能当导出目标的 agent（`exportable` 由 Host 判断：
+  // 读共享根的、DSH 自己扫描根的都不在里面）
   const candidates = agents.filter(
-    (agent) => agent.kind === 'dsh' || (agent.kind !== 'project' && agent.exists),
+    (agent) => agent.kind === 'agent' && agent.exists && agent.exportable,
   );
   const [targets, setTargets] = React.useState(() => {
-    // 只保留还能展示的目标：agent 目录都没了就别在保存时把它重新建出来
-    const visible = new Set(candidates.map((agent) => agent.target));
-    const initial = new Set(row.links.map((link) => link.target).filter((target) => visible.has(target)));
-    initial.add('dsh-global');
-    return initial;
+    const available = new Set(candidates.map((agent) => agent.target));
+    return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
   });
-  const [scopeProjects, setScopeProjects] = React.useState(row.scopeProjects || []);
-  const [scopeMode, setScopeMode] = React.useState((row.scopeProjects || []).length > 0 ? 'projects' : 'global');
-  const workspacePaths = new Set(workspaces.map((workspace) => workspace.path));
-  const otherProjects = scopeProjects.filter((project) => !workspacePaths.has(project));
   const toggle = (target) => setTargets((prev) => {
     const next = new Set(prev);
     if (next.has(target)) next.delete(target);
     else next.add(target);
     return next;
   });
-  const toggleProject = (project) => setScopeProjects((prev) =>
-    prev.includes(project) ? prev.filter((item) => item !== project) : [...prev, project]);
-  const chooseDirectory = async () => {
-    const dir = await pickDirectory?.();
-    if (!dir) return;
-    setScopeProjects((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
-  };
   return h(Overlay, {
     t,
-    title: `${t('action.links')} · ${row.name}`,
+    title: `${t('action.exports')} · ${row.name}`,
     onCancel,
     footer: [
       h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
-      h('button', {
-        key: 's',
-        className: 'dshsc-btn primary',
-        onClick: () => onSave([...targets], scopeMode === 'projects' ? scopeProjects.filter((item) => item.trim()) : []),
-      }, t('action.save')),
+      h('button', { key: 's', className: 'dshsc-btn primary', onClick: () => onSave([...targets]) }, t('action.save')),
     ],
   },
-  h('div', { className: 'dshsc-group' }, t('links.targets')),
-  h('p', { className: 'dshsc-sub' }, t('links.detectedHint')),
-  h('p', { className: 'dshsc-sub' }, t('links.canonical').replace('{path}', `~/.agents/skills/${row.name}`)),
+  h('div', { className: 'dshsc-group' }, t('exports.targets')),
+  h('p', { className: 'dshsc-sub' }, t('exports.detectedHint')),
+  h('p', { className: 'dshsc-sub' }, t('exports.canonical').replace('{path}', `~/.agents/skills/${row.name}`)),
+  candidates.length === 0 ? h('p', { className: 'dshsc-sub' }, t('exports.none')) : null,
   ...candidates.map((agent) =>
-    h('label', { className: `dshsc-check${agent.target === 'dsh-global' ? ' locked' : ''}`, key: agent.target },
+    h('label', { className: 'dshsc-check', key: agent.target },
       h('input', {
         type: 'checkbox',
-        checked: agent.target === 'dsh-global' ? true : targets.has(agent.target),
-        disabled: agent.target === 'dsh-global',
+        checked: targets.has(agent.target),
         onChange: () => toggle(agent.target),
       }),
-      h('span', null, agent.kind === 'dsh' ? t('links.dshGlobal') : agent.label),
-      agent.target === 'dsh-global' ? h('small', null, t('links.required')) : null,
+      h('span', null, agent.label),
+      // 候选里已经没有「读共享根」的 agent 了；'no' 是常态不必标注，只提示没验证过的
+      agent.sharedHome === 'unknown' ? h('small', null, t('exports.sharedUnknown')) : null,
       h('small', { title: agent.dir }, agent.dir))),
-  h('div', { className: 'dshsc-group' }, t('links.scope')),
-  h('label', { className: 'dshsc-check' },
-    h('input', { type: 'radio', name: `scope-${row.name}`, checked: scopeMode === 'global', onChange: () => setScopeMode('global') }),
-    h('span', null, t('links.scopeGlobal'))),
-  h('label', { className: 'dshsc-check' },
-    h('input', { type: 'radio', name: `scope-${row.name}`, checked: scopeMode === 'projects', onChange: () => setScopeMode('projects') }),
-    h('span', null, t('links.scopeProjects'))),
-  scopeMode === 'projects'
-    ? h('div', null,
-        h('div', { className: 'dshsc-group' }, t('links.workspaces')),
-        workspaces.length === 0
-          ? h('p', { className: 'dshsc-sub' }, t('links.noWorkspaces'))
-          : h('div', { className: 'dshsc-panel' }, workspaces.map((workspace) =>
-              h('label', { className: 'dshsc-check', key: workspace.id },
-                h('input', {
-                  type: 'checkbox',
-                  checked: scopeProjects.includes(workspace.path),
-                  onChange: () => toggleProject(workspace.path),
-                }),
-                h('span', null, workspace.title),
-                h('small', null, workspace.path)))),
-        otherProjects.length > 0
-          ? h('div', { className: 'dshsc-group' }, t('links.selected'))
-          : null,
-        ...otherProjects.map((project) =>
-          h('div', { className: 'dshsc-sub-entry', key: project },
-            h('span', { className: 'dshsc-code' }, project),
-            h('div', { className: 'dshsc-actions' },
-              h('button', {
-                className: 'dshsc-btn ghost danger',
-                onClick: () => setScopeProjects((prev) => prev.filter((item) => item !== project)),
-              }, t('action.delete'))))),
-        h('button', { className: 'dshsc-btn', style: { alignSelf: 'flex-start', marginTop: 6 }, onClick: () => void chooseDirectory() }, t('links.pickDirectory')))
-    : null,
-  h('p', { className: 'dshsc-sub' }, t('links.hint')));
+  h('p', { className: 'dshsc-sub' }, t('exports.hint')));
 }
 
-export function AutoLinkModal({ t, settings, agents, dsh, onCancel, onSave }) {
+export function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
   const [targets, setTargets] = React.useState(() => new Set(
-    Array.isArray(settings.autoLinkTargets) ? settings.autoLinkTargets : agents.map((agent) => agent.target),
+    Array.isArray(settings.exportTargets) ? settings.exportTargets : [],
   ));
   const toggle = (target) => setTargets((prev) => {
     const next = new Set(prev);
@@ -153,44 +107,30 @@ export function AutoLinkModal({ t, settings, agents, dsh, onCancel, onSave }) {
   });
   return h(Overlay, {
     t,
-    title: t('autoLink'),
+    title: t('exportDefault'),
     onCancel,
     footer: [
       h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
       h('button', { key: 's', className: 'dshsc-btn primary', onClick: () => onSave([...targets]) }, t('action.save')),
     ],
   },
-  h('div', { className: 'dshsc-group' }, t('autoLink.detected')),
-  h('div', { className: 'dshsc-panel' },
-    // dsh（全局）始终接入：列表里也勾上，只是不能改，勾选数与页头的计数器才对得上
-    h('label', { className: 'dshsc-check locked', key: 'dsh-global' },
-      h('input', {
-        type: 'checkbox',
-        checked: true,
-        disabled: true,
-        readOnly: true,
-        onChange: () => {},
-      }),
-      h('span', null, dsh?.label || t('links.dshGlobal')),
-      h('small', null, t('links.required')),
-      dsh?.dir ? h('small', { title: dsh.dir }, dsh.dir) : null),
-    ...agents.map((agent) =>
-      h('label', { className: 'dshsc-check', key: agent.target },
-        h('input', {
-          type: 'checkbox',
-          checked: targets.has(agent.target),
-          onChange: () => toggle(agent.target),
-        }),
-        h('span', null, agent.label),
-        h('small', null, agent.dir)))),
+  h('div', { className: 'dshsc-group' }, t('exportDefault.detected')),
   agents.length === 0
-    ? h('p', { className: 'dshsc-sub' }, t('autoLink.none'))
-    : null,
-  h('p', { className: 'dshsc-sub' }, t('autoLink.hint')));
+    ? h('p', { className: 'dshsc-sub' }, t('exportDefault.none'))
+    : h('div', { className: 'dshsc-panel' }, agents.map((agent) =>
+        h('label', { className: 'dshsc-check', key: agent.target },
+          h('input', {
+            type: 'checkbox',
+            checked: targets.has(agent.target),
+            onChange: () => toggle(agent.target),
+          }),
+          h('span', null, agent.label),
+          h('small', null, agent.dir)))),
+  h('p', { className: 'dshsc-sub' }, t('exportDefault.hint')));
 }
 
 /** 按 modal.type 分发；未识别的类型不渲染。 */
-export function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirectory, actions, onClose, onSaveAutoLink }) {
+export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }) {
   if (modal.type === 'add-skill') {
     return h(AddSkillModal, {
       t,
@@ -213,26 +153,23 @@ export function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirect
       onSubmit: (form) => void actions.addSubscription(form),
     });
   }
-  if (modal.type === 'links') {
-    return h(LinksModal, {
+  if (modal.type === 'exports') {
+    return h(ExportsModal, {
       t,
       row: modal.row,
       agents: data?.agents?.all || [],
-      workspaces: data?.workspaces || [],
-      pickDirectory,
       onCancel: onClose,
-      onSave: (targets, scopeProjects) => {
+      onSave: (targets) => {
         onClose();
-        void actions.saveLinks(modal.row, targets, scopeProjects);
+        void actions.saveExports(modal.row, targets);
       },
     });
   }
   if (modal.type === 'autolink') {
-    return h(AutoLinkModal, {
+    return h(DefaultExportModal, {
       t,
       settings: data?.settings || {},
       agents: autoLinkAgents,
-      dsh: autoLinkDsh,
       onCancel: onClose,
       onSave: (targets) => void onSaveAutoLink(targets),
     });
@@ -243,6 +180,7 @@ export function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirect
       title: t('confirm.deleteTitle'),
       body: t('confirm.deleteBody'),
       danger: true,
+      confirmLabel: t('action.delete'),
       onCancel: onClose,
       onConfirm: modal.onConfirm,
     });
@@ -252,6 +190,7 @@ export function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirect
       t,
       title: t('confirm.updateTitle'),
       body: t('confirm.updateBody'),
+      confirmLabel: t('action.update'),
       onCancel: onClose,
       onConfirm: modal.onConfirm,
     });
@@ -264,7 +203,9 @@ export function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirect
       body: `${modal.message}\n${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join('\n')}`,
       onCancel: onClose,
       onConfirm: onClose,
-      confirmLabel: t('action.cancel'),
+      confirmLabel: t('action.close'),
+      danger: true,
+      hideCancel: true,
     });
   }
   return null;

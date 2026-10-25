@@ -90,7 +90,7 @@ export function SkillReader({
   onClose,
   onOpenPage,
   onUpdate,
-  onLinks,
+  onExports,
   onToast,
 }) {
   const { state, file, loadFile, retry } = useSkillReader(row);
@@ -274,7 +274,7 @@ export function SkillReader({
       row?.status && STATUS_KEY[row.status]
         ? h('span', { className: `dshsc-tag ${row.status === 'current' ? 'ok' : 'warn'}` }, t(STATUS_KEY[row.status]))
         : null,
-      row?.mode === 'off' ? h('span', { className: 'dshsc-tag off' }, t('status.off')) : null,
+      row?.enabled === false ? h('span', { className: 'dshsc-tag off' }, t('status.off')) : null,
       variant === 'drawer'
         ? h('button', {
             type: 'button',
@@ -464,10 +464,9 @@ export function SkillReader({
   }
 
   function infoPanel() {
-    const agentLabels = (row?.links || [])
-      .filter((link) => !link.broken)
-      .map((link) => (link.target === 'dsh-global' ? 'DSH' : link.label));
-    const projects = row?.scopeProjects || [];
+    const exportLabels = (row?.exports || [])
+      .filter((item) => !item.broken)
+      .map((item) => item.label);
     const hash = row?.lockHash || row?.currentHash || null;
     const rows = [];
     rows.push(['viewer.info.name', h('span', { className: 'mono' }, name), 'mono']);
@@ -493,11 +492,11 @@ export function SkillReader({
     ];
 
     const linkRows = [
-      ['viewer.info.agents', agentLabels.length > 0 ? agentLabels.join('、') : t('meta.unlinked')],
-      ['viewer.info.scope', projects.length > 0
-        ? `${t('viewer.info.scopeProject')}：${projects.map((item) => item.split('/').pop()).join('、')}`
-        : t('viewer.info.scopeGlobal')],
-      ['viewer.info.mode', row?.mode === 'off' ? t('status.off') : t('mode.on')],
+      ['viewer.info.visibility', row?.visible ? t('meta.modelVisible') : t('meta.modelHidden')],
+      ['viewer.info.exported', exportLabels.length > 0
+        ? exportLabels.join('、')
+        : t('viewer.info.none')],
+      ['viewer.info.mode', row?.enabled === false ? t('status.off') : t('mode.on')],
       ['viewer.info.status', STATUS_KEY[row?.status] ? t(STATUS_KEY[row.status]) : t('status.unknown')],
     ];
 
@@ -545,7 +544,7 @@ export function SkillReader({
     variant === 'drawer' && onOpenPage
       ? h('button', { type: 'button', className: 'dshsc-btn ghost', onClick: () => onOpenPage() }, t('viewer.openPage'))
       : null,
-    onLinks ? h('button', { type: 'button', className: 'dshsc-btn', onClick: () => onLinks?.(row) }, t('action.links')) : null,
+    onExports ? h('button', { type: 'button', className: 'dshsc-btn', onClick: () => onExports?.(row) }, t('action.exports')) : null,
     onUpdate
       ? h('button', {
           type: 'button',

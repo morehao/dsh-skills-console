@@ -14,7 +14,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
   }
 
   async function toggleMode(row) {
-    const mode = row.mode === 'on' ? 'off' : 'on';
+    const mode = row.enabled === false ? 'on' : 'off';
     await run(`mode:${row.name}`, () => apiCall('POST', `/skills/${encodeURIComponent(row.name)}/mode`, { mode }));
   }
 
@@ -85,18 +85,24 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
   }
 
 
-  async function saveLinks(row, targets, scopeProjects) {
-    const current = new Set(row.links.map((link) => link.target));
-    // 作用范围非空 = 只写项目链，全局链要被摘掉（两条同时存在没有额外效果）
-    const desired = new Set(scopeProjects.length > 0 ? targets.filter((target) => target !== 'dsh-global') : targets);
+  /**
+   * 保存导出选择：增量发给 `/exports`。
+   * 导出只影响「其他 agent 看不看得见」，与 DSH 可见性无关，所以这里不再有作用范围。
+   */
+  async function saveExports(row, targets) {
+    const current = new Set(row.exports.map((item) => item.target));
+    const desired = new Set(targets);
     const toRemove = [...current].filter((target) => !desired.has(target));
-    await run(`links:${row.name}`, async () => {
+    const toAdd = [...desired].filter((target) => !current.has(target));
+    await run(`exports:${row.name}`, async () => {
       if (toRemove.length > 0) {
-        await apiCall('POST', '/links', { skill: row.name, targets: toRemove, action: 'remove' });
+        await apiCall('POST', '/exports', { skill: row.name, targets: toRemove, action: 'remove' });
       }
-      await apiCall('POST', '/links', { skill: row.name, targets: [...desired], action: 'add', scopeProjects });
+      if (toAdd.length > 0) {
+        await apiCall('POST', '/exports', { skill: row.name, targets: toAdd, action: 'add' });
+      }
     });
-    setToast({ kind: 'ok', text: `${row.name} · ${t('action.links')} ✓` });
+    setToast({ kind: 'ok', text: `${row.name} · ${t('action.exports')} ✓` });
   }
 
   function requestAddSkill() {
@@ -164,7 +170,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     updateAll,
     checkUpdates,
     requestDelete,
-    saveLinks,
+    saveExports,
     requestAddSkill,
     requestAddSubscription,
     probeSkills,

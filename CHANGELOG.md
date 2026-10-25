@@ -1,5 +1,49 @@
 # Changelog
 
+## [v0.4.0] - 2026-10-26
+
+### Breaking Changes
+
+- **启停改为本地策略**：`installs[].enabled` 成为唯一开关；停用只写 `state.json`，由每个 live agent scope 的 policy provider 条件覆盖 canonical 候选，不再往 `~/.dsh/skills` 写停用桩，不改 canonical / v3 lock / 导出链。
+- **只对 DSH 生效**：DSH 的模型调用与 `/` 手动调用看不到停用技能；读 `~/.agents/skills` 的其他 Agent（OpenCode / Cursor 等）仍会看到 canonical。全机停用不在本期。
+- **状态格式升到 v3**：`shadows[]` 退休，`legacyShadows[]` 只记录迁移删不掉的旧桩与 orphan；旧版本读到 v3 只读降级。v2→v3 会清理旧版本写过的停用桩，删不掉的如实报告；v1 跨级升级时先备份 v1 / v2 两份快照。
+- **项目级启停移除**：`scope: 'project:*'` 返回 400；项目副本仍按 rank 优先，停用 canonical 不会隐藏项目副本。
+- **导出与可见性解耦**：`exports` 默认空，只给不读共享根的 Agent 建链；没有任何导出的技能照样对 DSH 可见。
+- **移除 export 模式**：`DSH_AGENTS_HOME` 指到别处、canonical 不在 DSH 扫描根里时，插件不再往 `~/.dsh/skills` 建可见性链兜底，改为在 `/diagnostics` 报 `canonical-not-scanned`。
+
+### Features
+
+- policy provider 注册到每个 live agent 自己的 scope（preset scope 的子层），只在 canonical 是 native winner 时发 `modelInvocable=false` + `userInvocable=false` 的同名候选；项目 100/200、user-dsh 400 有同名副本时保持沉默，副本继续可见。
+- 停用后模型目录与 `skill` 工具都拒绝该技能；启用后恢复原生候选。
+- 新增 `findProjectRoot()`（向上找 `.git`），与宿主 `skill-filesystem` 的项目根口径一致。
+- 可见性按扫描根合并（rank 100/200/300/400/500，宿主 `snapshot()` 作 rank 600 垫底），技能身份取 frontmatter `name`，与宿主一致。
+- 目标注册表新增 `exportable` / `exportBlocked`：读共享根、DSH 自己的扫描根、canonical 自己都不会被当成导出目标。
+- 旧停用桩带出处标记 `.dsh-skills-console.json`；v2→v3 迁移只删带标记的桩，`foreign` / `link` 一律保留并报告。
+- v1→v2→v3 迁移带 manifest、7 天备份，幂等、fail-open，中断可续跑。
+
+### Refactors
+
+- 启停从「写扫描根文件」收敛为「一次 state 写入 + provider 失效」，删掉建桩/删桩的 IO 分支。
+- 导出资格从 `kind === 'dsh'` 之类的身份判断收敛为一个字段，服务端与 Web Client 共用，不再三处各写一份。
+- 页面可见性改为中性状态点（实心 = 模型可见，空心 = 模型不可见）；行内不再有 DSH 专属 chip、`+n` 气泡里的 DSH、分组标题与横幅里的 DSH 身份。
+
+### UI / Docs
+
+- 删除导出弹窗底部两段“读共享根，不在此列”说明（zh/en、两个 modal、`section.js` 计算与测试断言）；读共享根的 Agent 仍不进列表，只是不再解释。
+- **行内 Agent 列只显示显式导出**：只有「不支持共享根、且真的建了导出链」的 Agent 出现；直读共享根的 Agent 不再逐行展示，没有导出时显示「未导出」（悬停说明共享根 Agent 装好即见），不再用「未导出到任何 Agent」。按 Agent 视图也只给有导出的 Agent 分组，抽屉信息 tab 只列「已导出」。
+- `mode.offHint` / `visibility.scopeMismatch` / 空态文案改成用户语言，不再提“扫描根/停用桩/provider”。
+- README、AGENTS、开发文档同步新机制；旧 host-wide 文档标记为备选。
+
+### Fixes
+
+- **v1 遗留的 `links[]` 不再常驻 state**：v1→v2 升级拆成 `exports[]` + `migration.legacyLinks` 后立即删除原字段；已经写进 v3 state 的旧字段会在加载时剪掉并原子写回（原文件先备份到 `migrations/state-v3-links-*.json`）。
+- **导出清单只认指向 canonical 的链**：`installs[].exports` 不再把共享根 Agent（OpenCode / Cursor 等）目录里的链、`foreign-link` 和 `real` 当成导出。历史遗留的 OpenCode 链——无论指向 canonical 还是别的仓库——都不再显示成「已导出」，也不再进入行内 Agent 列；`saveExports` 也因此不会去动别人的链。
+- **删除不再误拦别人的同名链**：体检只检查导出记账里的目标；OpenCode 等 Agent 自己指向其他仓库的同名链不再阻止删除，也不会被谎称「会连带删掉」。
+- **manual-only 技能不再显示成「丢了」**：技能自己在 frontmatter 声明 `disable-model-invocation` 时，行内用「仅手动」标志提示（tooltip 说明模型不可见、手动 `/` 仍可用）；诊断不再把它算进 `enabledButHidden`。
+- **大仓库更新**：codeload tarball 上限 50MB → 100MB，修复带设计素材的仓库（如 `tt-a1i/archify`，52.7MB）更新报 `tarball-too-large`。
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.8...v0.4.0
+
 ## [v0.3.8] - 2026-10-25
 
 ### Fixes
