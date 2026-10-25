@@ -19,8 +19,9 @@ client/             Web Client 源码（ESM）：host / copy / styles / api / ic
                     hooks / actions / markdown / scroll / views/* / section / surface / app / index
 client.js           Web Client 构建产物（npm run build:client 生成，不要手改，但要提交）
 scripts/build-client.mjs  esbuild 打包脚本（--check 校验漂移 / --watch / --sourcemap）
+scripts/check-cycles.mjs  静态 import 图循环检测（client/ 与 lib/）
 locale/{zh,en}.json 分区标题与描述
-scripts/            语法自检、命名/打包校验、agent 表导出、发布与 Release 正文投影
+scripts/            语法自检、循环依赖检测、命名/打包校验、agent 表导出、发布与 Release 正文投影
 test/               node:test 用例（离线）
 docs/               人类向文档；docs/agents/ 是 agent 任务手册
 .dsh/               本地过程文档（specs / plans / notes / 原型），gitignored
@@ -29,8 +30,9 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，235 例
-npm run check     # 机械校验：语法 + 生成物一致性（check:client）+ 命名 + 打包 + Release 说明投影
+npm test            # node --test "test/*.test.mjs"，242 例
+npm run check:cycles # 只跑 import 图循环检测（client/ 与 lib/）
+npm run check       # 机械校验：语法 + 循环依赖 + 生成物一致性（check:client）+ 命名 + 打包 + Release 说明投影
 ```
 
 两条硬规矩：
@@ -54,6 +56,8 @@ npm run check     # 机械校验：语法 + 生成物一致性（check:client）
 | `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、64 位 lock 不误报并按 `treeSha` 判定、自动接入多选、入口位置持久化、启停、删除（回收站）、Agent 删除后的链接降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘、探测 REST 优先 / Atom+codeload 兜底 / 双通道失败、刷新按 Atom commit 短路、codeload 更新计划；安装/更新/删除改用 fake installer / 真实 installer |
 | `client.test.mjs` | 读**已提交的** `client.js` 产物，在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动接入多选 / 工作区勾选 / 入口位置切换（先开「插件设置」面板）/ 页头安装标识（`@scope/name@version`，只读展示）与 ⚙·GitHub 工具组 / Agent `+n` 悬浮列表 / 设置导航图标认领与卸载还原，并检查主按钮反色、开关旋钮反色、弹窗表面色、方形复选框圆点与开关禁用 |
 | `client-copy.test.mjs` | 直接 import `client/copy.js`：zh / en 键集合一致、`{n}` / `{path}` 占位符一致、文案非空 |
+| `client-scroll.test.mjs` | 滚动容器口径：4px 容差、跳过非滚动父级、`document.scrollingElement` 兜底、`scrollHost` 先自身后父级 |
+| `check-cycles.test.mjs` | import 图：静态 / 副作用 / export-from / 动态 import 提取、注释与字符串排除、环检测、自引用、链式非环、外部模块忽略、相对路径解析失败归类 |
 | `routes.test.mjs` | `/state` 下发插件身份（短名 + 带 scope 的 `fullName` + 版本，与 `package.json` 同源）、缺鉴权头 → 403 |
 
 ## 4. 调试
