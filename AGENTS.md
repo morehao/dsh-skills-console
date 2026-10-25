@@ -56,7 +56,7 @@
 - 新逻辑先想「怎么在不联网、不碰真目录的前提下断言」，再落代码；网络相关分支（Trees API、Atom、codeload、超时）用 stub 覆盖。
 - 破坏性操作（删除技能、`updates/apply`、push、tag、publish、改真实 HOME、覆盖或删除软链）先征得用户确认。
 - 改 `lib/` 后需重启 dsh web；只有 `link:` 接入时源码即时生效，npm 版是拷贝。
-- 本地用 `link:` 验证未发布改动、以及验证后回退：流程见 [docs/development.md](docs/development.md) §5；会改真实 profile，先确认 + 先备份，切换/回退后都要完全重启宿主。
+- **link 用完即退**：本地用 `link:` 验证未发布改动必须按 [§6](#6-本地-link-验证标准流程) 走完整流程（确认 + 备份 → link → 重启验证 → **回退 npm 版并删除 link**）；`link:` 不得留在 profile，`.dsh/link-preview/` 备份在回退确认后删除。细节见 [docs/development.md](docs/development.md) §5。
 
 ### Client 源码与生成物
 
@@ -93,7 +93,7 @@
 | 监听源码并自动重建（配合 `link:` HMR） | `npm run dev:client` |
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
-| 单元测试（228 例，离线；真实网络对拍默认 skip） | `npm test` |
+| 单元测试（230 例，离线；真实网络对拍默认 skip） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
@@ -110,7 +110,7 @@
 | `client/**`（Web Client UI） | `client/index.js` + `test/client.test.mjs` | `npm run build:client` + `npm run check` + `npm test` |
 | 根 `client.js`（生成物） | 不要改；改 `client/**` 后重建 | `npm run check:client` |
 | `package.json` / `exports` / `files` / 命名 / CI / 发布 | [验证与发布](docs/agents/verification-release.md) | `npm run check`（含命名与打包） |
-| 本地 link 验证 / 预览未发布改动 | [docs/development.md](docs/development.md) §5 | 验证后按 §5.3 回退 |
+| 本地 link 验证 / 预览未发布改动 | 本文 §6 + [docs/development.md](docs/development.md) §5 | 验证后必须回退并删除 link（§6 第 5 步） |
 | 纯文档 | 对应人类文档；链接与事实核对 | 不跑代码检查 |
 
 ## 5. 完成定义
@@ -124,7 +124,25 @@
 - [ ] `git status` / `git diff --stat` 无 `.dsh/`、`node_modules`、`*.tgz` 等意外文件。
 - [ ] 需要用户确认的操作（删除、apply、push、tag、publish）已确认；提交不在 `main` 上。
 
-## 6. 文档地图
+## 6. 本地 link 验证（标准流程）
+
+要让宿主跑工作树而不是 npm 包（验证未发布的 `client/**` / `lib/**` 改动）时，按下面五步走完。**验证结束（通过或放弃）都必须回退并删除 link，`link:` 不允许留在 profile 里。**
+
+1. **准备**：先 `npm run build:client`（只改 `lib/` 也建议跑 `npm run check`）。把 profile 的 `package.json`、`pnpm-lock.yaml` 与已装的 `@morehao/dsh-skills-console` 备份到 `.dsh/link-preview/`。
+2. **装 link**：`dsh plugin --profile <profile> add "link:$PWD"`。沙箱里会报 `EPERM ... package.json.lock`，在终端用更高权限重跑；不要手写 profile 的 `package.json`。
+3. **校验**：`realpath ~/.dsh/profiles/<profile>/node_modules/@morehao/dsh-skills-console` 指向本仓；profile `package.json` 的值为 `link:<本仓绝对路径>`；根 `client.js` 与工作树一致。
+4. **生效 + 验证**：**完全退出宿主再重开**（⌘Q；profile bundle 只在启动时装载）。验证期间不切分支、不移动/删除 checkout（`link:` 绑当前工作树）。给用户的验证清单要写清「点哪里、应看到什么」。
+5. **收尾（必做）**：验证通过后立即回退并删除 link：
+   - `dsh plugin --profile <profile> add @morehao/dsh-skills-console@<改动前版本>`；
+   - 校验：`test -L` 为假、profile `package.json` 与备份一致、装回 `client.js` 不含本次未发布改动、`tar` 等运行时依赖仍可解析；
+   - 确认回退无误后删除 `.dsh/link-preview/` 备份目录；
+   - 再完全重启宿主，确认界面回到 npm 版；
+   - 回退后如果工作树的 `node_modules` 被清掉（pnpm 替换 `link:` 时可能发生），`npm install` 恢复后跑 `npm run check` 确认；
+   - 把实机验证结论写回 PR/issue，临时分支按 git 流程清理。
+
+   失败或中断：按 [docs/development.md](docs/development.md) §5.3 方式二用备份还原，重启确认，不要留半 link 状态。
+
+## 7. 文档地图
 
 | 层 | 位置 | 用途 |
 |---|---|---|
