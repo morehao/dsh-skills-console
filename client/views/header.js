@@ -1,8 +1,7 @@
 /** 页头：标题 / 身份胶囊 / 插件工具（GitHub + 设置浮层）/ 业务动作。 */
 import { h } from '../host.js';
 import { GITHUB_URL } from '../api.js';
-import { copyText } from '../copy.js';
-import { Logo, GitHubIcon, GearIcon, CopyIcon } from '../icons.js';
+import { Logo, GitHubIcon, GearIcon } from '../icons.js';
 
 /** 安装标识：跟页面外安装插件时输入的一模一样（`@scope/name@version`），不带 `v`。 */
 function installSpec(plugin) {
@@ -16,16 +15,9 @@ export function Header({
   autoLinkLabel, autoLinkCount, tab,
   settingsOpen, settingsRef, settingsPlacement, placement, placementBusy, readOnly,
   onToggleSettings, onChangePlacement,
-  onOpenAutoLink, onAddSkill, onAddSubscription, onToast,
+  onOpenAutoLink, onAddSkill, onAddSubscription,
 }) {
   const spec = installSpec(plugin);
-
-  async function copySpec() {
-    const ok = await copyText(spec);
-    onToast?.(ok
-      ? { kind: 'ok', text: t('id.copied') }
-      : { kind: 'err', text: t('id.copyFailed') });
-  }
 
   // 插件级工具跟身份胶囊同组：设置开面板、GitHub 开仓库；业务动作留在右侧
   const headTools = h('div', { className: 'dshsc-tools' },
@@ -81,16 +73,10 @@ export function Header({
         h('div', { className: 'dshsc-title-row' },
           h('h2', { className: 'dshsc-title' }, page ? t('page.title') : t('section.title')),
           // 身份：按「安装时输入的包名」显示，点一下整段复制（Host 从 package.json 注入）
+          // 身份：按「安装时输入的包名」显示，只读展示（Host 从 package.json 注入）
           spec
-            ? h('button', {
-                type: 'button',
-                className: 'dshsc-id',
-                title: `${t('id.copy')}：${spec}`,
-                'aria-label': `${t('id.copy')}：${spec}`,
-                onClick: () => void copySpec(),
-              },
-                h('span', { className: 'dshsc-spec' }, spec),
-                h('span', { className: 'dshsc-idcopy', 'aria-hidden': 'true' }, h(CopyIcon, { size: 11 })))
+            ? h('span', { className: 'dshsc-id', title: spec },
+                h('span', { className: 'dshsc-spec' }, spec))
             : null,
           headTools),
         h('p', { className: 'dshsc-sub' }, t('section.subtitle')))),
