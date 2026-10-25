@@ -90,6 +90,22 @@ test('未来版本 → 只读（不猜结构）', () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('v1 → v2：显式勾过的 autoLinkTargets 要继承，null（全部）不继承', () => {
+  const carried = upgradeStateV1({
+    version: 1,
+    settings: { autoLinkTargets: ['agent:opencode', 'dsh-global', 'project:/repo'] },
+    installs: [],
+    links: [],
+  });
+  assert.deepEqual(carried.settings.exportTargets, ['agent:opencode'], '只留 agent:*，且用户点过的要保住');
+
+  const whole = upgradeStateV1({ version: 1, settings: { autoLinkTargets: null }, installs: [], links: [] });
+  assert.deepEqual(whole.settings.exportTargets, [], 'v1 的「全部」不能变成 v2 的「全都导出」');
+
+  const missing = upgradeStateV1({ version: 1, settings: {}, installs: [], links: [] });
+  assert.deepEqual(missing.settings.exportTargets, []);
+});
+
 test('v1 → v2：mode 变 enabled，scopeProjects 挂到 legacy 上等迁移处理', () => {
   const { root, paths } = sandbox();
   writeState(paths, {
