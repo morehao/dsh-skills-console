@@ -5,7 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { createPaths } from '../lib/core/paths.js';
 import { createRegistry } from '../lib/core/agents.js';
-import { createService } from '../lib/core/service.js';
+import { createService, ServiceError } from '../lib/core/service.js';
 import { contentHash } from '../lib/core/hash.js';
 import { gitTreeSha } from '../lib/core/git-tree.js';
 import { StateStore } from '../lib/core/state.js';
@@ -1002,4 +1002,88 @@ test('更新计划：配额耗尽时用 codeload 出计划，不出现「查得�
   assert.equal(plan.ref, 'main');
   fs.rmSync(root, { recursive: true, force: true });
   fs.rmSync(fixtureRoot, { recursive: true, force: true });
+});
+
+test('查看：目录包正文带 meta；平铺技能同样可读', async () => {
+  const { root, paths, service } = setup();
+  fs.mkdirSync(path.join(paths.canonical, 'demo', 'references'), { recursive: true });
+  fs.writeFileSync(path.join(paths.canonical, 'demo', 'SKILL.md'), '---\nname: demo\ndescription: 演示技能\n---\n# 正文\n');
+  fs.writeFileSync(path.join(paths.canonical, 'demo', 'references', 'guide.md'), '# 指南\n');
+  fs.writeFileSync(path.join(paths.canonical, 'flat.md'), '---\nname: flat\ndescription: 平铺\n---\n内容\n');
+
+  const body = await service.listSkillBody({ name: 'demo' });
+  assert.equal(body.ok, true);
+  assert.equal(body.relPath, 'SKILL.md');
+  assert.equal(body.kind, 'dir');
+  assert.equal(body.meta.name, 'demo');
+  assert.equal(body.meta.description, '演示技能');
+  assert.match(body.content, /^---\nname: demo/, 'content 保留 frontmatter，原文视图要用');
+  assert.equal(body.truncated, false);
+  assert.ok(body.path.endsWith(path.join('demo', 'SKILL.md')), 'path 仍是绝对路径');
+
+  const file = await service.listSkillBody({ name: 'demo', path: 'references/guide.md' });
+  assert.equal(file.relPath, 'references/guide.md');
+  assert.match(file.content, /指南/);
+  assert.deepEqual(file.meta, {}, '子文件没有 frontmatter 时 meta 为空对象');
+
+  const flat = await service.listSkillBody({ name: 'flat' });
+  assert.equal(flat.kind, 'file');
+  assert.equal(flat.relPath, 'flat.md');
+  assert.equal(flat.meta.description, '平铺');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('查看：文件树带 hasSkillMd / body / totalBytes', async () => {
+  const { root, paths, service } = setup();
+  fs.mkdirSync(path.join(paths.canonical, 'demo'), { recursive: true });
+  fs.writeFileSync(path.join(paths.canonical, 'demo', 'SKILL.md'), '# demo\n');
+  fs.mkdirSync(path.join(paths.canonical, 'noskill'), { recursive: true });
+  fs.writeFileSync(path.join(paths.canonical, 'noskill', 'notes.md'), '# notes\n');
+
+  const tree = await service.listSkillFiles({ name: 'demo' });
+  assert.equal(tree.ok, true);
+  assert.equal(tree.kind, 'dir');
+  assert.equal(tree.body, 'SKILL.md');
+  assert.equal(tree.hasSkillMd, true);
+  assert.deepEqual(tree.files.map((entry) => entry.path), ['SKILL.md']);
+  assert.equal(tree.totalBytes, Buffer.byteLength('# demo\n'));
+
+  const noskill = await service.listSkillFiles({ name: 'noskill' });
+  assert.equal(noskill.hasSkillMd, false);
+  assert.equal(noskill.body, null);
+
+  await assert.rejects(
+    () => service.listSkillFiles({ name: 'ghost' }),
+    (error) => error instanceof ServiceError && error.code === 'error.skills.not-found',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('查看：非法技能名与越界路径在 service 层被拒（补上原先缺的校验）', async () => {
+  const { root, paths, service } = setup();
+  fs.mkdirSync(path.join(paths.canonical, 'demo'), { recursive: true });
+  fs.writeFileSync(path.join(paths.canonical, 'demo', 'SKILL.md'), '# demo\n');
+  fs.writeFileSync(path.join(paths.home, 'outside.md'), '# outside\n');
+
+  for (const name of ['../outside', 'a/b', 'a\\b', '..', 'x\u0000y']) {
+    await assert.rejects(
+      () => service.listSkillBody({ name }),
+      (error) => error instanceof ServiceError && error.code === 'error.skills.not-found',
+      `${JSON.stringify(name)} 必须在拼路径之前被拒`,
+    );
+  }
+
+  for (const relPath of ['../outside.md', '/etc/passwd', 'a/../../b', 'a\\b']) {
+    await assert.rejects(
+      () => service.listSkillBody({ name: 'demo', path: relPath }),
+      (error) => error instanceof ServiceError && error.code === 'error.skills.bad-path',
+      `${JSON.stringify(relPath)} 必须 400`,
+    );
+  }
+
+  await assert.rejects(
+    () => service.listSkillBody({ name: 'demo', path: 'missing.md' }),
+    (error) => error instanceof ServiceError && error.code === 'error.skills.file-not-found',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
 });
