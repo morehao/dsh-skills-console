@@ -1,5 +1,32 @@
 # Changelog
 
+## [v0.4.0] - 2026-10-25
+
+### Breaking Changes
+
+- **状态格式升到 v2**：`state.json` 用 `installs[].enabled` + `exports[]` + `shadows[]` + `settings.exportTargets` 取代 v1 的 `links[]` / `mode` / `scopeProjects`。首次启动自动迁移（先把原始 v1 备份到 `migrations/`，保留 7 天），并清理历史上为「提升 rank」而建的 `~/.dsh/skills` 可见性链。旧版插件读到 v2 状态会只读降级。
+- **停用不再删链**：启用/停用只写/删扫描根里的停用桩（`~/.dsh/skills/<name>` 或 `<项目>/.dsh/skills/<name>`），`~/.agents/skills` 的真身与 v3 lock 一个字节都不动。
+- **导出与可见性解耦**：`exports` 默认空，只给不读共享根的 Agent 建链；`/links` 保留为 `/exports` 的别名。
+- **移除 export 模式**：`DSH_AGENTS_HOME` 指到别处、canonical 不在 DSH 扫描根里时，插件不再往 `~/.dsh/skills` 建可见性链兜底，改为在 `/diagnostics` 报 `canonical-not-scanned`。
+
+### Features
+
+- 可见性按扫描根合并（rank 100/200/300/400/500，宿主 `snapshot()` 作 rank 600 垫底），技能身份取 frontmatter `name`，与宿主一致。
+- 目标注册表新增 `exportable` / `exportBlocked`：读共享根、DSH 自己的扫描根、canonical 自己都不会被当成导出目标。
+- 停用桩带出处标记 `.dsh-skills-console.json`；外来目录与外部链一律 409，不覆盖。
+- v1→v2 迁移带 manifest、7 天备份，幂等、fail-open，中断可续跑。
+
+### Refactors
+
+- 导出资格从 `kind === 'dsh'` 之类的身份判断收敛为一个字段，服务端与 Web Client 共用，不再三处各写一份。
+- 页面可见性改为中性状态点（实心 = 模型可见，空心 = 模型不可见）；行内不再有 DSH 专属 chip、`+n` 气泡里的 DSH、分组标题与横幅里的 DSH 身份。
+
+### Docs
+
+- README 补 `DSH_AGENTS_HOME` 的可见性边界，以及可见性在界面上的展示口径。
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.8...v0.4.0
+
 ## [v0.3.8] - 2026-10-25
 
 ### Fixes

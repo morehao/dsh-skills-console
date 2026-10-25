@@ -89,7 +89,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 - **停用的作用域边界**：桩放在 user 级（rank 400），压得住 canonical（rank 500），但压不住项目级副本（`<项目>/.dsh/skills` 100 / `<项目>/.agents/skills` 200）。项目里自带一份同名技能时，行内会明确提示「项目副本优先，所以停了也还是可见」——这是排序规则的正确结果，不是 bug。
 - **停用桩自带出处**：桩目录里有 `.dsh-skills-console.json`，记录技能名、作用域与真身内容哈希。只有带这个标记的目录才算本插件建的；别人的同名真实目录一律不碰（报冲突，不改写）。
 - **哪些 Agent 不需要导出**：`lib/agent-table.json` 里 `universal: true` 的条目自己也读 `~/.agents/skills`——装好就看得见，导出是多余的。当前表里 11 个：Amp、Antigravity、Antigravity CLI、Cursor、Deepagents、Droid、Firebender、Gemini CLI、GitHub Copilot、Kilo、OpenCode。表由 `npm run sync:agents` 从上游 [skills](https://github.com/vercel-labs/skills) 生成，不要手改：输入可以是仓库里的 `src/agents.ts`，也可以是发布包里的 `node_modules/skills/dist/cli.mjs`（两者解析结果一致）。表头记录了出处（`upstream: {name, version, from}`），据此判断落后了几版。
-- **可见性以扫描为准**：`/state` 的 `visible` 来自真扫一遍各扫描根 + 宿主 `snapshot()`，不是从账本推的。账本与磁盘不一致时会出现在 `diagnostics.drift` 里（导出悬空、停用桩丢失、启用却不可见……）。
+- **可见性以扫描为准**：`/state` 的 `visible` 来自真扫一遍各扫描根 + 宿主 `snapshot()`，不是从账本推的。账本与磁盘不一致时会出现在 `diagnostics.drift` 里（导出悬空、停用桩丢失、启用却不可见……）。界面上它只是一个中性状态点（实心 = 模型可见，空心 = 模型不可见），不再单列「DSH」这个身份；为什么不可见，看行内提示或抽屉里的说明。
 - **技能身份是 `SKILL.md` 的 frontmatter `name`，不是目录名**：宿主 `discoverRoot` 读 frontmatter 的 `name` 作为技能名，所以 `xxx.bak-20260101/` 这种目录（frontmatter 还写着 `name: xxx`）会被当成 `xxx`，和朋友那份真身在同一个名字上抢 rank——rank 小的赢。控制台因此在行内点名「模型看到的是另一份同名技能：`<path>`」，不假装可见的就是 canonical 那一份。同理，没有 `SKILL.md`、缺 `name`/`description`、名字不合法的目录，宿主根本不当技能看，控制台也不再把它算进可见列表。
 - **可回滚**：删除进回收站（7 天）；更新前快照到 `backups/`，失败自动还原（接口另提供手动回滚）。
 - **状态坏了就只读**：`state.json` 是坏 JSON 或版本未知时，插件降级为只读并让写接口返回 409，不猜结构、不自动修复。
@@ -120,7 +120,7 @@ DSH 会把所有扫描根合并成一张技能表，**rank 小的先赢**；同�
 | 400 | `~/.dsh/skills` | **写停用桩的唯一位置** |
 | 500 | `~/.agents/skills`（`$DSH_AGENTS_HOME/skills`） | canonical 真身，native installer 写 |
 
-所以「停用」= 在 400 放一个同名桩去压 500 的真身。同理，`~/.dsh/skills` 里**不要**再放真身或指向真身的链：那会变成两份真相，正是 v0.3 之前「摘了链却还可见」的根源。`DSH_AGENTS_HOME` 被改到别处时，`~/.agents/skills` 就不再是扫描根，本插件也只在它是默认值时才把两者当同一个目录。
+所以「停用」= 在 400 放一个同名桩去压 500 的真身。同理，`~/.dsh/skills` 里**不要**再放真身或指向真身的链：那会变成两份真相，正是 v0.3 之前「摘了链却还可见」的根源。`DSH_AGENTS_HOME` 被改到别处时，`~/.agents/skills` 就不再是扫描根——本插件不再往 `~/.dsh/skills` 建可见性链兜底，而是在 `/diagnostics` 里报一条 `canonical-not-scanned`，把限制说清楚而不是假装支持。
 
 ### 环境变量
 
@@ -129,7 +129,7 @@ DSH 会把所有扫描根合并成一张技能表，**rank 小的先赢**；同�
 | `DSH_SKILLS_CONSOLE_HOME` | `$DSH_HOME/skills-console` | 状态、备份、回收站与事件日志的根 |
 | `GITHUB_TOKEN` / `GH_TOKEN` | 无 | 只读环境变量；带上后 REST 配额从匿名 60 次/小时提到 5000 次/小时，私有仓库安装也靠它 |
 | `XDG_STATE_HOME` | 未设置 | 设置后 lock 移到 `$XDG_STATE_HOME/skills/.skill-lock.json`，插件跟随读取 |
-| `DSH_AGENTS_HOME` | `~/.agents` | DSH 自己的设置：共享技能根（rank 500）与各 Agent 的默认目录都从这里派生 |
+| `DSH_AGENTS_HOME` | `~/.agents` | DSH 自己的设置：共享技能根（rank 500）与各 Agent 的默认目录都从这里派生。改到别处后 canonical 不在扫描根里，本插件不负责 DSH 可见性（`/diagnostics` 的 `canonical-not-scanned` 会提示） |
 
 关于 GitHub 配额：**匿名 REST 是 60 次/小时，按出口 IP 共享**（公司、校园网出口常被同网段的人一起打满），打满后探测与更新会收到 403。本插件先走 REST；403/429 时改用 **Atom commit feed** 取 commit，再用 **codeload tarball** 在临时目录解压、扫描并本地计算 tree SHA，不占 REST 配额、也不需要 git。兜底也失败时，错误文案会给出恢复时间，并提示设置 `GITHUB_TOKEN`（5000 次/小时）。
 
@@ -147,6 +147,8 @@ DSH 会把所有扫描根合并成一张技能表，**rank 小的先赢**；同�
 - 不做技能正文编辑与图片 / 二进制预览；查看器只读，更新会整份覆盖正文。
 - 不做文件级差异预览：只给 commit 区间与受影响技能；要看具体行，终端跑 `git diff <from>..<to> -- <skillDir>`。
 - 不做跨机器同步，不落盘任何 token。
+- 不接管宿主 preset 层的技能注册：插件里的 `scope` 参数拿不到，所以可见性只按本地扫描根 + 宿主快照（rank 600 垫底）算；插件提供的技能与 `customSkillDirs` 属于盲区，不假装看得见。
+- 不为 `DSH_AGENTS_HOME` 指向别处的情况兜底：canonical 不在扫描根里时直接诊断报错，不建「可见性链」。
 
 ## 许可
 
