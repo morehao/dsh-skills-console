@@ -571,6 +571,14 @@ export const CSS = `
     .dshsc-reader-page .dshsc-reader-desc { -webkit-line-clamp: 2; }
   }
 
+  /* 描述默认按行数截断；真被截断时下面给「展开 / 收起」，所以要压在上面所有 clamp 规则之后 */
+  .dshsc-reader-descblock { display: flex; flex-direction: column; align-items: flex-start; }
+  .dshsc-reader-desc.expanded { display: block; overflow: visible; -webkit-line-clamp: unset; }
+  .dshsc-reader-more { margin-top: 3px; padding: 0; border: 0; border-radius: 4px; background: transparent;
+    color: var(--dsw-alias-brand-primary); font: inherit; font-size: 11.5px; line-height: 1.6; cursor: pointer; }
+  .dshsc-reader-more:hover { text-decoration: underline; }
+  .dshsc-reader-more:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+
   .dshsc-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 10px 13px; border-radius: 9px;
     background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l2);
     box-shadow: 0 8px 24px rgba(0,0,0,.22); max-width: 420px; }

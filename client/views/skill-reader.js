@@ -249,8 +249,11 @@ export function SkillReader({
   const [docOverride, setDocOverride] = React.useState(null);
   const [fileFormat, setFileFormat] = React.useState('rendered');
   const [tocActive, setTocActive] = React.useState(null);
+  const [descOpen, setDescOpen] = React.useState(false);
+  const [descClamped, setDescClamped] = React.useState(false);
   const bodyRef = React.useRef(null);
   const dialogRef = React.useRef(null);
+  const descRef = React.useRef(null);
   const scrollRef = React.useRef(0);
 
   // 抽屉 / 整页阅读都注册成一层：Esc 只退回列表，不连带关掉背后的宿主设置弹窗
@@ -269,6 +272,40 @@ export function SkillReader({
     setDocOverride(null);
     scrollRef.current = 0;
   }, [name]);
+
+  // 换技能时收起描述。用 ref 挡一道：effect 在存根里每轮都会执行，不能无条件重置用户刚展开的状态
+  const descOwnerRef = React.useRef(name);
+  React.useEffect(() => {
+    if (descOwnerRef.current === name) return;
+    descOwnerRef.current = name;
+    setDescOpen(false);
+    setDescClamped(false);
+  }, [name]);
+
+  // 描述确实被行数上限截断时才给「展开」；宽度变化（抽屉 / 整页 / 改窗口）要重量
+  React.useLayoutEffect(() => {
+    const node = descRef.current;
+    if (!node) return undefined;
+    const measure = () => {
+      // 展开状态下的高度就是全文高度，再量会把按钮判没，所以保持原状
+      if (descOpen) return;
+      const scroll = Number(node.scrollHeight) || 0;
+      const client = Number(node.clientHeight) || 0;
+      setDescClamped(scroll > client + 1);
+    };
+    measure();
+    if (typeof window === 'undefined' || !window.addEventListener) return undefined;
+    window.addEventListener('resize', measure);
+    let observer = null;
+    if (typeof ResizeObserver === 'function') {
+      observer = new ResizeObserver(measure);
+      observer.observe(node);
+    }
+    return () => {
+      observer?.disconnect?.();
+      window.removeEventListener('resize', measure);
+    };
+  }, [description, descOpen]);
 
   // 从别处带着文件进来（例如从文件 tab 再次打开同一个文件）：只拉一次
   React.useEffect(() => {
@@ -397,7 +434,23 @@ export function SkillReader({
             onClick: () => onClose?.(),
           }, '×')
         : null),
-    description ? h('p', { className: 'dshsc-reader-desc' }, description) : null,
+    description
+      ? h('div', { className: 'dshsc-reader-descblock' },
+          h('p', {
+            className: `dshsc-reader-desc${descOpen ? ' expanded' : ''}`,
+            id: 'dshsc-reader-desc',
+            ref: descRef,
+          }, description),
+          descClamped
+            ? h('button', {
+                type: 'button',
+                className: 'dshsc-reader-more',
+                'aria-expanded': String(descOpen),
+                'aria-controls': 'dshsc-reader-desc',
+                onClick: () => setDescOpen((prev) => !prev),
+              }, t(descOpen ? 'action.collapse' : 'action.expand'))
+            : null)
+      : null,
     h('div', { className: 'dshsc-reader-meta' },
       h('span', null, `${t('meta.from')} `,
         h('span', { className: 'dshsc-code' }, row?.source

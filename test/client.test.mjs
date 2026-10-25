@@ -12,7 +12,7 @@ const CLIENT = path.join(here, '..', 'client.js');
  * 极简 React 存根：够跑通"渲染一次 → 跑 effect → 状态更新 → 再渲染一次"。
  * 目的是把 UI 里的低级错误（未定义变量、字段名打错）在 Node 里抓出来，不替代真浏览器。
  */
-function createReactStub() {
+function createReactStub({ refNodes = null } = {}) {
   let current = null;
   const makeStore = (existing) => existing || { index: 0, state: [], refs: [], effects: [], children: new Map(), seq: 0 };
   const React = {
@@ -40,7 +40,13 @@ function createReactStub() {
         if (parent && store.effects.length > 0) parent.effects.push(...store.effects);
         return output;
       }
-      return { type, props: props || {}, children: children.flat(Infinity).filter((child) => child !== null && child !== undefined && child !== false) };
+      const node = { type, props: props || {}, children: children.flat(Infinity).filter((child) => child !== null && child !== undefined && child !== false) };
+      // 存根没有真实 DOM：按标签把测试给的假节点挂到 ref 上，供「量高度」这类 effect 使用
+      const ref = node.props.ref;
+      if (refNodes && ref && typeof ref === 'object' && Object.prototype.hasOwnProperty.call(refNodes, type)) {
+        ref.current = refNodes[type];
+      }
+      return node;
     },
     useState(initial) {
       const hooks = current;
@@ -206,7 +212,7 @@ function loadModule(payload, options = {}) {
   assert.ok(definition, 'client.js 必须向 __ModuleLoader__ 注册');
   assert.equal(definition.id, '@morehao/dsh-skills-console');
 
-  const stub = createReactStub();
+  const stub = createReactStub({ refNodes: options.refNodes });
   const registrations = [];
   const slots = {
     inject(key, callback) {
@@ -1222,7 +1228,7 @@ function buttonByText(node, label) {
 
 async function openDrawer(options = {}) {
   const fetchStub = skillFetch(options);
-  const { Component, stub } = loadModule(options.state || STATE, { fetch: fetchStub });
+  const { Component, stub } = loadModule(options.state || STATE, { fetch: fetchStub, refNodes: options.refNodes });
   let out = await settle(stub, Component);
   const view = collectButtons(out.tree).find((button) => textOf(button).trim() === '查看');
   assert.ok(view, '已安装行要有「查看」入口');
@@ -1248,6 +1254,34 @@ test('查看：抽屉里有标题、描述、正文与三个 tab，正文按 mar
   const reads = fetchStub.calls.filter((url) => url.includes('/skills/git-kit'));
   assert.ok(reads.some((url) => url.endsWith('/files')), '打开时并行拉文件树');
   assert.ok(reads.some((url) => url.endsWith('/skills/git-kit')), '打开时拉正文');
+});
+
+test('查看：描述被截断时给「展开」，展开后去掉行数限制、还能收起', async () => {
+  // 存根没有布局：用一个「滚动高度 > 可见高度」的假节点模拟被 line-clamp 截断的描述
+  const { out, stub, Component } = await openDrawer({ refNodes: { p: { scrollHeight: 78, clientHeight: 39 } } });
+  const more = buttonByText(out.tree, '展开');
+  assert.ok(more, '描述超出行数时有「展开」');
+  assert.equal(more.props['aria-expanded'], 'false');
+  assert.equal(more.props['aria-controls'], 'dshsc-reader-desc');
+
+  more.props.onClick();
+  let next = await settle(stub, Component, out.hooks);
+  const descOf = (tree) => collectByType(tree, 'p').find(
+    (node) => String(node.props.className || '').includes('dshsc-reader-desc'),
+  );
+  assert.ok(String(descOf(next.tree).props.className).includes('expanded'), '展开后不再按行数截断');
+  const collapse = buttonByText(next.tree, '收起');
+  assert.ok(collapse, '展开后按钮变成「收起」');
+  assert.equal(collapse.props['aria-expanded'], 'true');
+
+  collapse.props.onClick();
+  next = await settle(stub, Component, next.hooks);
+  assert.ok(!String(descOf(next.tree).props.className).includes('expanded'), '收起后恢复截断');
+  assert.ok(buttonByText(next.tree, '展开'), '收起后还能再展开');
+
+  // 描述本来就没超出：量不到溢出时不出现按钮
+  const plain = await openDrawer();
+  assert.equal(buttonByText(plain.out.tree, '展开'), undefined, '不需要展开时不出现按钮');
 });
 
 test('查看：技能名本身也是入口，点开同一个抽屉', async () => {
