@@ -1049,7 +1049,14 @@ const READER_FILES = {
 };
 
 /** 按 URL 分派的 fetch 存根：state / 正文 / 文件树 / 单文件各走一条。 */
-function skillFetch({ body = READER_BODY, bodyError = null, files = READER_FILES, state = STATE, fileError = null } = {}) {
+function skillFetch({
+  body = READER_BODY,
+  bodyError = null,
+  files = READER_FILES,
+  state = STATE,
+  fileError = null,
+  fileContent = 'guide 第一行\n第二行\n',
+} = {}) {
   const calls = [];
   const fetchStub = async (url) => {
     const target = String(url);
@@ -1059,7 +1066,7 @@ function skillFetch({ body = READER_BODY, bodyError = null, files = READER_FILES
     if (target.includes('?path=')) {
       const relPath = decodeURIComponent(target.split('?path=')[1]);
       if (fileError) return respond({ ok: false, code: fileError.code, message: fileError.message }, false);
-      return respond({ ok: true, name: 'git-kit', relPath, content: 'guide 第一行\n第二行\n', size: 20, truncated: false });
+      return respond({ ok: true, name: 'git-kit', relPath, content: fileContent, size: 20, truncated: false });
     }
     if (target.includes('/skills/')) {
       if (bodyError) return respond({ ok: false, code: bodyError.code, message: bodyError.message }, false);
@@ -1240,4 +1247,29 @@ test('查看：readOnly（state 损坏）时仍能查看，管理动作禁用', 
   const update = collectButtons(drawer).find((button) => textOf(button).trim() === '更新');
   assert.ok(update, '仍显示更新按钮');
   assert.equal(update.props.disabled, true, '只读时禁用更新');
+});
+
+test('查看：文件 tab 里的 markdown 默认渲染，可切回原文', async () => {
+  const { out, stub, Component } = await openDrawer({ fileContent: '# 指南标题\n\n正文 **粗体** 一段\n' });
+  const filesTab = collectButtons(out.tree).find((button) => textOf(button).trim().startsWith('文件'));
+  filesTab.props.onClick();
+  let tree = await settle(stub, Component, out.hooks);
+  const fileItem = collectButtons(tree.tree).find(
+    (button) => String(button.props.className || '').includes('dshsc-reader-titem') && textOf(button).includes('guide.md'),
+  );
+  fileItem.props.onClick();
+  tree = await settle(stub, Component, tree.hooks);
+
+  const rendered = collectByType(tree.tree, 'h1');
+  assert.ok(rendered.some((node) => textOf(node).includes('指南标题')), 'markdown 文件直接渲染，而不是给源码');
+  assert.ok(collectByType(tree.tree, 'strong').some((node) => textOf(node).includes('粗体')), '行内语法也渲染');
+
+  const raw = buttonByText(tree.tree, '原文');
+  assert.ok(raw, '预览头有渲染 / 原文切换');
+  raw.props.onClick();
+  const afterRaw = await settle(stub, Component, tree.hooks);
+  assert.ok(
+    collectByType(afterRaw.tree, 'pre').some((node) => textOf(node).includes('# 指南标题')),
+    '切原文后看到源码',
+  );
 });

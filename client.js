@@ -1230,6 +1230,11 @@ var CSS = `
     font-variant-numeric: tabular-nums; }
   .dshsc-reader-preview .dshsc-reader-raw { border: 0; border-radius: 0; background: transparent;
     max-height: 320px; }
+  /* 文件 tab 里能渲染的文件（markdown）直接出正文，不让人先读源码 */
+  .dshsc-reader-preview-doc { padding: 12px 14px; max-height: 320px; overflow: auto; }
+  .dshsc-reader-preview-doc .dshsc-md { font-size: 12.5px; }
+  .dshsc-reader-preview-doc .dshsc-md h1.dshsc-md-h { font-size: 18px; }
+  .dshsc-reader-preview-doc .dshsc-md h2.dshsc-md-h { font-size: 15px; }
 
   /* 信息 tab：四段 dl */
   .dshsc-reader-info { display: flex; flex-direction: column; gap: 14px; }
@@ -3291,6 +3296,7 @@ function SkillReader({
   const [tab, setTab] = import_react4.default.useState(initialTab);
   const [format, setFormat] = import_react4.default.useState("rendered");
   const [docOverride, setDocOverride] = import_react4.default.useState(null);
+  const [fileFormat, setFileFormat] = import_react4.default.useState("rendered");
   const [tocActive, setTocActive] = import_react4.default.useState(null);
   const bodyRef = import_react4.default.useRef(null);
   const dialogRef = import_react4.default.useRef(null);
@@ -3380,8 +3386,9 @@ function SkillReader({
     if (scroller) scroller.scrollTop = Math.max(0, (scroller.scrollTop || 0) + offset - 12);
     setTocActive(id);
   }
-  function openLinkedFile(href) {
-    const base = docOverride ? docOverride.relPath.split("/").slice(0, -1).join("/") : "";
+  function openLinkedFile(href, fromPath) {
+    const source = fromPath || docOverride?.relPath || "";
+    const base = source.split("/").slice(0, -1).join("/");
     const resolved = resolveRelativeHref(base, href);
     if (!resolved.relPath) return;
     setTab("files");
@@ -3524,6 +3531,7 @@ function SkillReader({
     }
     const active = file.relPath;
     const activeEntry = files.find((entry) => entry.kind === "file" && entry.path === active) || null;
+    const renderable = Boolean(active) && isMarkdownPath(active) && !file.error && !file.loading;
     const preview = file.loading ? h("div", { className: "dshsc-reader-skeleton" }, h("i"), h("i"), h("i")) : file.error ? h(
       "div",
       { className: "dshsc-reader-placeholder" },
@@ -3534,6 +3542,14 @@ function SkillReader({
         [active, activeEntry ? formatBytes(activeEntry.size) : null].filter(Boolean).join(" · ")
       ),
       file.error.code === "error.skills.binary" ? h("span", null, t("viewer.binaryHint")) : null
+    ) : renderable && fileFormat === "rendered" ? h(
+      "div",
+      { className: "dshsc-reader-preview-doc" },
+      h(Markdown, {
+        text: file.content,
+        onOpenFile: (href) => openLinkedFile(href, file.relPath || active),
+        onOpenAnchor: scrollToAnchor
+      })
     ) : h(
       "pre",
       { className: "dshsc-reader-raw" },
@@ -3573,7 +3589,10 @@ function SkillReader({
               className: `dshsc-reader-titem${active === entry.path ? " on" : ""}`,
               style: { paddingLeft: 8 + depth * 12 },
               title: entry.path,
-              onClick: () => void loadFile(entry.path)
+              onClick: () => {
+                setFileFormat("rendered");
+                void loadFile(entry.path);
+              }
             },
             h(FileIcon, null),
             h("span", { className: "nname" }, entry.path.split("/").pop()),
@@ -3589,6 +3608,22 @@ function SkillReader({
           { className: "dshsc-reader-tree-head" },
           h("span", null, t("viewer.tab.files")),
           h("span", { className: "mono" }, active || "—"),
+          renderable ? h(
+            "div",
+            { className: "dshsc-segment dshsc-reader-seg", role: "group", "aria-label": t("viewer.rendered") },
+            h("button", {
+              type: "button",
+              className: "dshsc-btn",
+              "aria-pressed": String(fileFormat === "rendered"),
+              onClick: () => setFileFormat("rendered")
+            }, t("viewer.rendered")),
+            h("button", {
+              type: "button",
+              className: "dshsc-btn",
+              "aria-pressed": String(fileFormat === "raw"),
+              onClick: () => setFileFormat("raw")
+            }, t("viewer.raw"))
+          ) : null,
           active && !file.loading && !file.error && isMarkdownPath(active) ? h("button", {
             type: "button",
             className: "dshsc-btn ghost",

@@ -417,6 +417,11 @@ export const CSS = `
     font-variant-numeric: tabular-nums; }
   .dshsc-reader-preview .dshsc-reader-raw { border: 0; border-radius: 0; background: transparent;
     max-height: 320px; }
+  /* 文件 tab 里能渲染的文件（markdown）直接出正文，不让人先读源码 */
+  .dshsc-reader-preview-doc { padding: 12px 14px; max-height: 320px; overflow: auto; }
+  .dshsc-reader-preview-doc .dshsc-md { font-size: 12.5px; }
+  .dshsc-reader-preview-doc .dshsc-md h1.dshsc-md-h { font-size: 18px; }
+  .dshsc-reader-preview-doc .dshsc-md h2.dshsc-md-h { font-size: 15px; }
 
   /* 信息 tab：四段 dl */
   .dshsc-reader-info { display: flex; flex-direction: column; gap: 14px; }

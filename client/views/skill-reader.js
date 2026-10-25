@@ -244,6 +244,7 @@ export function SkillReader({
   const [tab, setTab] = React.useState(initialTab);
   const [format, setFormat] = React.useState('rendered');
   const [docOverride, setDocOverride] = React.useState(null);
+  const [fileFormat, setFileFormat] = React.useState('rendered');
   const [tocActive, setTocActive] = React.useState(null);
   const bodyRef = React.useRef(null);
   const dialogRef = React.useRef(null);
@@ -349,9 +350,10 @@ export function SkillReader({
     setTocActive(id);
   }
 
-  function openLinkedFile(href) {
-    // 相对链接按当前正文所在目录解析；解析结果为空说明只是锚点
-    const base = docOverride ? docOverride.relPath.split('/').slice(0, -1).join('/') : '';
+  function openLinkedFile(href, fromPath) {
+    // 相对链接按「当前正在读的文件」所在目录解析；解析结果为空说明只是锚点
+    const source = fromPath || docOverride?.relPath || '';
+    const base = source.split('/').slice(0, -1).join('/');
     const resolved = resolveRelativeHref(base, href);
     if (!resolved.relPath) return;
     setTab('files');
@@ -472,6 +474,8 @@ export function SkillReader({
     }
     const active = file.relPath;
     const activeEntry = files.find((entry) => entry.kind === 'file' && entry.path === active) || null;
+    // 能渲染的直接渲染：markdown 默认走渲染视图，原文仍可切；其他文本给源码
+    const renderable = Boolean(active) && isMarkdownPath(active) && !file.error && !file.loading;
     const preview = file.loading
       ? h('div', { className: 'dshsc-reader-skeleton' }, h('i'), h('i'), h('i'))
       : file.error
@@ -480,9 +484,16 @@ export function SkillReader({
             h('span', { className: 'mono' },
               [active, activeEntry ? formatBytes(activeEntry.size) : null].filter(Boolean).join(' · ')),
             file.error.code === 'error.skills.binary' ? h('span', null, t('viewer.binaryHint')) : null)
-        : h('pre', { className: 'dshsc-reader-raw' },
-            h('code', null, file.content
-              + (file.truncated ? `\n\n… ${t('viewer.tooLarge').replace('{size}', formatBytes(256 * 1024))}` : '')));
+        : renderable && fileFormat === 'rendered'
+          ? h('div', { className: 'dshsc-reader-preview-doc' },
+              h(Markdown, {
+                text: file.content,
+                onOpenFile: (href) => openLinkedFile(href, file.relPath || active),
+                onOpenAnchor: scrollToAnchor,
+              }))
+          : h('pre', { className: 'dshsc-reader-raw' },
+              h('code', null, file.content
+                + (file.truncated ? `\n\n… ${t('viewer.tooLarge').replace('{size}', formatBytes(256 * 1024))}` : '')));
 
     return h('div', { className: 'dshsc-reader-files' },
       h('div', { className: 'dshsc-reader-tree' },
@@ -504,7 +515,10 @@ export function SkillReader({
             className: `dshsc-reader-titem${active === entry.path ? ' on' : ''}`,
             style: { paddingLeft: 8 + depth * 12 },
             title: entry.path,
-            onClick: () => void loadFile(entry.path),
+            onClick: () => {
+              setFileFormat('rendered');
+              void loadFile(entry.path);
+            },
           },
           h(FileIcon, null),
           h('span', { className: 'nname' }, entry.path.split('/').pop()),
@@ -514,6 +528,21 @@ export function SkillReader({
         h('div', { className: 'dshsc-reader-tree-head' },
           h('span', null, t('viewer.tab.files')),
           h('span', { className: 'mono' }, active || '—'),
+          renderable
+            ? h('div', { className: 'dshsc-segment dshsc-reader-seg', role: 'group', 'aria-label': t('viewer.rendered') },
+                h('button', {
+                  type: 'button',
+                  className: 'dshsc-btn',
+                  'aria-pressed': String(fileFormat === 'rendered'),
+                  onClick: () => setFileFormat('rendered'),
+                }, t('viewer.rendered')),
+                h('button', {
+                  type: 'button',
+                  className: 'dshsc-btn',
+                  'aria-pressed': String(fileFormat === 'raw'),
+                  onClick: () => setFileFormat('raw'),
+                }, t('viewer.raw')))
+            : null,
           active && !file.loading && !file.error && isMarkdownPath(active)
             ? h('button', {
                 type: 'button',
