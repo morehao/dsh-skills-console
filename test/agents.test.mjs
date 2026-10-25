@@ -25,7 +25,7 @@ test('注册表排除 universal 的 .agents/skills 伪目录（F23）', () => {
   assert.equal(universals.length, 0);
   assert.deepEqual(
     CLI_AGENT_DIRS.find((entry) => entry.key === 'opencode'),
-    { key: 'opencode', name: 'OpenCode', dir: 'opencode/skills', base: 'config' },
+    { key: 'opencode', name: 'OpenCode', dir: 'opencode/skills', base: 'config', universal: true },
   );
 });
 
@@ -81,23 +81,26 @@ test('只有存在的目录才算探测到；未知目标抛错', () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('共享根：有私有目录不等于不读 ~/.agents/skills', () => {
-  // 这三条是 v1 判断错的地方：表里每个 agent 都有私有目录，但有的同时也读共享根
-  assert.equal(sharedHomeOf('opencode'), 'yes', 'OpenCode 官方文档：也读 ~/.agents/skills');
+test('共享根：由 agent 表的 universal 位决定，不再靠手写猜测', () => {
+  // 上游 `skillsDir === '.agents/skills'` 的条目自己也读共享根，装进 canonical 就能看见
+  assert.equal(sharedHomeOf('opencode'), 'yes', 'OpenCode 官方文档也明写读 ~/.agents/skills');
   assert.equal(sharedHomeOf('cursor'), 'yes', 'Cursor 读 ~/.agents/skills 与 ~/.cursor/skills');
   assert.equal(sharedHomeOf('claude-code'), 'no', 'Claude Code 只解析 ~/.claude/skills');
-  assert.equal(sharedHomeOf('goose'), 'unknown', '没验证过的必须是 unknown，不能猜');
-  assert.equal(sharedHomeOf('not-a-real-key'), 'unknown');
+  assert.equal(sharedHomeOf('goose'), 'no', '非 universal 条目需要导出');
+  assert.equal(sharedHomeOf('not-a-real-key'), 'unknown', '表里没有的键不许猜');
 
-  // 表里自带的 sharedHome 优先于内置表；内置表优先于默认 unknown
+  // 表里自带的 sharedHome 优先于 universal；显式值优先于一切
   assert.equal(sharedHomeOf('goose', { sharedHome: 'yes' }), 'yes');
   assert.equal(sharedHomeOf('opencode', { sharedHome: 'no' }), 'no');
+  assert.equal(sharedHomeOf('goose', { universal: true }), 'yes');
+  assert.equal(sharedHomeOf('claude-code', { universal: false }), 'no');
 
-  // 内置表只放「有依据」的条目，且值只能是 yes / no
-  for (const [key, value] of Object.entries(SHARED_HOME_VERIFIED)) {
-    assert.ok(['yes', 'no'].includes(value), `${key} 的值必须是 yes/no`);
-    assert.ok(CLI_AGENT_DIRS.some((entry) => entry.key === key), `${key} 必须是表里真实存在的条目`);
+  // 表本身：每条都要有 universal 布尔位，否则「需不需要导出」又回到猜
+  for (const entry of CLI_AGENT_DIRS) {
+    assert.equal(typeof entry.universal, 'boolean', `${entry.key} 缺 universal 位`);
   }
+  assert.ok(CLI_AGENT_DIRS.some((entry) => entry.universal), '至少要有一个读共享根的条目');
+  assert.ok(CLI_AGENT_DIRS.some((entry) => !entry.universal), '至少要有一个需要导出的条目');
 
   const { root, paths } = sandbox();
   const registry = createRegistry({ paths, getState: () => emptyState() });

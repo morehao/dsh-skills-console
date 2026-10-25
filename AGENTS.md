@@ -101,12 +101,12 @@
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
 | import 图循环检测（`client/` + `lib/`） | `npm run check:cycles` |
-| 单元测试（263 例，离线；真实网络对拍默认 skip） | `npm test` |
+| 单元测试（269 例，离线；真实网络对拍默认 skip） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
 | Release body 投影冒烟 | `node scripts/smoke-release-notes.mjs` |
-| 重新导出 agent 目录表（仅开发脚本，需外部 `skills` CLI） | `npm run sync:agents -- <skills/dist/cli.mjs>` |
+| 重新导出 agent 目录表（仅开发脚本，需外部 `skills` 仓；`dist/cli.mjs` 或 `src/agents.ts` 都收） | `npm run sync:agents -- <skills/src/agents.ts>` |
 | 发布脚本语法 | `bash -n scripts/ci-publish.sh` |
 
 ## 4. 任务路由

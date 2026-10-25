@@ -26,7 +26,7 @@ DSH（DeepSeek Harness）的**技能控制台**：装、更新、删除、接入
 | 安装 | 填 `owner/repo`（可只装其中几个技能），native installer 下载 codeload tarball → 安全解压 → 本地计算 tree SHA → 原子落盘 canonical + v3 lock；来自订阅快照时核对哈希，不一致会提示 |
 | 更新 | GitHub Trees 检测上游新 commit → 计划（commit 区间 + 影响范围 + 防抖 token）→ 应用前备份，失败自动回滚上一版 |
 | 删除 | 先体检（真实目录 / 外部链接直接中止）→ 快照进回收站 → installer 删 lock 条目与真身（lock 写失败从回收站恢复）→ 只清本插件建的链接与记账 |
-| 导出 | 只给**不读共享根**的 Agent 建链（已知：Claude Code 只读 `~/.claude/skills`），默认不导出；已读共享根的（OpenCode / Cursor）直接从列表里排除并在底部说明；软链四态判定（`managed` / `managed-external` / `foreign-link` / `real`），**绝不覆盖**别人创建的东西；只列本机已安装目录，已删的 Agent 自动从列表消失 |
+| 导出 | 只给**不读共享根**的 Agent 建链，默认不导出；是否读共享根来自 `lib/agent-table.json` 的 `universal` 位（上游 `skills` CLI 的 `skillsDir === '.agents/skills'`，见下表），读共享根的（如 OpenCode / Cursor / Gemini CLI）直接从列表里排除并在底部说明；软链四态判定（`managed` / `managed-external` / `foreign-link` / `real`），**绝不覆盖**别人创建的东西；只列本机已安装目录，已删的 Agent 自动从列表消失 |
 | 启停 | 在 `~/.dsh/skills`（rank 400）写/删**停用桩**，压过 canonical 的真身（rank 500）从而真不可见；不碰 `SKILL.md`、不碰导出链，删掉桩目录即恢复 |
 | 作用范围 | 全局 `~/.dsh/skills`，或仅指定项目；项目可直接勾选 DSH 已登记的工作区，也可手动选目录 |
 | 查看 | 已安装技能可以只读打开：抽屉速览或整页深读，正文渲染 / 原文切换，文件树与单文件预览，信息 tab 汇总来源、哈希、接入与更新时间 |
@@ -88,6 +88,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 - **启停不改正文**：停用只写/删 `~/.dsh/skills` 下的桩目录，`~/.agents/skills/<name>/SKILL.md` 一个字节都不动——避免本地修改被下一次安装/更新覆盖，也让「更新」永远不需要跟用户的编辑抢文件。
 - **停用的作用域边界**：桩放在 user 级（rank 400），压得住 canonical（rank 500），但压不住项目级副本（`<项目>/.dsh/skills` 100 / `<项目>/.agents/skills` 200）。项目里自带一份同名技能时，行内会明确提示「项目副本优先，所以停了也还是可见」——这是排序规则的正确结果，不是 bug。
 - **停用桩自带出处**：桩目录里有 `.dsh-skills-console.json`，记录技能名、作用域与真身内容哈希。只有带这个标记的目录才算本插件建的；别人的同名真实目录一律不碰（报冲突，不改写）。
+- **哪些 Agent 不需要导出**：`lib/agent-table.json` 里 `universal: true` 的条目自己也读 `~/.agents/skills`——装好就看得见，导出是多余的。当前表里 11 个：Amp、Antigravity、Antigravity CLI、Cursor、Deepagents、Droid、Firebender、Gemini CLI、GitHub Copilot、Kilo、OpenCode。表由 `npm run sync:agents` 从上游 [skills CLI](https://github.com/vercel-labs/skills) 生成（`src/agents.ts` 或 `dist/cli.mjs` 都行），不要手改。
 - **可见性以扫描为准**：`/state` 的 `visible` 来自真扫一遍各扫描根 + 宿主 `snapshot()`，不是从账本推的。账本与磁盘不一致时会出现在 `diagnostics.drift` 里（导出悬空、停用桩丢失、启用却不可见……）。
 - **可回滚**：删除进回收站（7 天）；更新前快照到 `backups/`，失败自动还原（接口另提供手动回滚）。
 - **状态坏了就只读**：`state.json` 是坏 JSON 或版本未知时，插件降级为只读并让写接口返回 409，不猜结构、不自动修复。
