@@ -1267,8 +1267,9 @@ var CSS = `
     color: var(--dsw-alias-label-secondary); line-height: 1.6; }
   .dshsc-reader-placeholder b { color: var(--dsw-alias-label-primary); font-size: 13px; }
 
-  /* 文件 tab：左树右预览；抽屉里上下排 */
-  .dshsc-reader-files { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  /* 文件 tab：抽屉里上下排；整页（宽容器）左树右预览 */
+  .dshsc-reader-files { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+  .dshsc-reader-page .dshsc-reader-files { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
   .dshsc-reader-tree { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; overflow: auto;
     max-height: 300px; background: var(--dsw-alias-bg-layer-1); }
   .dshsc-reader-preview { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; overflow: hidden;
@@ -1386,8 +1387,11 @@ var CSS = `
     background: var(--dsw-alias-bg-layer-1); }
   .dshsc-reader-hero .dshsc-reader-head { border-bottom: 0; }
   .dshsc-reader-hero .dshsc-reader-desc { -webkit-line-clamp: 3; max-width: 78ch; }
-  .dshsc-reader-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 180px minmax(0, 1fr);
+  .dshsc-reader-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr);
     gap: 18px; align-items: stretch; }
+  /* 只有目录真的在的时候才开第二轨：否则唯一的正文列会被自动摆进 180px 的目录轨，
+     文件 / 信息 tab 会窄成一条（树里的文件名被截断、预览挤到下面）。 */
+  .dshsc-reader-layout.has-toc { grid-template-columns: 180px minmax(0, 1fr); }
   .dshsc-reader-toc { position: sticky; top: 0; display: flex; flex-direction: column; gap: 1px;
     max-height: 70vh; overflow: auto; padding-right: 4px; }
   .dshsc-reader-toc-title { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
@@ -1413,10 +1417,19 @@ var CSS = `
   @container dshsc (max-width: 860px) {
     /* 行内「查看」先让位：技能名本身仍是入口 */
     .dshsc-row .dshsc-view { display: none; }
-    .dshsc-reader-layout { grid-template-columns: minmax(0, 1fr); }
+    .dshsc-reader-layout.has-toc { grid-template-columns: minmax(0, 1fr); }
+    .dshsc-reader-page .dshsc-reader-files { grid-template-columns: minmax(0, 1fr); }
     .dshsc-reader-toc { display: none; }
     .dshsc-reader-page .dshsc-reader-desc { -webkit-line-clamp: 2; }
   }
+
+  /* 描述默认按行数截断；真被截断时下面给「展开 / 收起」，所以要压在上面所有 clamp 规则之后 */
+  .dshsc-reader-descblock { display: flex; flex-direction: column; align-items: flex-start; }
+  .dshsc-reader-desc.expanded { display: block; overflow: visible; -webkit-line-clamp: unset; }
+  .dshsc-reader-more { margin-top: 3px; padding: 0; border: 0; border-radius: 4px; background: transparent;
+    color: var(--dsw-alias-brand-primary); font: inherit; font-size: 11.5px; line-height: 1.6; cursor: pointer; }
+  .dshsc-reader-more:hover { text-decoration: underline; }
+  .dshsc-reader-more:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
 
   .dshsc-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 10px 13px; border-radius: 9px;
     background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l2);
@@ -3416,8 +3429,11 @@ function SkillReader({
   const [docOverride, setDocOverride] = import_react4.default.useState(null);
   const [fileFormat, setFileFormat] = import_react4.default.useState("rendered");
   const [tocActive, setTocActive] = import_react4.default.useState(null);
+  const [descOpen, setDescOpen] = import_react4.default.useState(false);
+  const [descClamped, setDescClamped] = import_react4.default.useState(false);
   const bodyRef = import_react4.default.useRef(null);
   const dialogRef = import_react4.default.useRef(null);
+  const descRef = import_react4.default.useRef(null);
   const scrollRef = import_react4.default.useRef(0);
   useOverlayLayer(variant === "drawer" || variant === "page", onClose);
   const name = row?.name || "";
@@ -3431,6 +3447,35 @@ function SkillReader({
     setDocOverride(null);
     scrollRef.current = 0;
   }, [name]);
+  const descOwnerRef = import_react4.default.useRef(name);
+  import_react4.default.useEffect(() => {
+    if (descOwnerRef.current === name) return;
+    descOwnerRef.current = name;
+    setDescOpen(false);
+    setDescClamped(false);
+  }, [name]);
+  import_react4.default.useLayoutEffect(() => {
+    const node = descRef.current;
+    if (!node) return void 0;
+    const measure = () => {
+      if (descOpen) return;
+      const scroll = Number(node.scrollHeight) || 0;
+      const client = Number(node.clientHeight) || 0;
+      setDescClamped(scroll > client + 1);
+    };
+    measure();
+    if (typeof window === "undefined" || !window.addEventListener) return void 0;
+    window.addEventListener("resize", measure);
+    let observer = null;
+    if (typeof ResizeObserver === "function") {
+      observer = new ResizeObserver(measure);
+      observer.observe(node);
+    }
+    return () => {
+      observer?.disconnect?.();
+      window.removeEventListener("resize", measure);
+    };
+  }, [description, descOpen]);
   import_react4.default.useEffect(() => {
     if (!initialFile) return;
     setTab("files");
@@ -3542,7 +3587,22 @@ function SkillReader({
         onClick: () => onClose?.()
       }, "×") : null
     ),
-    description ? h("p", { className: "dshsc-reader-desc" }, description) : null,
+    description ? h(
+      "div",
+      { className: "dshsc-reader-descblock" },
+      h("p", {
+        className: `dshsc-reader-desc${descOpen ? " expanded" : ""}`,
+        id: "dshsc-reader-desc",
+        ref: descRef
+      }, description),
+      descClamped ? h("button", {
+        type: "button",
+        className: "dshsc-reader-more",
+        "aria-expanded": String(descOpen),
+        "aria-controls": "dshsc-reader-desc",
+        onClick: () => setDescOpen((prev) => !prev)
+      }, t(descOpen ? "action.collapse" : "action.expand")) : null
+    ) : null,
     h(
       "div",
       { className: "dshsc-reader-meta" },
@@ -3835,6 +3895,7 @@ function SkillReader({
     }, t("action.update")) : null
   );
   if (variant === "page") {
+    const tocShown = headings.length > 1;
     return h(
       "div",
       { className: "dshsc-reader-page" },
@@ -3860,8 +3921,8 @@ function SkillReader({
       h("div", { className: "dshsc-reader-hero" }, header),
       h(
         "div",
-        { className: "dshsc-reader-layout" },
-        headings.length > 1 ? h(
+        { className: `dshsc-reader-layout${tocShown ? " has-toc" : ""}` },
+        tocShown ? h(
           "nav",
           { className: "dshsc-reader-toc", "aria-label": t("viewer.toc") },
           h("div", { className: "dshsc-reader-toc-title" }, t("viewer.toc")),
