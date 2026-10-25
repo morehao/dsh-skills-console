@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { createPaths } from '../lib/core/paths.js';
-import { StateStore, StateReadOnlyError, emptyState, STATE_VERSION, upgradeStateV1 } from '../lib/core/state.js';
+import { StateStore, StateReadOnlyError, emptyState, STATE_VERSION, upgradeStateV1, upgradeStateV2 } from '../lib/core/state.js';
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-state-'));
@@ -24,7 +24,7 @@ test('缺失文件 → 空状态且可写', () => {
   assert.equal(store.readOnly, false);
   assert.deepEqual(state.installs, []);
   assert.deepEqual(state.exports, []);
-  assert.deepEqual(state.shadows, []);
+  assert.deepEqual(state.legacyShadows, []);
   assert.equal(state.version, STATE_VERSION);
   assert.equal(state.migration, null);
   fs.rmSync(root, { recursive: true, force: true });
@@ -59,7 +59,7 @@ test('installs[].treeSha 读写往返', () => {
   const reloaded = new StateStore(paths);
   const state = reloaded.load();
   assert.equal(reloaded.readOnly, false);
-  assert.equal(state.version, STATE_VERSION, '版本仍是 2');
+  assert.equal(state.version, STATE_VERSION, '版本升到 3');
   assert.equal(state.installs.find((item) => item.name === 'handoff').treeSha, 'a'.repeat(40));
   assert.equal(
     state.installs.find((item) => item.name === 'legacy').treeSha,
@@ -147,6 +147,22 @@ test('v1 → v2：links 按目标拆成 exports 与待删清单', () => {
   assert.deepEqual(upgraded.migration.legacyLinks.map((row) => row.target), ['dsh-global', 'project:/repo']);
   assert.equal(upgraded.migration.status, 'links-pending');
   assert.equal(upgraded.version, 2);
+  assert.equal('links' in upgraded, false, 'v1 的顶层 links 拆完就删，不留在后续状态里');
+});
+
+test('v3 里残留的 v1 links 会在加载时剪掉并写回', () => {
+  const { root, paths } = sandbox();
+  const base = emptyState();
+  base.links = [{ skill: 'a', target: 'agent:claude-code', linkPath: '/h/.claude/skills/a' }];
+  writeState(paths, base);
+
+  const store = new StateStore(paths);
+  const state = store.load();
+  assert.equal(store.readOnly, false);
+  assert.equal('links' in state, false, '内存里不再有旧字段');
+  const saved = JSON.parse(fs.readFileSync(paths.stateFile, 'utf8'));
+  assert.equal('links' in saved, false, '加载时就写回，文件里也剪掉');
+  fs.rmSync(root, { recursive: true, force: true });
 });
 
 test('v1 迁移前留原文件副本，且只迁一次', () => {
@@ -157,6 +173,7 @@ test('v1 迁移前留原文件副本，且只迁一次', () => {
   const backups = fs.readdirSync(paths.migrationsDir).filter((name) => name.startsWith('state-v1-'));
   assert.equal(backups.length, 1, '原文件副本落 migrations/');
   assert.equal(JSON.parse(fs.readFileSync(path.join(paths.migrationsDir, backups[0]), 'utf8')).version, 1, '副本是原始 v1');
+  assert.equal('links' in JSON.parse(fs.readFileSync(paths.stateFile, 'utf8')), false, '落盘的 v3 状态不再带 links');
 
   // 第二次读不该再复制一份（文件已经是 v2）
   const second = new StateStore(paths);
@@ -190,7 +207,7 @@ test('settings.placement 只接受 settings / sidebar，非法值回退', () => 
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('v2 结构损坏 → 只读（exports 缺 target / shadows 缺 stubPath）', () => {
+test('v2 结构损坏 → 只读（exports 缺 target / 旧桩缺 stubPath）', () => {
   const { root, paths } = sandbox();
   writeState(paths, { version: 2, settings: { exportTargets: [] }, installs: [], exports: [{ skill: 'a' }], shadows: [] });
   const store = new StateStore(paths);
@@ -203,6 +220,59 @@ test('v2 结构损坏 → 只读（exports 缺 target / shadows 缺 stubPath）'
   second.load();
   assert.equal(second.readOnly, true);
   assert.match(second.problem, /shadows\[\] is missing stubPath/);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('v2 → v3：shadows 退休，user 行同步 enabled=false，orphan / project 只进 legacyShadows', () => {
+  const v3 = upgradeStateV2(
+    {
+      version: 2,
+      settings: { exportTargets: [] },
+      installs: [{ name: 'demo', enabled: true }],
+      exports: [],
+      shadows: [
+        { skill: 'demo', scope: 'user', stubPath: '/h/.dsh/skills/demo', createdAt: '2026-01-01T00:00:00.000Z' },
+        { skill: 'ghost', scope: 'user', stubPath: '/h/.dsh/skills/ghost', createdAt: '2026-01-01T00:00:00.000Z' },
+        { skill: 'demo', scope: 'project:/repo', stubPath: '/repo/.dsh/skills/demo', createdAt: '2026-01-01T00:00:00.000Z' },
+      ],
+    },
+    { now: '2026-02-02T00:00:00.000Z' },
+  );
+  assert.equal(v3.version, 3);
+  assert.equal('shadows' in v3, false, 'shadows 不再落盘');
+  assert.equal(v3.installs[0].enabled, false, 'user 级旧桩 → 真正的停用状态');
+  assert.deepEqual(
+    v3.legacyShadows.map((row) => [row.skill, row.reason]),
+    [['demo', 'pending'], ['ghost', 'orphan'], ['demo', 'project-scope']],
+  );
+  assert.equal(v3.legacyShadows.every((row) => row.stubPath && row.at), true);
+  assert.equal(v3.migration.from, 2);
+  assert.equal(v3.migration.to, 3);
+  assert.equal(v3.migration.status, 'pending');
+});
+
+test('v2 → v3：没有旧桩也不用迁移，migration 直接 done', () => {
+  const v3 = upgradeStateV2({ version: 2, installs: [], exports: [], shadows: [], migration: null });
+  assert.deepEqual(v3.legacyShadows, []);
+  assert.equal(v3.migration.status, 'done');
+  assert.equal(v3.migration.from, 2);
+});
+
+test('v3：多余的老 shadows 字段被忽略，不当作坏状态', () => {
+  const { root, paths } = sandbox();
+  writeState(paths, {
+    version: 3,
+    settings: { exportTargets: [] },
+    installs: [{ name: 'demo', enabled: true }],
+    exports: [],
+    shadows: [{ skill: 'demo', scope: 'user', stubPath: '/x' }],
+    legacyShadows: [],
+    subscriptions: [],
+  });
+  const store = new StateStore(paths);
+  store.load();
+  assert.equal(store.readOnly, false);
+  assert.equal('shadows' in store.state, false, '读进来就丢掉，不再有第二条真相');
   fs.rmSync(root, { recursive: true, force: true });
 });
 

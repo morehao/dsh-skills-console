@@ -9,6 +9,7 @@ import { createService, ServiceError } from '../lib/core/service.js';
 import { contentHash } from '../lib/core/hash.js';
 import { gitTreeSha } from '../lib/core/git-tree.js';
 import { StateStore } from '../lib/core/state.js';
+import { createShadow } from '../lib/core/shadow.js';
 import { snapshotId } from '../lib/core/updates.js';
 import { writeTarFixture } from './helpers/tar-fixture.mjs';
 
@@ -113,6 +114,10 @@ function setup(extra = {}, envExtra = {}) {
     env,
     fetchImpl: defaultGh.fetchImpl,
     visibleProvider: async () => ({ skills: [{ name: 'alpha', source: 'user-dsh' }], complete: true }),
+    // policy provider 的替身：默认「有 provider、一个 live agent 注册成功」，
+    // 这样 setMode 不会被 409 拦住；需要测失败路径的用例显式覆盖。
+    policyStatus: () => ({ available: true, liveAgents: 1, registered: 1, errors: [] }),
+    invalidatePolicies: async () => {},
     ...extra,
   });
   return { root, home, paths, store, service, registry, installer, gh: defaultGh };
@@ -218,37 +223,154 @@ test('入口位置：settings / sidebar 持久化，非法值被忽略', async (
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('启停：off 建停用标记（不删真身、不动其他 Agent）；on 删标记后重新可见', async () => {
-  const { root, home, paths, service, store } = setup();
+test('启停：off 只写 enabled（不写 ~/.dsh/skills、不动真身与其他 Agent）；on 恢复可见', async () => {
+  let invalidated = 0;
+  const { root, home, paths, service, store } = setup({ invalidatePolicies: async () => { invalidated += 1; } });
   await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: ['agent:claude-code'] });
 
   const before = await service.getState({});
   assert.equal(before.installs.find((item) => item.name === 'alpha').visible, true);
+  const canonicalMd = path.join(paths.canonical, 'alpha', 'SKILL.md');
+  const hashBefore = contentHash(path.join(paths.canonical, 'alpha'));
+  const lockBefore = fs.readFileSync(paths.lockFile, 'utf8');
 
   const off = await service.setMode({ name: 'alpha', mode: 'off' });
   assert.equal(off.enabled, false);
-  const stub = path.join(home, '.dsh', 'skills', 'alpha');
-  assert.ok(fs.lstatSync(stub).isDirectory(), '停用标记是真实目录，不是链');
-  const md = fs.readFileSync(path.join(stub, 'SKILL.md'), 'utf8');
-  assert.match(md, /^name: alpha$/m);
-  assert.match(md, /disable-model-invocation: true/);
-  assert.match(md, /user-invocable: false/);
-  assert.ok(fs.existsSync(path.join(stub, '.dsh-skills-console.json')), '要留标记文件，便于识别与回收');
-  assert.ok(fs.existsSync(path.join(paths.canonical, 'alpha', 'SKILL.md')), '真身不能动');
+  assert.equal(off.policy, 'provider');
+  assert.equal(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')), false, '停用不写扫描根');
+  assert.equal(contentHash(path.join(paths.canonical, 'alpha')), hashBefore, 'canonical 内容不变');
+  assert.equal(fs.readFileSync(paths.lockFile, 'utf8'), lockBefore, 'lock 不变');
+  assert.ok(fs.existsSync(canonicalMd), '真身不能动');
   assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'alpha')).isSymbolicLink(), '其他 Agent 不动');
-  assert.equal(store.state.shadows.length, 1);
+  assert.equal(store.findInstall('alpha').enabled, false);
+  assert.equal(invalidated, 1, '写完 state 要让每个 live agent 的 provider 失效');
 
   const afterOff = await service.getState({});
   const hidden = afterOff.installs.find((item) => item.name === 'alpha');
-  assert.equal(hidden.visible, false, '停用后模型不可见');
+  assert.equal(hidden.visible, false, '停用后模型不可见（canonical 是 native winner）');
+  assert.equal(hidden.visibility.policyHidden, true);
   assert.equal(hidden.visibility.shadowed, true);
   assert.equal(hidden.enabled, false);
 
-  await service.setMode({ name: 'alpha', mode: 'on' });
-  assert.equal(fs.existsSync(stub), false, '标记要被清掉');
+  const again = await service.setMode({ name: 'alpha', mode: 'off' });
+  assert.equal(again.already, true, '幂等');
+  assert.equal(invalidated, 1, '幂等时不重复 invalidate');
+
+  const on = await service.setMode({ name: 'alpha', mode: 'on' });
+  assert.equal(on.enabled, true);
+  assert.equal(invalidated, 2);
   const afterOn = await service.getState({});
   assert.equal(afterOn.installs.find((item) => item.name === 'alpha').visible, true);
-  assert.equal(store.state.shadows.length, 0);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('启停：项目 scope 已移除 → 400；宿主没有 provider / 全部注册失败 → 409 且不写 enabled', async () => {
+  const noProvider = setup({ policyStatus: () => ({ available: false, liveAgents: 0, registered: 0, errors: [] }) });
+  await noProvider.service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  await assert.rejects(
+    () => noProvider.service.setMode({ name: 'alpha', mode: 'off' }),
+    (error) => {
+      assert.equal(error.code, 'error.skills.policy-unavailable');
+      assert.equal(error.status, 409);
+      return true;
+    },
+  );
+  assert.equal(noProvider.store.findInstall('alpha').enabled, true, '不能写假的停用状态');
+  fs.rmSync(noProvider.root, { recursive: true, force: true });
+
+  const allFailed = setup({ policyStatus: () => ({ available: true, liveAgents: 2, registered: 0, errors: [{ agent: 'a' }] }) });
+  await allFailed.service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  await assert.rejects(
+    () => allFailed.service.setMode({ name: 'alpha', mode: 'off' }),
+    (error) => error.code === 'error.skills.policy-unavailable' && error.status === 409,
+  );
+  assert.equal(allFailed.store.findInstall('alpha').enabled, true);
+  fs.rmSync(allFailed.root, { recursive: true, force: true });
+
+  const scoped = setup();
+  await scoped.service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  await assert.rejects(
+    () => scoped.service.setMode({ name: 'alpha', mode: 'off', scope: 'project:/repo' }),
+    (error) => error.code === 'error.skills.scope-unsupported' && error.status === 400,
+  );
+  assert.equal(scoped.store.findInstall('alpha').enabled, true);
+  fs.rmSync(scoped.root, { recursive: true, force: true });
+});
+
+test('启停：flat .md 技能 → 400 unsupported，不写 enabled', async () => {
+  const { root, paths, service, store } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  fs.rmSync(path.join(paths.canonical, 'alpha'), { recursive: true, force: true });
+  fs.writeFileSync(path.join(paths.canonical, 'alpha.md'), '---\nname: alpha\ndescription: flat\n---\n');
+
+  await assert.rejects(
+    () => service.setMode({ name: 'alpha', mode: 'off' }),
+    (error) => error.code === 'error.skills.unsupported' && error.status === 400,
+  );
+  assert.equal(store.findInstall('alpha').enabled, true);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('启停：on 时旧桩删不掉 → 409 shadow-locked，且不改 enabled', async () => {
+  const { root, paths, service, store } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  await service.setMode({ name: 'alpha', mode: 'off' });
+  // 迁移删不掉的 foreign 旧桩：账本里有，但实际目录不是我们的
+  const stub = path.join(paths.dshGlobalSkills, 'alpha');
+  fs.mkdirSync(stub, { recursive: true });
+  fs.writeFileSync(path.join(stub, 'SKILL.md'), '---\nname: alpha\ndescription: mine\n---\n');
+  store.update((draft) => {
+    draft.legacyShadows.push({ skill: 'alpha', stubPath: stub, reason: 'foreign', at: new Date().toISOString() });
+  });
+
+  await assert.rejects(
+    () => service.setMode({ name: 'alpha', mode: 'on' }),
+    (error) => error.code === 'error.skills.shadow-locked' && error.status === 409,
+  );
+  assert.equal(store.findInstall('alpha').enabled, false, '删不掉旧桩就不改 enabled');
+  assert.ok(fs.existsSync(stub), '别人的目录不能删');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('启停：on 会清掉能删的 legacy 桩并移出 legacyShadows', async () => {
+  const { root, paths, service, store } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  await service.setMode({ name: 'alpha', mode: 'off' });
+  const stub = path.join(paths.dshGlobalSkills, 'alpha');
+  createShadow({ stubPath: stub, name: 'alpha', scope: 'user' });
+  store.update((draft) => {
+    draft.legacyShadows.push({ skill: 'alpha', stubPath: stub, reason: 'pending', at: new Date().toISOString() });
+  });
+
+  const on = await service.setMode({ name: 'alpha', mode: 'on' });
+  assert.equal(on.enabled, true);
+  assert.equal(fs.existsSync(stub), false, '旧桩要清掉');
+  assert.deepEqual(store.state.legacyShadows, []);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('调试诊断：policy 能力/注册数可见，legacyShadows 进 drift，旧 shadow 键退休', async () => {
+  const { root, paths, service, store } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const stub = path.join(paths.dshGlobalSkills, 'legacy-demo');
+  store.update((draft) => {
+    draft.legacyShadows.push({ skill: 'legacy-demo', stubPath: stub, reason: 'orphan', at: new Date().toISOString() });
+  });
+
+  const report = await service.diagnostics();
+  assert.deepEqual(report.policy, {
+    available: true,
+    agents: 1,
+    liveAgents: 1,
+    errors: [],
+    blindSpots: ['custom-dirs', 'plugin-skills'],
+  });
+  assert.equal(report.legacyShadows, 1);
+  assert.equal(report.drift.legacyShadows.length, 1);
+  assert.equal(report.drift.legacyShadows[0].reason, 'orphan');
+  assert.equal('shadowOrphans' in report.drift, false);
+  assert.equal('shadowBroken' in report.drift, false);
+  assert.equal('shadowUnrecorded' in report.drift, false);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -272,7 +394,7 @@ test('同名副本：模型看到的是更小 rank 的那份，账本要说出�
   assert.deepEqual(row.visibility.shadowedBy.map((item) => item.source).sort(), ['bundled', 'user-agents']);
   // 备份目录不能自己变成一个可见技能名
   assert.equal(state.visible.some((item) => item.name === 'alpha.bak-20260101-000000'), false);
-  assert.equal(store.state.shadows.length, 0);
+  assert.deepEqual(store.state.legacyShadows, []);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -307,6 +429,59 @@ test('删除：体检拦截真实目录；通过后进回收站并清记账', as
   assert.ok(fs.existsSync(path.join(paths.trashDir, result.trash, 'content', 'SKILL.md')));
   assert.equal(store.findInstall('alpha'), undefined);
   assert.equal(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')), false);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('删除：别的 Agent 指向别处的同名链不阻塞，也不动它', async () => {
+  const { root, home, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: ['dsh-global'] });
+
+  // OpenCode 自己把 handoff/alpha 链到另一个仓库——与 canonical、与本插件记账都无关
+  const opencode = path.join(home, '.config', 'opencode', 'skills');
+  const elsewhere = path.join(home, 'other-source', 'alpha');
+  fs.mkdirSync(opencode, { recursive: true });
+  fs.mkdirSync(elsewhere, { recursive: true });
+  fs.symlinkSync(elsewhere, path.join(opencode, 'alpha'), 'dir');
+
+  const result = await service.remove({ name: 'alpha' });
+  assert.equal(result.ok, true, '不在导出记账里的同名路径不能拦删除');
+  assert.ok(fs.existsSync(path.join(opencode, 'alpha')), '别人的链原样保留');
+  assert.equal(fs.existsSync(path.join(home, '.agents', 'skills', 'alpha')), false);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('可见性：技能自己声明 disable-model-invocation，说明「只能手动调用」且不算诊断异常', async () => {
+  const { root, paths, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const doc = path.join(paths.canonical, 'alpha', 'SKILL.md');
+  fs.writeFileSync(doc, '---\nname: alpha\ndescription: demo\ndisable-model-invocation: true\n---\nbody\n');
+
+  const state = await service.getState({});
+  const row = state.installs.find((item) => item.name === 'alpha');
+  assert.equal(row.visible, false, '模型不可见');
+  assert.equal(row.visibility.winnerIsCanonical, true, '但赢的就是 canonical 这份');
+  assert.equal(row.visibility.selfHidden, true, '原因是技能自己的 frontmatter');
+  assert.equal(row.visibility.policyHidden, false, '不是本地策略停用');
+
+  const report = await service.diagnostics();
+  assert.deepEqual(report.drift.enabledButHidden, [], 'manual-only 不该被当成「启用却消失」');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('删除：legacy 停用桩不被当成「真实目录」拦下，随删除一并清掉', async () => {
+  const { root, paths, service, store } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: ['agent:claude-code'] });
+  const stub = path.join(paths.dshGlobalSkills, 'alpha');
+  createShadow({ stubPath: stub, name: 'alpha', scope: 'user' });
+  store.update((draft) => {
+    draft.legacyShadows.push({ skill: 'alpha', stubPath: stub, reason: 'pending', at: new Date().toISOString() });
+  });
+
+  const result = await service.remove({ name: 'alpha' });
+  assert.equal(result.ok, true, '自家旧桩不算 remove-conflict');
+  assert.equal(fs.existsSync(stub), false, '旧桩随删除清掉');
+  assert.deepEqual(store.state.legacyShadows, []);
+  assert.equal(fs.existsSync(path.join(paths.canonical, 'alpha')), false);
   fs.rmSync(root, { recursive: true, force: true });
 });
 

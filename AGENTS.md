@@ -7,7 +7,7 @@
 - 包：`@morehao/dsh-skills-console`（显示名「技能控制台」），DeepSeek Harness（dsh）的**技能控制台插件**；**仓库根即包根**，无 workspace、无子包目录。
 - 两个 half：Host（[lib/index.js](lib/index.js) → [lib/routes.js](lib/routes.js) + [lib/core/](lib/core/)）与 Web Client（源码 `client/`，构建产物 [client.js](client.js)，`window.__ModuleLoader__` bundle；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板）。
 - 纯 ESM、**runtime 依赖只有 `tar@7.5.22`（精确锁版本）**，供 native installer 解压；Host 无构建，Web Client 由 esbuild 打包（构建期 devDependency，生成物提交）；Node ≥ 22.20（`engines` 另接受 ≥ 24）。
-- 技能真身的安装/更新/删除由 native installer 写入：下载/解压/canonical（`~/.agents/skills`）/v3 lock 均由 `lib/core/installer.js` 负责。本插件其余部分做三件事：**停用桩**（可见性）、**导出链**（给别的 Agent）、**记账 + 事务编排**。
+- 技能真身的安装/更新/删除由 native installer 写入：下载/解压/canonical（`~/.agents/skills`）/v3 lock 均由 `lib/core/installer.js` 负责。本插件其余部分做三件事：**本地策略 provider**（DSH 侧启停/可见性）、**导出链**（给别的 Agent）、**记账 + 事务编排**。
 - 发布：注记 tag `vX.Y.Z` → GitHub Actions OIDC → npm；发布成功后 CI 用注记正文建 GitHub Release。
 
 | 路径 | 作用 |
@@ -25,12 +25,13 @@
 | [lib/core/archive.js](lib/core/archive.js) | 安全 tar 解压（拒绝穿越 / 绝对路径 / symlink / hardlink / 超限）；native installer 模块 |
 | [lib/core/git-tree.js](lib/core/git-tree.js) | 本地 Git tree SHA（40 位），与 CLI lock 的 `skillFolderHash` 对拍 |
 | [lib/core/lock.js](lib/core/lock.js) | v3 lock 原子读改写（保留未知字段 / 版本守卫 / `expectedDigest`） |
-| [lib/core/state.js](lib/core/state.js) | `state.json`（v2）原子写 + 校验 + v1 纯函数升级 + 只读降级 |
-| [lib/core/roots.js](lib/core/roots.js) | 扫描根表（rank 100/200/300/400/500/600）与单根扫描口径 |
-| [lib/core/visibility.js](lib/core/visibility.js) | 按 rank 合并各扫描根 + 宿主 `snapshot()`，得出每个技能到底可不可见 |
-| [lib/core/shadow.js](lib/core/shadow.js) | 停用桩：`SKILL.md` 三字段 + `.dsh-skills-console.json` 标记，建/删/判态/清残骸 |
+| [lib/core/state.js](lib/core/state.js) | `state.json`（v3）原子写 + 校验 + v1→v2→v3 纯函数升级 + 只读降级；`shadows[]` 退休，`legacyShadows[]` 只放迁移残桩 |
+| [lib/core/roots.js](lib/core/roots.js) | 扫描根表（rank 100/200/300/400/500/600）、`findProjectRoot()`（向上找 `.git`）与单根扫描口径 |
+| [lib/core/visibility.js](lib/core/visibility.js) | 按 rank 合并各扫描根 + 宿主 `snapshot()` + `policyHiddenPaths`，得出每个技能到底可不可见 |
+| [lib/core/shadow.js](lib/core/shadow.js) | legacy 停用桩：`SKILL.md` 三字段 + `.dsh-skills-console.json` 标记；只服务迁移清理，不再新建 |
+| **新增** `lib/core/policy.js` | policy provider：只报告 `enabled=false` 的 canonical；native winner 判定、`get` 回读正文、per-agent 注册与失效 |
 | [lib/core/exporter.js](lib/core/exporter.js) | 导出链：给不读共享根的 Agent 建链、摘链、悬空判定、agent 目录探测 |
-| [lib/core/migrations.js](lib/core/migrations.js) | v1→v2：删历史可见性链、剪悬空导出记录、补齐停用桩、写 manifest（fail-open） |
+| [lib/core/migrations.js](lib/core/migrations.js) | v1→v2→v3：删历史可见性链、剪悬空导出记录、**不再补桩**；v2→v3 清理 legacy 桩、失败进 `legacyShadows`、写 manifest（fail-open） |
 | [lib/core/agents.js](lib/core/agents.js) | 目标注册表（`dsh-global` / `agent:*` / `project:*` / `custom:*`） |
 | [lib/core/links.js](lib/core/links.js) | 软链四态判定、建/删、幂等（导出与迁移共用） |
 | [lib/core/inventory.js](lib/core/inventory.js) | canonical 扫描 + lock 读取 + `enabled`/`exports`/`visible` 对账，产出账本行 |
@@ -49,11 +50,11 @@
 ### 数据边界（最基本的一条）
 
 - **canonical 与 v3 lock 的写入口**：`~/.agents/skills`、`~/.agents/.skill-lock.json`（设了 `XDG_STATE_HOME` 时是 `$XDG_STATE_HOME/skills/.skill-lock.json`）的安装/更新/删除一律走 [lib/core/installer.js](lib/core/installer.js)（下载→安全解压→发现→tree SHA→原子 promote→lock 事务）。其他模块只读，禁止再手写 canonical/lock。
-- **软链四态**：`managed` / `managed-external` / `foreign-link` / `real`。只动自己建的 `managed` 与已记账的 `managed-external`；`real` 与 `foreign-link` 永不改写、删除前体检即中止。停用桩必须是**真实目录**（链没有意义），建之前先 `inspectShadow` 判态：`foreign`/`link` 一律报 `error.skills.shadow-conflict`，不覆盖。
+- **软链四态**：`managed` / `managed-external` / `foreign-link` / `real`。只动自己建的 `managed` 与已记账的 `managed-external`；`real` 与 `foreign-link` 永不改写、删除前体检即中止。停用不再建桩；`inspectShadow` 只用于迁移清理 legacy 桩：`foreign`/`link` 一律保留并报告，不覆盖。
 - **不接收任意路径**：`target` 一律走注册表反查；软链目标恒为 canonical 下同名目录；请求体路径参数不得直接拼到文件系统。
-- **state 只读降级**：坏 JSON / 未知版本 → `readOnly=true` 且写接口 409，**不 fail-open、不猜结构、不自动修复**。
-- **启停不改正文**：`enabled` 只写/删 `~/.dsh/skills/<name>` 这个**停用桩**（`disable-model-invocation: true` + `user-invocable: false` + `.dsh-skills-console.json` 标记），绝不编辑 canonical 的 `SKILL.md`（安装/更新会整份覆盖，改文件还会让更新被锁死）。
-- **可见性只由扫描根决定**：canonical `~/.agents/skills` 本身就是 DSH 的扫描根，**禁止**再往 `~/.dsh/skills` 建指向真身的「可见性链」——那会造出两份真相，摘链也不等于不可见。`~/.dsh/skills` 只放停用桩。用户级桩（rank 400）压不住项目副本（100/200），这是排序规则的正确结果，用 `visibility.shadowScopeMismatch` 告知用户，不要「顺便」去删项目里的东西。
+- **state 只读降级**：坏 JSON / 未知版本 → `readOnly=true` 且写接口 409，**不 fail-open、不猜结构、不自动修复**。v3 的 `shadows[]` 已退休；旧版本读到 v3 必须只读，不能按“删桩”解释新状态。
+- **启停不改文件**：`enabled` 只写 `state.json` 的 `installs[].enabled`，由每个 live agent scope 的 policy provider 覆盖候选；**不写/删 `~/.dsh/skills`**、不编辑 canonical 的 `SKILL.md`、不碰 v3 lock 与导出链。唯一会碰 `~/.dsh/skills` 的是 v2→v3 迁移清理 legacy 桩。
+- **可见性 = 扫描根 + 每个 agent 的 policy provider**：canonical `~/.agents/skills` 是 DSH 的扫描根；**禁止**往 `~/.dsh/skills` 建指向真身的「可见性链」（两份真相，摘链也不等于不可见）。`~/.dsh/skills` v0.4.0 起不写。provider 注册在每个 live agent 自己的 scope（preset scope 的子层），只在 **canonical 是 native winner** 时才发 `modelInvocable=false` + `userInvocable=false` 的同名候选；项目 100/200、user-dsh 400 有副本时 provider 必须沉默，让副本继续可见。用 `visibility.shadowScopeMismatch` 告知用户，不要「顺便」去删项目里的东西。
 - **导出与可见性解耦**：`exports` 只给不读共享根的其他 Agent 建链，默认空；没有任何导出的技能照样应该对 DSH 可见。
 - **不碰别人的东西**：本机可能并存其他同类技能插件。与本插件无关的插件一律不共用路由前缀与状态目录；也不要为了「统一命名」去凑别人的前缀。
 
@@ -101,7 +102,7 @@
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
 | import 图循环检测（`client/` + `lib/`） | `npm run check:cycles` |
-| 单元测试（273 例，离线；真实网络对拍默认 skip） | `npm test` |
+| 单元测试（308 例，离线；真实网络对拍默认 skip） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |
@@ -113,7 +114,7 @@
 
 | 你要改 | 先读 | 必跑 |
 |---|---|---|
-| `lib/core/*`（清单/链接/安装/更新/删除/订阅） | 对应模块头部注释 + 相关 `test/*.test.mjs` | `npm run check` + `npm test` |
+| `lib/core/*`（清单/链接/安装/更新/删除/订阅/启停） | 对应模块头部注释 + 相关 `test/*.test.mjs`；启停另读 [policy 设计](.dsh/docs/specs/2026-10-25-skill-toggle-policy-provider-design.md) | `npm run check` + `npm test` |
 | `lib/routes.js`（接口形状、错误码、鉴权） | [lib/routes.js](lib/routes.js) 的 `matchRoute` + `client.js` 调用点 | `npm run check` + `npm test` |
 | `client/**`（Web Client UI） | `client/index.js` + `test/client.test.mjs` | `npm run build:client` + `npm run check` + `npm test` |
 | 根 `client.js`（生成物） | 不要改；改 `client/**` 后重建 | `npm run check:client` |

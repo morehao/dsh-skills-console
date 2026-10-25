@@ -36,13 +36,13 @@ export function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
       }))));
 }
 
-export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel }) {
+export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel, hideCancel = false }) {
   return h(Overlay, {
     t,
     title,
     onCancel,
     footer: [
-      h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
+      ...(hideCancel ? [] : [h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel'))]),
       h('button', { key: 'o', className: `dshsc-btn${danger ? ' danger' : ' primary'}`, onClick: onConfirm }, confirmLabel || t('action.save')),
     ],
   }, h('p', { className: 'dshsc-sub', style: { whiteSpace: 'pre-wrap' } }, body));
@@ -50,15 +50,14 @@ export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, conf
 
 /**
  * 导出设置：把技能暴露给**不读共享根**的其他 Agent。
- * 这里没有作用范围：DSH 的可见性由扫描根 + 停用标记决定，导出只影响别的 agent。
+ * 这里没有作用范围：DSH 的可见性由本地策略决定，导出只影响别的 agent。
  */
-export function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, onSave }) {
+export function ExportsModal({ t, row, agents, onCancel, onSave }) {
   // 只列本机真有目录、且能当导出目标的 agent（`exportable` 由 Host 判断：
   // 读共享根的、DSH 自己扫描根的都不在里面）
   const candidates = agents.filter(
     (agent) => agent.kind === 'agent' && agent.exists && agent.exportable,
   );
-  const sharedRoot = sharedRootAgents.filter((agent) => agent.exists);
   const [targets, setTargets] = React.useState(() => {
     const available = new Set(candidates.map((agent) => agent.target));
     return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
@@ -81,9 +80,6 @@ export function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, 
   h('div', { className: 'dshsc-group' }, t('exports.targets')),
   h('p', { className: 'dshsc-sub' }, t('exports.detectedHint')),
   h('p', { className: 'dshsc-sub' }, t('exports.canonical').replace('{path}', `~/.agents/skills/${row.name}`)),
-  sharedRoot.length > 0
-    ? h('p', { className: 'dshsc-sub' }, t('exports.sharedRootHint').replace('{names}', sharedRoot.map((agent) => agent.label).join('、')))
-    : null,
   candidates.length === 0 ? h('p', { className: 'dshsc-sub' }, t('exports.none')) : null,
   ...candidates.map((agent) =>
     h('label', { className: 'dshsc-check', key: agent.target },
@@ -99,7 +95,7 @@ export function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, 
   h('p', { className: 'dshsc-sub' }, t('exports.hint')));
 }
 
-export function DefaultExportModal({ t, settings, agents, sharedRoot = [], onCancel, onSave }) {
+export function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
   const [targets, setTargets] = React.useState(() => new Set(
     Array.isArray(settings.exportTargets) ? settings.exportTargets : [],
   ));
@@ -130,14 +126,11 @@ export function DefaultExportModal({ t, settings, agents, sharedRoot = [], onCan
           }),
           h('span', null, agent.label),
           h('small', null, agent.dir)))),
-  sharedRoot.length > 0
-    ? h('p', { className: 'dshsc-sub' }, t('exportDefault.sharedRootHint').replace('{names}', sharedRoot.map((agent) => agent.label).join('、')))
-    : null,
   h('p', { className: 'dshsc-sub' }, t('exportDefault.hint')));
 }
 
 /** 按 modal.type 分发；未识别的类型不渲染。 */
-export function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], actions, onClose, onSaveAutoLink }) {
+export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }) {
   if (modal.type === 'add-skill') {
     return h(AddSkillModal, {
       t,
@@ -165,7 +158,6 @@ export function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], 
       t,
       row: modal.row,
       agents: data?.agents?.all || [],
-      sharedRootAgents,
       onCancel: onClose,
       onSave: (targets) => {
         onClose();
@@ -178,7 +170,6 @@ export function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], 
       t,
       settings: data?.settings || {},
       agents: autoLinkAgents,
-      sharedRoot: sharedRootAgents.filter((agent) => agent.exists),
       onCancel: onClose,
       onSave: (targets) => void onSaveAutoLink(targets),
     });
@@ -189,6 +180,7 @@ export function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], 
       title: t('confirm.deleteTitle'),
       body: t('confirm.deleteBody'),
       danger: true,
+      confirmLabel: t('action.delete'),
       onCancel: onClose,
       onConfirm: modal.onConfirm,
     });
@@ -198,6 +190,7 @@ export function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], 
       t,
       title: t('confirm.updateTitle'),
       body: t('confirm.updateBody'),
+      confirmLabel: t('action.update'),
       onCancel: onClose,
       onConfirm: modal.onConfirm,
     });
@@ -210,7 +203,9 @@ export function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], 
       body: `${modal.message}\n${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join('\n')}`,
       onCancel: onClose,
       onConfirm: onClose,
-      confirmLabel: t('action.cancel'),
+      confirmLabel: t('action.close'),
+      danger: true,
+      hideCancel: true,
     });
   }
   return null;

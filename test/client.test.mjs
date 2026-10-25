@@ -290,11 +290,9 @@ const ROW = (over = {}) => ({
     linkPath: '/tmp/.claude/skills/git-kit',
     state: 'managed',
     recorded: true,
-    shared: false,
     broken: false,
   }],
   brokenExports: 0,
-  shadows: [],
   visibility: { dsh: true, shadowed: false, winnerSource: 'user-agents', sources: { 'user-agents': 'present' }, shadowScopeMismatch: false },
   status: 'current',
   check: null,
@@ -404,7 +402,7 @@ test('未纳入追踪：开关禁用、可见性以中性状态点表达、保�
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const text = textOf(tree);
-  for (const expected of ['未纳入追踪', '未导出到任何 Agent', '接管']) {
+  for (const expected of ['未纳入追踪', '未导出', '接管']) {
     assert.ok(text.includes(expected), `缺少文案：${expected}`);
   }
   assert.ok(!text.includes('DSH'), '页面上不再有 DSH 专属标识（可见性只做中性展示）');
@@ -848,7 +846,7 @@ test('自动导出：只列本机已装的 Agent，默认不勾任何目标', as
   assert.equal(nextChecks[0].props.checked, false, '取消勾选要生效');
 });
 
-test('自动导出：读共享根的 Agent 不进列表，只作说明', async () => {
+test('自动导出：读共享根的 Agent 不进列表，也不再单独解释', async () => {
   const payload = {
     ...STATE,
     settings: { exportTargets: ['agent:opencode'] },
@@ -874,11 +872,16 @@ test('自动导出：读共享根的 Agent 不进列表，只作说明', async (
 
   header.props.onClick();
   const modal = stub.render(Component, {}, first.hooks).tree;
-  const text = textOf(modal);
+  // 弹窗叠在列表之上：只断言弹窗自己
+  const dialog = collectByClass(modal, 'dshsc-modal')[0];
+  assert.ok(dialog, '导出设置弹窗要在');
+  const text = textOf(dialog);
   const checks = collectByType(modal, 'input').filter((node) => node.props.type === 'checkbox');
   assert.equal(checks.length, 1, '只剩 Claude Code 一个可选目标');
   assert.ok(!checks.some((node) => node.props.checked), 'opencode 的不该出现「已勾选」');
-  assert.match(text, /OpenCode 读共享根，不在此列/, '要说明为什么不在列表里');
+  assert.ok(!text.includes('读共享根'), '两段「读共享根，不在此列」已删除');
+  assert.ok(!text.includes('不在此列'));
+  assert.ok(!text.includes('OpenCode'), '不再把不可导出的 Agent 当说明');
   assert.ok(!text.includes('/tmp/.config/opencode/skills'), '不该给出它的目录让人去勾');
 });
 
@@ -898,7 +901,7 @@ test('自动导出：一个 Agent 都没探测到时，列表为空并说明原�
   const modal = stub.render(Component, {}, first.hooks).tree;
   const checks = collectByType(modal, 'input').filter((node) => node.props.type === 'checkbox');
   assert.equal(checks.length, 0, '一个可导出的目标都没有');
-  assert.ok(textOf(modal).includes('本机没有检测到其他 Agent'));
+  assert.ok(textOf(modal).includes('本机没有需要导出的 Agent'));
 });
 
 test('导出设置：只列本机已装 Agent，不再有作用范围', async () => {
@@ -919,7 +922,9 @@ test('导出设置：只列本机已装 Agent，不再有作用范围', async ()
   assert.ok(text.includes('~/.agents/skills/git-kit'), '要标出技能本体所在');
   assert.ok(text.includes('/tmp/.claude/skills'), 'Agent 的导出目录仍要展示');
   assert.ok(!text.includes('dsh（全局）'), 'DSH 自己的根不是导出目标');
-  assert.ok(!text.includes('DSH 工作区'), '作用范围已取消：可见性由扫描根决定');
+  assert.ok(!text.includes('DSH 工作区'), '作用范围已取消：可见性由本地策略决定');
+  assert.ok(!text.includes('读共享根'), '导出弹窗不再解释共享根');
+  assert.ok(!text.includes('不在此列'));
 
   assert.equal(collectByType(modal, 'input').filter((node) => node.props.type === 'radio').length, 0, '没有作用范围单选');
   const checks = collectByType(modal, 'input').filter((node) => node.props.type === 'checkbox');
@@ -1098,7 +1103,7 @@ test('Agent 溢出：+n 悬浮列出全部 Agent，而不是只靠 title', async
   assert.ok(tip, '悬浮后出现气泡');
   assert.equal(tip.props.role, 'tooltip');
   const tipText = textOf(tip);
-  assert.ok(tipText.includes('已接入的 Agent'), '气泡有标题');
+  assert.ok(tipText.includes('已导出的 Agent'), '气泡有标题');
   for (const label of labels) assert.ok(tipText.includes(label), `气泡要列出 ${label}`);
   const openMore = collectButtons(shown).find((button) => String(textOf(button)).trim() === '+3');
   assert.equal(openMore.props['aria-expanded'], 'true');
@@ -1110,6 +1115,77 @@ test('Agent 溢出：+n 悬浮列出全部 Agent，而不是只靠 title', async
     !collectByType(hidden, 'div').some((node) => node.props.className === 'dshsc-agenttip'),
     '移出后气泡收起',
   );
+});
+
+const OPENCODE = {
+  target: 'agent:opencode',
+  kind: 'agent',
+  key: 'opencode',
+  label: 'OpenCode',
+  dir: '/tmp/.config/opencode/skills',
+  exists: true,
+  sharedHome: 'yes',
+  exportBlocked: 'shared-root',
+  exportable: false,
+};
+
+test('共享根：行内只显示显式导出，不逐个列直读共享根的 Agent', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    agents: {
+      all: [...STATE.agents.all, OPENCODE],
+      detected: [...STATE.agents.detected, OPENCODE],
+    },
+    installs: [ROW({ name: 'handoff', exports: [] })],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  let tree = stub.render(Component, {}, first.hooks).tree;
+
+  const text = textOf(tree);
+  assert.ok(!text.includes('OpenCode'), '共享根 Agent 不进行内 Agent 列');
+  assert.ok(!text.includes('未导出到任何 Agent'), '不再说「未导出到任何 Agent」');
+  const none = collectByClass(tree, 'dshsc-unlinked')[0];
+  assert.ok(none, '没有导出链时给出「未导出」占位');
+  assert.equal(textOf(none).trim(), '未导出');
+  assert.ok(String(none.props.title).includes('~/.agents/skills'), '悬停解释共享根 Agent 无需导出');
+
+  // 按 Agent 视图：没有导出的共享根 Agent 不成组
+  const agentView = collectButtons(tree).find((button) => String(textOf(button)).trim() === '按 Agent');
+  agentView.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const heads = collectByClass(tree, 'dshsc-group-head').map((node) => textOf(node));
+  assert.ok(!heads.some((head) => head.includes('OpenCode')), '没导出的 Agent 不单独成组');
+});
+
+test('Agent 列只显示显式导出；旧数据里的共享根链也不显示', async () => {
+  const claudeExport = ROW().exports[0];
+  // 旧 Host / 历史数据可能仍把 OpenCode 的链塞在 row.exports 里
+  const staleOpencodeExport = {
+    target: 'agent:opencode',
+    label: 'OpenCode',
+    dir: OPENCODE.dir,
+    linkPath: '/tmp/.config/opencode/skills/git-kit',
+    state: 'foreign-link',
+    recorded: false,
+    broken: false,
+  };
+  const { Component, stub } = loadModule({
+    ...STATE,
+    agents: {
+      all: [...STATE.agents.all, OPENCODE],
+      detected: [...STATE.agents.detected, OPENCODE],
+    },
+    installs: [ROW({ exports: [claudeExport, staleOpencodeExport] })],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const chips = collectByClass(tree, 'dshsc-agent');
+  assert.deepEqual(chips.map((node) => textOf(node).trim()), ['Claude Code'], '只留真正建了链的导出');
+  assert.ok(!textOf(tree).includes('OpenCode'), '共享根 Agent 不出现');
 });
 
 test('状态筛选：计数来自全量，点选后只留对应行', async () => {
@@ -1137,6 +1213,77 @@ test('状态筛选：计数来自全量，点选后只留对应行', async () =>
   text = textOf(tree);
   assert.ok(text.includes('pdf-tools'), '已停用行');
   assert.ok(!text.includes('handoff'), '其它状态被筛掉');
+  assert.ok(text.includes('DSH 的模型调用与 `/` 手动调用'), '停用提示用用户语言，不暴露停用桩');
+  assert.ok(!text.includes('扫描根里有停用标记'));
+});
+
+test('可见性：技能自己声明 manual-only 时给手动调用说明，不报「扫描目录里没有它」', async () => {
+  const manual = ROW({
+    name: 'handoff',
+    visible: false,
+    status: 'current',
+    exports: [],
+    visibility: {
+      dsh: false,
+      shadowed: true,
+      winnerSource: 'user-agents',
+      sources: { 'user-agents': 'shadowed' },
+      winnerPath: '/tmp/skills/handoff',
+      winnerIsCanonical: true,
+      selfHidden: true,
+      shadowScopeMismatch: false,
+    },
+  });
+  const { Component, stub } = loadModule({ ...STATE, installs: [manual], visible: [] });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const text = textOf(stub.render(Component, {}, first.hooks).tree);
+  assert.ok(text.includes('仅手动'), '用名字旁的标志告诉用户模型不可见');
+  assert.ok(!text.includes('扫描目录里没有它'), '不能把 manual-only 说成技能丢了');
+  assert.ok(!text.includes('disable-model-invocation'), '不再占一行警告，细节放 tooltip');
+});
+
+test('删除冲突弹窗：只留一个「关闭」，不再出现两个取消', async () => {
+  const fetch = async (url, init = {}) => {
+    const method = init.method || 'GET';
+    if (method === 'GET') return { ok: true, status: 200, json: async () => STATE };
+    if (method === 'DELETE') {
+      return {
+        ok: false,
+        status: 409,
+        json: async () => ({
+          ok: false,
+          code: 'error.skills.remove-conflict',
+          message: 'Claude Code 里的 git-kit 不是本插件创建的，删除已停下；先处理它再重试',
+          detail: { conflicts: [{ label: 'Claude Code', linkPath: '/tmp/.claude/skills/git-kit' }] },
+        }),
+      };
+    }
+    return { ok: true, status: 200, json: async () => ({ ok: true }) };
+  };
+  const { Component, stub } = loadModule(STATE, { fetch });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  let tree = stub.render(Component, {}, first.hooks).tree;
+  const del = collectButtons(tree).find((button) => String(button.props['aria-label'] || '').startsWith('删除'));
+  assert.ok(del, '行内删除按钮');
+  del.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const confirm = collectButtons(tree).find((button) => String(textOf(button)).trim() === '删除'
+    && String(button.props.className || '').includes('danger'));
+  assert.ok(confirm, '确认删除主按钮应叫「删除」而不是「保存」');
+  confirm.props.onClick();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const labels = collectButtons(tree).map((button) => String(textOf(button)).trim());
+  assert.ok(labels.includes('关闭'), '冲突弹窗有唯一关闭按钮');
+  assert.equal(labels.filter((label) => label === '取消').length, 0, '不再出现两个取消');
+  assert.ok(textOf(tree).includes('删除被拦截'));
+  assert.ok(textOf(tree).includes('/tmp/.claude/skills/git-kit'), '仍然说清冲突路径');
 });
 
 test('未检查：只在筛选计数里提示，不在行内/底部重复', async () => {
@@ -1388,6 +1535,27 @@ test('查看：切「原文」显示带 frontmatter 的原文，切「信息」�
   assert.ok(text.includes('morehao/ai-kit'), '来源来自 row');
   assert.ok(text.includes('本地路径'), '信息 tab 有本地路径');
   assert.ok(text.includes('安装'), '信息 tab 有安装时间');
+});
+
+test('查看信息：只列已导出的 Agent，不列共享根可见', async () => {
+  const state = {
+    ...STATE,
+    agents: {
+      all: [...STATE.agents.all, OPENCODE],
+      detected: [...STATE.agents.detected, OPENCODE],
+    },
+    installs: [ROW({ exports: [] })],
+  };
+  const { out, stub, Component, drawer } = await openDrawer({ state });
+  const info = buttonByText(drawer, '信息');
+  info.props.onClick();
+  const after = await settle(stub, Component, out.hooks);
+  const infoNode = collectByClass(after.tree, 'dshsc-reader-info')[0];
+  assert.ok(infoNode, '信息 tab 要渲染出信息面板');
+  const text = textOf(infoNode);
+  assert.ok(text.includes('已导出'), '保留导出行');
+  assert.ok(!text.includes('OpenCode'), '不列共享根可见的 Agent');
+  assert.ok(!text.includes('共享根可见'), '共享根行已移除');
 });
 
 test('查看：文件 tab 列出目录与文件，点文件读到内容；二进制给占位', async () => {

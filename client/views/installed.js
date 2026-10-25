@@ -14,6 +14,10 @@ export function InstalledTab({
   actions,
 }) {
   const updatable = (row) => UPDATABLE.has(row.status);
+  // 直读共享根的 Agent 不需要导出；旧 Host 若还把它们的链塞进 row.exports，这里也不显示
+  const sharedTargets = new Set((data?.agents?.detected || [])
+    .filter((agent) => agent.kind === 'agent' && agent.sharedHome === 'yes')
+    .map((agent) => agent.target));
 
   function statusTag(row) {
     // 「待检查」不逐行刷：由列表头的计数与底部提示承接
@@ -49,36 +53,44 @@ export function InstalledTab({
       h('span', { className: 'dshsc-code' }, text));
   }
 
+  /**
+   * Agent 列只列「显式导出」：不支持共享根、且真的建了导出链的 Agent。
+   * 直读 `~/.agents/skills` 的 Agent 装好即可用，不在这里重复出现。
+   */
   function agentChips(row) {
-    const items = (row.exports || []).filter((item) => !item.broken);
-    const labels = items.map((item) => item.label);
-    const chips = [];
-    if (labels.length === 0) {
-      // 可见性和「导出」是两件事：这里只说导出，DSH 可见性走名字旁的状态点
-      return [h('span', { key: 'unlinked', className: 'dshsc-unlinked' }, t('meta.unlinked'))];
+    const exported = (row.exports || []).filter(
+      (item) => !item.broken && !sharedTargets.has(item.target),
+    );
+    if (exported.length === 0) {
+      return [h('span', {
+        key: 'none',
+        className: 'dshsc-unlinked',
+        title: t('meta.noExportHint'),
+      }, t('meta.noExport'))];
     }
-    const shown = labels.slice(0, 3);
-    shown.forEach((label, index) => chips.push(h('span', {
+    const chips = [];
+    const labels = exported.map((item) => item.label);
+    const shown = exported.slice(0, 3);
+    shown.forEach((item, index) => chips.push(h('span', {
       className: 'dshsc-agent',
       key: `agent-${index}`,
-      title: label,
-    }, label)));
-    if (labels.length > shown.length) {
+      title: item.label,
+    }, item.label)));
+    if (exported.length > shown.length) {
       const open = agentTip?.rowName === row.name;
-      const tipLabels = labels;
       chips.push(h('button', {
         type: 'button',
         className: 'dshsc-agent more',
         key: 'more',
-        'aria-label': `${t('meta.agentsAll')}：${tipLabels.join('、')}`,
+        'aria-label': `${t('meta.agentsAll')}：${labels.join('、')}`,
         'aria-describedby': open ? 'dshsc-agenttip' : undefined,
         'aria-expanded': String(open),
-        onClick: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
-        onMouseEnter: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
-        onFocus: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
+        onClick: (event) => actions.onOpenAgentTip(event, row.name, labels),
+        onMouseEnter: (event) => actions.onOpenAgentTip(event, row.name, labels),
+        onFocus: (event) => actions.onOpenAgentTip(event, row.name, labels),
         onMouseLeave: actions.onCloseAgentTip,
         onBlur: actions.onCloseAgentTip,
-      }, `+${labels.length - shown.length}`));
+      }, `+${exported.length - shown.length}`));
     }
     return chips;
   }
@@ -89,6 +101,7 @@ export function InstalledTab({
     const canUpdate = writable && updatable(row);
     // 启用却看不见：要么真身不在扫描根里，要么项目副本盖过了停用标记
     const hidden = !off && !row.visible;
+    const manualOnly = hidden && Boolean(row.visibility?.selfHidden);
     // 可见性是中性状态，不再挂「DSH」标签：实心点=模型可见，空心点=模型不可见
     const visLabel = hidden ? t('meta.modelHidden') : t('meta.modelVisible');
     return h(
@@ -116,11 +129,22 @@ export function InstalledTab({
             onClick: () => actions.onView(row),
           }, row.name),
           statusTag(row),
+          manualOnly
+            ? h('span', {
+                className: 'dshsc-tag off',
+                title: t('visibility.manualOnlyHint'),
+                'aria-label': t('visibility.manualOnlyHint'),
+              }, t('meta.manualOnly'))
+            : null,
           off ? h('span', { className: 'dshsc-tag off' }, t('status.off')) : null,
         ),
         sourceLine(row),
         off ? h('div', { className: 'dshsc-note' }, t('mode.offHint')) : null,
-        hidden ? h('div', { className: 'dshsc-note warn' }, t('visibility.hiddenHint')) : null,
+        // manual-only 用名字旁的「仅手动」标志表达，不占一行警告；
+        // 被更靠前的同名副本盖住时由下面的 foreignWinner 点名，这里不再补「扫描目录里没有它」。
+        hidden && !manualOnly && row.visibility?.winnerIsCanonical !== false
+          ? h('div', { className: 'dshsc-note warn' }, t('visibility.hiddenHint'))
+          : null,
         row.visibility?.shadowScopeMismatch
           ? h('div', { className: 'dshsc-note warn' }, t('visibility.scopeMismatch'))
           : null,
@@ -189,7 +213,10 @@ export function InstalledTab({
     if (hiddenRows.length) groups.push({ key: 'hidden', title: t('group.hidden'), rows: hiddenRows });
     for (const agent of data?.agents?.detected || []) {
       if (agent.kind !== 'agent') continue;
-      const matched = visibleRows.filter((row) => (row.exports || []).some((item) => item.target === agent.target && !item.broken));
+      // 只给「有显式导出」的 Agent 分组；直读共享根的 Agent 不逐行展示
+      const matched = visibleRows.filter(
+        (row) => (row.exports || []).some((item) => item.target === agent.target && !item.broken),
+      );
       if (matched.length) groups.push({ key: agent.target, title: agent.label, rows: matched });
     }
     return groups.filter((group) => group.rows.length > 0);

@@ -93,6 +93,7 @@ var DICT = {
     "action.adopt": "接管",
     "action.save": "保存",
     "action.cancel": "取消",
+    "action.close": "关闭",
     "action.choose": "选择目录",
     "action.retry": "重新加载",
     "view.flat": "平铺",
@@ -123,20 +124,19 @@ var DICT = {
     "toast.checked": "检查完成",
     "mode.on": "启用",
     "mode.off": "停用",
-    "mode.offHint": "已停用：扫描根里有停用标记，模型看不到它；已导出的其他 Agent 不受影响",
+    "mode.offHint": "已停用：DSH 的模型调用与 `/` 手动调用都看不到它；技能文件、导出关系与其他 Agent 都不受影响",
     "visibility.hiddenHint": "已启用，但扫描目录里没有它：确认 ~/.agents/skills 下真有这个技能，或检查 DSH_AGENTS_HOME。",
-    "visibility.scopeMismatch": "当前项目自带了一份同名技能，项目副本优先，所以停了也还是可见。",
+    "visibility.manualOnlyHint": "该技能自己声明了 `disable-model-invocation`：模型调用看不到它，手动 `/` 调用仍可用。",
+    "visibility.scopeMismatch": "当前有另一份同名技能排在前面（项目或用户目录）；停用只影响 canonical，不会隐藏它。",
     "visibility.foreignWinner": "模型看到的是另一份同名技能：{path}（它的扫描根 rank 更小，会遮住这一份）",
     "exports.targets": "导出到哪些 Agent",
-    "exports.detectedHint": "只列出本机已安装（目录存在）的 Agent。导出只影响它们；DSH 自己看不看得见由扫描根决定，和导出无关。",
-    "exports.canonical": "技能本体：{path}；下面的链只是把它暴露给不读共享根的 Agent。",
-    "exports.none": "本机没有其他 Agent 的目录",
+    "exports.detectedHint": "只列出本机已安装（目录存在）的 Agent。导出只影响它们；DSH 自己看不看得见由 DSH 决定，和导出无关。",
+    "exports.canonical": "技能本体：{path}；下面的链只是把它暴露给不直接读该目录的 Agent。",
+    "exports.none": "本机没有可导出的 Agent 目录",
     "exports.hint": "保存后按勾选建立或移除软链；技能本体留在原位置，不会移动。",
     "exports.sharedUnknown": "共享根未验证",
-    "exports.sharedRootHint": "{names} 读共享根，不在此列；它们已有的多余导出链会在保存时清理。",
     "exportDefault.detected": "装完后默认导出到",
-    "exportDefault.none": "本机没有检测到其他 Agent",
-    "exportDefault.sharedRootHint": "{names} 读共享根，不在此列：装到 ~/.agents/skills 它们本来就能看见。",
+    "exportDefault.none": "本机没有需要导出的 Agent",
     "exportDefault.hint": "默认一个都不勾：技能装进 ~/.agents/skills 后 DSH 本来就能看见。导出只用于仍只认私有目录的 Agent，且只影响之后的安装。",
     "empty.skills": "还没有安装任何技能",
     "empty.skillsHint": "在终端跑 `npx skills add owner/repo`，或点右上角「添加技能」",
@@ -165,17 +165,19 @@ var DICT = {
     "form.subHint": "只记录你关注这个仓库，不会安装任何技能。",
     "subscription.defaultRef": "默认分支",
     "confirm.deleteTitle": "删除技能",
-    "confirm.deleteBody": "会从本机移除，断开本插件建立的软链并调 skills CLI 卸载；目录先备份到回收站（保留 7 天）。不会删除你的源仓库。",
+    "confirm.deleteBody": "会从本机移除，断开本插件建立的软链并删除 canonical / lock 条目；目录先备份到回收站（保留 7 天）。不会删除你的源仓库。",
     "confirm.updateTitle": "本地有改动",
     "confirm.updateBody": "更新会覆盖这些本地改动；旧内容已备份，可回滚。",
     "error.conflictTitle": "删除被拦截",
     "busy.working": "处理中…",
     "meta.from": "来自",
     "meta.noUpstream": "无远端来源 · 不检测更新",
-    "meta.unlinked": "未导出到任何 Agent",
+    "meta.noExport": "未导出",
+    "meta.noExportHint": "没有给不支持共享根的 Agent 建导出链；直读 ~/.agents/skills 的 Agent 装好即见，无需导出。",
     "meta.modelVisible": "模型可见",
     "meta.modelHidden": "模型不可见",
-    "meta.agentsAll": "已接入的 Agent",
+    "meta.manualOnly": "仅手动",
+    "meta.agentsAll": "已导出的 Agent",
     "meta.none": "无",
     "filter.all": "全部",
     "filter.update": "可更新",
@@ -247,7 +249,7 @@ var DICT = {
     "viewer.info.localChangeNone": "无（与安装时一致）",
     "viewer.info.localChangeYes": "有本地改动",
     "viewer.info.links": "接入",
-    "viewer.info.agents": "Agent",
+    "viewer.info.exported": "已导出",
     "viewer.info.visibility": "可见性",
     "viewer.info.mode": "状态",
     "viewer.info.status": "更新",
@@ -275,6 +277,7 @@ var DICT = {
     "action.adopt": "Adopt",
     "action.save": "Save",
     "action.cancel": "Cancel",
+    "action.close": "Close",
     "action.choose": "Choose folder",
     "action.retry": "Reload",
     "view.flat": "Flat",
@@ -304,20 +307,19 @@ var DICT = {
     "toast.checked": "Checked",
     "mode.on": "Enabled",
     "mode.off": "Disabled",
-    "mode.offHint": "Disabled: a disable marker sits in the scan root, so the model cannot see it; exported agents are unaffected",
+    "mode.offHint": "Disabled for DSH’s model and `/` calls; the skill files, exports, and other agents are untouched",
     "visibility.hiddenHint": "Enabled, but no copy sits in a scan directory: check that the skill really exists under ~/.agents/skills, or inspect DSH_AGENTS_HOME.",
-    "visibility.scopeMismatch": "This project ships its own copy of the skill; the project copy wins, so it stays visible.",
+    "visibility.manualOnlyHint": "This skill declares `disable-model-invocation`: the model cannot invoke it, but manual `/` invocation still works.",
+    "visibility.scopeMismatch": "Another copy of this skill ranks first (project or user directory); disabling only affects the canonical copy.",
     "visibility.foreignWinner": "The model sees a different copy of this skill: {path} (its scan root ranks higher, so it shadows this one)",
     "exports.targets": "Export to agents",
-    "exports.detectedHint": "Only installed agents (existing directories) are listed. Exports only affect them; whether DSH sees the skill depends on its scan roots, not on exports.",
-    "exports.canonical": "Skill source: {path}; the entries below only expose it to agents that do not read the shared root.",
-    "exports.none": "No other agent directories on this machine",
+    "exports.detectedHint": "Only installed agents (existing directories) are listed. Exports only affect them; whether DSH sees the skill is up to DSH, not exports.",
+    "exports.canonical": "Skill source: {path}; the entries below only expose it to agents that do not read that directory directly.",
+    "exports.none": "No agent directories available for export on this machine",
     "exports.hint": "Saving only adds or removes links; the skill itself stays where it is.",
     "exports.sharedUnknown": "shared root unverified",
-    "exports.sharedRootHint": "{names} read the shared root, so they are not listed here; any redundant export links they already have are cleaned up on save.",
-    "exportDefault.sharedRootHint": "{names} read the shared root, so they are not listed: anything in ~/.agents/skills is already visible to them.",
     "exportDefault.detected": "Export new installs to",
-    "exportDefault.none": "No other agents detected on this machine",
+    "exportDefault.none": "No agents need exporting on this machine",
     "exportDefault.hint": "Nothing is checked by default: once a skill lands in ~/.agents/skills, DSH already sees it. Exports only matter for agents that still read their own directory, and only affect future installs.",
     "empty.skills": "No skills installed yet",
     "empty.skillsHint": 'Run `npx skills add owner/repo` or use "Add skill".',
@@ -346,17 +348,19 @@ var DICT = {
     "form.subHint": "Only records the repository; installs nothing.",
     "subscription.defaultRef": "default branch",
     "confirm.deleteTitle": "Delete skill",
-    "confirm.deleteBody": "Removes it locally, disconnects this plugin’s links and calls skills remove. A snapshot stays in trash for 7 days. Your source repo is untouched.",
+    "confirm.deleteBody": "Removes it locally, disconnects this plugin’s links, and deletes the canonical directory and lock entry. A snapshot stays in trash for 7 days. Your source repo is untouched.",
     "confirm.updateTitle": "Local changes",
     "confirm.updateBody": "Updating overwrites local changes; the old content is backed up and can be rolled back.",
     "error.conflictTitle": "Delete blocked",
     "busy.working": "Working…",
     "meta.from": "from",
     "meta.noUpstream": "no upstream · updates not checked",
-    "meta.unlinked": "not exported to any agent",
+    "meta.noExport": "Not exported",
+    "meta.noExportHint": "No export links to agents that need them; agents that read ~/.agents/skills can use it as-is.",
     "meta.modelVisible": "visible to the model",
     "meta.modelHidden": "hidden from the model",
-    "meta.agentsAll": "Connected agents",
+    "meta.manualOnly": "Manual only",
+    "meta.agentsAll": "Exported agents",
     "meta.none": "none",
     "filter.all": "All",
     "filter.update": "Updates",
@@ -429,7 +433,7 @@ var DICT = {
     "viewer.info.localChangeNone": "None (matches install)",
     "viewer.info.localChangeYes": "Modified locally",
     "viewer.info.links": "Linked",
-    "viewer.info.agents": "Agents",
+    "viewer.info.exported": "Exported",
     "viewer.info.visibility": "Visibility",
     "viewer.info.mode": "State",
     "viewer.info.status": "Updates",
@@ -2032,6 +2036,7 @@ function InstalledTab({
   actions
 }) {
   const updatable = (row) => UPDATABLE.has(row.status);
+  const sharedTargets = new Set((data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.sharedHome === "yes").map((agent) => agent.target));
   function statusTag(row) {
     if (row.status === "unknown") return null;
     if (row.status === "no-upstream") {
@@ -2063,34 +2068,39 @@ function InstalledTab({
     );
   }
   function agentChips(row) {
-    const items = (row.exports || []).filter((item) => !item.broken);
-    const labels = items.map((item) => item.label);
-    const chips = [];
-    if (labels.length === 0) {
-      return [h("span", { key: "unlinked", className: "dshsc-unlinked" }, t("meta.unlinked"))];
+    const exported = (row.exports || []).filter(
+      (item) => !item.broken && !sharedTargets.has(item.target)
+    );
+    if (exported.length === 0) {
+      return [h("span", {
+        key: "none",
+        className: "dshsc-unlinked",
+        title: t("meta.noExportHint")
+      }, t("meta.noExport"))];
     }
-    const shown = labels.slice(0, 3);
-    shown.forEach((label, index) => chips.push(h("span", {
+    const chips = [];
+    const labels = exported.map((item) => item.label);
+    const shown = exported.slice(0, 3);
+    shown.forEach((item, index) => chips.push(h("span", {
       className: "dshsc-agent",
       key: `agent-${index}`,
-      title: label
-    }, label)));
-    if (labels.length > shown.length) {
+      title: item.label
+    }, item.label)));
+    if (exported.length > shown.length) {
       const open = agentTip?.rowName === row.name;
-      const tipLabels = labels;
       chips.push(h("button", {
         type: "button",
         className: "dshsc-agent more",
         key: "more",
-        "aria-label": `${t("meta.agentsAll")}：${tipLabels.join("、")}`,
+        "aria-label": `${t("meta.agentsAll")}：${labels.join("、")}`,
         "aria-describedby": open ? "dshsc-agenttip" : void 0,
         "aria-expanded": String(open),
-        onClick: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
-        onMouseEnter: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
-        onFocus: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
+        onClick: (event) => actions.onOpenAgentTip(event, row.name, labels),
+        onMouseEnter: (event) => actions.onOpenAgentTip(event, row.name, labels),
+        onFocus: (event) => actions.onOpenAgentTip(event, row.name, labels),
         onMouseLeave: actions.onCloseAgentTip,
         onBlur: actions.onCloseAgentTip
-      }, `+${labels.length - shown.length}`));
+      }, `+${exported.length - shown.length}`));
     }
     return chips;
   }
@@ -2099,6 +2109,7 @@ function InstalledTab({
     const tracked = row.status !== "unmanaged";
     const canUpdate = writable && updatable(row);
     const hidden = !off && !row.visible;
+    const manualOnly = hidden && Boolean(row.visibility?.selfHidden);
     const visLabel = hidden ? t("meta.modelHidden") : t("meta.modelVisible");
     return h(
       "div",
@@ -2123,11 +2134,18 @@ function InstalledTab({
             onClick: () => actions.onView(row)
           }, row.name),
           statusTag(row),
+          manualOnly ? h("span", {
+            className: "dshsc-tag off",
+            title: t("visibility.manualOnlyHint"),
+            "aria-label": t("visibility.manualOnlyHint")
+          }, t("meta.manualOnly")) : null,
           off ? h("span", { className: "dshsc-tag off" }, t("status.off")) : null
         ),
         sourceLine(row),
         off ? h("div", { className: "dshsc-note" }, t("mode.offHint")) : null,
-        hidden ? h("div", { className: "dshsc-note warn" }, t("visibility.hiddenHint")) : null,
+        // manual-only 用名字旁的「仅手动」标志表达，不占一行警告；
+        // 被更靠前的同名副本盖住时由下面的 foreignWinner 点名，这里不再补「扫描目录里没有它」。
+        hidden && !manualOnly && row.visibility?.winnerIsCanonical !== false ? h("div", { className: "dshsc-note warn" }, t("visibility.hiddenHint")) : null,
         row.visibility?.shadowScopeMismatch ? h("div", { className: "dshsc-note warn" }, t("visibility.scopeMismatch")) : null,
         // 同名副本在更小的 rank 上：模型看到的不是这一份，必须点名路径
         row.visibility?.winnerIsCanonical === false ? h(
@@ -2189,7 +2207,9 @@ function InstalledTab({
     if (hiddenRows.length) groups.push({ key: "hidden", title: t("group.hidden"), rows: hiddenRows });
     for (const agent of data?.agents?.detected || []) {
       if (agent.kind !== "agent") continue;
-      const matched = visibleRows.filter((row) => (row.exports || []).some((item) => item.target === agent.target && !item.broken));
+      const matched = visibleRows.filter(
+        (row) => (row.exports || []).some((item) => item.target === agent.target && !item.broken)
+      );
       if (matched.length) groups.push({ key: agent.target, title: agent.label, rows: matched });
     }
     return groups.filter((group) => group.rows.length > 0);
@@ -2344,6 +2364,7 @@ function InstalledTab({
 
 // client/views/agent-tip.js
 function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
+  const labels = agentTip.labels || [];
   const node = h(
     "div",
     {
@@ -2357,14 +2378,15 @@ function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
       "div",
       { className: "dshsc-agenttip-head" },
       h("span", null, t("meta.agentsAll")),
-      h("span", { className: "dshsc-agenttip-n" }, agentTip.labels.length)
+      h("span", { className: "dshsc-agenttip-n" }, labels.length)
     ),
     h(
       "div",
       { className: "dshsc-agenttip-list" },
-      agentTip.labels.map((label, index) => h("span", {
+      labels.map((label, index) => h("span", {
         className: "dshsc-agent",
-        key: `agenttip-${index}`
+        key: `agenttip-${index}`,
+        title: label
       }, label))
     )
   );
@@ -2686,22 +2708,21 @@ function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
     ))
   );
 }
-function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel }) {
+function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel, hideCancel = false }) {
   return h(Overlay, {
     t,
     title,
     onCancel,
     footer: [
-      h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
+      ...hideCancel ? [] : [h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel"))],
       h("button", { key: "o", className: `dshsc-btn${danger ? " danger" : " primary"}`, onClick: onConfirm }, confirmLabel || t("action.save"))
     ]
   }, h("p", { className: "dshsc-sub", style: { whiteSpace: "pre-wrap" } }, body));
 }
-function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, onSave }) {
+function ExportsModal({ t, row, agents, onCancel, onSave }) {
   const candidates = agents.filter(
     (agent) => agent.kind === "agent" && agent.exists && agent.exportable
   );
-  const sharedRoot = sharedRootAgents.filter((agent) => agent.exists);
   const [targets, setTargets] = import_react4.default.useState(() => {
     const available = new Set(candidates.map((agent) => agent.target));
     return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
@@ -2726,7 +2747,6 @@ function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, onSave 
     h("div", { className: "dshsc-group" }, t("exports.targets")),
     h("p", { className: "dshsc-sub" }, t("exports.detectedHint")),
     h("p", { className: "dshsc-sub" }, t("exports.canonical").replace("{path}", `~/.agents/skills/${row.name}`)),
-    sharedRoot.length > 0 ? h("p", { className: "dshsc-sub" }, t("exports.sharedRootHint").replace("{names}", sharedRoot.map((agent) => agent.label).join("、"))) : null,
     candidates.length === 0 ? h("p", { className: "dshsc-sub" }, t("exports.none")) : null,
     ...candidates.map((agent) => h(
       "label",
@@ -2744,7 +2764,7 @@ function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, onSave 
     h("p", { className: "dshsc-sub" }, t("exports.hint"))
   );
 }
-function DefaultExportModal({ t, settings, agents, sharedRoot = [], onCancel, onSave }) {
+function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
   const [targets, setTargets] = import_react4.default.useState(() => new Set(
     Array.isArray(settings.exportTargets) ? settings.exportTargets : []
   ));
@@ -2777,11 +2797,10 @@ function DefaultExportModal({ t, settings, agents, sharedRoot = [], onCancel, on
       h("span", null, agent.label),
       h("small", null, agent.dir)
     ))),
-    sharedRoot.length > 0 ? h("p", { className: "dshsc-sub" }, t("exportDefault.sharedRootHint").replace("{names}", sharedRoot.map((agent) => agent.label).join("、"))) : null,
     h("p", { className: "dshsc-sub" }, t("exportDefault.hint"))
   );
 }
-function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], actions, onClose, onSaveAutoLink }) {
+function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }) {
   if (modal.type === "add-skill") {
     return h(AddSkillModal, {
       t,
@@ -2809,7 +2828,6 @@ function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], actions
       t,
       row: modal.row,
       agents: data?.agents?.all || [],
-      sharedRootAgents,
       onCancel: onClose,
       onSave: (targets) => {
         onClose();
@@ -2822,7 +2840,6 @@ function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], actions
       t,
       settings: data?.settings || {},
       agents: autoLinkAgents,
-      sharedRoot: sharedRootAgents.filter((agent) => agent.exists),
       onCancel: onClose,
       onSave: (targets) => void onSaveAutoLink(targets)
     });
@@ -2833,6 +2850,7 @@ function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], actions
       title: t("confirm.deleteTitle"),
       body: t("confirm.deleteBody"),
       danger: true,
+      confirmLabel: t("action.delete"),
       onCancel: onClose,
       onConfirm: modal.onConfirm
     });
@@ -2842,6 +2860,7 @@ function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], actions
       t,
       title: t("confirm.updateTitle"),
       body: t("confirm.updateBody"),
+      confirmLabel: t("action.update"),
       onCancel: onClose,
       onConfirm: modal.onConfirm
     });
@@ -2855,7 +2874,9 @@ function Modals({ t, modal, data, autoLinkAgents, sharedRootAgents = [], actions
 ${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join("\n")}`,
       onCancel: onClose,
       onConfirm: onClose,
-      confirmLabel: t("action.cancel")
+      confirmLabel: t("action.close"),
+      danger: true,
+      hideCancel: true
     });
   }
   return null;
@@ -3751,7 +3772,7 @@ function SkillReader({
     );
   }
   function infoPanel() {
-    const agentLabels = (row?.exports || []).filter((item) => !item.broken).map((item) => item.label);
+    const exportLabels = (row?.exports || []).filter((item) => !item.broken).map((item) => item.label);
     const hash = row?.lockHash || row?.currentHash || null;
     const rows = [];
     rows.push(["viewer.info.name", h("span", { className: "mono" }, name), "mono"]);
@@ -3771,7 +3792,7 @@ function SkillReader({
     ];
     const linkRows = [
       ["viewer.info.visibility", row?.visible ? t("meta.modelVisible") : t("meta.modelHidden")],
-      ["viewer.info.agents", agentLabels.length > 0 ? agentLabels.join("、") : t("meta.unlinked")],
+      ["viewer.info.exported", exportLabels.length > 0 ? exportLabels.join("、") : t("viewer.info.none")],
       ["viewer.info.mode", row?.enabled === false ? t("status.off") : t("mode.on")],
       ["viewer.info.status", STATUS_KEY[row?.status] ? t(STATUS_KEY[row.status]) : t("status.unknown")]
     ];
@@ -3929,7 +3950,6 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     setToast({ kind: "err", text: t("viewer.gone") });
   }, [data, rows, t, viewer]);
   const exportTargetOptions = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.exportable);
-  const sharedRootAgents = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.exportBlocked === "shared-root");
   const exportSelection = data?.settings?.exportTargets;
   const autoLinkAgents = Array.isArray(exportSelection) ? exportTargetOptions.filter((agent) => exportSelection.includes(agent.target)) : [];
   const autoLinkLabel = autoLinkAgents.length > 0 ? autoLinkAgents.map((agent) => agent.label).join("、") : t("exportDefault.none");
@@ -4098,7 +4118,6 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       modal,
       data,
       autoLinkAgents: exportTargetOptions,
-      sharedRootAgents,
       pickDirectory,
       actions: {
         probeSkills: actions.probeSkills,

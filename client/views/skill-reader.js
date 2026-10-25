@@ -464,7 +464,7 @@ export function SkillReader({
   }
 
   function infoPanel() {
-    const agentLabels = (row?.exports || [])
+    const exportLabels = (row?.exports || [])
       .filter((item) => !item.broken)
       .map((item) => item.label);
     const hash = row?.lockHash || row?.currentHash || null;
@@ -493,7 +493,9 @@ export function SkillReader({
 
     const linkRows = [
       ['viewer.info.visibility', row?.visible ? t('meta.modelVisible') : t('meta.modelHidden')],
-      ['viewer.info.agents', agentLabels.length > 0 ? agentLabels.join('、') : t('meta.unlinked')],
+      ['viewer.info.exported', exportLabels.length > 0
+        ? exportLabels.join('、')
+        : t('viewer.info.none')],
       ['viewer.info.mode', row?.enabled === false ? t('status.off') : t('mode.on')],
       ['viewer.info.status', STATUS_KEY[row?.status] ? t(STATUS_KEY[row.status]) : t('status.unknown')],
     ];

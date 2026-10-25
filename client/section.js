@@ -71,8 +71,6 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   // `exportable` 由 Host 注册表算好：读共享根的、DSH 自己扫描根的都不参与导出
   const exportTargetOptions = (data?.agents?.detected || [])
     .filter((agent) => agent.kind === 'agent' && agent.exportable);
-  const sharedRootAgents = (data?.agents?.detected || [])
-    .filter((agent) => agent.kind === 'agent' && agent.exportBlocked === 'shared-root');
   const exportSelection = data?.settings?.exportTargets;
   const autoLinkAgents = Array.isArray(exportSelection)
     ? exportTargetOptions.filter((agent) => exportSelection.includes(agent.target))
@@ -265,7 +263,6 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       modal,
       data,
       autoLinkAgents: exportTargetOptions,
-      sharedRootAgents,
       pickDirectory,
       actions: {
         probeSkills: actions.probeSkills,

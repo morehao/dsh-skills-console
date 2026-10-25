@@ -89,6 +89,29 @@ test('/subscriptions：service 抛错 → 400 + 错误码（客户端据此显�
   assert.equal(body.code, 'error.skills.upstream-failed');
 });
 
+test('/skills/:name/mode：ServiceError.status=409 时按 409 返回（能力缺失/状态冲突）', async () => {
+  const service = {
+    reloadState() {},
+    setMode: async () => {
+      throw new ServiceError('error.skills.policy-unavailable', '宿主没有 provider', { available: false }, 409);
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  await handler({
+    url: `${ROUTE_PREFIX}/skills/demo/mode`,
+    method: 'POST',
+    headers: { 'x-dsh-skills-console': '1' },
+    async *[Symbol.asyncIterator]() {
+      yield Buffer.from(JSON.stringify({ mode: 'off' }));
+    },
+  }, res);
+  assert.equal(res.out.status, 409);
+  const body = JSON.parse(res.out.body);
+  assert.equal(body.code, 'error.skills.policy-unavailable');
+  assert.deepEqual(body.detail, { available: false });
+});
+
 test('/probe：透传探测结果（多选数据源）；GET 不放行', async () => {
   const service = {
     reloadState() {},

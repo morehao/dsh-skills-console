@@ -155,7 +155,7 @@ test('扫根：身份取 frontmatter name，目录名不同也算同名', () => 
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('可见性：rank 小的赢，shadow 只遮自己这一层', () => {
+test('可见性：rank 小的赢，legacy 桩只遮自己这一份', () => {
   const root = sandbox();
   const userDsh = path.join(root, 'user-dsh');
   const userAgents = path.join(root, 'user-agents');
@@ -176,7 +176,7 @@ test('可见性：rank 小的赢，shadow 只遮自己这一层', () => {
     { source: 'user-dsh', rank: 400, path: userDsh, exists: true },
     { source: 'user-agents', rank: 500, path: userAgents, exists: true },
   ];
-  const { byName } = resolveVisibility({ roots, shadowPaths: new Set([stub]) });
+  const { byName } = resolveVisibility({ roots });
 
   const demo = byName.get('demo');
   assert.equal(demo.visible, true, '项目副本 rank 200 盖过 user 级标记 rank 400');
@@ -229,7 +229,6 @@ test('可见性：user 级标记遮住同名真身（400 > 500）', () => {
       { source: 'user-dsh', rank: 400, path: userDsh, exists: true },
       { source: 'user-agents', rank: 500, path: userAgents, exists: true },
     ],
-    shadowPaths: new Set([stub]),
   });
   const demo = byName.get('demo');
   assert.equal(demo.visible, false);
@@ -238,7 +237,7 @@ test('可见性：user 级标记遮住同名真身（400 > 500）', () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('可见性：没记账但带 marker 的标记也算停用', () => {
+test('可见性：带 disable-model-invocation 的 legacy 桩不论记没记账都算停用', () => {
   const root = sandbox();
   const userDsh = path.join(root, 'user-dsh');
   const userAgents = path.join(root, 'user-agents');
@@ -250,7 +249,6 @@ test('可见性：没记账但带 marker 的标记也算停用', () => {
       { source: 'user-dsh', rank: 400, path: userDsh, exists: true },
       { source: 'user-agents', rank: 500, path: userAgents, exists: true },
     ],
-    shadowPaths: new Set(),
   });
   assert.equal(byName.get('demo').visible, false, 'marker 在就以「停用」为准，不依赖账本');
   fs.rmSync(root, { recursive: true, force: true });

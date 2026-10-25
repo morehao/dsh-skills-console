@@ -2,6 +2,7 @@
 import { h, portalize } from '../host.js';
 
 export function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
+  const labels = agentTip.labels || [];
   const node = h('div', {
     ref: nodeRef,
     id: 'dshsc-agenttip',
@@ -13,11 +14,12 @@ export function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
   },
     h('div', { className: 'dshsc-agenttip-head' },
       h('span', null, t('meta.agentsAll')),
-      h('span', { className: 'dshsc-agenttip-n' }, agentTip.labels.length)),
+      h('span', { className: 'dshsc-agenttip-n' }, labels.length)),
     h('div', { className: 'dshsc-agenttip-list' },
-      agentTip.labels.map((label, index) => h('span', {
+      labels.map((label, index) => h('span', {
         className: 'dshsc-agent',
         key: `agenttip-${index}`,
+        title: label,
       }, label))));
   // 列表容器 overflow:hidden，必须挂到 body 才能浮在行外
   return portalize(node);
