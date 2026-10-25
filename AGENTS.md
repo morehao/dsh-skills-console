@@ -32,7 +32,7 @@
 | [lib/core/updates.js](lib/core/updates.js) | GitHub Trees 快照、REST 失败分流（限流/404/网络）、L0–L3 判定、计划 token |
 | [lib/core/trash.js](lib/core/trash.js) | 删除前快照（回收站）与备份 |
 | [lib/core/log.js](lib/core/log.js) | JSONL 事件日志，1MB 滚动，写失败不阻塞主流程 |
-| [client/](client/) | Web Client 源码（ESM）：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `markdown` / `views/*` / `section` / `surface` / `app` |
+| [client/](client/) | Web Client 源码（ESM）：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `markdown` / `scroll` / `views/*` / `section` / `surface` / `app` |
 | [scripts/build-client.mjs](scripts/build-client.mjs) | esbuild 打包：`client/` → 根 `client.js`，`--check` 校验生成物漂移 |
 | [scripts/](scripts/) | 语法自检、命名/打包校验、agent 表导出、发布与 Release 正文投影 |
 | [test/](test/) | `node --test` 用例（离线、临时 HOME、fake installer / Atom-codeload stub） |
@@ -67,7 +67,7 @@
 - 构建期依赖只有 esbuild（devDependency）；runtime **只允许** `tar@7.5.22`（native installer）一个依赖，精确版本，不要新增其他 `dependencies`。
 - `client.js.map` 只用于本地调试（`npm run build:client -- --sourcemap`）：不提交、不入包。
 - 文案：`client/copy.js` 的 `zh` / `en` 键集合与 `{n}` / `{path}` 占位符必须一一对应；新增文案必须两份一起加。
-- 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `markdown` / `views/*` / `section` / `surface` / `app` / `index`；禁止循环依赖；`hooks` / `actions` 只依赖 `api`，`views` 不直接发请求（查看器的取数走 `hooks.useSkillReader`）。
+- 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `markdown` / `scroll` / `views/*` / `section` / `surface` / `app` / `index`；禁止循环依赖；`hooks` / `actions` 只依赖 `api`，`views` 不直接发请求（查看器的取数走 `hooks.useSkillReader`）。`scroll` 是只碰 DOM 的基础设施，不依赖 React / `api` / `views`，列表区与查看器共用同一套滚动容器口径。
 - 查看器（抽屉 / 整页）是只读视图：正文与文件都来自 Host 的两个 `GET` 接口，接口契约见 [docs/skill-viewer.md](docs/skill-viewer.md)；新增读逻辑时不要绕开 `lib/core/skill-files.js` 的路径校验。
 
 ### 包与发布
@@ -93,7 +93,7 @@
 | 监听源码并自动重建（配合 `link:` HMR） | `npm run dev:client` |
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
-| 单元测试（230 例，离线；真实网络对拍默认 skip） | `npm test` |
+| 单元测试（235 例，离线；真实网络对拍默认 skip） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |

@@ -5,7 +5,7 @@
  * fenced code、有序 / 无序 / 任务列表（最多两层嵌套）、引用、水平线、表格（含对齐）。
  * 认不出的语法一律退回段落文本；原始 HTML 当纯文本，不执行。
  *
- * 渲染交给 `views/skill-reader.js` 的 `Markdown` 组件（用 h 建节点，不用 innerHTML）。
+ * 渲染交给 `views/markdown-view.js` 的 `Markdown` 组件（用 h 建节点，不用 innerHTML）。
  */
 
 /** 链接分类：外部 / 文内锚点 / 技能内相对路径 / 不可点。 */

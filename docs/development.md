@@ -16,7 +16,7 @@ lib/routes.js       HTTP 路由（prefix /api/morehao/skills-console）
 lib/core/           领域逻辑：清单、软链、native installer（下载/解压/发现/tree/lock）、
                     更新、删除、订阅、哈希、状态、日志、Atom/codeload 限流兜底
 client/             Web Client 源码（ESM）：host / copy / styles / api / icons /
-                    hooks / actions / views/* / section / surface / app / index
+                    hooks / actions / markdown / scroll / views/* / section / surface / app / index
 client.js           Web Client 构建产物（npm run build:client 生成，不要手改，但要提交）
 scripts/build-client.mjs  esbuild 打包脚本（--check 校验漂移 / --watch / --sourcemap）
 locale/{zh,en}.json 分区标题与描述
@@ -29,7 +29,7 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test          # node --test "test/*.test.mjs"，184 例
+npm test          # node --test "test/*.test.mjs"，235 例
 npm run check     # 机械校验：语法 + 生成物一致性（check:client）+ 命名 + 打包 + Release 说明投影
 ```
 
