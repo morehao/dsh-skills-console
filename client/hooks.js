@@ -179,3 +179,86 @@ export function useAgentTip() {
 
   return { agentTip, agentTipPos, agentTipRef, openAgentTip, closeAgentTip };
 }
+
+/**
+ * 查看器数据：并行拉正文与文件树，`loadFile` 按需拉单个文件。
+ * 只读接口，绝不触发写动作；请求带序号，晚到的响应直接丢弃（切技能 / 关闭时不会串数据）。
+ */
+export function useSkillReader(row) {
+  const name = row?.name || null;
+  // 同一技能的 commit / 哈希 / 更新时间变了（更新过、启停过）就重拉，避免显示旧正文
+  const stamp = row
+    ? [row.commit || '', row.currentHash || '', row.updatedAt || '', row.status || ''].join('|')
+    : '';
+  const [state, setState] = React.useState({ loading: true, body: null, tree: null, bodyError: null, treeError: null });
+  const [file, setFile] = React.useState({ relPath: null, content: '', size: 0, truncated: false, loading: false, error: null });
+  const [tick, setTick] = React.useState(0);
+  const seq = React.useRef(0);
+  const fileSeq = React.useRef(0);
+
+  React.useEffect(() => {
+    if (!name) {
+      setState({ loading: false, body: null, tree: null, bodyError: null, treeError: null });
+      return;
+    }
+    const ticket = seq.current + 1;
+    seq.current = ticket;
+    setState({ loading: true, body: null, tree: null, bodyError: null, treeError: null });
+    const encoded = encodeURIComponent(name);
+    void (async () => {
+      const [bodyResult, treeResult] = await Promise.allSettled([
+        apiCall('GET', `/skills/${encoded}`),
+        apiCall('GET', `/skills/${encoded}/files`),
+      ]);
+      if (ticket !== seq.current) return;
+      setState({
+        loading: false,
+        body: bodyResult.status === 'fulfilled' ? bodyResult.value : null,
+        tree: treeResult.status === 'fulfilled' ? treeResult.value : null,
+        // 没有 SKILL.md 时正文失败但树还在：文件 tab 仍可用
+        bodyError: bodyResult.status === 'rejected'
+          ? { code: bodyResult.reason?.code || null, message: bodyResult.reason?.message || '读取失败' }
+          : null,
+        treeError: treeResult.status === 'rejected'
+          ? { code: treeResult.reason?.code || null, message: treeResult.reason?.message || '读取失败' }
+          : null,
+      });
+    })();
+  }, [name, stamp, tick]);
+
+  const loadFile = React.useCallback(async (relPath) => {
+    if (!name || !relPath) return;
+    const ticket = fileSeq.current + 1;
+    fileSeq.current = ticket;
+    setFile({ relPath, content: '', size: 0, truncated: false, loading: true, error: null });
+    try {
+      const result = await apiCall('GET', `/skills/${encodeURIComponent(name)}?path=${encodeURIComponent(relPath)}`);
+      if (ticket !== fileSeq.current) return;
+      setFile({
+        relPath: result.relPath || relPath,
+        content: result.content || '',
+        size: result.size || 0,
+        truncated: Boolean(result.truncated),
+        loading: false,
+        error: null,
+        mtime: result.mtime || null,
+      });
+    } catch (error) {
+      if (ticket !== fileSeq.current) return;
+      setFile({
+        relPath,
+        content: '',
+        size: 0,
+        truncated: false,
+        loading: false,
+        error: { code: error?.code || null, message: error?.message || '读取失败' },
+      });
+    }
+  }, [name]);
+
+  const retry = React.useCallback(() => {
+    setTick((value) => value + 1);
+  }, []);
+
+  return { state, file, loadFile, retry };
+}

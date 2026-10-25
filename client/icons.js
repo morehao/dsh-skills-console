@@ -201,3 +201,62 @@ export function SearchIcon({ size = 13 }) {
   h('circle', { cx: 11, cy: 11, r: 6.4 }),
   h('path', { d: 'M16 16l4.3 4.3' }));
 }
+
+const STROKE_ICON = {
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.8,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+};
+
+/** 查看：眼睛。行内「查看」按钮用。 */
+export function EyeIcon({ size = 13 }) {
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
+    style: { display: 'block' },
+  },
+  h('path', { d: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z' }),
+  h('circle', { cx: 12, cy: 12, r: 3 }));
+}
+
+/**
+ * 复制。几何取自 lucide 的 copy（14×14 方块 + 左上回字），
+ * 包围盒严格对称于 (12,12)，小尺寸下不会看起来偏左上。
+ */
+export function CopyIcon({ size = 13 }) {
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
+    style: { display: 'block' },
+  },
+  h('rect', { x: 8, y: 8, width: 14, height: 14, rx: 2 }),
+  h('path', { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' }));
+}
+
+/** 返回 / 上一级。 */
+export function ChevronLeftIcon({ size = 14 }) {
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
+    style: { display: 'block' },
+  },
+  h('path', { d: 'm15 18-6-6 6-6' }));
+}
+
+/** 文件。 */
+export function FileIcon({ size = 12 }) {
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
+    style: { display: 'block', flex: 'none' },
+  },
+  h('path', { d: 'M6 3.5h7l5 5V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 20V5a1.5 1.5 0 0 1 1-1.5z' }),
+  h('path', { d: 'M13 3.5V9h5' }));
+}
+
+/** 目录。 */
+export function FolderIcon({ size = 12 }) {
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
+    style: { display: 'block', flex: 'none' },
+  },
+  h('path', { d: 'M3.5 7.5A1.5 1.5 0 0 1 5 6h4l1.8 2.2H19a1.5 1.5 0 0 1 1.5 1.5V18A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z' }));
+}

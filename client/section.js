@@ -15,6 +15,7 @@ import { InstalledTab } from './views/installed.js';
 import { AgentTip } from './views/agent-tip.js';
 import { SubscriptionsTab } from './views/subscriptions.js';
 import { Modals } from './views/modals.js';
+import { SkillReader } from './views/skill-reader.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
@@ -28,6 +29,9 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   // POST /settings 成功后 data 还是旧的；用本地覆盖值，避免开关弹回旧状态（重开面板时尤其明显）
   const [placementOverride, setPlacementOverride] = React.useState(null);
   const [query, setQuery] = React.useState('');
+  const [viewer, setViewer] = React.useState(null);
+  const rootRef = React.useRef(null);
+  const scrollPos = React.useRef(null);
   const [filter, setFilter] = React.useState('all');
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
@@ -54,6 +58,13 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     return [row.name, row.source || '', ...agentLabels].join(' ').toLowerCase().includes(queryText);
   });
 
+  React.useEffect(() => {
+    if (!viewer || !data) return;
+    if (rows.some((row) => row.name === viewer.name)) return;
+    setViewer(null);
+    setToast({ kind: 'err', text: t('viewer.gone') });
+  }, [data, rows, t, viewer]);
+
   const autolinkTargets = (data?.agents?.detected || []).filter((agent) => agent.kind === 'agent');
   const autoLinkSelection = data?.settings?.autoLinkTargets;
   const autoLinkAgents = Array.isArray(autoLinkSelection)
@@ -63,6 +74,48 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const autoLinkDsh = (data?.agents?.all || []).find((agent) => agent.target === 'dsh-global') || null;
   const autoLinkLabel = [t('links.dshGlobal'), ...autoLinkAgents.map((agent) => agent.label)].join('、');
   const placement = (placementOverride ?? data?.settings?.placement) === 'sidebar' ? 'sidebar' : 'settings';
+
+  /** 最近的滚动容器：整页会替换列表，返回时要按原位置还原。 */
+  function getScrollParent(node) {
+    let current = node?.parentElement || null;
+    while (current) {
+      if (typeof getComputedStyle === 'function') {
+        const style = getComputedStyle(current);
+        if (style && /(auto|scroll)/.test(style.overflowY || '') && current.scrollHeight > current.clientHeight) {
+          return current;
+        }
+      }
+      current = current.parentElement || null;
+    }
+    return typeof document !== 'undefined' ? document.scrollingElement || null : null;
+  }
+
+  function openViewer(row, mode = 'drawer') {
+    if (!row) return;
+    if (mode === 'page') {
+      scrollPos.current = getScrollParent(rootRef.current)?.scrollTop ?? 0;
+    }
+    setViewer({ name: row.name, mode });
+  }
+
+  function openPage() {
+    setViewer((prev) => {
+      if (!prev) return prev;
+      scrollPos.current = getScrollParent(rootRef.current)?.scrollTop ?? 0;
+      return { ...prev, mode: 'page' };
+    });
+  }
+
+  function closeViewer() {
+    const restore = viewer?.mode === 'page' ? scrollPos.current : null;
+    setViewer(null);
+    if (restore === null || typeof window === 'undefined') return;
+    const apply = () => {
+      const scroller = getScrollParent(rootRef.current);
+      if (scroller) scroller.scrollTop = restore;
+    };
+    if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(apply);
+  }
 
   async function changePlacement(next) {
     if (next === placement || placementBusy) return;
@@ -85,6 +138,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   }
 
   const installedActions = {
+    onView: (row) => openViewer(row),
     onAdopt: actions.adopt,
     onToggleMode: actions.toggleMode,
     onUpdate: actions.requestUpdate,
@@ -109,10 +163,27 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onAdd: actions.requestAddSubscription,
   };
 
-  const root = h(
-    'div',
-    { className: 'dshsc-root' },
-    h('style', null, CSS),
+  // 查看器：抽屉挂在列表之上（portal 到 body，面板 overflow 裁不到）；整页则整块替换列表区
+  const viewerRow = viewer ? rows.find((row) => row.name === viewer.name) || null : null;
+  const readerNode = viewerRow
+    ? h(SkillReader, {
+        t,
+        variant: viewer.mode,
+        row: viewerRow,
+        writable,
+        busy,
+        readOnly: Boolean(data?.readOnly),
+        onClose: closeViewer,
+        onOpenPage: viewer.mode === 'drawer' ? openPage : null,
+        onUpdate: actions.requestUpdate,
+        onLinks: (row) => setModal({ type: 'links', row }),
+        onToast: (next) => setToast(next),
+      })
+    : null;
+
+  // 查看器的位置固定（列表区之后、toast 之前）：抽屉 / 整页只换外壳不换位置，
+  // 这样「在整页打开」不会卸载 SkillReader，tab、渲染 / 原文与已加载的正文都留着。
+  const listNode = h(React.Fragment, null,
     h(Header, {
       t,
       page,
@@ -178,6 +249,14 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
         }),
 
     busy ? h('div', { className: 'dshsc-meta' }, `${t('busy.working')} ${busy}`) : null,
+  );
+
+  const root = h(
+    'div',
+    { className: 'dshsc-root', ref: rootRef },
+    h('style', null, CSS),
+    viewer?.mode === 'page' ? null : listNode,
+    readerNode,
     toast ? h('div', { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
     modal ? h(Modals, {
       t,

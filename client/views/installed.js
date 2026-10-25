@@ -4,7 +4,7 @@
  */
 import { h } from '../host.js';
 import { short } from '../api.js';
-import { InfoIcon, RefreshIcon, TrashIcon } from '../icons.js';
+import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon } from '../icons.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
@@ -18,6 +18,13 @@ export function InstalledTab({
   function statusTag(row) {
     // 「待检查」不逐行刷：由列表头的计数与底部提示承接
     if (row.status === 'unknown') return null;
+    // 「无上游」不是待检查：没有可用订阅就永远无法检查更新。
+    // 连来源都没有时，下面的 sourceLine 已经写了「无远端来源 · 不检测更新」，不再重复一枚同义标签
+    if (row.status === 'no-upstream') {
+      return row.source
+        ? h('span', { className: 'dshsc-tag', title: t('status.noUpstreamHint') }, t('status.noUpstream'))
+        : null;
+    }
     const map = {
       current: ['status.current', 'ok', true],
       'update-available': ['status.update', 'warn'],
@@ -101,7 +108,13 @@ export function InstalledTab({
         h(
           'div',
           { className: 'dshsc-namerow' },
-          h('span', { className: 'dshsc-name', title: row.name }, row.name),
+          h('button', {
+            type: 'button',
+            className: 'dshsc-name dshsc-namebtn',
+            title: row.name,
+            'aria-haspopup': 'dialog',
+            onClick: () => actions.onView(row),
+          }, row.name),
           statusTag(row),
           off ? h('span', { className: 'dshsc-tag off' }, t('status.off')) : null,
         ),
@@ -123,6 +136,13 @@ export function InstalledTab({
           onClick: () => void actions.onToggleMode(row),
           title: tracked ? (row.mode === 'on' ? t('mode.off') : t('mode.on')) : t('adopt.switchHint'),
         }, h('span', { className: 'dshsc-knob' })),
+        h('button', {
+          className: 'dshsc-btn ghost dshsc-view',
+          disabled: busy !== null,
+          'aria-haspopup': 'dialog',
+          title: t('action.view'),
+          onClick: () => actions.onView(row),
+        }, h(EyeIcon, { size: 12 }), t('action.view')),
         row.status === 'unmanaged'
           ? h('button', {
               className: 'dshsc-btn ghost',

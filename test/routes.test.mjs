@@ -119,3 +119,71 @@ test('/probe：透传探测结果（多选数据源）；GET 不放行', async (
   await handler({ url: `${ROUTE_PREFIX}/probe`, method: 'GET', headers: { 'x-dsh-skills-console': '1' } }, getRes);
   assert.equal(getRes.out.status, 404, '探测只接受 POST');
 });
+
+test('/skills/:name：query.path 透传给 service（读技能内的其他文件）', async () => {
+  const calls = [];
+  const service = {
+    reloadState() {},
+    listSkillBody: async (args) => {
+      calls.push(args);
+      return { ok: true, name: args.name, relPath: args.path, content: '# x\n' };
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  await handler({
+    url: `${ROUTE_PREFIX}/skills/project-insight?path=references/grounding-guide.md`,
+    method: 'GET',
+    headers: { 'x-dsh-skills-console': '1' },
+  }, res);
+
+  assert.equal(res.out.status, 200);
+  assert.deepEqual(calls, [{ name: 'project-insight', path: 'references/grounding-guide.md' }]);
+});
+
+test('/skills/:name/files：新读取路由，名字解码后交给 service', async () => {
+  const calls = [];
+  const service = {
+    reloadState() {},
+    listSkillFiles: async (args) => {
+      calls.push(args);
+      return { ok: true, name: args.name, files: [{ path: 'SKILL.md', kind: 'file', size: 3 }] };
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  await handler({
+    url: `${ROUTE_PREFIX}/skills/demo/files`,
+    method: 'GET',
+    headers: { 'x-dsh-skills-console': '1' },
+  }, res);
+
+  assert.equal(res.out.status, 200);
+  assert.deepEqual(JSON.parse(res.out.body).files, [{ path: 'SKILL.md', kind: 'file', size: 3 }]);
+  assert.deepEqual(calls, [{ name: 'demo' }]);
+
+  const missing = fakeRes();
+  await handler({ url: `${ROUTE_PREFIX}/skills/demo/files`, method: 'GET', headers: {} }, missing);
+  assert.equal(missing.out.status, 403, '读接口同样要自定义鉴权头');
+});
+
+test('/skills/:name：读取层的错误码 → 400，客户端据此显示失败原因', async () => {
+  const service = {
+    reloadState() {},
+    listSkillBody: async () => {
+      throw new ServiceError('error.skills.bad-path', '文件路径不能越出技能目录');
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  await handler({
+    url: `${ROUTE_PREFIX}/skills/demo?path=../outside.md`,
+    method: 'GET',
+    headers: { 'x-dsh-skills-console': '1' },
+  }, res);
+
+  assert.equal(res.out.status, 400);
+  const body = JSON.parse(res.out.body);
+  assert.equal(body.ok, false);
+  assert.equal(body.code, 'error.skills.bad-path');
+});
