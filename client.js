@@ -3080,6 +3080,22 @@ var MARKDOWN = /\.(md|markdown)$/i;
 function isMarkdownPath(relPath) {
   return MARKDOWN.test(String(relPath || ""));
 }
+function nearestScroller(node) {
+  let current = node?.parentElement || null;
+  while (current) {
+    if (typeof getComputedStyle === "function") {
+      const style = getComputedStyle(current);
+      if (style && /(auto|scroll)/.test(style.overflowY || "") && current.scrollHeight > current.clientHeight + 4) {
+        return current;
+      }
+    }
+    current = current.parentElement || null;
+  }
+  return typeof document !== "undefined" ? document.scrollingElement || null : null;
+}
+function scrollHost(node) {
+  return node && nearestScroller(node) || node;
+}
 var STATUS_KEY = {
   current: "status.current",
   "update-available": "status.update",
@@ -3324,26 +3340,28 @@ function SkillReader({
     if (variant !== "page" || typeof window === "undefined") return void 0;
     const node = bodyRef.current;
     if (!node?.querySelectorAll) return void 0;
+    const scroller = scrollHost(node);
     const sync = () => {
-      const containerTop = node.getBoundingClientRect?.().top ?? 0;
+      const line = (scroller?.getBoundingClientRect?.().top ?? 0) + 96;
       let current = null;
       for (const element of Array.from(node.querySelectorAll("[data-md-id]"))) {
         const top = element.getBoundingClientRect?.().top ?? 0;
-        if (top - containerTop <= 96) current = element.getAttribute("data-md-id");
+        if (top <= line) current = element.getAttribute("data-md-id");
       }
       setTocActive(current || headings[0]?.id || null);
     };
     sync();
-    node.addEventListener?.("scroll", sync, { passive: true });
-    return () => node.removeEventListener?.("scroll", sync);
+    scroller?.addEventListener?.("scroll", sync, { passive: true });
+    return () => scroller?.removeEventListener?.("scroll", sync);
   }, [variant, headings.length, tab, bodyText]);
   function scrollToAnchor(id) {
     const node = bodyRef.current;
     if (!node?.querySelectorAll) return;
     const target = Array.from(node.querySelectorAll("[data-md-id]")).find((element) => element.getAttribute("data-md-id") === id);
     if (!target) return;
-    const offset = target.getBoundingClientRect().top - node.getBoundingClientRect().top;
-    node.scrollTop = Math.max(0, node.scrollTop + offset - 12);
+    const scroller = scrollHost(node);
+    const offset = target.getBoundingClientRect().top - (scroller?.getBoundingClientRect?.().top ?? 0);
+    if (scroller) scroller.scrollTop = Math.max(0, (scroller.scrollTop || 0) + offset - 12);
     setTocActive(id);
   }
   function openLinkedFile(href) {
