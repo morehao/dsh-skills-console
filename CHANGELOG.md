@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.6] - 2026-10-25
+
+### Fixes
+
+- **client**: 页头按内容换行，避免窄面板截断安装标识 (#42)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.5...v0.3.6
+
 ## [v0.3.5] - 2026-10-25
 
 ### Fixes
