@@ -1,5 +1,22 @@
 # Changelog
 
+## [v0.3.8] - 2026-10-25
+
+### Fixes
+
+- **client**: 查看器文件 tab 左树右预览，长描述可展开 (#47)
+
+### Refactors
+
+- **client**: 拆开弹窗外壳与添加技能流程 (#51)
+- **client**: 收拢滚动容器探测，抽出正文渲染器 (#49)
+
+### Docs
+
+- **agents**: 把本地 link 验证固化为标准流程（验证后即回退） (#48)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.7...v0.3.8
+
 ## [v0.3.7] - 2026-10-25
 
 ### Fixes
