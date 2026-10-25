@@ -116,23 +116,42 @@ test('删停用标记：删掉目录，不留残骸；不删别人的目录', ()
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('扫根：目录包 / 平铺 .md / 软链 / 点文件都按口径处理', () => {
+test('扫根：目录包 / 平铺 .md / 软链 / 点文件都按宿主口径处理', () => {
   const root = sandbox();
   const dir = path.join(root, 'skills');
   realSkill(path.join(dir, 'dir-skill'), 'dir-skill');
-  fs.writeFileSync(path.join(dir, 'flat.md'), '---\nname: flat\n---\n');
+  fs.writeFileSync(path.join(dir, 'flat.md'), '---\nname: flat\ndescription: 平铺\n---\n');
   fs.mkdirSync(path.join(dir, '.hidden'));
   fs.mkdirSync(path.join(dir, 'no-skill'));
   fs.symlinkSync(path.join(dir, 'dir-skill'), path.join(dir, 'linked'), 'dir');
 
-  const entries = scanSkillRoot(dir);
+  const { entries, ignored } = scanSkillRoot(dir);
   const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry]));
   assert.equal(byName['dir-skill'].kind, 'dir');
   assert.equal(byName['dir-skill'].hasSkillFile, true);
   assert.equal(byName.flat.kind, 'file');
-  assert.equal(byName['no-skill'].hasSkillFile, false);
-  assert.equal(byName.linked.linked, true, '导出模式下的链要能扫出来');
+  // 链指向同一个技能：名字还是 frontmatter 的 `dir-skill`，只是多了一份 linked 候选
+  const dirCandidates = entries.filter((entry) => entry.name === 'dir-skill');
+  assert.equal(dirCandidates.length, 2, '导出链扫得出来');
+  assert.equal(dirCandidates.filter((entry) => entry.linked).length, 1, '其中一份是链');
+  assert.equal(dirCandidates.find((entry) => entry.linked).dirName, 'linked');
   assert.equal('hidden' in byName, false, '点开头的一律跳过');
+  // 宿主只认 frontmatter 齐全的 `SKILL.md`，没有的就当不存在——不能出现在可见技能里
+  assert.equal('no-skill' in byName, false);
+  assert.equal(ignored.find((item) => item.name === 'no-skill')?.reason, 'no-skill-file');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('扫根：身份取 frontmatter name，目录名不同也算同名', () => {
+  const root = sandbox();
+  const dir = path.join(root, 'skills');
+  realSkill(path.join(dir, 'real-one'), 'demo');
+  realSkill(path.join(dir, 'demo.bak-20260101-000000'), 'demo');
+  const { entries } = scanSkillRoot(dir);
+  const demos = entries.filter((entry) => entry.name === 'demo');
+  assert.equal(demos.length, 2, '同名两份都在，合并规则交给 visibility');
+  assert.deepEqual(demos.map((entry) => entry.dirName).sort(), ['demo.bak-20260101-000000', 'real-one']);
+  assert.equal(demos.find((entry) => entry.dirName === 'demo.bak-20260101-000000').nameMismatch, true);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -170,6 +189,30 @@ test('可见性：rank 小的赢，shadow 只遮自己这一层', () => {
   const projectOnly = byName.get('project-only');
   assert.equal(projectOnly.visible, false, 'project 级标记赢了同 rank 的 user 真身');
 
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('可见性：同名副本目录名不同也会互相遮盖（宿主按 frontmatter name 去重）', () => {
+  const root = sandbox();
+  const userDsh = path.join(root, 'user-dsh');
+  const userAgents = path.join(root, 'user-agents');
+  // canonical 里的真身，和 ~/.dsh/skills 里一份叫 `demo.bak-2026…` 的旧备份
+  realSkill(path.join(userAgents, 'demo'), 'demo');
+  realSkill(path.join(userDsh, 'demo.bak-20260101-000000'), 'demo');
+
+  const roots = [
+    { source: 'user-dsh', rank: 400, path: userDsh, exists: true },
+    { source: 'user-agents', rank: 500, path: userAgents, exists: true },
+  ];
+  const { byName } = resolveVisibility({ roots });
+  assert.equal(byName.has('demo.bak-20260101-000000'), false, '不能凭空多出一个叫备份目录名的技能');
+
+  const demo = byName.get('demo');
+  assert.equal(demo.visible, true);
+  assert.equal(demo.winnerSource, 'user-dsh', 'rank 400 赢');
+  assert.equal(demo.winnerDirName, 'demo.bak-20260101-000000');
+  assert.equal(demo.nameConflict, true);
+  assert.deepEqual(demo.shadowedBy.map((item) => item.dirName), ['demo'], 'canonical 那份被盖住');
   fs.rmSync(root, { recursive: true, force: true });
 });
 

@@ -101,7 +101,7 @@
 | 校验生成物与源码一致（`npm run check` 已含） | `npm run check:client` |
 | 全量机械校验（需先 `npm install`） | `npm run check` |
 | import 图循环检测（`client/` + `lib/`） | `npm run check:cycles` |
-| 单元测试（269 例，离线；真实网络对拍默认 skip） | `npm test` |
+| 单元测试（273 例，离线；真实网络对拍默认 skip） | `npm test` |
 | 单文件语法自检 | `node --check lib/core/service.js` |
 | 三处命名 / `exports` / `files` 接线 | `node scripts/check-naming.mjs` |
 | 打包白名单 | `node scripts/check-pack.mjs` |

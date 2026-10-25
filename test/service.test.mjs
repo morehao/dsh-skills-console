@@ -252,6 +252,30 @@ test('启停：off 建停用标记（不删真身、不动其他 Agent）；on �
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('同名副本：模型看到的是更小 rank 的那份，账本要说出来', async () => {
+  const { root, home, paths, store, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: ['dsh-global'] });
+
+  // 模拟用户手工留在 ~/.dsh/skills 的一份旧备份：目录名不同，frontmatter 却叫 alpha
+  const bak = path.join(home, '.dsh', 'skills', 'alpha.bak-20260101-000000');
+  fs.mkdirSync(bak, { recursive: true });
+  fs.writeFileSync(path.join(bak, 'SKILL.md'), '---\nname: alpha\ndescription: 旧备份\n---\nbody\n');
+
+  const state = await service.getState({});
+  const row = state.installs.find((item) => item.name === 'alpha');
+  assert.equal(row.visible, true);
+  assert.equal(row.visibility.winnerSource, 'user-dsh', '400 盖住 500');
+  assert.equal(row.visibility.winnerIsCanonical, false, '可见的不是 canonical 这一份');
+  assert.equal(row.visibility.nameConflict, true);
+  assert.equal(row.visibility.winnerPath, bak);
+  // 被盖住的候选包括 canonical（500）与宿主 snapshot（600）
+  assert.deepEqual(row.visibility.shadowedBy.map((item) => item.source).sort(), ['bundled', 'user-agents']);
+  // 备份目录不能自己变成一个可见技能名
+  assert.equal(state.visible.some((item) => item.name === 'alpha.bak-20260101-000000'), false);
+  assert.equal(store.state.shadows.length, 0);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('删除：体检拦截真实目录；通过后进回收站并清记账', async () => {
   const { root, home, paths, store, service } = setup();
   await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: ['dsh-global', 'agent:claude-code'] });

@@ -414,6 +414,32 @@ test('未纳入追踪：开关禁用、不谎报「可用 DSH」、保留接管�
   assert.equal(switches[0].props['aria-checked'], 'false');
 });
 
+test('同名副本：可见的不是这一份时，点名模型实际看到的那份', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    installs: [
+      ROW({
+        visibility: {
+          dsh: true,
+          shadowed: false,
+          winnerSource: 'user-dsh',
+          winnerPath: '/Users/x/.dsh/skills/git-kit.bak-20260101-000000',
+          winnerIsCanonical: false,
+          nameConflict: true,
+          sources: { 'user-dsh': 'present', 'user-agents': 'present' },
+          shadowScopeMismatch: false,
+        },
+      }),
+    ],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const text = textOf(stub.render(Component, {}, first.hooks).tree);
+  assert.ok(text.includes('模型看到的是另一份同名技能'), '要有一条告警');
+  assert.ok(text.includes('git-kit.bak-20260101-000000'), '并写出真相所在的路径');
+});
+
 test('可见性差异：内置技能是说明，其他来源才算告警', async () => {
   const { Component, stub } = loadModule({
     ...STATE,

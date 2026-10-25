@@ -90,6 +90,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 - **停用桩自带出处**：桩目录里有 `.dsh-skills-console.json`，记录技能名、作用域与真身内容哈希。只有带这个标记的目录才算本插件建的；别人的同名真实目录一律不碰（报冲突，不改写）。
 - **哪些 Agent 不需要导出**：`lib/agent-table.json` 里 `universal: true` 的条目自己也读 `~/.agents/skills`——装好就看得见，导出是多余的。当前表里 11 个：Amp、Antigravity、Antigravity CLI、Cursor、Deepagents、Droid、Firebender、Gemini CLI、GitHub Copilot、Kilo、OpenCode。表由 `npm run sync:agents` 从上游 [skills](https://github.com/vercel-labs/skills) 生成，不要手改：输入可以是仓库里的 `src/agents.ts`，也可以是发布包里的 `node_modules/skills/dist/cli.mjs`（两者解析结果一致）。表头记录了出处（`upstream: {name, version, from}`），据此判断落后了几版。
 - **可见性以扫描为准**：`/state` 的 `visible` 来自真扫一遍各扫描根 + 宿主 `snapshot()`，不是从账本推的。账本与磁盘不一致时会出现在 `diagnostics.drift` 里（导出悬空、停用桩丢失、启用却不可见……）。
+- **技能身份是 `SKILL.md` 的 frontmatter `name`，不是目录名**：宿主 `discoverRoot` 读 frontmatter 的 `name` 作为技能名，所以 `xxx.bak-20260101/` 这种目录（frontmatter 还写着 `name: xxx`）会被当成 `xxx`，和朋友那份真身在同一个名字上抢 rank——rank 小的赢。控制台因此在行内点名「模型看到的是另一份同名技能：`<path>`」，不假装可见的就是 canonical 那一份。同理，没有 `SKILL.md`、缺 `name`/`description`、名字不合法的目录，宿主根本不当技能看，控制台也不再把它算进可见列表。
 - **可回滚**：删除进回收站（7 天）；更新前快照到 `backups/`，失败自动还原（接口另提供手动回滚）。
 - **状态坏了就只读**：`state.json` 是坏 JSON 或版本未知时，插件降级为只读并让写接口返回 409，不猜结构、不自动修复。
 - **不做任意路径**：请求里的目标一律走注册表反查，软链目标恒为 canonical 下同名目录。

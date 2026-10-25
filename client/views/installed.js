@@ -124,6 +124,14 @@ export function InstalledTab({
         row.visibility?.shadowScopeMismatch
           ? h('div', { className: 'dshsc-note warn' }, t('visibility.scopeMismatch'))
           : null,
+        // 同名副本在更小的 rank 上：模型看到的不是这一份，必须点名路径
+        row.visibility?.winnerIsCanonical === false
+          ? h(
+              'div',
+              { className: 'dshsc-note warn' },
+              t('visibility.foreignWinner').replace('{path}', row.visibility.winnerPath || '?'),
+            )
+          : null,
         row.status === 'broken-link' ? h('div', { className: 'dshsc-note warn' }, t('status.brokenHint')) : null,
       ),
       h('div', { className: 'dshsc-agents' }, agentChips(row)),
