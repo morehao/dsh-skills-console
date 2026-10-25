@@ -16,9 +16,9 @@ export function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
       h('span', { className: 'dshsc-agenttip-n' }, agentTip.labels.length)),
     h('div', { className: 'dshsc-agenttip-list' },
       agentTip.labels.map((label, index) => h('span', {
-        className: `dshsc-agent${label === 'DSH' ? ' dsh' : ''}`,
+        className: 'dshsc-agent',
         key: `agenttip-${index}`,
-      }, label === 'DSH' ? h('i', { className: 'dshsc-dot' }) : null, label))));
+      }, label))));
   // 列表容器 overflow:hidden，必须挂到 body 才能浮在行外
   return portalize(node);
 }

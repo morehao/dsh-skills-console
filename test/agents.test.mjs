@@ -6,6 +6,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { CLI_AGENT_DIRS, SHARED_HOME_VERIFIED, createRegistry, sharedHomeOf } from '../lib/core/agents.js';
 import { createPaths } from '../lib/core/paths.js';
+import { dshScanRootPaths, listRoots } from '../lib/core/roots.js';
 import { emptyState } from '../lib/core/state.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -116,6 +117,34 @@ test('共享根：由 agent 表的 universal 位决定，不再靠手写猜测',
   const byKey = (key) => registry.all().find((entry) => entry.target === `agent:${key}`);
   assert.equal(byKey('claude-code').sharedHome, 'no');
   assert.equal(byKey('opencode').sharedHome, 'yes');
-  assert.equal(registry.all().find((entry) => entry.target === 'dsh-global').sharedHome, 'unknown');
+  // DSH 在 direct 模式下必然读共享根（canonical 就是 rank 500 扫描根）
+  assert.equal(registry.all().find((entry) => entry.target === 'dsh-global').sharedHome, 'yes');
+
+  // 导出资格收敛到一条判据：dsh 的扫描根 / 读共享根 / canonical 自己都不导出
+  const dsh = registry.all().find((entry) => entry.target === 'dsh-global');
+  assert.equal(dsh.exportBlocked, 'dsh-native-root');
+  assert.equal(dsh.exportable, false);
+  assert.equal(byKey('opencode').exportBlocked, 'shared-root');
+  assert.equal(byKey('claude-code').exportable, true);
+  assert.equal(byKey('claude-code').exportBlocked, null);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('扫描根表：dshScanRootPaths 与 listRoots 的本地根一致（防两处漂移）', () => {
+  const { root, paths } = sandbox();
+  const projectRoot = path.join(root, 'repo');
+  fs.mkdirSync(path.join(projectRoot, '.git'), { recursive: true });
+
+  const fromList = listRoots({ paths, projectRoot })
+    .map((item) => path.resolve(item.path))
+    .sort();
+  const fromScan = dshScanRootPaths(paths, { projectRoot }).sort();
+  assert.deepEqual(fromScan, fromList, '两张表必须描述同一组扫描根');
+
+  // 项目级：`<项目>/.dsh/skills` 也是扫描根，project 目标因此不可导出
+  const registry = createRegistry({ paths, getState: () => emptyState() });
+  const project = registry.resolve(`project:${projectRoot}`);
+  assert.equal(project.exportBlocked, 'dsh-native-root');
+  assert.equal(project.exportable, false);
   fs.rmSync(root, { recursive: true, force: true });
 });

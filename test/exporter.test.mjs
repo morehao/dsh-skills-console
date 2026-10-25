@@ -56,3 +56,25 @@ test('导出：未知目标仍按失败处理，不会被共享根规则吞掉',
   assert.equal(result.failed.find((item) => item.target === 'agent:nope')?.reason, 'unknown-target');
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('导出：DSH 自己的扫描根不是导出目标（不建链、不记账）', () => {
+  const { root, home, paths, registry } = sandbox();
+  const recorded = [];
+  const result = exportSkills({
+    paths,
+    registry,
+    name: 'alpha',
+    targets: ['dsh-global'],
+    record: (row) => recorded.push(row),
+  });
+
+  assert.equal(result.created.length, 0);
+  assert.equal(recorded.length, 0, '跳过的不记账');
+  assert.equal(
+    result.skipped.find((item) => item.target === 'dsh-global')?.reason,
+    'dsh-native-root',
+    '理由是「目标是 DSH 的扫描根」，不是身份判断',
+  );
+  assert.equal(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')), false);
+  fs.rmSync(root, { recursive: true, force: true });
+});

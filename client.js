@@ -124,7 +124,7 @@ var DICT = {
     "mode.on": "启用",
     "mode.off": "停用",
     "mode.offHint": "已停用：扫描根里有停用标记，模型看不到它；已导出的其他 Agent 不受影响",
-    "visibility.hiddenHint": "已启用，但不在 DSH 的扫描根里：确认 ~/.agents/skills 下真有这个技能，或检查 DSH_AGENTS_HOME。",
+    "visibility.hiddenHint": "已启用，但扫描目录里没有它：确认 ~/.agents/skills 下真有这个技能，或检查 DSH_AGENTS_HOME。",
     "visibility.scopeMismatch": "当前项目自带了一份同名技能，项目副本优先，所以停了也还是可见。",
     "visibility.foreignWinner": "模型看到的是另一份同名技能：{path}（它的扫描根 rank 更小，会遮住这一份）",
     "exports.targets": "导出到哪些 Agent",
@@ -173,8 +173,8 @@ var DICT = {
     "meta.from": "来自",
     "meta.noUpstream": "无远端来源 · 不检测更新",
     "meta.unlinked": "未导出到任何 Agent",
-    "meta.dshVisible": "DSH 可见",
-    "meta.dshHidden": "DSH 不可见",
+    "meta.modelVisible": "模型可见",
+    "meta.modelHidden": "模型不可见",
     "meta.agentsAll": "已接入的 Agent",
     "meta.none": "无",
     "filter.all": "全部",
@@ -187,15 +187,15 @@ var DICT = {
     "empty.filtered": "没有匹配的技能",
     "empty.filteredHint": "换个关键词，或清除筛选条件",
     "hint.unknown": "还有 {n} 个技能未检查更新。",
-    "group.visible": "DSH · 模型可见",
+    "group.visible": "模型可见",
     "group.off": "已停用",
     "group.hidden": "启用但不可见",
     installed: "已安装",
     notInstalled: "未安装",
     skillCount: "个技能",
     visibleOnly: "模型可见，但不在本地技能库",
-    visibleOnlyOther: "DSH 能看到，但不在 ~/.agents/skills",
-    visibleOnlyBuiltin: "本插件仅管理 ~/.agents/skills 下的技能，DSH 内置技能不在管理范围内",
+    visibleOnlyOther: "模型能看到，但不在 ~/.agents/skills",
+    visibleOnlyBuiltin: "本插件仅管理 ~/.agents/skills 下的技能，内置技能不在管理范围内",
     "builtin.view": "查看内置技能（{n}）",
     "builtin.hide": "收起内置技能",
     external: "非本插件创建",
@@ -248,7 +248,7 @@ var DICT = {
     "viewer.info.localChangeYes": "有本地改动",
     "viewer.info.links": "接入",
     "viewer.info.agents": "Agent",
-    "viewer.info.dsh": "DSH 可见性",
+    "viewer.info.visibility": "可见性",
     "viewer.info.mode": "状态",
     "viewer.info.status": "更新",
     "viewer.info.none": "无"
@@ -305,7 +305,7 @@ var DICT = {
     "mode.on": "Enabled",
     "mode.off": "Disabled",
     "mode.offHint": "Disabled: a disable marker sits in the scan root, so the model cannot see it; exported agents are unaffected",
-    "visibility.hiddenHint": "Enabled, but not inside a DSH scan root: check that the skill really exists under ~/.agents/skills, or inspect DSH_AGENTS_HOME.",
+    "visibility.hiddenHint": "Enabled, but no copy sits in a scan directory: check that the skill really exists under ~/.agents/skills, or inspect DSH_AGENTS_HOME.",
     "visibility.scopeMismatch": "This project ships its own copy of the skill; the project copy wins, so it stays visible.",
     "visibility.foreignWinner": "The model sees a different copy of this skill: {path} (its scan root ranks higher, so it shadows this one)",
     "exports.targets": "Export to agents",
@@ -354,8 +354,8 @@ var DICT = {
     "meta.from": "from",
     "meta.noUpstream": "no upstream · updates not checked",
     "meta.unlinked": "not exported to any agent",
-    "meta.dshVisible": "visible in DSH",
-    "meta.dshHidden": "hidden in DSH",
+    "meta.modelVisible": "visible to the model",
+    "meta.modelHidden": "hidden from the model",
     "meta.agentsAll": "Connected agents",
     "meta.none": "none",
     "filter.all": "All",
@@ -368,15 +368,15 @@ var DICT = {
     "empty.filtered": "No matching skills",
     "empty.filteredHint": "Try another keyword, or clear the filters",
     "hint.unknown": "{n} skills have not been checked for updates.",
-    "group.visible": "DSH · model visible",
+    "group.visible": "Model visible",
     "group.off": "Disabled",
     "group.hidden": "Enabled but hidden",
     installed: "installed",
     notInstalled: "not installed",
     skillCount: "skills",
     visibleOnly: "Visible to the model but not in the local skill library",
-    visibleOnlyOther: "DSH can see these, but they are not under ~/.agents/skills",
-    visibleOnlyBuiltin: "This plugin only manages skills under ~/.agents/skills; DSH built-in skills are out of scope",
+    visibleOnlyOther: "The model can see these, but they are not under ~/.agents/skills",
+    visibleOnlyBuiltin: "This plugin only manages skills under ~/.agents/skills; built-in skills are out of scope",
     "builtin.view": "View built-ins ({n})",
     "builtin.hide": "Hide built-ins",
     external: "created outside this plugin",
@@ -430,7 +430,7 @@ var DICT = {
     "viewer.info.localChangeYes": "Modified locally",
     "viewer.info.links": "Linked",
     "viewer.info.agents": "Agents",
-    "viewer.info.dsh": "Visibility in DSH",
+    "viewer.info.visibility": "Visibility",
     "viewer.info.mode": "State",
     "viewer.info.status": "Updates",
     "viewer.info.none": "None"
@@ -1013,6 +1013,10 @@ var CSS = `
   .dshsc-row.off { opacity: .7; }
   .dshsc-cell { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .dshsc-namerow { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  /* 可见性状态点：中性表达（实心=模型可见，空心=模型不可见），不绑定任何 Agent 身份 */
+  .dshsc-vdot { flex: none; width: 6px; height: 6px; border-radius: 50%; box-sizing: border-box;
+    background: var(--dsw-alias-state-success-primary); opacity: .75; }
+  .dshsc-vdot.hidden { background: transparent; border: 1px solid var(--dsw-alias-label-tertiary); opacity: .9; }
   .dshsc-name { font-size: 13px; font-weight: 600; letter-spacing: -.005em; min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* 技能名本身是查看入口：清掉 button 默认外观，保留 hover 下划线提示可点 */
@@ -1038,9 +1042,6 @@ var CSS = `
   .dshsc-agent { display: inline-flex; align-items: center; gap: 5px; flex: none; height: 20px; padding: 0 7px;
     border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px; color: var(--dsw-alias-label-secondary);
     background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 55%, transparent); font-size: 11px; white-space: nowrap; }
-  .dshsc-agent.dsh { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 30%, var(--dsw-alias-border-l1));
-    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 10%, transparent); }
-  .dshsc-agent .dshsc-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .8; }
   .dshsc-agent.more, .dshsc-agent.scope { border-style: dashed; background: transparent; color: var(--dsw-alias-label-tertiary); }
   .dshsc-agent.more { margin: 0; font: inherit; font-size: 11px; line-height: 1; cursor: pointer;
     -webkit-appearance: none; appearance: none; }
@@ -2065,18 +2066,10 @@ function InstalledTab({
     const items = (row.exports || []).filter((item) => !item.broken);
     const labels = items.map((item) => item.label);
     const chips = [];
-    if (row.visible) {
-      chips.push(h("span", {
-        className: "dshsc-agent dsh",
-        key: "dsh",
-        title: t("meta.dshVisible")
-      }, h("i", { className: "dshsc-dot" }), "DSH"));
-    }
     if (labels.length === 0) {
-      return [...chips, h("span", { key: "unlinked", className: "dshsc-unlinked" }, t("meta.unlinked"))];
+      return [h("span", { key: "unlinked", className: "dshsc-unlinked" }, t("meta.unlinked"))];
     }
-    const room = Math.max(0, 3 - chips.length);
-    const shown = labels.slice(0, room);
+    const shown = labels.slice(0, 3);
     shown.forEach((label, index) => chips.push(h("span", {
       className: "dshsc-agent",
       key: `agent-${index}`,
@@ -2084,7 +2077,7 @@ function InstalledTab({
     }, label)));
     if (labels.length > shown.length) {
       const open = agentTip?.rowName === row.name;
-      const tipLabels = row.visible ? ["DSH", ...labels] : labels;
+      const tipLabels = labels;
       chips.push(h("button", {
         type: "button",
         className: "dshsc-agent more",
@@ -2106,6 +2099,7 @@ function InstalledTab({
     const tracked = row.status !== "unmanaged";
     const canUpdate = writable && updatable(row);
     const hidden = !off && !row.visible;
+    const visLabel = hidden ? t("meta.modelHidden") : t("meta.modelVisible");
     return h(
       "div",
       { className: `dshsc-row${off ? " off" : ""}`, key: row.name },
@@ -2115,6 +2109,12 @@ function InstalledTab({
         h(
           "div",
           { className: "dshsc-namerow" },
+          off ? null : h("span", {
+            className: `dshsc-vdot${hidden ? " hidden" : ""}`,
+            role: "img",
+            title: visLabel,
+            "aria-label": visLabel
+          }),
           h("button", {
             type: "button",
             className: "dshsc-name dshsc-namebtn",
@@ -2363,9 +2363,9 @@ function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
       "div",
       { className: "dshsc-agenttip-list" },
       agentTip.labels.map((label, index) => h("span", {
-        className: `dshsc-agent${label === "DSH" ? " dsh" : ""}`,
+        className: "dshsc-agent",
         key: `agenttip-${index}`
-      }, label === "DSH" ? h("i", { className: "dshsc-dot" }) : null, label))
+      }, label))
     )
   );
   return portalize(node);
@@ -2699,7 +2699,7 @@ function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabe
 }
 function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, onSave }) {
   const candidates = agents.filter(
-    (agent) => agent.kind === "agent" && agent.exists && agent.sharedHome !== "yes"
+    (agent) => agent.kind === "agent" && agent.exists && agent.exportable
   );
   const sharedRoot = sharedRootAgents.filter((agent) => agent.exists);
   const [targets, setTargets] = import_react4.default.useState(() => {
@@ -3770,7 +3770,7 @@ function SkillReader({
       ["viewer.info.localChange", row?.status === "locally-modified" || row?.status === "conflict" ? t("viewer.info.localChangeYes") : t("viewer.info.localChangeNone")]
     ];
     const linkRows = [
-      ["viewer.info.dsh", row?.visible ? t("meta.dshVisible") : t("meta.dshHidden")],
+      ["viewer.info.visibility", row?.visible ? t("meta.modelVisible") : t("meta.modelHidden")],
       ["viewer.info.agents", agentLabels.length > 0 ? agentLabels.join("、") : t("meta.unlinked")],
       ["viewer.info.mode", row?.enabled === false ? t("status.off") : t("mode.on")],
       ["viewer.info.status", STATUS_KEY[row?.status] ? t(STATUS_KEY[row.status]) : t("status.unknown")]
@@ -3928,8 +3928,8 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     setViewer(null);
     setToast({ kind: "err", text: t("viewer.gone") });
   }, [data, rows, t, viewer]);
-  const exportTargetOptions = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.sharedHome !== "yes");
-  const sharedRootAgents = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.sharedHome === "yes");
+  const exportTargetOptions = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.exportable);
+  const sharedRootAgents = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.exportBlocked === "shared-root");
   const exportSelection = data?.settings?.exportTargets;
   const autoLinkAgents = Array.isArray(exportSelection) ? exportTargetOptions.filter((agent) => exportSelection.includes(agent.target)) : [];
   const autoLinkLabel = autoLinkAgents.length > 0 ? autoLinkAgents.map((agent) => agent.label).join("、") : t("exportDefault.none");

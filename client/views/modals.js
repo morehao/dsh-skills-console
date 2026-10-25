@@ -53,9 +53,10 @@ export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, conf
  * 这里没有作用范围：DSH 的可见性由扫描根 + 停用标记决定，导出只影响别的 agent。
  */
 export function ExportsModal({ t, row, agents, sharedRootAgents = [], onCancel, onSave }) {
-  // 只列本机真有目录、且**不读共享根**的 agent；dsh 自己的根也不出现在导出列表里
+  // 只列本机真有目录、且能当导出目标的 agent（`exportable` 由 Host 判断：
+  // 读共享根的、DSH 自己扫描根的都不在里面）
   const candidates = agents.filter(
-    (agent) => agent.kind === 'agent' && agent.exists && agent.sharedHome !== 'yes',
+    (agent) => agent.kind === 'agent' && agent.exists && agent.exportable,
   );
   const sharedRoot = sharedRootAgents.filter((agent) => agent.exists);
   const [targets, setTargets] = React.useState(() => {

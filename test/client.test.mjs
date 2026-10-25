@@ -308,13 +308,13 @@ const STATE = {
   settings: { exportTargets: ['agent:claude-code'] },
   agents: {
     all: [
-      { target: 'dsh-global', kind: 'dsh', key: 'dsh-global', label: 'dsh（全局）', dir: '/tmp/.dsh/skills', required: true, exists: true },
-      { target: 'agent:claude-code', kind: 'agent', key: 'claude-code', label: 'Claude Code', dir: '/tmp/.claude/skills', exists: true },
-      { target: 'agent:codebuddy', kind: 'agent', key: 'codebuddy', label: 'CodeBuddy', dir: '/tmp/.codebuddy/skills', exists: false },
+      { target: 'dsh-global', kind: 'dsh', key: 'dsh-global', label: 'dsh（全局）', dir: '/tmp/.dsh/skills', sharedHome: 'yes', exportBlocked: 'dsh-native-root', exportable: false, exists: true },
+      { target: 'agent:claude-code', kind: 'agent', key: 'claude-code', label: 'Claude Code', dir: '/tmp/.claude/skills', sharedHome: 'no', exportBlocked: null, exportable: true, exists: true },
+      { target: 'agent:codebuddy', kind: 'agent', key: 'codebuddy', label: 'CodeBuddy', dir: '/tmp/.codebuddy/skills', sharedHome: 'no', exportBlocked: null, exportable: true, exists: false },
     ],
     detected: [
-      { target: 'dsh-global', kind: 'dsh', key: 'dsh-global', label: 'dsh（全局）', dir: '/tmp/.dsh/skills', required: true, exists: true },
-      { target: 'agent:claude-code', kind: 'agent', key: 'claude-code', label: 'Claude Code', dir: '/tmp/.claude/skills', exists: true },
+      { target: 'dsh-global', kind: 'dsh', key: 'dsh-global', label: 'dsh（全局）', dir: '/tmp/.dsh/skills', sharedHome: 'yes', exportBlocked: 'dsh-native-root', exportable: false, exists: true },
+      { target: 'agent:claude-code', kind: 'agent', key: 'claude-code', label: 'Claude Code', dir: '/tmp/.claude/skills', sharedHome: 'no', exportBlocked: null, exportable: true, exists: true },
     ],
   },
   subscriptions: [],
@@ -392,7 +392,7 @@ test('CLI 不可用 / 只读：顶部提示 + 写操作按钮禁用', async () =
   assert.ok(disabled.length >= 2, '添加技能 / 自动导出入口都应被禁用');
 });
 
-test('未纳入追踪：开关禁用、不谎报「可用 DSH」、保留接管入口', async () => {
+test('未纳入追踪：开关禁用、可见性以中性状态点表达、保留接管入口', async () => {
   const { Component, stub } = loadModule({
     ...STATE,
     installs: [
@@ -407,7 +407,10 @@ test('未纳入追踪：开关禁用、不谎报「可用 DSH」、保留接管�
   for (const expected of ['未纳入追踪', '未导出到任何 Agent', '接管']) {
     assert.ok(text.includes(expected), `缺少文案：${expected}`);
   }
-  assert.ok(text.includes('DSH'), '可见性由扫描根决定：canonical 里有它，就该显示 DSH 可见');
+  assert.ok(!text.includes('DSH'), '页面上不再有 DSH 专属标识（可见性只做中性展示）');
+  const dots = collectByClass(tree, 'dshsc-vdot');
+  assert.equal(dots.length, 1, '可见性用一个状态点表达');
+  assert.equal(dots[0].props['aria-label'], '模型可见');
   const switches = collectButtons(tree).filter((button) => button.props.role === 'switch');
   assert.equal(switches.length, 1);
   assert.equal(switches[0].props.disabled, true, '未追踪时开关应禁用');
@@ -454,10 +457,10 @@ test('可见性差异：内置技能是说明，其他来源才算告警', async
   const tree = stub.render(Component, {}, first.hooks).tree;
   const text = textOf(tree);
   assert.ok(text.includes('本插件仅管理 ~/.agents/skills 下的技能'), '说明要先讲清管理范围');
-  assert.ok(text.includes('DSH 内置技能不在管理范围内'), '并点明内置技能不在范围内');
+  assert.ok(text.includes('内置技能不在管理范围内'), '并点明内置技能不在范围内');
   assert.ok(!text.includes('不在 canonical 属正常'), '内置技能说明不再重复 canonical 免责声明');
   assert.ok(text.includes('stray-skill'), '非内置的游离技能仍要列出来');
-  assert.ok(text.includes('DSH 能看到，但不在 ~/.agents/skills'));
+  assert.ok(text.includes('模型能看到，但不在 ~/.agents/skills'));
   assert.ok(!text.includes('office'), '内置技能名默认收起，避免底部一屏文字');
 
   // 图标与正文必须在同一行：否则窄面板下 flex 会把图标挤到孤行
@@ -852,11 +855,11 @@ test('自动导出：读共享根的 Agent 不进列表，只作说明', async (
     agents: {
       all: [
         ...STATE.agents.all,
-        { target: 'agent:opencode', kind: 'agent', key: 'opencode', label: 'OpenCode', dir: '/tmp/.config/opencode/skills', exists: true, sharedHome: 'yes' },
+        { target: 'agent:opencode', kind: 'agent', key: 'opencode', label: 'OpenCode', dir: '/tmp/.config/opencode/skills', exists: true, sharedHome: 'yes', exportBlocked: 'shared-root', exportable: false },
       ],
       detected: [
         ...STATE.agents.detected,
-        { target: 'agent:opencode', kind: 'agent', key: 'opencode', label: 'OpenCode', dir: '/tmp/.config/opencode/skills', exists: true, sharedHome: 'yes' },
+        { target: 'agent:opencode', kind: 'agent', key: 'opencode', label: 'OpenCode', dir: '/tmp/.config/opencode/skills', exists: true, sharedHome: 'yes', exportBlocked: 'shared-root', exportable: false },
       ],
     },
   };
@@ -1064,9 +1067,9 @@ test('搜索：按技能名 / 来源 / Agent 过滤，空结果给清除入口',
 });
 
 test('Agent 溢出：+n 悬浮列出全部 Agent，而不是只靠 title', async () => {
-  const labels = ['DSH', 'Claude Code', 'OpenCode', 'Cursor', 'GitHub Copilot', 'CodeBuddy', 'Windsurf'];
-  // DSH 那枚来自可见性（row.visible），其余 6 个来自导出
-  const exports = labels.slice(1).map((label, index) => ({
+  const labels = ['Claude Code', 'OpenCode', 'Cursor', 'GitHub Copilot', 'CodeBuddy', 'Windsurf'];
+  // 全来自导出：DSH 可见性不再是 Agent chip（它有自己的状态点）
+  const exports = labels.map((label, index) => ({
     target: `agent:a${index}`,
     label,
     dir: `/tmp/agent-${index}`,
@@ -1081,9 +1084,9 @@ test('Agent 溢出：+n 悬浮列出全部 Agent，而不是只靠 title', async
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
 
-  assert.ok(textOf(tree).includes('+4'), '超过 3 个折成 +4');
-  const more = collectButtons(tree).find((button) => String(textOf(button)).trim() === '+4');
-  assert.ok(more, '+4 是可聚焦的按钮');
+  assert.ok(textOf(tree).includes('+3'), '超过 3 个折成 +3');
+  const more = collectButtons(tree).find((button) => String(textOf(button)).trim() === '+3');
+  assert.ok(more, '+3 是可聚焦的按钮');
   assert.equal(more.props['aria-expanded'], 'false');
   assert.equal(more.props['aria-describedby'], undefined);
   assert.ok(String(more.props['aria-label']).includes('Windsurf'), '无悬浮时读屏也能拿到全部 Agent');
@@ -1097,7 +1100,7 @@ test('Agent 溢出：+n 悬浮列出全部 Agent，而不是只靠 title', async
   const tipText = textOf(tip);
   assert.ok(tipText.includes('已接入的 Agent'), '气泡有标题');
   for (const label of labels) assert.ok(tipText.includes(label), `气泡要列出 ${label}`);
-  const openMore = collectButtons(shown).find((button) => String(textOf(button)).trim() === '+4');
+  const openMore = collectButtons(shown).find((button) => String(textOf(button)).trim() === '+3');
   assert.equal(openMore.props['aria-expanded'], 'true');
   assert.equal(openMore.props['aria-describedby'], 'dshsc-agenttip');
 

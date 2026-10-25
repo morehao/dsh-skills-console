@@ -53,20 +53,11 @@ export function InstalledTab({
     const items = (row.exports || []).filter((item) => !item.broken);
     const labels = items.map((item) => item.label);
     const chips = [];
-    // DSH 可见性单独一枚 chip：它由扫描根决定，和「导出到哪些 agent」是两件事
-    if (row.visible) {
-      chips.push(h('span', {
-        className: 'dshsc-agent dsh',
-        key: 'dsh',
-        title: t('meta.dshVisible'),
-      }, h('i', { className: 'dshsc-dot' }), 'DSH'));
-    }
     if (labels.length === 0) {
-      // 可见性 chip 和「没导出」并不互斥：DSH 看得见 ≠ 其他 agent 拿得到
-      return [...chips, h('span', { key: 'unlinked', className: 'dshsc-unlinked' }, t('meta.unlinked'))];
+      // 可见性和「导出」是两件事：这里只说导出，DSH 可见性走名字旁的状态点
+      return [h('span', { key: 'unlinked', className: 'dshsc-unlinked' }, t('meta.unlinked'))];
     }
-    const room = Math.max(0, 3 - chips.length);
-    const shown = labels.slice(0, room);
+    const shown = labels.slice(0, 3);
     shown.forEach((label, index) => chips.push(h('span', {
       className: 'dshsc-agent',
       key: `agent-${index}`,
@@ -74,8 +65,7 @@ export function InstalledTab({
     }, label)));
     if (labels.length > shown.length) {
       const open = agentTip?.rowName === row.name;
-      // 气泡里要能拿到「全部」，包括那枚被单独渲染的 DSH
-      const tipLabels = row.visible ? ['DSH', ...labels] : labels;
+      const tipLabels = labels;
       chips.push(h('button', {
         type: 'button',
         className: 'dshsc-agent more',
@@ -99,6 +89,8 @@ export function InstalledTab({
     const canUpdate = writable && updatable(row);
     // 启用却看不见：要么真身不在扫描根里，要么项目副本盖过了停用标记
     const hidden = !off && !row.visible;
+    // 可见性是中性状态，不再挂「DSH」标签：实心点=模型可见，空心点=模型不可见
+    const visLabel = hidden ? t('meta.modelHidden') : t('meta.modelVisible');
     return h(
       'div',
       { className: `dshsc-row${off ? ' off' : ''}`, key: row.name },
@@ -108,6 +100,14 @@ export function InstalledTab({
         h(
           'div',
           { className: 'dshsc-namerow' },
+          off
+            ? null
+            : h('span', {
+                className: `dshsc-vdot${hidden ? ' hidden' : ''}`,
+                role: 'img',
+                title: visLabel,
+                'aria-label': visLabel,
+              }),
           h('button', {
             type: 'button',
             className: 'dshsc-name dshsc-namebtn',

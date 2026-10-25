@@ -492,7 +492,7 @@ export function SkillReader({
     ];
 
     const linkRows = [
-      ['viewer.info.dsh', row?.visible ? t('meta.dshVisible') : t('meta.dshHidden')],
+      ['viewer.info.visibility', row?.visible ? t('meta.modelVisible') : t('meta.modelHidden')],
       ['viewer.info.agents', agentLabels.length > 0 ? agentLabels.join('、') : t('meta.unlinked')],
       ['viewer.info.mode', row?.enabled === false ? t('status.off') : t('mode.on')],
       ['viewer.info.status', STATUS_KEY[row?.status] ? t(STATUS_KEY[row.status]) : t('status.unknown')],

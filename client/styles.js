@@ -152,6 +152,10 @@ export const CSS = `
   .dshsc-row.off { opacity: .7; }
   .dshsc-cell { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .dshsc-namerow { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  /* 可见性状态点：中性表达（实心=模型可见，空心=模型不可见），不绑定任何 Agent 身份 */
+  .dshsc-vdot { flex: none; width: 6px; height: 6px; border-radius: 50%; box-sizing: border-box;
+    background: var(--dsw-alias-state-success-primary); opacity: .75; }
+  .dshsc-vdot.hidden { background: transparent; border: 1px solid var(--dsw-alias-label-tertiary); opacity: .9; }
   .dshsc-name { font-size: 13px; font-weight: 600; letter-spacing: -.005em; min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* 技能名本身是查看入口：清掉 button 默认外观，保留 hover 下划线提示可点 */
@@ -177,9 +181,6 @@ export const CSS = `
   .dshsc-agent { display: inline-flex; align-items: center; gap: 5px; flex: none; height: 20px; padding: 0 7px;
     border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px; color: var(--dsw-alias-label-secondary);
     background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 55%, transparent); font-size: 11px; white-space: nowrap; }
-  .dshsc-agent.dsh { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 30%, var(--dsw-alias-border-l1));
-    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 10%, transparent); }
-  .dshsc-agent .dshsc-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .8; }
   .dshsc-agent.more, .dshsc-agent.scope { border-style: dashed; background: transparent; color: var(--dsw-alias-label-tertiary); }
   .dshsc-agent.more { margin: 0; font: inherit; font-size: 11px; line-height: 1; cursor: pointer;
     -webkit-appearance: none; appearance: none; }
