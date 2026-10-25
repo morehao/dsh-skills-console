@@ -86,7 +86,7 @@ var DICT = {
     "action.unsubscribe": "取消订阅",
     "action.view": "查看",
     "action.hide": "收起",
-    "action.links": "接入设置",
+    "action.exports": "导出设置",
     "action.install": "安装",
     "action.expand": "展开",
     "action.collapse": "收起",
@@ -97,7 +97,7 @@ var DICT = {
     "action.retry": "重新加载",
     "view.flat": "平铺",
     "view.agent": "按 Agent",
-    autoLink: "自动接入",
+    exportDefault: "新安装时自动导出",
     "settings.title": "插件设置",
     "placement.label": "侧边栏入口",
     "placement.effect": "切换后立即生效",
@@ -123,23 +123,19 @@ var DICT = {
     "toast.checked": "检查完成",
     "mode.on": "启用",
     "mode.off": "停用",
-    "mode.offHint": "停用中：DSH 看不到它，但已接入的其他 Agent 照常可用",
-    "links.dshGlobal": "dsh（全局）",
-    "links.required": "必选",
-    "links.scope": "在 DSH 里的作用范围",
-    "links.scopeGlobal": "全局（默认）",
-    "links.scopeProjects": "仅以下项目",
-    "links.targets": "接入到哪些 Agent",
-    "links.detectedHint": "只显示本机已安装（目录存在）的 Agent；已删除的会从列表消失，旧接入记录保留但不展示。",
-    "links.canonical": "技能本体：{path}；下面列的是各 Agent 的接入目录（软链目标）。",
-    "links.workspaces": "DSH 工作区",
-    "links.noWorkspaces": "还没有 DSH 工作区，可以点下面「选择其他目录」",
-    "links.pickDirectory": "选择其他目录…",
-    "links.selected": "其他已选目录",
-    "links.hint": "保存后按勾选建立或移除接入；技能本体保留在原位置，不会移动。",
-    "autoLink.detected": "安装后自动接入",
-    "autoLink.none": "本机没有检测到其他 Agent",
-    "autoLink.hint": "列表里的「dsh（全局）」固定勾选、不能取消；这里只影响之后安装时的自动接入，已安装的技能请在「接入设置」里改。",
+    "mode.offHint": "已停用：扫描根里有停用标记，模型看不到它；已导出的其他 Agent 不受影响",
+    "visibility.hiddenHint": "已启用，但不在 DSH 的扫描根里：确认 ~/.agents/skills 下真有这个技能，或检查 DSH_AGENTS_HOME。",
+    "visibility.scopeMismatch": "当前项目自带了一份同名技能，项目副本优先，所以停了也还是可见。",
+    "exports.targets": "导出到哪些 Agent",
+    "exports.detectedHint": "只列出本机已安装（目录存在）的 Agent。导出只影响它们；DSH 自己看不看得见由扫描根决定，和导出无关。",
+    "exports.canonical": "技能本体：{path}；下面的链只是把它暴露给不读共享根的 Agent。",
+    "exports.none": "本机没有其他 Agent 的目录",
+    "exports.hint": "保存后按勾选建立或移除软链；技能本体留在原位置，不会移动。",
+    "exports.sharedYes": "读共享根",
+    "exports.sharedUnknown": "共享根未验证",
+    "exportDefault.detected": "装完后默认导出到",
+    "exportDefault.none": "本机没有检测到其他 Agent",
+    "exportDefault.hint": "默认一个都不勾：技能装进 ~/.agents/skills 后 DSH 本来就能看见。导出只用于仍只认私有目录的 Agent，且只影响之后的安装。",
     "empty.skills": "还没有安装任何技能",
     "empty.skillsHint": "在终端跑 `npx skills add owner/repo`，或点右上角「添加技能」",
     "empty.subs": "还没有添加订阅",
@@ -174,9 +170,9 @@ var DICT = {
     "busy.working": "处理中…",
     "meta.from": "来自",
     "meta.noUpstream": "无远端来源 · 不检测更新",
-    "meta.unlinked": "未接入任何 Agent",
-    "meta.scope": "范围",
-    "meta.onlyProject": "仅",
+    "meta.unlinked": "未导出到任何 Agent",
+    "meta.dshVisible": "DSH 可见",
+    "meta.dshHidden": "DSH 不可见",
     "meta.agentsAll": "已接入的 Agent",
     "meta.none": "无",
     "filter.all": "全部",
@@ -189,10 +185,9 @@ var DICT = {
     "empty.filtered": "没有匹配的技能",
     "empty.filteredHint": "换个关键词，或清除筛选条件",
     "hint.unknown": "还有 {n} 个技能未检查更新。",
-    "group.dshGlobal": "DSH · 全局",
-    "group.dshProject": "DSH · 仅特定项目",
+    "group.visible": "DSH · 模型可见",
     "group.off": "已停用",
-    "group.unlinked": "未接入 Agent",
+    "group.hidden": "启用但不可见",
     installed: "已安装",
     notInstalled: "未安装",
     skillCount: "个技能",
@@ -251,9 +246,7 @@ var DICT = {
     "viewer.info.localChangeYes": "有本地改动",
     "viewer.info.links": "接入",
     "viewer.info.agents": "Agent",
-    "viewer.info.scope": "范围",
-    "viewer.info.scopeGlobal": "全局",
-    "viewer.info.scopeProject": "仅项目",
+    "viewer.info.dsh": "DSH 可见性",
     "viewer.info.mode": "状态",
     "viewer.info.status": "更新",
     "viewer.info.none": "无"
@@ -273,7 +266,7 @@ var DICT = {
     "action.unsubscribe": "Unsubscribe",
     "action.view": "View",
     "action.hide": "Hide",
-    "action.links": "Link settings",
+    "action.exports": "Export settings",
     "action.install": "Install",
     "action.expand": "Expand",
     "action.collapse": "Collapse",
@@ -284,7 +277,7 @@ var DICT = {
     "action.retry": "Reload",
     "view.flat": "Flat",
     "view.agent": "By agent",
-    "autoLink": "Auto-link",
+    "exportDefault": "Auto-export on install",
     "settings.title": "Plugin settings",
     "placement.label": "Sidebar entry",
     "placement.effect": "Applies immediately",
@@ -309,23 +302,19 @@ var DICT = {
     "toast.checked": "Checked",
     "mode.on": "Enabled",
     "mode.off": "Disabled",
-    "mode.offHint": "Disabled: DSH cannot see it, other linked agents still can",
-    "links.dshGlobal": "dsh (global)",
-    "links.required": "required",
-    "links.scope": "Scope inside DSH",
-    "links.scopeGlobal": "Global (default)",
-    "links.scopeProjects": "Only these projects",
-    "links.targets": "Link to agents",
-    "links.detectedHint": "Only installed agents are listed; deleted agents disappear but their old link records are kept and hidden.",
-    "links.canonical": "Skill source: {path}; the entries below are each agent's link target.",
-    "links.workspaces": "DSH workspaces",
-    "links.noWorkspaces": 'No DSH workspaces yet; use "Choose another folder" below',
-    "links.pickDirectory": "Choose another folder…",
-    "links.selected": "Other selected folders",
-    "links.hint": "Saving only adds or removes links; the skill itself stays where it is.",
-    "autoLink.detected": "Auto-link after install",
-    "autoLink.none": "No other agents detected on this machine",
-    "autoLink.hint": 'The "dsh (global)" entry is always checked and cannot be unchecked; this only affects future installs. Change existing skills under "Link settings".',
+    "mode.offHint": "Disabled: a disable marker sits in the scan root, so the model cannot see it; exported agents are unaffected",
+    "visibility.hiddenHint": "Enabled, but not inside a DSH scan root: check that the skill really exists under ~/.agents/skills, or inspect DSH_AGENTS_HOME.",
+    "visibility.scopeMismatch": "This project ships its own copy of the skill; the project copy wins, so it stays visible.",
+    "exports.targets": "Export to agents",
+    "exports.detectedHint": "Only installed agents (existing directories) are listed. Exports only affect them; whether DSH sees the skill depends on its scan roots, not on exports.",
+    "exports.canonical": "Skill source: {path}; the entries below only expose it to agents that do not read the shared root.",
+    "exports.none": "No other agent directories on this machine",
+    "exports.hint": "Saving only adds or removes links; the skill itself stays where it is.",
+    "exports.sharedYes": "reads shared root",
+    "exports.sharedUnknown": "shared root unverified",
+    "exportDefault.detected": "Export new installs to",
+    "exportDefault.none": "No other agents detected on this machine",
+    "exportDefault.hint": "Nothing is checked by default: once a skill lands in ~/.agents/skills, DSH already sees it. Exports only matter for agents that still read their own directory, and only affect future installs.",
     "empty.skills": "No skills installed yet",
     "empty.skillsHint": 'Run `npx skills add owner/repo` or use "Add skill".',
     "empty.subs": "No subscriptions yet",
@@ -360,9 +349,9 @@ var DICT = {
     "busy.working": "Working…",
     "meta.from": "from",
     "meta.noUpstream": "no upstream · updates not checked",
-    "meta.unlinked": "not linked to any agent",
-    "meta.scope": "scope",
-    "meta.onlyProject": "only",
+    "meta.unlinked": "not exported to any agent",
+    "meta.dshVisible": "visible in DSH",
+    "meta.dshHidden": "hidden in DSH",
     "meta.agentsAll": "Connected agents",
     "meta.none": "none",
     "filter.all": "All",
@@ -375,10 +364,9 @@ var DICT = {
     "empty.filtered": "No matching skills",
     "empty.filteredHint": "Try another keyword, or clear the filters",
     "hint.unknown": "{n} skills have not been checked for updates.",
-    "group.dshGlobal": "DSH · global",
-    "group.dshProject": "DSH · project only",
+    "group.visible": "DSH · model visible",
     "group.off": "Disabled",
-    "group.unlinked": "Not linked",
+    "group.hidden": "Enabled but hidden",
     installed: "installed",
     notInstalled: "not installed",
     skillCount: "skills",
@@ -438,9 +426,7 @@ var DICT = {
     "viewer.info.localChangeYes": "Modified locally",
     "viewer.info.links": "Linked",
     "viewer.info.agents": "Agents",
-    "viewer.info.scope": "Scope",
-    "viewer.info.scopeGlobal": "Global",
-    "viewer.info.scopeProject": "Project only",
+    "viewer.info.dsh": "Visibility in DSH",
     "viewer.info.mode": "State",
     "viewer.info.status": "Updates",
     "viewer.info.none": "None"
@@ -1467,7 +1453,7 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
     });
   }
   async function toggleMode(row) {
-    const mode = row.mode === "on" ? "off" : "on";
+    const mode = row.enabled === false ? "on" : "off";
     await run(`mode:${row.name}`, () => apiCall("POST", `/skills/${encodeURIComponent(row.name)}/mode`, { mode }));
   }
   async function updateOne(row, overwrite) {
@@ -1530,17 +1516,20 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
       }
     });
   }
-  async function saveLinks(row, targets, scopeProjects) {
-    const current = new Set(row.links.map((link) => link.target));
-    const desired = new Set(scopeProjects.length > 0 ? targets.filter((target) => target !== "dsh-global") : targets);
+  async function saveExports(row, targets) {
+    const current = new Set(row.exports.map((item) => item.target));
+    const desired = new Set(targets);
     const toRemove = [...current].filter((target) => !desired.has(target));
-    await run(`links:${row.name}`, async () => {
+    const toAdd = [...desired].filter((target) => !current.has(target));
+    await run(`exports:${row.name}`, async () => {
       if (toRemove.length > 0) {
-        await apiCall("POST", "/links", { skill: row.name, targets: toRemove, action: "remove" });
+        await apiCall("POST", "/exports", { skill: row.name, targets: toRemove, action: "remove" });
       }
-      await apiCall("POST", "/links", { skill: row.name, targets: [...desired], action: "add", scopeProjects });
+      if (toAdd.length > 0) {
+        await apiCall("POST", "/exports", { skill: row.name, targets: toAdd, action: "add" });
+      }
     });
-    setToast({ kind: "ok", text: `${row.name} · ${t("action.links")} ✓` });
+    setToast({ kind: "ok", text: `${row.name} · ${t("action.exports")} ✓` });
   }
   function requestAddSkill() {
     setModal({ type: "add-skill" });
@@ -1598,7 +1587,7 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
     updateAll,
     checkUpdates,
     requestDelete,
-    saveLinks,
+    saveExports,
     requestAddSkill,
     requestAddSubscription,
     probeSkills,
@@ -1945,10 +1934,10 @@ function Header({
       h("button", {
         className: "dshsc-btn",
         disabled: !writable,
-        title: `${t("autoLink")}：${autoLinkLabel}`,
-        "aria-label": `${t("autoLink")}：${autoLinkLabel}`,
+        title: `${t("exportDefault")}：${autoLinkLabel}`,
+        "aria-label": `${t("exportDefault")}：${autoLinkLabel}`,
         onClick: onOpenAutoLink
-      }, `${t("autoLink")} · ${autoLinkCount} ▾`),
+      }, `${t("exportDefault")} · ${autoLinkCount} ▾`),
       h("button", {
         className: "dshsc-btn primary",
         disabled: !writable,
@@ -2069,49 +2058,50 @@ function InstalledTab({
     );
   }
   function agentChips(row) {
-    const links = row.links.filter((link) => !link.broken);
-    const projectLinks = links.filter((link) => String(link.target).startsWith("project:"));
-    const labels = links.filter((link) => !String(link.target).startsWith("project:")).map((link) => link.target === "dsh-global" ? "DSH" : link.label);
-    if (projectLinks.length > 0 && !labels.includes("DSH")) labels.unshift("DSH");
-    const projects = row.scopeProjects || [];
-    const scopeNames = projects.length > 0 ? projects.map((project) => project.split("/").pop()) : projectLinks.map((link) => link.label);
-    if (labels.length === 0 && scopeNames.length === 0) {
-      return h("span", { className: "dshsc-unlinked" }, t("meta.unlinked"));
+    const items = (row.exports || []).filter((item) => !item.broken);
+    const labels = items.map((item) => item.label);
+    const chips = [];
+    if (row.visible) {
+      chips.push(h("span", {
+        className: "dshsc-agent dsh",
+        key: "dsh",
+        title: t("meta.dshVisible")
+      }, h("i", { className: "dshsc-dot" }), "DSH"));
     }
-    const chips = labels.slice(0, 3).map((label, index) => h("span", {
-      className: `dshsc-agent${label === "DSH" ? " dsh" : ""}`,
+    if (labels.length === 0) {
+      return [...chips, h("span", { key: "unlinked", className: "dshsc-unlinked" }, t("meta.unlinked"))];
+    }
+    const room = Math.max(0, 3 - chips.length);
+    const shown = labels.slice(0, room);
+    shown.forEach((label, index) => chips.push(h("span", {
+      className: "dshsc-agent",
       key: `agent-${index}`,
       title: label
-    }, label === "DSH" ? h("i", { className: "dshsc-dot" }) : null, label));
-    if (labels.length > 3) {
+    }, label)));
+    if (labels.length > shown.length) {
       const open = agentTip?.rowName === row.name;
+      const tipLabels = row.visible ? ["DSH", ...labels] : labels;
       chips.push(h("button", {
         type: "button",
         className: "dshsc-agent more",
         key: "more",
-        "aria-label": `${t("meta.agentsAll")}：${labels.join("、")}`,
+        "aria-label": `${t("meta.agentsAll")}：${tipLabels.join("、")}`,
         "aria-describedby": open ? "dshsc-agenttip" : void 0,
         "aria-expanded": String(open),
-        onClick: (event) => actions.onOpenAgentTip(event, row.name, labels),
-        onMouseEnter: (event) => actions.onOpenAgentTip(event, row.name, labels),
-        onFocus: (event) => actions.onOpenAgentTip(event, row.name, labels),
+        onClick: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
+        onMouseEnter: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
+        onFocus: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
         onMouseLeave: actions.onCloseAgentTip,
         onBlur: actions.onCloseAgentTip
-      }, `+${labels.length - 3}`));
-    }
-    if (scopeNames.length > 0) {
-      chips.push(h("span", {
-        className: "dshsc-agent scope",
-        key: "scope",
-        title: `${t("meta.scope")}：${projects.length > 0 ? projects.join("、") : scopeNames.join("、")}`
-      }, `${t("meta.onlyProject")} ${scopeNames.join("、")}`));
+      }, `+${labels.length - shown.length}`));
     }
     return chips;
   }
   function rowView(row) {
-    const off = row.mode === "off";
+    const off = row.enabled === false;
     const tracked = row.status !== "unmanaged";
     const canUpdate = writable && updatable(row);
+    const hidden = !off && !row.visible;
     return h(
       "div",
       { className: `dshsc-row${off ? " off" : ""}`, key: row.name },
@@ -2133,6 +2123,8 @@ function InstalledTab({
         ),
         sourceLine(row),
         off ? h("div", { className: "dshsc-note" }, t("mode.offHint")) : null,
+        hidden ? h("div", { className: "dshsc-note warn" }, t("visibility.hiddenHint")) : null,
+        row.visibility?.shadowScopeMismatch ? h("div", { className: "dshsc-note warn" }, t("visibility.scopeMismatch")) : null,
         row.status === "broken-link" ? h("div", { className: "dshsc-note warn" }, t("status.brokenHint")) : null
       ),
       h("div", { className: "dshsc-agents" }, agentChips(row)),
@@ -2142,12 +2134,12 @@ function InstalledTab({
         h("button", {
           className: "dshsc-switch",
           role: "switch",
-          "aria-checked": String(tracked && row.mode === "on"),
+          "aria-checked": String(tracked && row.enabled !== false),
           "aria-label": `${row.name} ${t("mode.on")}/${t("mode.off")}`,
           // 未纳入追踪时调 setMode 只会报「没有安装记录」，不如直接禁用
           disabled: busy !== null || !tracked,
           onClick: () => void actions.onToggleMode(row),
-          title: tracked ? row.mode === "on" ? t("mode.off") : t("mode.on") : t("adopt.switchHint")
+          title: tracked ? row.enabled !== false ? t("mode.off") : t("mode.on") : t("adopt.switchHint")
         }, h("span", { className: "dshsc-knob" })),
         h("button", {
           className: "dshsc-btn ghost dshsc-view",
@@ -2166,7 +2158,7 @@ function InstalledTab({
           disabled: !canUpdate || busy !== null,
           onClick: () => actions.onUpdate(row)
         }, t("action.update")),
-        h("button", { className: "dshsc-btn ghost", disabled: busy !== null, onClick: () => actions.onLinks(row) }, t("action.links")),
+        h("button", { className: "dshsc-btn ghost", disabled: busy !== null, onClick: () => actions.onExports(row) }, t("action.exports")),
         h("button", {
           className: "dshsc-btn ghost danger sq",
           disabled: !writable || busy !== null,
@@ -2179,18 +2171,15 @@ function InstalledTab({
   }
   function groupedRows() {
     const groups = [];
-    const hasLink = (row, prefix) => row.links.some((link) => !link.broken && String(link.target).startsWith(prefix));
-    const dshRows = visibleRows.filter((row) => row.mode === "on" && !row.scopeProjects?.length && hasLink(row, "dsh-global"));
-    const projectRows = visibleRows.filter((row) => row.mode === "on" && row.scopeProjects?.length);
-    const offRows = visibleRows.filter((row) => row.mode === "off");
-    const unlinkedRows = visibleRows.filter((row) => row.mode === "on" && !row.scopeProjects?.length && !row.links.some((link) => !link.broken));
-    groups.push({ key: "dsh-global", title: t("group.dshGlobal"), rows: dshRows, dot: true });
-    if (projectRows.length) groups.push({ key: "dsh-project", title: t("group.dshProject"), rows: projectRows, dot: true });
+    const visibleGroup = visibleRows.filter((row) => row.enabled !== false && row.visible);
+    const offRows = visibleRows.filter((row) => row.enabled === false);
+    const hiddenRows = visibleRows.filter((row) => row.enabled !== false && !row.visible);
+    groups.push({ key: "visible", title: t("group.visible"), rows: visibleGroup, dot: true });
     if (offRows.length) groups.push({ key: "off", title: t("group.off"), rows: offRows });
-    if (unlinkedRows.length) groups.push({ key: "unlinked", title: t("group.unlinked"), rows: unlinkedRows });
+    if (hiddenRows.length) groups.push({ key: "hidden", title: t("group.hidden"), rows: hiddenRows });
     for (const agent of data?.agents?.detected || []) {
       if (agent.kind !== "agent") continue;
-      const matched = visibleRows.filter((row) => row.links.some((link) => link.target === agent.target));
+      const matched = visibleRows.filter((row) => (row.exports || []).some((item) => item.target === agent.target && !item.broken));
       if (matched.length) groups.push({ key: agent.target, title: agent.label, rows: matched });
     }
     return groups.filter((group) => group.rows.length > 0);
@@ -2698,113 +2687,51 @@ function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabe
     ]
   }, h("p", { className: "dshsc-sub", style: { whiteSpace: "pre-wrap" } }, body));
 }
-function LinksModal({ t, row, agents, workspaces, pickDirectory, onCancel, onSave }) {
-  const candidates = agents.filter(
-    (agent) => agent.kind === "dsh" || agent.kind !== "project" && agent.exists
-  );
+function ExportsModal({ t, row, agents, onCancel, onSave }) {
+  const candidates = agents.filter((agent) => agent.kind === "agent" && agent.exists);
   const [targets, setTargets] = import_react4.default.useState(() => {
-    const visible = new Set(candidates.map((agent) => agent.target));
-    const initial = new Set(row.links.map((link) => link.target).filter((target) => visible.has(target)));
-    initial.add("dsh-global");
-    return initial;
+    const available = new Set(candidates.map((agent) => agent.target));
+    return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
   });
-  const [scopeProjects, setScopeProjects] = import_react4.default.useState(row.scopeProjects || []);
-  const [scopeMode, setScopeMode] = import_react4.default.useState((row.scopeProjects || []).length > 0 ? "projects" : "global");
-  const workspacePaths = new Set(workspaces.map((workspace) => workspace.path));
-  const otherProjects = scopeProjects.filter((project) => !workspacePaths.has(project));
   const toggle = (target) => setTargets((prev) => {
     const next = new Set(prev);
     if (next.has(target)) next.delete(target);
     else next.add(target);
     return next;
   });
-  const toggleProject = (project) => setScopeProjects((prev) => prev.includes(project) ? prev.filter((item) => item !== project) : [...prev, project]);
-  const chooseDirectory = async () => {
-    const dir = await pickDirectory?.();
-    if (!dir) return;
-    setScopeProjects((prev) => prev.includes(dir) ? prev : [...prev, dir]);
-  };
   return h(
     Overlay,
     {
       t,
-      title: `${t("action.links")} · ${row.name}`,
+      title: `${t("action.exports")} · ${row.name}`,
       onCancel,
       footer: [
         h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
-        h("button", {
-          key: "s",
-          className: "dshsc-btn primary",
-          onClick: () => onSave([...targets], scopeMode === "projects" ? scopeProjects.filter((item) => item.trim()) : [])
-        }, t("action.save"))
+        h("button", { key: "s", className: "dshsc-btn primary", onClick: () => onSave([...targets]) }, t("action.save"))
       ]
     },
-    h("div", { className: "dshsc-group" }, t("links.targets")),
-    h("p", { className: "dshsc-sub" }, t("links.detectedHint")),
-    h("p", { className: "dshsc-sub" }, t("links.canonical").replace("{path}", `~/.agents/skills/${row.name}`)),
+    h("div", { className: "dshsc-group" }, t("exports.targets")),
+    h("p", { className: "dshsc-sub" }, t("exports.detectedHint")),
+    h("p", { className: "dshsc-sub" }, t("exports.canonical").replace("{path}", `~/.agents/skills/${row.name}`)),
+    candidates.length === 0 ? h("p", { className: "dshsc-sub" }, t("exports.none")) : null,
     ...candidates.map((agent) => h(
       "label",
-      { className: `dshsc-check${agent.target === "dsh-global" ? " locked" : ""}`, key: agent.target },
+      { className: "dshsc-check", key: agent.target },
       h("input", {
         type: "checkbox",
-        checked: agent.target === "dsh-global" ? true : targets.has(agent.target),
-        disabled: agent.target === "dsh-global",
+        checked: targets.has(agent.target),
         onChange: () => toggle(agent.target)
       }),
-      h("span", null, agent.kind === "dsh" ? t("links.dshGlobal") : agent.label),
-      agent.target === "dsh-global" ? h("small", null, t("links.required")) : null,
+      h("span", null, agent.label),
+      h("small", null, agent.sharedHome === "yes" ? t("exports.sharedYes") : t("exports.sharedUnknown")),
       h("small", { title: agent.dir }, agent.dir)
     )),
-    h("div", { className: "dshsc-group" }, t("links.scope")),
-    h(
-      "label",
-      { className: "dshsc-check" },
-      h("input", { type: "radio", name: `scope-${row.name}`, checked: scopeMode === "global", onChange: () => setScopeMode("global") }),
-      h("span", null, t("links.scopeGlobal"))
-    ),
-    h(
-      "label",
-      { className: "dshsc-check" },
-      h("input", { type: "radio", name: `scope-${row.name}`, checked: scopeMode === "projects", onChange: () => setScopeMode("projects") }),
-      h("span", null, t("links.scopeProjects"))
-    ),
-    scopeMode === "projects" ? h(
-      "div",
-      null,
-      h("div", { className: "dshsc-group" }, t("links.workspaces")),
-      workspaces.length === 0 ? h("p", { className: "dshsc-sub" }, t("links.noWorkspaces")) : h("div", { className: "dshsc-panel" }, workspaces.map((workspace) => h(
-        "label",
-        { className: "dshsc-check", key: workspace.id },
-        h("input", {
-          type: "checkbox",
-          checked: scopeProjects.includes(workspace.path),
-          onChange: () => toggleProject(workspace.path)
-        }),
-        h("span", null, workspace.title),
-        h("small", null, workspace.path)
-      ))),
-      otherProjects.length > 0 ? h("div", { className: "dshsc-group" }, t("links.selected")) : null,
-      ...otherProjects.map((project) => h(
-        "div",
-        { className: "dshsc-sub-entry", key: project },
-        h("span", { className: "dshsc-code" }, project),
-        h(
-          "div",
-          { className: "dshsc-actions" },
-          h("button", {
-            className: "dshsc-btn ghost danger",
-            onClick: () => setScopeProjects((prev) => prev.filter((item) => item !== project))
-          }, t("action.delete"))
-        )
-      )),
-      h("button", { className: "dshsc-btn", style: { alignSelf: "flex-start", marginTop: 6 }, onClick: () => void chooseDirectory() }, t("links.pickDirectory"))
-    ) : null,
-    h("p", { className: "dshsc-sub" }, t("links.hint"))
+    h("p", { className: "dshsc-sub" }, t("exports.hint"))
   );
 }
-function AutoLinkModal({ t, settings, agents, dsh, onCancel, onSave }) {
+function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
   const [targets, setTargets] = import_react4.default.useState(() => new Set(
-    Array.isArray(settings.autoLinkTargets) ? settings.autoLinkTargets : agents.map((agent) => agent.target)
+    Array.isArray(settings.exportTargets) ? settings.exportTargets : []
   ));
   const toggle = (target) => setTargets((prev) => {
     const next = new Set(prev);
@@ -2816,50 +2743,29 @@ function AutoLinkModal({ t, settings, agents, dsh, onCancel, onSave }) {
     Overlay,
     {
       t,
-      title: t("autoLink"),
+      title: t("exportDefault"),
       onCancel,
       footer: [
         h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
         h("button", { key: "s", className: "dshsc-btn primary", onClick: () => onSave([...targets]) }, t("action.save"))
       ]
     },
-    h("div", { className: "dshsc-group" }, t("autoLink.detected")),
-    h(
-      "div",
-      { className: "dshsc-panel" },
-      // dsh（全局）始终接入：列表里也勾上，只是不能改，勾选数与页头的计数器才对得上
-      h(
-        "label",
-        { className: "dshsc-check locked", key: "dsh-global" },
-        h("input", {
-          type: "checkbox",
-          checked: true,
-          disabled: true,
-          readOnly: true,
-          onChange: () => {
-          }
-        }),
-        h("span", null, dsh?.label || t("links.dshGlobal")),
-        h("small", null, t("links.required")),
-        dsh?.dir ? h("small", { title: dsh.dir }, dsh.dir) : null
-      ),
-      ...agents.map((agent) => h(
-        "label",
-        { className: "dshsc-check", key: agent.target },
-        h("input", {
-          type: "checkbox",
-          checked: targets.has(agent.target),
-          onChange: () => toggle(agent.target)
-        }),
-        h("span", null, agent.label),
-        h("small", null, agent.dir)
-      ))
-    ),
-    agents.length === 0 ? h("p", { className: "dshsc-sub" }, t("autoLink.none")) : null,
-    h("p", { className: "dshsc-sub" }, t("autoLink.hint"))
+    h("div", { className: "dshsc-group" }, t("exportDefault.detected")),
+    agents.length === 0 ? h("p", { className: "dshsc-sub" }, t("exportDefault.none")) : h("div", { className: "dshsc-panel" }, agents.map((agent) => h(
+      "label",
+      { className: "dshsc-check", key: agent.target },
+      h("input", {
+        type: "checkbox",
+        checked: targets.has(agent.target),
+        onChange: () => toggle(agent.target)
+      }),
+      h("span", null, agent.label),
+      h("small", null, agent.dir)
+    ))),
+    h("p", { className: "dshsc-sub" }, t("exportDefault.hint"))
   );
 }
-function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirectory, actions, onClose, onSaveAutoLink }) {
+function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }) {
   if (modal.type === "add-skill") {
     return h(AddSkillModal, {
       t,
@@ -2882,26 +2788,23 @@ function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirectory, ac
       onSubmit: (form) => void actions.addSubscription(form)
     });
   }
-  if (modal.type === "links") {
-    return h(LinksModal, {
+  if (modal.type === "exports") {
+    return h(ExportsModal, {
       t,
       row: modal.row,
       agents: data?.agents?.all || [],
-      workspaces: data?.workspaces || [],
-      pickDirectory,
       onCancel: onClose,
-      onSave: (targets, scopeProjects) => {
+      onSave: (targets) => {
         onClose();
-        void actions.saveLinks(modal.row, targets, scopeProjects);
+        void actions.saveExports(modal.row, targets);
       }
     });
   }
   if (modal.type === "autolink") {
-    return h(AutoLinkModal, {
+    return h(DefaultExportModal, {
       t,
       settings: data?.settings || {},
       agents: autoLinkAgents,
-      dsh: autoLinkDsh,
       onCancel: onClose,
       onSave: (targets) => void onSaveAutoLink(targets)
     });
@@ -3433,7 +3336,7 @@ function SkillReader({
   onClose,
   onOpenPage,
   onUpdate,
-  onLinks,
+  onExports,
   onToast
 }) {
   const { state, file, loadFile, retry } = useSkillReader(row);
@@ -3591,7 +3494,7 @@ function SkillReader({
       { className: "dshsc-reader-title" },
       h("h2", { id: "dshsc-reader-name", tabIndex: -1 }, name || t("viewer.title")),
       row?.status && STATUS_KEY[row.status] ? h("span", { className: `dshsc-tag ${row.status === "current" ? "ok" : "warn"}` }, t(STATUS_KEY[row.status])) : null,
-      row?.mode === "off" ? h("span", { className: "dshsc-tag off" }, t("status.off")) : null,
+      row?.enabled === false ? h("span", { className: "dshsc-tag off" }, t("status.off")) : null,
       variant === "drawer" ? h("button", {
         type: "button",
         className: "dshsc-reader-close",
@@ -3830,8 +3733,7 @@ function SkillReader({
     );
   }
   function infoPanel() {
-    const agentLabels = (row?.links || []).filter((link) => !link.broken).map((link) => link.target === "dsh-global" ? "DSH" : link.label);
-    const projects = row?.scopeProjects || [];
+    const agentLabels = (row?.exports || []).filter((item) => !item.broken).map((item) => item.label);
     const hash = row?.lockHash || row?.currentHash || null;
     const rows = [];
     rows.push(["viewer.info.name", h("span", { className: "mono" }, name), "mono"]);
@@ -3850,9 +3752,9 @@ function SkillReader({
       ["viewer.info.localChange", row?.status === "locally-modified" || row?.status === "conflict" ? t("viewer.info.localChangeYes") : t("viewer.info.localChangeNone")]
     ];
     const linkRows = [
+      ["viewer.info.dsh", row?.visible ? t("meta.dshVisible") : t("meta.dshHidden")],
       ["viewer.info.agents", agentLabels.length > 0 ? agentLabels.join("、") : t("meta.unlinked")],
-      ["viewer.info.scope", projects.length > 0 ? `${t("viewer.info.scopeProject")}：${projects.map((item) => item.split("/").pop()).join("、")}` : t("viewer.info.scopeGlobal")],
-      ["viewer.info.mode", row?.mode === "off" ? t("status.off") : t("mode.on")],
+      ["viewer.info.mode", row?.enabled === false ? t("status.off") : t("mode.on")],
       ["viewer.info.status", STATUS_KEY[row?.status] ? t(STATUS_KEY[row.status]) : t("status.unknown")]
     ];
     return h(
@@ -3899,7 +3801,7 @@ function SkillReader({
       onClick: () => void copyTextWithToast(row?.path || "", "viewer.copied")
     }, t("viewer.copyPath")),
     variant === "drawer" && onOpenPage ? h("button", { type: "button", className: "dshsc-btn ghost", onClick: () => onOpenPage() }, t("viewer.openPage")) : null,
-    onLinks ? h("button", { type: "button", className: "dshsc-btn", onClick: () => onLinks?.(row) }, t("action.links")) : null,
+    onExports ? h("button", { type: "button", className: "dshsc-btn", onClick: () => onExports?.(row) }, t("action.exports")) : null,
     onUpdate ? h("button", {
       type: "button",
       className: "dshsc-btn tint",
@@ -3991,15 +3893,15 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const updateCount = rows.filter(updatable).length;
   const bulkCount = rows.filter((row) => row.status === "update-available").length;
   const unknownCount = rows.filter((row) => row.status === "unknown").length;
-  const offCount = rows.filter((row) => row.mode === "off").length;
+  const offCount = rows.filter((row) => row.enabled === false).length;
   const counts = { all: rows.length, update: updateCount, unknown: unknownCount, off: offCount };
   const queryText = query.trim().toLowerCase();
   const visibleRows = rows.filter((row) => {
     if (filter === "update" && !updatable(row)) return false;
     if (filter === "unknown" && row.status !== "unknown") return false;
-    if (filter === "off" && row.mode !== "off") return false;
+    if (filter === "off" && row.enabled !== false) return false;
     if (!queryText) return true;
-    const agentLabels = row.links.map((link) => link.target === "dsh-global" ? "DSH" : link.label);
+    const agentLabels = row.exports.map((item) => item.label);
     return [row.name, row.source || "", ...agentLabels].join(" ").toLowerCase().includes(queryText);
   });
   import_react6.default.useEffect(() => {
@@ -4008,11 +3910,10 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     setViewer(null);
     setToast({ kind: "err", text: t("viewer.gone") });
   }, [data, rows, t, viewer]);
-  const autolinkTargets = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent");
-  const autoLinkSelection = data?.settings?.autoLinkTargets;
-  const autoLinkAgents = Array.isArray(autoLinkSelection) ? autolinkTargets.filter((agent) => autoLinkSelection.includes(agent.target)) : autolinkTargets;
-  const autoLinkDsh = (data?.agents?.all || []).find((agent) => agent.target === "dsh-global") || null;
-  const autoLinkLabel = [t("links.dshGlobal"), ...autoLinkAgents.map((agent) => agent.label)].join("、");
+  const exportTargetOptions = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent");
+  const exportSelection = data?.settings?.exportTargets;
+  const autoLinkAgents = Array.isArray(exportSelection) ? exportTargetOptions.filter((agent) => exportSelection.includes(agent.target)) : [];
+  const autoLinkLabel = autoLinkAgents.length > 0 ? autoLinkAgents.map((agent) => agent.label).join("、") : t("exportDefault.none");
   const placement = (placementOverride ?? data?.settings?.placement) === "sidebar" ? "sidebar" : "settings";
   function listScroller() {
     const node = rootRef.current?.querySelector?.(".dshsc-listscroll");
@@ -4060,7 +3961,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   }
   async function saveAutoLink(targets) {
     setModal(null);
-    await run("settings", () => apiCall("POST", "/settings", { autoLinkTargets: targets }));
+    await run("settings", () => apiCall("POST", "/settings", { exportTargets: targets }));
   }
   const installedActions = {
     onView: (row) => openViewer(row),
@@ -4068,7 +3969,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onToggleMode: actions.toggleMode,
     onUpdate: actions.requestUpdate,
     onDelete: actions.requestDelete,
-    onLinks: (row) => setModal({ type: "links", row }),
+    onExports: (row) => setModal({ type: "exports", row }),
     onCheckUpdates: actions.checkUpdates,
     onUpdateAll: actions.updateAll,
     onAddSkill: actions.requestAddSkill,
@@ -4100,7 +4001,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onClose: closeViewer,
     onOpenPage: viewer.mode === "drawer" ? openPage : null,
     onUpdate: actions.requestUpdate,
-    onLinks: (row) => setModal({ type: "links", row }),
+    onExports: (row) => setModal({ type: "exports", row }),
     onToast: (next) => setToast(next)
   }) : null;
   const listNode = h(
@@ -4112,7 +4013,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       plugin: data?.plugin,
       writable,
       autoLinkLabel,
-      autoLinkCount: autoLinkAgents.length + 1,
+      autoLinkCount: autoLinkAgents.length,
       tab,
       settingsOpen,
       settingsRef,
@@ -4177,14 +4078,13 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       t,
       modal,
       data,
-      autoLinkAgents: autolinkTargets,
-      autoLinkDsh,
+      autoLinkAgents: exportTargetOptions,
       pickDirectory,
       actions: {
         probeSkills: actions.probeSkills,
         installSkills: actions.installSkills,
         addSubscription: actions.addSubscription,
-        saveLinks: actions.saveLinks
+        saveExports: actions.saveExports
       },
       onClose: () => setModal(null),
       onSaveAutoLink: saveAutoLink

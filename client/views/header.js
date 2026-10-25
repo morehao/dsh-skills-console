@@ -85,10 +85,10 @@ export function Header({
       h('button', {
         className: 'dshsc-btn',
         disabled: !writable,
-        title: `${t('autoLink')}：${autoLinkLabel}`,
-        'aria-label': `${t('autoLink')}：${autoLinkLabel}`,
+        title: `${t('exportDefault')}：${autoLinkLabel}`,
+        'aria-label': `${t('exportDefault')}：${autoLinkLabel}`,
         onClick: onOpenAutoLink,
-      }, `${t('autoLink')} · ${autoLinkCount} ▾`),
+      }, `${t('exportDefault')} · ${autoLinkCount} ▾`),
       h('button', {
         className: 'dshsc-btn primary',
         disabled: !writable,

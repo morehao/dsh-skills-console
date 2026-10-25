@@ -118,12 +118,12 @@ function setup(extra = {}, envExtra = {}) {
   return { root, home, paths, store, service, registry, installer, gh: defaultGh };
 }
 
-test('安装：canonical + lock 断言 + 默认建链 + 记账', async () => {
+test('安装：canonical + lock 断言 + 默认不导出 + 记账', async () => {
   const { root, home, paths, store, service } = setup();
   const result = await service.install({
     source: 'morehao/ai-kit',
     skills: ['alpha'],
-    targets: ['dsh-global', 'agent:claude-code'],
+    targets: ['agent:claude-code'],
   });
   assert.equal(result.ok, true);
   assert.equal(result.installed.length, 1);
@@ -133,30 +133,35 @@ test('安装：canonical + lock 断言 + 默认建链 + 记账', async () => {
   const install = store.findInstall('alpha');
   assert.ok(install, '必须写 installs 记录');
   assert.match(install.installedHash, /^[0-9a-f]{64}$/);
-  assert.equal(install.mode, 'on');
+  assert.equal(install.enabled, true);
+  assert.equal('mode' in install, false, 'v2 不再落盘 mode');
 
-  assert.ok(fs.lstatSync(path.join(home, '.dsh', 'skills', 'alpha')).isSymbolicLink(), 'dsh 全局链必须建');
-  assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'alpha')).isSymbolicLink(), '其他 Agent 按 targets 建');
+  // direct 模式：canonical 就是 rank 500 的扫描根，`~/.dsh/skills` 那条链没有任何可见性收益
+  assert.equal(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')), false, '不再建 rank 提升链');
+  assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'alpha')).isSymbolicLink(), '点名的 Agent 才建链');
+  assert.equal(store.state.exports.filter((row) => row.skill === 'alpha').length, 1);
 
   const state = await service.getState({});
   const row = state.installs.find((item) => item.name === 'alpha');
   assert.equal(row.managed, true);
-  assert.equal(row.visible, true, '可见列要能对上 canonical 条目');
+  assert.equal(row.visible, true, 'canonical 在 user-agents 根里，模型可见');
+  assert.equal(row.visibleSource, 'user-agents');
+  assert.deepEqual(row.exports.map((item) => item.target), ['agent:claude-code']);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
 test('安装：技能名留空 → installer 装全部，并按实际发现结果记账', async () => {
-  const { root, home, paths, store, service } = setup();
+  const { root, paths, store, service } = setup();
   const result = await service.install({ source: 'https://github.com/alchaincyf/huashu-design', skills: [] });
   assert.equal(result.ok, true);
   assert.deepEqual(result.installed.map((item) => item.name).sort(), ['all-one', 'all-two'], '以 CLI 输出为准');
 
   for (const name of ['all-one', 'all-two']) {
     assert.ok(fs.existsSync(path.join(paths.canonical, name, 'SKILL.md')), `${name} 要落进 canonical`);
-    assert.ok(fs.lstatSync(path.join(home, '.dsh', 'skills', name)).isSymbolicLink(), `${name} 要接入 dsh`);
     assert.ok(store.findInstall(name), `${name} 要有 installs 记录`);
   }
   assert.equal(store.state.installs.length, 2);
+  assert.equal(store.state.exports.length, 0, '默认一个 agent 都不导出');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -173,25 +178,30 @@ test('作用范围：/state 带出可选的 DSH 工作区', async () => {
   fs.rmSync(broken.root, { recursive: true, force: true });
 });
 
-test('自动接入：只接入勾选的已探测 Agent，dsh 全局必选', async () => {
-  const { root, home, paths, store, service } = setup();
+test('导出：默认不导出；勾选 exportTargets 后新装技能才建链', async () => {
+  const { root, home, store, service } = setup();
   fs.mkdirSync(path.join(home, '.codebuddy', 'skills'), { recursive: true });
 
-  await service.setSettings({ autoLinkTargets: ['agent:claude-code', 'agent:not-detected', 'bad-target'] });
-  assert.deepEqual(store.state.settings.autoLinkTargets, ['agent:claude-code'], '未知/未探测的 Agent 被过滤');
+  await service.setSettings({ exportTargets: ['agent:claude-code', 'agent:not-detected', 'bad-target', 'dsh-global'] });
+  assert.deepEqual(
+    store.state.settings.exportTargets,
+    ['agent:claude-code'],
+    '未知/未探测的 Agent 与非 agent 目标被过滤',
+  );
 
   await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
-  assert.ok(fs.lstatSync(path.join(home, '.dsh', 'skills', 'alpha')).isSymbolicLink(), 'dsh 全局必建');
   assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'alpha')).isSymbolicLink(), '勾选的 Agent 要建');
   assert.equal(fs.existsSync(path.join(home, '.codebuddy', 'skills', 'alpha')), false, '没勾的不能建');
+  assert.equal(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')), false, 'DSH 自己的根永远不进导出');
 
-  await service.setSettings({ autoLinkTargets: [] });
+  await service.setSettings({ exportTargets: [] });
   await service.install({ source: 'morehao/ai-kit', skills: ['beta'] });
-  assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'beta')), false);
+  assert.equal(fs.existsSync(path.join(home, '.claude', 'skills', 'beta')), false, '清空后不导出');
 
+  // v1 客户端别名：`null` 原本表示「所有探测到的 Agent」，语义照搬
   await service.setSettings({ autoLinkTargets: null });
   await service.install({ source: 'morehao/ai-kit', skills: ['gamma'] });
-  assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'gamma')).isSymbolicLink(), 'null = 所有探测到的 Agent');
+  assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'gamma')).isSymbolicLink());
   assert.ok(fs.lstatSync(path.join(home, '.codebuddy', 'skills', 'gamma')).isSymbolicLink());
   fs.rmSync(root, { recursive: true, force: true });
 });
@@ -208,17 +218,37 @@ test('入口位置：settings / sidebar 持久化，非法值被忽略', async (
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('启停：off 只摘 DSH 侧链接，文件与其他 Agent 链接不动；on 按原作用范围重建', async () => {
-  const { root, home, paths, service } = setup();
-  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: ['dsh-global', 'agent:claude-code'] });
+test('启停：off 建停用标记（不删真身、不动其他 Agent）；on 删标记后重新可见', async () => {
+  const { root, home, paths, service, store } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: ['agent:claude-code'] });
 
-  await service.setMode({ name: 'alpha', mode: 'off' });
-  assert.equal(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')), false, 'DSH 侧链接应被摘掉');
-  assert.ok(fs.existsSync(path.join(paths.canonical, 'alpha', 'SKILL.md')), '文件不能动');
+  const before = await service.getState({});
+  assert.equal(before.installs.find((item) => item.name === 'alpha').visible, true);
+
+  const off = await service.setMode({ name: 'alpha', mode: 'off' });
+  assert.equal(off.enabled, false);
+  const stub = path.join(home, '.dsh', 'skills', 'alpha');
+  assert.ok(fs.lstatSync(stub).isDirectory(), '停用标记是真实目录，不是链');
+  const md = fs.readFileSync(path.join(stub, 'SKILL.md'), 'utf8');
+  assert.match(md, /^name: alpha$/m);
+  assert.match(md, /disable-model-invocation: true/);
+  assert.match(md, /user-invocable: false/);
+  assert.ok(fs.existsSync(path.join(stub, '.dsh-skills-console.json')), '要留标记文件，便于识别与回收');
+  assert.ok(fs.existsSync(path.join(paths.canonical, 'alpha', 'SKILL.md')), '真身不能动');
   assert.ok(fs.lstatSync(path.join(home, '.claude', 'skills', 'alpha')).isSymbolicLink(), '其他 Agent 不动');
+  assert.equal(store.state.shadows.length, 1);
+
+  const afterOff = await service.getState({});
+  const hidden = afterOff.installs.find((item) => item.name === 'alpha');
+  assert.equal(hidden.visible, false, '停用后模型不可见');
+  assert.equal(hidden.visibility.shadowed, true);
+  assert.equal(hidden.enabled, false);
 
   await service.setMode({ name: 'alpha', mode: 'on' });
-  assert.ok(fs.lstatSync(path.join(home, '.dsh', 'skills', 'alpha')).isSymbolicLink());
+  assert.equal(fs.existsSync(stub), false, '标记要被清掉');
+  const afterOn = await service.getState({});
+  assert.equal(afterOn.installs.find((item) => item.name === 'alpha').visible, true);
+  assert.equal(store.state.shadows.length, 0);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -256,26 +286,23 @@ test('删除：体检拦截真实目录；通过后进回收站并清记账', as
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('Agent 目录被删：链接记录保留但清单忽略，自动接入不重建', async () => {
+test('Agent 目录被删：导出记录保留但清单忽略，也不会被凭空重建', async () => {
   const { root, home, store, service } = setup();
-  await service.install({
-    source: 'morehao/ai-kit',
-    skills: ['alpha'],
-    targets: ['dsh-global', 'agent:claude-code'],
-  });
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: ['agent:claude-code'] });
   assert.ok(fs.existsSync(path.join(home, '.claude', 'skills', 'alpha')));
   fs.rmSync(path.join(home, '.claude'), { recursive: true, force: true });
 
   const state = await service.getState({});
   const row = state.installs.find((item) => item.name === 'alpha');
-  assert.deepEqual(row.links.map((link) => link.target), ['dsh-global'], '断掉的 Agent 链接不进清单');
+  assert.deepEqual(row.exports, [], '断掉的 Agent 链接不进清单');
   assert.ok(
-    store.state.links.some((link) => link.target === 'agent:claude-code'),
+    store.state.exports.some((item) => item.target === 'agent:claude-code'),
     '历史记录保留，Agent 重装后还能复用',
   );
 
+  await service.setSettings({ exportTargets: ['agent:claude-code'] });
   await service.install({ source: 'morehao/ai-kit', skills: ['beta'] });
-  assert.equal(fs.existsSync(path.join(home, '.claude')), false, '自动接入不能凭空重建已删目录');
+  assert.equal(fs.existsSync(path.join(home, '.claude')), false, '导出不能凭空重建已删目录');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -300,8 +327,6 @@ test('自动接管：CLI 已装好的技能在第一次读取时直接纳入追�
       },
     }),
   );
-  fs.symlinkSync(path.join('..', '..', '.agents', 'skills', 'alpha'), path.join(home, '.dsh', 'skills', 'alpha'), 'dir');
-
   // 没有再点「接管」，第一次 GET /state 就该把账补上
   const before = await service.getState({});
   const row = before.installs.find((item) => item.name === 'alpha');
@@ -313,7 +338,8 @@ test('自动接管：CLI 已装好的技能在第一次读取时直接纳入追�
   assert.ok(install.subscriptionId, '有 lock 来源时自动建订阅');
   const subscription = store.state.subscriptions.find((item) => item.id === install.subscriptionId);
   assert.equal(subscription.source, 'morehao/ai-kit');
-  assert.ok(row.links.some((link) => link.target === 'dsh-global' && link.state === 'managed'), '已存在的链接要记成自己的');
+  assert.equal(row.visible, true, 'canonical 在 user-agents 根里，本来就能被模型看见');
+  assert.equal(row.visibleSource, 'user-agents');
 
   const repeat = await service.getState({});
   assert.equal(store.state.installs.filter((item) => item.name === 'alpha').length, 1, '对账必须幂等');

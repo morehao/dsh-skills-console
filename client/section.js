@@ -48,15 +48,15 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   // 批量更新只处理无本地改动、可直接 fast-forward 的行；有本地改动仍需逐个确认
   const bulkCount = rows.filter((row) => row.status === 'update-available').length;
   const unknownCount = rows.filter((row) => row.status === 'unknown').length;
-  const offCount = rows.filter((row) => row.mode === 'off').length;
+  const offCount = rows.filter((row) => row.enabled === false).length;
   const counts = { all: rows.length, update: updateCount, unknown: unknownCount, off: offCount };
   const queryText = query.trim().toLowerCase();
   const visibleRows = rows.filter((row) => {
     if (filter === 'update' && !updatable(row)) return false;
     if (filter === 'unknown' && row.status !== 'unknown') return false;
-    if (filter === 'off' && row.mode !== 'off') return false;
+    if (filter === 'off' && row.enabled !== false) return false;
     if (!queryText) return true;
-    const agentLabels = row.links.map((link) => (link.target === 'dsh-global' ? 'DSH' : link.label));
+    const agentLabels = row.exports.map((item) => item.label);
     return [row.name, row.source || '', ...agentLabels].join(' ').toLowerCase().includes(queryText);
   });
 
@@ -67,14 +67,15 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     setToast({ kind: 'err', text: t('viewer.gone') });
   }, [data, rows, t, viewer]);
 
-  const autolinkTargets = (data?.agents?.detected || []).filter((agent) => agent.kind === 'agent');
-  const autoLinkSelection = data?.settings?.autoLinkTargets;
-  const autoLinkAgents = Array.isArray(autoLinkSelection)
-    ? autolinkTargets.filter((agent) => autoLinkSelection.includes(agent.target))
-    : autolinkTargets;
-  // dsh（全局）始终接入：弹窗里作为固定勾选的一行展示，计数也含它
-  const autoLinkDsh = (data?.agents?.all || []).find((agent) => agent.target === 'dsh-global') || null;
-  const autoLinkLabel = [t('links.dshGlobal'), ...autoLinkAgents.map((agent) => agent.label)].join('、');
+  // 默认导出的目标：v2 起默认空（导出是逐 agent 的显式动作）
+  const exportTargetOptions = (data?.agents?.detected || []).filter((agent) => agent.kind === 'agent');
+  const exportSelection = data?.settings?.exportTargets;
+  const autoLinkAgents = Array.isArray(exportSelection)
+    ? exportTargetOptions.filter((agent) => exportSelection.includes(agent.target))
+    : [];
+  const autoLinkLabel = autoLinkAgents.length > 0
+    ? autoLinkAgents.map((agent) => agent.label).join('、')
+    : t('exportDefault.none');
   const placement = (placementOverride ?? data?.settings?.placement) === 'sidebar' ? 'sidebar' : 'settings';
 
   /** 列表自己的滚动容器（行区域独立滚动）；宿主没给确定高度、列表退回外层滚动时再找祖先。 */
@@ -131,7 +132,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
 
   async function saveAutoLink(targets) {
     setModal(null);
-    await run('settings', () => apiCall('POST', '/settings', { autoLinkTargets: targets }));
+    await run('settings', () => apiCall('POST', '/settings', { exportTargets: targets }));
   }
 
   const installedActions = {
@@ -140,7 +141,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onToggleMode: actions.toggleMode,
     onUpdate: actions.requestUpdate,
     onDelete: actions.requestDelete,
-    onLinks: (row) => setModal({ type: 'links', row }),
+    onExports: (row) => setModal({ type: 'exports', row }),
     onCheckUpdates: actions.checkUpdates,
     onUpdateAll: actions.updateAll,
     onAddSkill: actions.requestAddSkill,
@@ -173,7 +174,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
         onClose: closeViewer,
         onOpenPage: viewer.mode === 'drawer' ? openPage : null,
         onUpdate: actions.requestUpdate,
-        onLinks: (row) => setModal({ type: 'links', row }),
+        onExports: (row) => setModal({ type: 'exports', row }),
         onToast: (next) => setToast(next),
       })
     : null;
@@ -187,7 +188,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       plugin: data?.plugin,
       writable,
       autoLinkLabel,
-      autoLinkCount: autoLinkAgents.length + 1,
+      autoLinkCount: autoLinkAgents.length,
       tab,
       settingsOpen,
       settingsRef,
@@ -259,14 +260,13 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       t,
       modal,
       data,
-      autoLinkAgents: autolinkTargets,
-      autoLinkDsh,
+      autoLinkAgents: exportTargetOptions,
       pickDirectory,
       actions: {
         probeSkills: actions.probeSkills,
         installSkills: actions.installSkills,
         addSubscription: actions.addSubscription,
-        saveLinks: actions.saveLinks,
+        saveExports: actions.saveExports,
       },
       onClose: () => setModal(null),
       onSaveAutoLink: saveAutoLink,

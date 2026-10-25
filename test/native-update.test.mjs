@@ -87,6 +87,7 @@ test('Service + 真实 installer：限流下更新 → lock/state/备份 → 回
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-native-update-'));
   const home = path.join(root, 'home');
   fs.mkdirSync(path.join(home, '.dsh', 'skills'), { recursive: true });
+  fs.mkdirSync(path.join(home, '.claude', 'skills'), { recursive: true });
 
   const oldFiles = {
     'skills/alpha/SKILL.md': '---\nname: alpha\ndescription: alpha old\n---\nbody old\n',
@@ -130,7 +131,7 @@ test('Service + 真实 installer：限流下更新 → lock/state/备份 → 回
   const installed = await service.install({
     subscriptionId: added.subscription.id,
     skills: ['alpha'],
-    targets: ['dsh-global'],
+    targets: ['agent:claude-code'],
   });
   assert.equal(installed.ok, true);
   assert.equal(store.findInstall('alpha').commit, OLD_COMMIT);
@@ -170,7 +171,10 @@ test('Service + 真实 installer：限流下更新 → lock/state/备份 → 回
   assert.equal(lockAfter.skills.alpha.skillFolderHash, newTree);
   assert.equal(lockAfter.skills.alpha.ref, NEW_COMMIT);
   assert.match(fs.readFileSync(path.join(paths.canonical, 'alpha', 'SKILL.md'), 'utf8'), /body new/);
-  assert.ok(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')), '更新后链接仍在');
+  assert.ok(
+    fs.lstatSync(path.join(home, '.claude', 'skills', 'alpha')).isSymbolicLink(),
+    '更新重建的是 canonical 目录，导出链仍在',
+  );
 
   const stateAfter = store.findInstall('alpha');
   assert.equal(stateAfter.commit, NEW_COMMIT);
@@ -178,7 +182,7 @@ test('Service + 真实 installer：限流下更新 → lock/state/备份 → 回
   assert.equal(stateAfter.backup.key, applied.backup);
   assert.equal(stateAfter.backup.treeSha, oldTree);
   assert.equal(stateAfter.backup.commit, OLD_COMMIT);
-  assert.ok(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')));
+  assert.equal(fs.existsSync(path.join(home, '.dsh', 'skills', 'alpha')), false, 'direct 模式不建 DSH 链');
 
   const rolled = await service.rollback({ name: 'alpha' });
   assert.equal(rolled.ok, true);

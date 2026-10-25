@@ -50,55 +50,55 @@ export function InstalledTab({
   }
 
   function agentChips(row) {
-    const links = row.links.filter((link) => !link.broken);
-    // project:* 链接本身就是「仅某项目可见」，用后面的 scope chip 表达，不再重复一枚同名 chip
-    const projectLinks = links.filter((link) => String(link.target).startsWith('project:'));
-    const labels = links
-      .filter((link) => !String(link.target).startsWith('project:'))
-      .map((link) => (link.target === 'dsh-global' ? 'DSH' : link.label));
-    if (projectLinks.length > 0 && !labels.includes('DSH')) labels.unshift('DSH');
-    const projects = row.scopeProjects || [];
-    const scopeNames = projects.length > 0
-      ? projects.map((project) => project.split('/').pop())
-      : projectLinks.map((link) => link.label);
-    if (labels.length === 0 && scopeNames.length === 0) {
-      return h('span', { className: 'dshsc-unlinked' }, t('meta.unlinked'));
+    const items = (row.exports || []).filter((item) => !item.broken);
+    const labels = items.map((item) => item.label);
+    const chips = [];
+    // DSH 可见性单独一枚 chip：它由扫描根决定，和「导出到哪些 agent」是两件事
+    if (row.visible) {
+      chips.push(h('span', {
+        className: 'dshsc-agent dsh',
+        key: 'dsh',
+        title: t('meta.dshVisible'),
+      }, h('i', { className: 'dshsc-dot' }), 'DSH'));
     }
-    const chips = labels.slice(0, 3).map((label, index) => h('span', {
-      className: `dshsc-agent${label === 'DSH' ? ' dsh' : ''}`,
+    if (labels.length === 0) {
+      // 可见性 chip 和「没导出」并不互斥：DSH 看得见 ≠ 其他 agent 拿得到
+      return [...chips, h('span', { key: 'unlinked', className: 'dshsc-unlinked' }, t('meta.unlinked'))];
+    }
+    const room = Math.max(0, 3 - chips.length);
+    const shown = labels.slice(0, room);
+    shown.forEach((label, index) => chips.push(h('span', {
+      className: 'dshsc-agent',
       key: `agent-${index}`,
       title: label,
-    }, label === 'DSH' ? h('i', { className: 'dshsc-dot' }) : null, label));
-    if (labels.length > 3) {
+    }, label)));
+    if (labels.length > shown.length) {
       const open = agentTip?.rowName === row.name;
+      // 气泡里要能拿到「全部」，包括那枚被单独渲染的 DSH
+      const tipLabels = row.visible ? ['DSH', ...labels] : labels;
       chips.push(h('button', {
         type: 'button',
         className: 'dshsc-agent more',
         key: 'more',
-        'aria-label': `${t('meta.agentsAll')}：${labels.join('、')}`,
+        'aria-label': `${t('meta.agentsAll')}：${tipLabels.join('、')}`,
         'aria-describedby': open ? 'dshsc-agenttip' : undefined,
         'aria-expanded': String(open),
-        onClick: (event) => actions.onOpenAgentTip(event, row.name, labels),
-        onMouseEnter: (event) => actions.onOpenAgentTip(event, row.name, labels),
-        onFocus: (event) => actions.onOpenAgentTip(event, row.name, labels),
+        onClick: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
+        onMouseEnter: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
+        onFocus: (event) => actions.onOpenAgentTip(event, row.name, tipLabels),
         onMouseLeave: actions.onCloseAgentTip,
         onBlur: actions.onCloseAgentTip,
-      }, `+${labels.length - 3}`));
-    }
-    if (scopeNames.length > 0) {
-      chips.push(h('span', {
-        className: 'dshsc-agent scope',
-        key: 'scope',
-        title: `${t('meta.scope')}：${projects.length > 0 ? projects.join('、') : scopeNames.join('、')}`,
-      }, `${t('meta.onlyProject')} ${scopeNames.join('、')}`));
+      }, `+${labels.length - shown.length}`));
     }
     return chips;
   }
 
   function rowView(row) {
-    const off = row.mode === 'off';
+    const off = row.enabled === false;
     const tracked = row.status !== 'unmanaged';
     const canUpdate = writable && updatable(row);
+    // 启用却看不见：要么真身不在扫描根里，要么项目副本盖过了停用标记
+    const hidden = !off && !row.visible;
     return h(
       'div',
       { className: `dshsc-row${off ? ' off' : ''}`, key: row.name },
@@ -120,6 +120,10 @@ export function InstalledTab({
         ),
         sourceLine(row),
         off ? h('div', { className: 'dshsc-note' }, t('mode.offHint')) : null,
+        hidden ? h('div', { className: 'dshsc-note warn' }, t('visibility.hiddenHint')) : null,
+        row.visibility?.shadowScopeMismatch
+          ? h('div', { className: 'dshsc-note warn' }, t('visibility.scopeMismatch'))
+          : null,
         row.status === 'broken-link' ? h('div', { className: 'dshsc-note warn' }, t('status.brokenHint')) : null,
       ),
       h('div', { className: 'dshsc-agents' }, agentChips(row)),
@@ -129,12 +133,12 @@ export function InstalledTab({
         h('button', {
           className: 'dshsc-switch',
           role: 'switch',
-          'aria-checked': String(tracked && row.mode === 'on'),
+          'aria-checked': String(tracked && row.enabled !== false),
           'aria-label': `${row.name} ${t('mode.on')}/${t('mode.off')}`,
           // 未纳入追踪时调 setMode 只会报「没有安装记录」，不如直接禁用
           disabled: busy !== null || !tracked,
           onClick: () => void actions.onToggleMode(row),
-          title: tracked ? (row.mode === 'on' ? t('mode.off') : t('mode.on')) : t('adopt.switchHint'),
+          title: tracked ? (row.enabled !== false ? t('mode.off') : t('mode.on')) : t('adopt.switchHint'),
         }, h('span', { className: 'dshsc-knob' })),
         h('button', {
           className: 'dshsc-btn ghost dshsc-view',
@@ -155,7 +159,7 @@ export function InstalledTab({
               disabled: !canUpdate || busy !== null,
               onClick: () => actions.onUpdate(row),
             }, t('action.update')),
-        h('button', { className: 'dshsc-btn ghost', disabled: busy !== null, onClick: () => actions.onLinks(row) }, t('action.links')),
+        h('button', { className: 'dshsc-btn ghost', disabled: busy !== null, onClick: () => actions.onExports(row) }, t('action.exports')),
         h('button', {
           className: 'dshsc-btn ghost danger sq',
           disabled: !writable || busy !== null,
@@ -169,19 +173,15 @@ export function InstalledTab({
 
   function groupedRows() {
     const groups = [];
-    const hasLink = (row, prefix) => row.links.some((link) => !link.broken && String(link.target).startsWith(prefix));
-    const dshRows = visibleRows.filter((row) => row.mode === 'on' && !row.scopeProjects?.length && hasLink(row, 'dsh-global'));
-    const projectRows = visibleRows.filter((row) => row.mode === 'on' && row.scopeProjects?.length);
-    const offRows = visibleRows.filter((row) => row.mode === 'off');
-    const unlinkedRows = visibleRows.filter((row) => row.mode === 'on' && !row.scopeProjects?.length
-      && !row.links.some((link) => !link.broken));
-    groups.push({ key: 'dsh-global', title: t('group.dshGlobal'), rows: dshRows, dot: true });
-    if (projectRows.length) groups.push({ key: 'dsh-project', title: t('group.dshProject'), rows: projectRows, dot: true });
+    const visibleGroup = visibleRows.filter((row) => row.enabled !== false && row.visible);
+    const offRows = visibleRows.filter((row) => row.enabled === false);
+    const hiddenRows = visibleRows.filter((row) => row.enabled !== false && !row.visible);
+    groups.push({ key: 'visible', title: t('group.visible'), rows: visibleGroup, dot: true });
     if (offRows.length) groups.push({ key: 'off', title: t('group.off'), rows: offRows });
-    if (unlinkedRows.length) groups.push({ key: 'unlinked', title: t('group.unlinked'), rows: unlinkedRows });
+    if (hiddenRows.length) groups.push({ key: 'hidden', title: t('group.hidden'), rows: hiddenRows });
     for (const agent of data?.agents?.detected || []) {
       if (agent.kind !== 'agent') continue;
-      const matched = visibleRows.filter((row) => row.links.some((link) => link.target === agent.target));
+      const matched = visibleRows.filter((row) => (row.exports || []).some((item) => item.target === agent.target && !item.broken));
       if (matched.length) groups.push({ key: agent.target, title: agent.label, rows: matched });
     }
     return groups.filter((group) => group.rows.length > 0);

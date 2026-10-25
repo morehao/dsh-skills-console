@@ -47,14 +47,16 @@ npm run check       # 机械校验：语法 + 循环依赖 + 生成物一致性�
 | `agents.test.mjs` | 注册表探测、排除 universal 伪路径、OpenCode / XDG config、Agent 目录被删 |
 | `links.test.mjs` | 软链四态判定、幂等建链、不覆盖 `real` / `foreign-link` |
 | `installer.test.mjs` | native installer：codeload→解压→发现→canonical→lock 事务、根级/subpath、重名/危险条目、重装备份、lock 写失败回滚、strict tree 校验、readiness、remove |
+| `shadow.test.mjs` | 停用桩：三字段 + marker、幂等、遇 foreign/link 报冲突、`broken` 判态、删桩不留残骸、扫描根口径（目录包/平铺/软链/点文件）、按 rank 合并的可见性（项目副本压过 user 桩、宿主 snapshot 垫底） |
+| `migrations.test.mjs` | v1→v2：删历史可见性链/留外来链与真实目录/剪悬空导出、写 manifest 与 v1 副本、幂等、停用态补桩、桩位被占时 fail-open、`scopeProjects` 转项目桩、备份 7 天清理 |
 | `discovery.test.mjs` | SKILL.md 发现：frontmatter/目录名/根级、subpath、重名、非法名、隐藏目录 |
-| `native-install.test.mjs` | Service + 真实 installer 端到端（stub REST/codeload）：安装→state/链接→删除→回收站/lock |
-| `native-update.test.mjs` | Service + 真实 installer：REST 限流→Atom/codeload 快照→plan/apply→lock/state/备份→rollback 还原 lock 基线 |
+| `native-install.test.mjs` | Service + 真实 installer 端到端（stub REST/codeload）：安装→state/导出链→删除→回收站/lock |
+| `native-update.test.mjs` | Service + 真实 installer：REST 限流→Atom/codeload 快照→plan/apply→lock/state/备份/导出链存活→rollback 还原 lock 基线 |
 | `remote.test.mjs` | codeload 限额/超时/重定向/token；Atom 解析与错误；tarball 快照扫描与 tree SHA |
 | `native-only.test.mjs` | 0.3 守卫：runtime 依赖只有 tar，`lib/` 不 spawn、不引用 CLI/git 模块、不读旧 CLI/git 环境变量 |
 | `updates.test.mjs` | 快照解析、subpath 过滤、L0–L3 判定、哈希形态（40 位 tree / 64 位内容哈希）与安装基线回退、默认分支失败分流（限流 reset 时间 / 404 / 403 / 网络）、计划 token 稳定性、Trees 200/304/401/404 |
-| `service.test.mjs` | 编排：安装（lock 断言 + 建链 + 记账）、64 位 lock 不误报并按 `treeSha` 判定、自动接入多选、入口位置持久化、启停、删除（回收站）、Agent 删除后的链接降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘、探测 REST 优先 / Atom+codeload 兜底 / 双通道失败、刷新按 Atom commit 短路、codeload 更新计划；安装/更新/删除改用 fake installer / 真实 installer |
-| `client.test.mjs` | 读**已提交的** `client.js` 产物，在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动接入多选 / 工作区勾选 / 入口位置切换（先开「插件设置」面板）/ 页头安装标识（`@scope/name@version`，只读展示）与 ⚙·GitHub 工具组 / Agent `+n` 悬浮列表 / 设置导航图标认领与卸载还原，并检查主按钮反色、开关旋钮反色、弹窗表面色、方形复选框圆点与开关禁用 |
+| `service.test.mjs` | 编排：安装（lock 断言 + 记账 + 默认不建链）、64 位 lock 不误报并按 `treeSha` 判定、导出目标设置、停用写桩 / 恢复删桩、删除（回收站）并清桩、Agent 目录删掉后导出降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘、探测 REST 优先 / Atom+codeload 兜底 / 双通道失败、刷新按 Atom commit 短路、codeload 更新计划；安装/更新/删除改用 fake installer / 真实 installer |
+| `client.test.mjs` | 读**已提交的** `client.js` 产物，在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 自动导出多选（DSH 不进导出列表）/ 导出设置弹窗 / 入口位置切换（先开「插件设置」面板）/ 页头安装标识（`@scope/name@version`，只读展示）与 ⚙·GitHub 工具组 / Agent `+n` 悬浮列表 / 设置导航图标认领与卸载还原，并检查主按钮反色、开关旋钮反色、弹窗表面色、方形复选框圆点与开关禁用 |
 | `client-copy.test.mjs` | 直接 import `client/copy.js`：zh / en 键集合一致、`{n}` / `{path}` 占位符一致、文案非空 |
 | `client-scroll.test.mjs` | 滚动容器口径：4px 容差、跳过非滚动父级、`document.scrollingElement` 兜底、`scrollHost` 先自身后父级 |
 | `check-cycles.test.mjs` | import 图：静态 / 副作用 / export-from / 动态 import 提取、注释与字符串排除、环检测、自引用、链式非环、外部模块忽略、相对路径解析失败归类 |
@@ -63,7 +65,11 @@ npm run check       # 机械校验：语法 + 循环依赖 + 生成物一致性�
 ## 4. 调试
 
 - **事件日志**：`$DSH_HOME/skills-console/dsh-skills-console.log`（JSONL，1MB 滚动到 `.1`），每条带 `at` / `event` / 上下文。
-- **状态文件**：`$DSH_HOME/skills-console/state.json`；坏掉时插件降级只读（写接口 409），删掉重建即可恢复。`DSH_SKILLS_CONSOLE_HOME` 可整体挪到临时目录做实验。
+- **状态文件**：`$DSH_HOME/skills-console/state.json`（`version: 2`）；坏掉时插件降级只读（写接口 409），删掉重建即可恢复。`DSH_SKILLS_CONSOLE_HOME` 可整体挪到临时目录做实验。
+- **state v2 形状**：`installs[]`（`enabled` 取代 `mode`；不含任何链路径）、`exports[]`（`{skill,target,agentDir,linkPath,mode,at}`，只记给别的 Agent 建的链）、`shadows[]`（`{name,scope,stubPath,canonicalHash,at}`，`scope` 为 `user` 或 `project:<root>`）、`settings.exportTargets`（默认 `[]`）、`migration`。
+- **v1→v2 迁移**（`service.ensureMigrated()`，插件 `apply()` 时先跑一次）：读 v1 后**先把原始 JSON 备份**到 `migrations/state-v1-<ts>.json` 再写 v2；`dsh-global` 链直接删（它已经没用了），`agent:*` 链转成 `exports`、目标不存在就丢记录，`mode:off` 补停用桩（建不出来就把 `enabled` 改回 `true` 并记 `shadowFailures`，绝不留「界面说停用、模型照样看见」）。全过程写 `migrations/v1-to-v2-<ts>.json`（`planned` → `done`），7 天后自动清理。
+- **诊断**：`GET /diagnostics` 的 `drift` 会列出 `exportsMissing` / `shadowOrphans` / `shadowBroken` / `disabledButVisible` / `enabledButHidden` / `shadowUnrecorded`；`GET /state` 的 `visible` 是真扫扫描根 + 宿主 `snapshot()` 得到的，不是从账本推的。
+- **可见性模型**：见 [README § 可见性排序](../README.md#可见性排序)——`~/.dsh/skills`（rank 400）只放停用桩，canonical `~/.agents/skills`（rank 500）是真身；项目级副本（100/200）优先级更高，用户级桩压不住它。
 - **接口**：所有路由要带 `x-dsh-skills-console: 1` 请求头，否则 403。
 - **生效方式**：`plugin_manager install_bundle(target = 本仓绝对路径)` 时是 `link:`：改 `client/` 后跑 `npm run dev:client`（宿主只 watch 根 `client.js`，产物一变就刷新），改 `lib/` 后刷新页面即可；npm 安装版是拷贝，需要重新 `npm run build:client`、重装并重启 dsh web。本地 link 验证的安装、生效与回退步骤见 §5。
 - **别在本机真实目录上试破坏性操作**：删除、更新 apply 会动 `~/.agents/skills` 与各 Agent 的软链；用临时 `HOME` 起一个干净宿主更安全。接管只补记账、不碰文件。
