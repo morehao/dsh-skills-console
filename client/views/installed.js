@@ -4,7 +4,7 @@
  */
 import { h } from '../host.js';
 import { short } from '../api.js';
-import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon } from '../icons.js';
+import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, PlugIcon } from '../icons.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
@@ -95,6 +95,26 @@ export function InstalledTab({
     return chips;
   }
 
+  /**
+   * 表头：宽屏 4 列；窄屏收成「技能（含 Agent）」/「策略与操作」两列。
+   * 不挂 columnheader 语义：行本身不是表格结构，避免对读屏软件撒谎。
+   */
+  function headView() {
+    return h('div', { className: 'dshsc-listhead' },
+      h('div', { className: 'dshsc-hskill' },
+        h('span', { className: 'dshsc-col-wide' }, t('column.skill')),
+        h('span', { className: 'dshsc-col-narrow' }, t('column.skillAgents'))),
+      h('div', { className: 'dshsc-hagents' }, t('column.agents')),
+      h('div', { className: 'dshsc-hpolicy' }, t('column.policy')),
+      h('div', { className: 'dshsc-hactions' },
+        h('span', { className: 'dshsc-col-wide' }, t('column.actions')),
+        h('span', { className: 'dshsc-col-narrow' }, t('column.policyActions'))));
+  }
+
+  function listView(listRows) {
+    return h('div', { className: 'dshsc-list' }, headView(), listRows);
+  }
+
   function rowView(row) {
     const off = row.enabled === false;
     const tracked = row.status !== 'unmanaged';
@@ -159,9 +179,10 @@ export function InstalledTab({
         row.status === 'broken-link' ? h('div', { className: 'dshsc-note warn' }, t('status.brokenHint')) : null,
       ),
       h('div', { className: 'dshsc-agents' }, agentChips(row)),
+      // 调用策略列暂时仍放现有启停开关：三档 chip 属于行为改动，等用户确认后再替换。
       h(
         'div',
-        { className: 'dshsc-actions' },
+        { className: 'dshsc-policy' },
         h('button', {
           className: 'dshsc-switch',
           role: 'switch',
@@ -172,13 +193,18 @@ export function InstalledTab({
           onClick: () => void actions.onToggleMode(row),
           title: tracked ? (row.enabled !== false ? t('mode.off') : t('mode.on')) : t('adopt.switchHint'),
         }, h('span', { className: 'dshsc-knob' })),
+      ),
+      h(
+        'div',
+        { className: 'dshsc-actions' },
         h('button', {
-          className: 'dshsc-btn ghost dshsc-view',
+          className: 'dshsc-btn ghost sq dshsc-view',
           disabled: busy !== null,
           'aria-haspopup': 'dialog',
           title: t('action.view'),
+          'aria-label': `${t('action.view')} ${row.name}`,
           onClick: () => actions.onView(row),
-        }, h(EyeIcon, { size: 12 }), t('action.view')),
+        }, h(EyeIcon, { size: 13 })),
         row.status === 'unmanaged'
           ? h('button', {
               className: 'dshsc-btn ghost',
@@ -187,11 +213,19 @@ export function InstalledTab({
               onClick: () => void actions.onAdopt(row),
             }, t('action.adopt'))
           : h('button', {
-              className: `dshsc-btn ghost${canUpdate ? ' dshsc-update' : ''}`,
+              className: `dshsc-btn ghost sq${canUpdate ? ' dshsc-update' : ''}`,
               disabled: !canUpdate || busy !== null,
+              title: t('action.update'),
+              'aria-label': `${t('action.update')} ${row.name}`,
               onClick: () => actions.onUpdate(row),
-            }, t('action.update')),
-        h('button', { className: 'dshsc-btn ghost', disabled: busy !== null, onClick: () => actions.onExports(row) }, t('action.exports')),
+            }, h(DownloadIcon, { size: 13 })),
+        h('button', {
+          className: 'dshsc-btn ghost sq',
+          disabled: busy !== null,
+          title: t('action.exports'),
+          'aria-label': `${t('action.exports')} ${row.name}`,
+          onClick: () => actions.onExports(row),
+        }, h(PlugIcon, { size: 13 })),
         h('button', {
           className: 'dshsc-btn ghost danger sq',
           disabled: !writable || busy !== null,
@@ -325,8 +359,8 @@ export function InstalledTab({
               group.dot ? h('i', { className: 'dshsc-gdot' }) : null,
               h('span', null, group.title),
               h('span', { className: 'n' }, group.rows.length)),
-            h('div', { className: 'dshsc-list' }, group.rows.map(rowView)))))
-      : h('div', { className: 'dshsc-list' }, visibleRows.map(rowView));
+            listView(group.rows.map(rowView)))))
+      : listView(visibleRows.map(rowView));
     return h(
       'div',
       { className: 'dshsc-tabpane' },

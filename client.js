@@ -77,6 +77,16 @@ var DICT = {
     "section.subtitle": "统一管理本地技能的安装、更新、删除与接入，让同一份技能在多个 Agent 间复用。",
     "tab.installed": "已安装",
     "tab.subscriptions": "订阅",
+    "column.skill": "技能",
+    "column.agents": "接入 Agent",
+    "column.policy": "调用策略",
+    "column.actions": "操作",
+    "column.skillAgents": "技能（含 Agent）",
+    "column.policyActions": "策略与操作",
+    "column.repo": "仓库",
+    "column.ref": "Ref",
+    "column.entries": "条目",
+    "column.status": "状态",
     "action.addSkill": "添加技能",
     "action.addSubscription": "添加订阅",
     "action.checkUpdates": "检查更新",
@@ -261,6 +271,16 @@ var DICT = {
     "section.subtitle": "Manage local skills in one place: install, update, remove and link — so the same skill can be reused across agents.",
     "tab.installed": "Installed",
     "tab.subscriptions": "Subscriptions",
+    "column.skill": "Skill",
+    "column.agents": "Agents",
+    "column.policy": "Invocation",
+    "column.actions": "Actions",
+    "column.skillAgents": "Skill & agents",
+    "column.policyActions": "Policy & actions",
+    "column.repo": "Repository",
+    "column.ref": "Ref",
+    "column.entries": "Skills",
+    "column.status": "Status",
     "action.addSkill": "Add skill",
     "action.addSubscription": "Add subscription",
     "action.checkUpdates": "Check for updates",
@@ -694,6 +714,46 @@ function TrashIcon({ size = 14 }) {
     h("path", { d: "M10 11v5.5M14 11v5.5" })
   );
 }
+function DownloadIcon({ size = 14 }) {
+  return h(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.8,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": true,
+      style: { display: "block" }
+    },
+    h("path", { d: "M12 4v12" }),
+    h("path", { d: "M7 11l5 5 5-5" }),
+    h("path", { d: "M4 20h16" })
+  );
+}
+function PlugIcon({ size = 14 }) {
+  return h(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.8,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": true,
+      style: { display: "block" }
+    },
+    h("path", { d: "M9 6V3M15 6V3" }),
+    h("path", { d: "M6 6h12v5a6 6 0 0 1-12 0V6Z" }),
+    h("path", { d: "M12 17v4" })
+  );
+}
 function InfoIcon({ size = 13 }) {
   return h(
     "svg",
@@ -1009,10 +1069,24 @@ var CSS = `
 
   .dshsc-list { display: flex; flex-direction: column; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
     background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
-  .dshsc-row { display: grid; grid-template-columns: 300px minmax(0, 1fr) 268px; gap: 14px; align-items: center;
+  .dshsc-row { display: grid; grid-template-columns: 280px minmax(0, 1fr) 150px 104px;
+    gap: 14px; align-items: center;
     padding: 8px 12px 8px 14px; min-height: 54px; border-top: 1px solid var(--dsw-alias-border-l1);
     transition: background .12s ease; }
-  .dshsc-list > .dshsc-row:first-child { border-top: 0; }
+  .dshsc-list > .dshsc-row:first-child, .dshsc-listhead + .dshsc-row { border-top: 0; }
+  /* 表头与行共用同一套列宽/间距，只有列语义；不参与排序或筛选。
+     操作列暂按 4 个图标按钮（查看/更新/导出设置/删除）取 104px，三档 chip 落地、行内
+     去掉重复的「查看」后收窄到设计稿的 92px。 */
+  .dshsc-listhead { display: grid; grid-template-columns: 280px minmax(0, 1fr) 150px 104px;
+    gap: 14px; align-items: center; padding: 7px 12px 7px 14px;
+    border-bottom: 1px solid var(--dsw-alias-border-l1);
+    background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 40%, var(--dsw-alias-bg-layer-1));
+    color: var(--dsw-alias-label-tertiary); font-size: 10.5px; font-weight: 500; letter-spacing: .02em; }
+  /* 行首有 6px 可见性圆点 + 7px 间距，表头跟名字对齐而不是跟圆点对齐 */
+  .dshsc-listhead .dshsc-hskill { padding-left: 13px; }
+  .dshsc-listhead .dshsc-hactions { text-align: right; padding-right: 2px; }
+  .dshsc-col-narrow { display: none; }
+  .dshsc-policy { min-width: 0; display: flex; align-items: center; }
   .dshsc-row:hover { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 48%, transparent); }
   .dshsc-row.off { opacity: .7; }
   .dshsc-cell { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -1113,37 +1187,75 @@ var CSS = `
   .dshsc-banner.err { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); }
   .dshsc-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); }
 
-  .dshsc-sub-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; min-height: 52px; border-top: 1px solid var(--dsw-alias-border-l1); }
-  .dshsc-sub-block:first-child .dshsc-sub-row { border-top: 0; }
+  /* 订阅：滚动容器本身就是卡片，表头 sticky 在同一滚动上下文里，列宽与行共用 */
+  .dshsc-subscroll { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
+    background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-subhead { position: sticky; top: 0; z-index: 3; display: grid;
+    grid-template-columns: minmax(0, 1fr) 86px 178px 118px; gap: 10px; align-items: center;
+    height: 30px; padding: 0 12px 0 14px; background: var(--dsw-alias-bg-layer-2);
+    border-bottom: 1px solid var(--dsw-alias-border-l1); border-radius: 11px 11px 0 0;
+    color: var(--dsw-alias-label-tertiary); font-size: 10.5px; font-weight: 500; letter-spacing: .02em; }
+  .dshsc-subhead .dshsc-hrepo { padding-left: 32px; }
+  .dshsc-subhead .dshsc-hact { text-align: right; padding-right: 2px; }
+  .dshsc-sub-block { border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-subhead + .dshsc-sub-block { border-top: 0; }
   .dshsc-sub-block + .dshsc-sub-block { border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-sub-row { display: grid; grid-template-columns: minmax(0, 1fr) 86px 178px 118px;
+    gap: 10px; align-items: center; padding: 8px 12px 8px 14px; min-height: 52px; }
+  .dshsc-sub-repo { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  /* 宽屏把 Ref / 条目铺成两列，窄屏回到仓库名下方一行 */
+  .dshsc-sub-meta { display: contents; }
+  .dshsc-subref { justify-self: start; }
   .dshsc-caret { flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent;
     color: var(--dsw-alias-label-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
   .dshsc-caret:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
   .dshsc-caret:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
   .dshsc-sub-row .dshsc-name { font-size: 12.5px; }
-  .dshsc-substat { font-size: 11px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
-  .dshsc-sub-row .dshsc-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+  .dshsc-substat { font-size: 11px; color: var(--dsw-alias-label-tertiary); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .dshsc-sub-row .dshsc-actions { justify-self: end; display: flex; align-items: center; gap: 2px; }
   .dshsc-sub-row .dshsc-btn { height: 24px; padding: 0 7px; font-size: 11.5px; display: inline-flex; align-items: center; }
-  .dshsc-sub-list { display: flex; flex-direction: column; background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 22%, transparent); }
-  .dshsc-sub-entry { display: flex; align-items: center; gap: 8px;
-    font-size: 12px; padding: 6px 12px 6px 44px; border-top: 1px solid var(--dsw-alias-border-l1); }
-  .dshsc-sub-entry:first-child { border-top: 0; }
+  /* 条目缩进对齐仓库名：行左内边距 14 + caret 24 + 间距 8 = 46 */
+  .dshsc-sub-list { display: flex; flex-direction: column; padding: 0 12px 7px 46px;
+    background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 22%, transparent);
+    border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-entryhead { display: grid; grid-template-columns: minmax(0, 1fr) 110px 92px; gap: 10px;
+    align-items: center; height: 26px; border-bottom: 1px solid var(--dsw-alias-border-l1);
+    color: var(--dsw-alias-label-tertiary); font-size: 10px; font-weight: 500; letter-spacing: .02em; }
+  .dshsc-entryhead .right { text-align: right; padding-right: 2px; }
+  .dshsc-sub-entry { display: grid; grid-template-columns: minmax(0, 1fr) 110px 92px; gap: 10px;
+    align-items: center; font-size: 12px; padding: 6px 0; border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-entryhead + .dshsc-sub-entry { border-top: 0; }
   .dshsc-sub-entry .dshsc-name { font-size: 12px; font-weight: 500; }
   .dshsc-state { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-state.ok svg { color: var(--dsw-alias-state-success-primary); }
-  .dshsc-sub-entry .dshsc-actions { margin-left: auto; display: flex; justify-content: flex-end; }
+  .dshsc-sub-entry .dshsc-actions { justify-self: end; display: flex; justify-content: flex-end; }
   .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
   /* 设置页的真实宽度常常远小于窗口（侧栏 + 页面缩放），视口 media query 不可靠；
      以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。
-     断点取 860 而不是贴着面板常见的 ~900：三列网格需要 300 + 268 + 2×14 gap + 中间列，
+     断点取 860 而不是贴着面板常见的 ~900：四列网格需要 280 + 150 + 操作列 + 3×14 gap + 中间列，
      860 已经够用；留出 ~40px 余量后，滚动条（5~15px）、窗口微调、页面缩放都不会把整页翻面。 */
   @container dshsc (max-width: 860px) {
     .dshsc-search input { width: 180px; }
-    .dshsc-row { grid-template-columns: minmax(0, 1fr) 196px; row-gap: 3px; padding: 9px 12px; }
-    .dshsc-cell { grid-column: 1; }
-    .dshsc-agents { grid-column: 1; }
-    .dshsc-row .dshsc-actions { grid-column: 2; grid-row: 1 / span 2; }
+    .dshsc-row { grid-template-columns: minmax(0, 1fr) 102px; row-gap: 3px; padding: 9px 12px; }
+    .dshsc-cell { grid-column: 1; grid-row: 1; }
+    .dshsc-agents { grid-column: 1; grid-row: 2; }
+    .dshsc-policy { grid-column: 2; grid-row: 1; justify-content: flex-end; }
+    .dshsc-row .dshsc-actions { grid-column: 2; grid-row: 2; }
     .dshsc-row .dshsc-btn { padding: 0 5px; }
+    .dshsc-listhead { grid-template-columns: minmax(0, 1fr) 102px; padding: 7px 12px; }
+    .dshsc-listhead .dshsc-hagents, .dshsc-listhead .dshsc-hpolicy { display: none; }
+    .dshsc-listhead .dshsc-col-wide { display: none; }
+    .dshsc-listhead .dshsc-col-narrow { display: inline; }
+    /* 订阅表头收成「仓库 / 操作」，Ref 与条目数移到仓库名下 */
+    .dshsc-subhead { grid-template-columns: minmax(0, 1fr) auto; }
+    .dshsc-subhead .dshsc-href, .dshsc-subhead .dshsc-hcount { display: none; }
+    .dshsc-sub-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding: 8px 12px; }
+    .dshsc-sub-repo { grid-column: 1; grid-row: 1; }
+    .dshsc-sub-meta { display: flex; align-items: center; gap: 8px; min-width: 0; grid-column: 1; grid-row: 2; }
+    .dshsc-sub-row .dshsc-actions { grid-column: 2; grid-row: 1 / span 2; }
+    /* 展开条目：状态 / 操作两列收窄，技能名仍吃剩余宽度 */
+    .dshsc-entryhead, .dshsc-sub-entry { grid-template-columns: minmax(0, 1fr) 96px 78px; }
   }
   .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
@@ -2104,6 +2216,29 @@ function InstalledTab({
     }
     return chips;
   }
+  function headView() {
+    return h(
+      "div",
+      { className: "dshsc-listhead" },
+      h(
+        "div",
+        { className: "dshsc-hskill" },
+        h("span", { className: "dshsc-col-wide" }, t("column.skill")),
+        h("span", { className: "dshsc-col-narrow" }, t("column.skillAgents"))
+      ),
+      h("div", { className: "dshsc-hagents" }, t("column.agents")),
+      h("div", { className: "dshsc-hpolicy" }, t("column.policy")),
+      h(
+        "div",
+        { className: "dshsc-hactions" },
+        h("span", { className: "dshsc-col-wide" }, t("column.actions")),
+        h("span", { className: "dshsc-col-narrow" }, t("column.policyActions"))
+      )
+    );
+  }
+  function listView(listRows) {
+    return h("div", { className: "dshsc-list" }, headView(), listRows);
+  }
   function rowView(row) {
     const off = row.enabled === false;
     const tracked = row.status !== "unmanaged";
@@ -2156,9 +2291,10 @@ function InstalledTab({
         row.status === "broken-link" ? h("div", { className: "dshsc-note warn" }, t("status.brokenHint")) : null
       ),
       h("div", { className: "dshsc-agents" }, agentChips(row)),
+      // 调用策略列暂时仍放现有启停开关：三档 chip 属于行为改动，等用户确认后再替换。
       h(
         "div",
-        { className: "dshsc-actions" },
+        { className: "dshsc-policy" },
         h("button", {
           className: "dshsc-switch",
           role: "switch",
@@ -2168,25 +2304,38 @@ function InstalledTab({
           disabled: busy !== null || !tracked,
           onClick: () => void actions.onToggleMode(row),
           title: tracked ? row.enabled !== false ? t("mode.off") : t("mode.on") : t("adopt.switchHint")
-        }, h("span", { className: "dshsc-knob" })),
+        }, h("span", { className: "dshsc-knob" }))
+      ),
+      h(
+        "div",
+        { className: "dshsc-actions" },
         h("button", {
-          className: "dshsc-btn ghost dshsc-view",
+          className: "dshsc-btn ghost sq dshsc-view",
           disabled: busy !== null,
           "aria-haspopup": "dialog",
           title: t("action.view"),
+          "aria-label": `${t("action.view")} ${row.name}`,
           onClick: () => actions.onView(row)
-        }, h(EyeIcon, { size: 12 }), t("action.view")),
+        }, h(EyeIcon, { size: 13 })),
         row.status === "unmanaged" ? h("button", {
           className: "dshsc-btn ghost",
           disabled: !writable || busy !== null,
           title: row.source ? row.source : t("meta.none"),
           onClick: () => void actions.onAdopt(row)
         }, t("action.adopt")) : h("button", {
-          className: `dshsc-btn ghost${canUpdate ? " dshsc-update" : ""}`,
+          className: `dshsc-btn ghost sq${canUpdate ? " dshsc-update" : ""}`,
           disabled: !canUpdate || busy !== null,
+          title: t("action.update"),
+          "aria-label": `${t("action.update")} ${row.name}`,
           onClick: () => actions.onUpdate(row)
-        }, t("action.update")),
-        h("button", { className: "dshsc-btn ghost", disabled: busy !== null, onClick: () => actions.onExports(row) }, t("action.exports")),
+        }, h(DownloadIcon, { size: 13 })),
+        h("button", {
+          className: "dshsc-btn ghost sq",
+          disabled: busy !== null,
+          title: t("action.exports"),
+          "aria-label": `${t("action.exports")} ${row.name}`,
+          onClick: () => actions.onExports(row)
+        }, h(PlugIcon, { size: 13 })),
         h("button", {
           className: "dshsc-btn ghost danger sq",
           disabled: !writable || busy !== null,
@@ -2344,8 +2493,8 @@ function InstalledTab({
         h("span", null, group.title),
         h("span", { className: "n" }, group.rows.length)
       ),
-      h("div", { className: "dshsc-list" }, group.rows.map(rowView))
-    ))) : h("div", { className: "dshsc-list" }, visibleRows.map(rowView));
+      listView(group.rows.map(rowView))
+    ))) : listView(visibleRows.map(rowView));
     return h(
       "div",
       { className: "dshsc-tabpane" },
@@ -2431,10 +2580,19 @@ function SubscriptionsTab({
   return h(
     "div",
     { className: "dshsc-tabpane" },
+    // 表头与仓库行共用同一个滚动容器，位置 sticky；宽屏 4 列，窄屏收成「仓库」/「操作」。
     h(
       "div",
-      { className: "dshsc-listscroll" },
-      h("div", { className: "dshsc-list" }, subscriptions.map((subscription) => {
+      { className: "dshsc-listscroll dshsc-subscroll" },
+      h(
+        "div",
+        { className: "dshsc-subhead" },
+        h("div", { className: "dshsc-hrepo" }, t("column.repo")),
+        h("div", { className: "dshsc-href" }, t("column.ref")),
+        h("div", { className: "dshsc-hcount" }, t("column.entries")),
+        h("div", { className: "dshsc-hact" }, t("column.actions"))
+      ),
+      subscriptions.map((subscription) => {
         const entries = subscription.snapshot?.entries || [];
         const installedNames = new Set(rows.filter((row) => row.subscriptionId === subscription.id).map((row) => row.name));
         const open = Boolean(expanded[subscription.id]);
@@ -2444,18 +2602,27 @@ function SubscriptionsTab({
           h(
             "div",
             { className: "dshsc-sub-row" },
-            h("button", {
-              className: "dshsc-caret",
-              "aria-expanded": String(open),
-              "aria-label": `${subscription.source} ${open ? t("action.collapse") : t("action.expand")}`,
-              onClick: () => onToggle(subscription.id)
-            }, h(CaretIcon, { open })),
-            h("span", { className: "dshsc-name" }, subscription.source),
-            h("span", { className: "dshsc-tag" }, subscription.ref || t("subscription.defaultRef")),
             h(
-              "span",
-              { className: "dshsc-substat" },
-              `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedNames.size}`
+              "div",
+              { className: "dshsc-sub-repo" },
+              h("button", {
+                className: "dshsc-caret",
+                "aria-expanded": String(open),
+                "aria-label": `${subscription.source} ${open ? t("action.collapse") : t("action.expand")}`,
+                onClick: () => onToggle(subscription.id)
+              }, h(CaretIcon, { open })),
+              h("span", { className: "dshsc-name" }, subscription.source)
+            ),
+            // 宽屏铺成 Ref / 条目两列；窄屏回到仓库名下方一行。
+            h(
+              "div",
+              { className: "dshsc-sub-meta" },
+              h("span", { className: "dshsc-tag dshsc-subref" }, subscription.ref || t("subscription.defaultRef")),
+              h(
+                "span",
+                { className: "dshsc-substat" },
+                `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedNames.size}`
+              )
             ),
             h(
               "div",
@@ -2470,31 +2637,42 @@ function SubscriptionsTab({
               h("button", { className: "dshsc-btn ghost danger", disabled: busy !== null, onClick: () => void onDelete(subscription) }, t("action.unsubscribe"))
             )
           ),
-          open ? h("div", { className: "dshsc-sub-list" }, entries.map((entry) => {
-            const installedAlready = installedNames.has(entry.name);
-            return h(
+          open ? h(
+            "div",
+            { className: "dshsc-sub-list" },
+            h(
               "div",
-              { className: "dshsc-sub-entry", key: entry.name },
-              h("span", { className: "dshsc-name" }, entry.name),
-              h(
-                "span",
-                { className: `dshsc-state${installedAlready ? " ok" : ""}` },
-                installedAlready ? "✓ " : "",
-                installedAlready ? t("installed") : t("notInstalled")
-              ),
-              h(
+              { className: "dshsc-entryhead" },
+              h("div", null, t("column.skill")),
+              h("div", null, t("column.status")),
+              h("div", { className: "right" }, t("column.actions"))
+            ),
+            entries.map((entry) => {
+              const installedAlready = installedNames.has(entry.name);
+              return h(
                 "div",
-                { className: "dshsc-actions" },
-                installedAlready ? null : h("button", {
-                  className: "dshsc-btn",
-                  disabled: !writable || busy !== null,
-                  onClick: () => void onInstall(subscription, entry)
-                }, t("action.install"))
-              )
-            );
-          })) : null
+                { className: "dshsc-sub-entry", key: entry.name },
+                h("span", { className: "dshsc-name" }, entry.name),
+                h(
+                  "span",
+                  { className: `dshsc-state${installedAlready ? " ok" : ""}` },
+                  installedAlready ? "✓ " : "",
+                  installedAlready ? t("installed") : t("notInstalled")
+                ),
+                h(
+                  "div",
+                  { className: "dshsc-actions" },
+                  installedAlready ? null : h("button", {
+                    className: "dshsc-btn",
+                    disabled: !writable || busy !== null,
+                    onClick: () => void onInstall(subscription, entry)
+                  }, t("action.install"))
+                )
+              );
+            })
+          ) : null
         );
-      }))
+      })
     )
   );
 }

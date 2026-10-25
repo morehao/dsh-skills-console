@@ -144,10 +144,24 @@ export const CSS = `
 
   .dshsc-list { display: flex; flex-direction: column; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
     background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
-  .dshsc-row { display: grid; grid-template-columns: 300px minmax(0, 1fr) 268px; gap: 14px; align-items: center;
+  .dshsc-row { display: grid; grid-template-columns: 280px minmax(0, 1fr) 150px 104px;
+    gap: 14px; align-items: center;
     padding: 8px 12px 8px 14px; min-height: 54px; border-top: 1px solid var(--dsw-alias-border-l1);
     transition: background .12s ease; }
-  .dshsc-list > .dshsc-row:first-child { border-top: 0; }
+  .dshsc-list > .dshsc-row:first-child, .dshsc-listhead + .dshsc-row { border-top: 0; }
+  /* 表头与行共用同一套列宽/间距，只有列语义；不参与排序或筛选。
+     操作列暂按 4 个图标按钮（查看/更新/导出设置/删除）取 104px，三档 chip 落地、行内
+     去掉重复的「查看」后收窄到设计稿的 92px。 */
+  .dshsc-listhead { display: grid; grid-template-columns: 280px minmax(0, 1fr) 150px 104px;
+    gap: 14px; align-items: center; padding: 7px 12px 7px 14px;
+    border-bottom: 1px solid var(--dsw-alias-border-l1);
+    background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 40%, var(--dsw-alias-bg-layer-1));
+    color: var(--dsw-alias-label-tertiary); font-size: 10.5px; font-weight: 500; letter-spacing: .02em; }
+  /* 行首有 6px 可见性圆点 + 7px 间距，表头跟名字对齐而不是跟圆点对齐 */
+  .dshsc-listhead .dshsc-hskill { padding-left: 13px; }
+  .dshsc-listhead .dshsc-hactions { text-align: right; padding-right: 2px; }
+  .dshsc-col-narrow { display: none; }
+  .dshsc-policy { min-width: 0; display: flex; align-items: center; }
   .dshsc-row:hover { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 48%, transparent); }
   .dshsc-row.off { opacity: .7; }
   .dshsc-cell { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -248,37 +262,75 @@ export const CSS = `
   .dshsc-banner.err { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); }
   .dshsc-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); }
 
-  .dshsc-sub-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; min-height: 52px; border-top: 1px solid var(--dsw-alias-border-l1); }
-  .dshsc-sub-block:first-child .dshsc-sub-row { border-top: 0; }
+  /* 订阅：滚动容器本身就是卡片，表头 sticky 在同一滚动上下文里，列宽与行共用 */
+  .dshsc-subscroll { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
+    background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-subhead { position: sticky; top: 0; z-index: 3; display: grid;
+    grid-template-columns: minmax(0, 1fr) 86px 178px 118px; gap: 10px; align-items: center;
+    height: 30px; padding: 0 12px 0 14px; background: var(--dsw-alias-bg-layer-2);
+    border-bottom: 1px solid var(--dsw-alias-border-l1); border-radius: 11px 11px 0 0;
+    color: var(--dsw-alias-label-tertiary); font-size: 10.5px; font-weight: 500; letter-spacing: .02em; }
+  .dshsc-subhead .dshsc-hrepo { padding-left: 32px; }
+  .dshsc-subhead .dshsc-hact { text-align: right; padding-right: 2px; }
+  .dshsc-sub-block { border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-subhead + .dshsc-sub-block { border-top: 0; }
   .dshsc-sub-block + .dshsc-sub-block { border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-sub-row { display: grid; grid-template-columns: minmax(0, 1fr) 86px 178px 118px;
+    gap: 10px; align-items: center; padding: 8px 12px 8px 14px; min-height: 52px; }
+  .dshsc-sub-repo { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  /* 宽屏把 Ref / 条目铺成两列，窄屏回到仓库名下方一行 */
+  .dshsc-sub-meta { display: contents; }
+  .dshsc-subref { justify-self: start; }
   .dshsc-caret { flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent;
     color: var(--dsw-alias-label-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
   .dshsc-caret:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
   .dshsc-caret:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
   .dshsc-sub-row .dshsc-name { font-size: 12.5px; }
-  .dshsc-substat { font-size: 11px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
-  .dshsc-sub-row .dshsc-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+  .dshsc-substat { font-size: 11px; color: var(--dsw-alias-label-tertiary); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .dshsc-sub-row .dshsc-actions { justify-self: end; display: flex; align-items: center; gap: 2px; }
   .dshsc-sub-row .dshsc-btn { height: 24px; padding: 0 7px; font-size: 11.5px; display: inline-flex; align-items: center; }
-  .dshsc-sub-list { display: flex; flex-direction: column; background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 22%, transparent); }
-  .dshsc-sub-entry { display: flex; align-items: center; gap: 8px;
-    font-size: 12px; padding: 6px 12px 6px 44px; border-top: 1px solid var(--dsw-alias-border-l1); }
-  .dshsc-sub-entry:first-child { border-top: 0; }
+  /* 条目缩进对齐仓库名：行左内边距 14 + caret 24 + 间距 8 = 46 */
+  .dshsc-sub-list { display: flex; flex-direction: column; padding: 0 12px 7px 46px;
+    background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 22%, transparent);
+    border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-entryhead { display: grid; grid-template-columns: minmax(0, 1fr) 110px 92px; gap: 10px;
+    align-items: center; height: 26px; border-bottom: 1px solid var(--dsw-alias-border-l1);
+    color: var(--dsw-alias-label-tertiary); font-size: 10px; font-weight: 500; letter-spacing: .02em; }
+  .dshsc-entryhead .right { text-align: right; padding-right: 2px; }
+  .dshsc-sub-entry { display: grid; grid-template-columns: minmax(0, 1fr) 110px 92px; gap: 10px;
+    align-items: center; font-size: 12px; padding: 6px 0; border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-entryhead + .dshsc-sub-entry { border-top: 0; }
   .dshsc-sub-entry .dshsc-name { font-size: 12px; font-weight: 500; }
   .dshsc-state { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-state.ok svg { color: var(--dsw-alias-state-success-primary); }
-  .dshsc-sub-entry .dshsc-actions { margin-left: auto; display: flex; justify-content: flex-end; }
+  .dshsc-sub-entry .dshsc-actions { justify-self: end; display: flex; justify-content: flex-end; }
   .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
   /* 设置页的真实宽度常常远小于窗口（侧栏 + 页面缩放），视口 media query 不可靠；
      以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。
-     断点取 860 而不是贴着面板常见的 ~900：三列网格需要 300 + 268 + 2×14 gap + 中间列，
+     断点取 860 而不是贴着面板常见的 ~900：四列网格需要 280 + 150 + 操作列 + 3×14 gap + 中间列，
      860 已经够用；留出 ~40px 余量后，滚动条（5~15px）、窗口微调、页面缩放都不会把整页翻面。 */
   @container dshsc (max-width: 860px) {
     .dshsc-search input { width: 180px; }
-    .dshsc-row { grid-template-columns: minmax(0, 1fr) 196px; row-gap: 3px; padding: 9px 12px; }
-    .dshsc-cell { grid-column: 1; }
-    .dshsc-agents { grid-column: 1; }
-    .dshsc-row .dshsc-actions { grid-column: 2; grid-row: 1 / span 2; }
+    .dshsc-row { grid-template-columns: minmax(0, 1fr) 102px; row-gap: 3px; padding: 9px 12px; }
+    .dshsc-cell { grid-column: 1; grid-row: 1; }
+    .dshsc-agents { grid-column: 1; grid-row: 2; }
+    .dshsc-policy { grid-column: 2; grid-row: 1; justify-content: flex-end; }
+    .dshsc-row .dshsc-actions { grid-column: 2; grid-row: 2; }
     .dshsc-row .dshsc-btn { padding: 0 5px; }
+    .dshsc-listhead { grid-template-columns: minmax(0, 1fr) 102px; padding: 7px 12px; }
+    .dshsc-listhead .dshsc-hagents, .dshsc-listhead .dshsc-hpolicy { display: none; }
+    .dshsc-listhead .dshsc-col-wide { display: none; }
+    .dshsc-listhead .dshsc-col-narrow { display: inline; }
+    /* 订阅表头收成「仓库 / 操作」，Ref 与条目数移到仓库名下 */
+    .dshsc-subhead { grid-template-columns: minmax(0, 1fr) auto; }
+    .dshsc-subhead .dshsc-href, .dshsc-subhead .dshsc-hcount { display: none; }
+    .dshsc-sub-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding: 8px 12px; }
+    .dshsc-sub-repo { grid-column: 1; grid-row: 1; }
+    .dshsc-sub-meta { display: flex; align-items: center; gap: 8px; min-width: 0; grid-column: 1; grid-row: 2; }
+    .dshsc-sub-row .dshsc-actions { grid-column: 2; grid-row: 1 / span 2; }
+    /* 展开条目：状态 / 操作两列收窄，技能名仍吃剩余宽度 */
+    .dshsc-entryhead, .dshsc-sub-entry { grid-template-columns: minmax(0, 1fr) 96px 78px; }
   }
   .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 

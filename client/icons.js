@@ -165,6 +165,28 @@ export function TrashIcon({ size = 14 }) {
   h('path', { d: 'M10 11v5.5M14 11v5.5' }));
 }
 
+export function DownloadIcon({ size = 14 }) {
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+    strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+    style: { display: 'block' },
+  },
+  h('path', { d: 'M12 4v12' }),
+  h('path', { d: 'M7 11l5 5 5-5' }),
+  h('path', { d: 'M4 20h16' }));
+}
+
+export function PlugIcon({ size = 14 }) {
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+    strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+    style: { display: 'block' },
+  },
+  h('path', { d: 'M9 6V3M15 6V3' }),
+  h('path', { d: 'M6 6h12v5a6 6 0 0 1-12 0V6Z' }),
+  h('path', { d: 'M12 17v4' }));
+}
+
 export function InfoIcon({ size = 13 }) {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
