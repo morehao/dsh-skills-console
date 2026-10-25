@@ -1367,6 +1367,54 @@ test('查看：在整页打开 → 返回条 + 目录；返回回到列表', asy
   assert.match(css, /\.dshsc-reader-body\s*\{[^}]*overflow:\s*auto/, '长正文在正文列内部滚动，返回条不跟着滚走');
 });
 
+test('查看：整页切到文件 / 信息 tab 后正文列仍占满，不被目录轨挤成一条', async () => {
+  const { out, stub, Component } = await openDrawer();
+  buttonByText(out.tree, '在整页打开').props.onClick();
+  let page = await settle(stub, Component, out.hooks);
+
+  const docLayout = collectByClass(page.tree, 'dshsc-reader-layout');
+  assert.equal(docLayout.length, 1, '整页有正文布局区');
+  assert.ok(String(docLayout[0].props.className).includes('has-toc'), '正文 tab 有目录时才开两轨');
+
+  const filesTab = collectButtons(page.tree).find((button) => textOf(button).trim().startsWith('文件'));
+  filesTab.props.onClick();
+  page = await settle(stub, Component, page.hooks);
+
+  const filesLayout = collectByClass(page.tree, 'dshsc-reader-layout');
+  assert.equal(filesLayout.length, 1);
+  assert.ok(
+    !String(filesLayout[0].props.className).includes('has-toc'),
+    '没有目录时布局只剩一轨——否则唯一的正文列会被摆进 180px 的目录轨',
+  );
+  assert.equal(collectByClass(page.tree, 'dshsc-reader-toc').length, 0, '文件 tab 不渲染目录');
+
+  const css = collectByType(page.tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  assert.match(
+    css,
+    /\.dshsc-reader-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+    '布局区默认只有一轨，目录轨只在 .has-toc 上',
+  );
+  assert.match(css, /\.dshsc-reader-layout\.has-toc\s*\{[^}]*180px/, '两轨只挂在 has-toc 上');
+  assert.match(
+    css,
+    /\.dshsc-reader-page \.dshsc-reader-files\s*\{[^}]*minmax\(200px,\s*240px\)/,
+    '整页文件 tab 左树右预览',
+  );
+  assert.match(
+    css,
+    /@container dshsc \(max-width: 860px\)[\s\S]*?\.dshsc-reader-page \.dshsc-reader-files\s*\{[^}]*minmax\(0,\s*1fr\)/,
+    '窄容器里文件 tab 回到上下排',
+  );
+
+  const infoTab = collectButtons(page.tree).find((button) => textOf(button).trim() === '信息');
+  infoTab.props.onClick();
+  page = await settle(stub, Component, page.hooks);
+  assert.ok(
+    !String(collectByClass(page.tree, 'dshsc-reader-layout')[0]?.props?.className || '').includes('has-toc'),
+    '信息 tab 同样不排目录轨',
+  );
+});
+
 test('查看：readOnly（state 损坏）时仍能查看，管理动作禁用', async () => {
   const { drawer } = await openDrawer({ state: { ...STATE, readOnly: true } });
   assert.ok(textOf(drawer).includes('标题一'), '只读也能读正文');

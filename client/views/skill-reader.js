@@ -653,6 +653,7 @@ export function SkillReader({
       : null);
 
   if (variant === 'page') {
+    const tocShown = headings.length > 1;
     return h('div', { className: 'dshsc-reader-page' },
       h('div', { className: 'dshsc-reader-topbar' },
         h('button', { type: 'button', className: 'dshsc-btn ghost', 'data-autofocus': true, onClick: () => onClose?.() },
@@ -664,8 +665,8 @@ export function SkillReader({
         h('span', { className: 'spacer' }),
         actionsFooter),
       h('div', { className: 'dshsc-reader-hero' }, header),
-      h('div', { className: 'dshsc-reader-layout' },
-        headings.length > 1
+      h('div', { className: `dshsc-reader-layout${tocShown ? ' has-toc' : ''}` },
+        tocShown
           ? h('nav', { className: 'dshsc-reader-toc', 'aria-label': t('viewer.toc') },
               h('div', { className: 'dshsc-reader-toc-title' }, t('viewer.toc')),
               headings.map((heading) => h('button', {

@@ -1267,8 +1267,9 @@ var CSS = `
     color: var(--dsw-alias-label-secondary); line-height: 1.6; }
   .dshsc-reader-placeholder b { color: var(--dsw-alias-label-primary); font-size: 13px; }
 
-  /* 文件 tab：左树右预览；抽屉里上下排 */
-  .dshsc-reader-files { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  /* 文件 tab：抽屉里上下排；整页（宽容器）左树右预览 */
+  .dshsc-reader-files { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+  .dshsc-reader-page .dshsc-reader-files { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
   .dshsc-reader-tree { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; overflow: auto;
     max-height: 300px; background: var(--dsw-alias-bg-layer-1); }
   .dshsc-reader-preview { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; overflow: hidden;
@@ -1386,8 +1387,11 @@ var CSS = `
     background: var(--dsw-alias-bg-layer-1); }
   .dshsc-reader-hero .dshsc-reader-head { border-bottom: 0; }
   .dshsc-reader-hero .dshsc-reader-desc { -webkit-line-clamp: 3; max-width: 78ch; }
-  .dshsc-reader-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 180px minmax(0, 1fr);
+  .dshsc-reader-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr);
     gap: 18px; align-items: stretch; }
+  /* 只有目录真的在的时候才开第二轨：否则唯一的正文列会被自动摆进 180px 的目录轨，
+     文件 / 信息 tab 会窄成一条（树里的文件名被截断、预览挤到下面）。 */
+  .dshsc-reader-layout.has-toc { grid-template-columns: 180px minmax(0, 1fr); }
   .dshsc-reader-toc { position: sticky; top: 0; display: flex; flex-direction: column; gap: 1px;
     max-height: 70vh; overflow: auto; padding-right: 4px; }
   .dshsc-reader-toc-title { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
@@ -1413,7 +1417,8 @@ var CSS = `
   @container dshsc (max-width: 860px) {
     /* 行内「查看」先让位：技能名本身仍是入口 */
     .dshsc-row .dshsc-view { display: none; }
-    .dshsc-reader-layout { grid-template-columns: minmax(0, 1fr); }
+    .dshsc-reader-layout.has-toc { grid-template-columns: minmax(0, 1fr); }
+    .dshsc-reader-page .dshsc-reader-files { grid-template-columns: minmax(0, 1fr); }
     .dshsc-reader-toc { display: none; }
     .dshsc-reader-page .dshsc-reader-desc { -webkit-line-clamp: 2; }
   }
@@ -3835,6 +3840,7 @@ function SkillReader({
     }, t("action.update")) : null
   );
   if (variant === "page") {
+    const tocShown = headings.length > 1;
     return h(
       "div",
       { className: "dshsc-reader-page" },
@@ -3860,8 +3866,8 @@ function SkillReader({
       h("div", { className: "dshsc-reader-hero" }, header),
       h(
         "div",
-        { className: "dshsc-reader-layout" },
-        headings.length > 1 ? h(
+        { className: `dshsc-reader-layout${tocShown ? " has-toc" : ""}` },
+        tocShown ? h(
           "nav",
           { className: "dshsc-reader-toc", "aria-label": t("viewer.toc") },
           h("div", { className: "dshsc-reader-toc-title" }, t("viewer.toc")),
