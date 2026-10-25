@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.7] - 2026-10-25
+
+### Fixes
+
+- **client**: 滚动只留在列表区，修复设置页查看器浮层 (#44)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.3.6...v0.3.7
+
 ## [v0.3.6] - 2026-10-25
 
 ### Fixes
