@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { createPaths } from '../lib/core/paths.js';
-import { StateStore, StateReadOnlyError, emptyState, STATE_VERSION, upgradeStateV1, upgradeStateV2 } from '../lib/core/state.js';
+import { StateStore, StateReadOnlyError, emptyState, STATE_VERSION, upgradeStateV1, upgradeStateV2, upgradeStateV3 } from '../lib/core/state.js';
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-state-'));
@@ -123,7 +123,8 @@ test('v1 → v2：mode 变 enabled，scopeProjects 挂到 legacy 上等迁移处
   const b = state.installs.find((item) => item.name === 'b');
   assert.equal(a.enabled, false);
   assert.equal(b.enabled, true);
-  assert.equal('mode' in a, false, 'mode 不再落盘');
+  assert.equal(a.mode, 'auto', 'v4 起 mode 是调用策略，默认 auto');
+  assert.equal(a.legacy, 'dsh-off', 'v1 的 off 仍按 DSH-only 旧模式隐藏');
   assert.deepEqual(a.legacyScopeProjects, ['/repo']);
   assert.equal('scopeProjects' in b, false, '空作用范围直接丢掉');
 
@@ -288,5 +289,84 @@ test('settings.exportTargets 只留 agent:* 形态', () => {
   });
   const state = new StateStore(paths).load();
   assert.deepEqual(state.settings.exportTargets, ['agent:codex']);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('v3 → v4：mode 默认 auto，enabled=false 保留 legacy dsh-off', () => {
+  const v4 = upgradeStateV3({
+    version: 3,
+    settings: { exportTargets: [] },
+    installs: [
+      { name: 'a', enabled: false, installedHash: 'x' },
+      { name: 'b', enabled: true, installedHash: 'y' },
+    ],
+    exports: [],
+    legacyShadows: [],
+    subscriptions: [],
+    checks: {},
+    migration: null,
+  });
+  assert.equal(v4.version, 4);
+  assert.equal(v4.installs[0].mode, 'auto');
+  assert.equal(v4.installs[0].legacy, 'dsh-off');
+  assert.equal(v4.installs[0].enabled, false, 'legacy 仍由 provider 隐藏');
+  assert.equal(v4.installs[1].mode, 'auto');
+  assert.equal(v4.installs[1].legacy, undefined);
+  assert.equal(v4.installs[0].manual, null);
+  assert.equal(v4.installs[0].hidden, null);
+});
+
+test('v4：manual 缺 metadata / mode 非法 → 只读', () => {
+  const { root, paths } = sandbox();
+  writeState(paths, { version: 4, installs: [{ name: 'a', mode: 'manual' }], settings: {}, agents: {} });
+  const store = new StateStore(paths);
+  store.load();
+  assert.equal(store.readOnly, true);
+  assert.match(store.problem, /manual metadata/);
+
+  writeState(paths, { version: 4, installs: [{ name: 'a', mode: 'paused' }], settings: {}, agents: {} });
+  const second = new StateStore(paths);
+  second.load();
+  assert.equal(second.readOnly, true);
+  assert.match(second.problem, /invalid mode/);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('v4：manual / hidden 状态往返，enabled 与 legacy 自动归一', () => {
+  const { root, paths } = sandbox();
+  const store = new StateStore(paths);
+  store.load();
+  const next = emptyState();
+  next.installs.push({
+    name: 'manual-one',
+    enabled: false,
+    mode: 'manual',
+    legacy: 'dsh-off',
+    manual: { origin: 'plugin', original: 'false', appliedAt: '2026-01-01T00:00:00.000Z', drift: false },
+  });
+  next.installs.push({
+    name: 'parked-one',
+    enabled: true,
+    mode: 'hidden',
+    manual: null,
+    hidden: {
+      disabledFile: 'SKILL.md.disabled',
+      marker: '.dsh-skills-console.park.json',
+      previousMode: 'manual',
+      canonicalHash: 'a'.repeat(64),
+      at: '2026-01-01T00:00:00.000Z',
+    },
+  });
+  store.save(next);
+  const reloaded = new StateStore(paths);
+  const state = reloaded.load();
+  assert.equal(reloaded.readOnly, false);
+  const manual = state.installs.find((row) => row.name === 'manual-one');
+  assert.equal(manual.enabled, true, 'manual 不借助 provider，enabled 归一为 true');
+  assert.equal(manual.legacy, undefined);
+  assert.equal(manual.manual.original, 'false');
+  const parked = state.installs.find((row) => row.name === 'parked-one');
+  assert.equal(parked.hidden.previousMode, 'manual');
+  assert.equal(parked.enabled, true);
   fs.rmSync(root, { recursive: true, force: true });
 });

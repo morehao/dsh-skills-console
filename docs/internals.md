@@ -32,7 +32,7 @@ DSH 会把所有扫描根合并成一张技能表，**rank 小的先赢**；同�
 
 **技能身份是 `SKILL.md` frontmatter 的 `name`，不是目录名**：宿主 `discoverRoot` 也按 frontmatter 的 `name` 读，所以 `xxx.bak-20260101/`（frontmatter 还写着 `name: xxx`）会被当成 `xxx`，和真身在同一个名字上抢 rank——rank 小的赢。没有 `SKILL.md`、缺 `name` / `description`、名字不合法的目录，宿主根本不当技能看，控制台也不算进可见列表。
 
-**manual-only**：技能自己在 `SKILL.md` 里写 `disable-model-invocation: true` 时，模型调用看不到它，但 `/` 手动调用仍可用；诊断不会把它算成 `enabledButHidden`。
+**manual-only**：技能自己在 `SKILL.md` 里写 `disable-model-invocation: true` 时，模型调用看不到它，但 `/` 手动调用仍可用；诊断不会把它算成 `enabledButHidden`。控制台 v4 起也可以主动切到「仅手动」：只写这一行 frontmatter，作者已声明时只记只读来源，不改写。
 
 **legacy 停用桩只用于迁移**：旧版本的桩目录带 `.dsh-skills-console.json` 标记；v2→v3 迁移只删带这个标记的桩，`foreign` / `link` 一律保留并报告，删不掉的进 `legacyShadows[]`。v0.4.0 起不再新建停用桩，也不再往 `~/.dsh/skills` 写任何东西。
 
@@ -49,7 +49,7 @@ DSH 会把所有扫描根合并成一张技能表，**rank 小的先赢**；同�
 | 备份 / 回收站 | `$DSH_HOME/skills-console/{backups,trash}` | 本插件 |
 | 事件日志 | `$DSH_HOME/skills-console/dsh-skills-console.log` | 本插件（JSONL，1MB 滚动） |
 
-state v3 的形状、v1→v2→v3 迁移步骤与诊断字段见 [development.md §4](development.md#4-调试)。
+state v4 的形状、v3→v4 与 v1→v2→v3 迁移步骤、诊断字段见 [development.md §4](development.md#4-调试)。
 
 ## 4. 环境变量
 

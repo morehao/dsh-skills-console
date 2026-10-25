@@ -283,6 +283,13 @@ const ROW = (over = {}) => ({
   lockHash: 'a'.repeat(40),
   installedHash: 'b'.repeat(64),
   enabled: true,
+  mode: 'auto',
+  legacy: null,
+  manual: null,
+  origin: null,
+  drift: false,
+  hidden: null,
+  park: null,
   exports: [{
     target: 'agent:claude-code',
     label: 'Claude Code',
@@ -316,13 +323,22 @@ const STATE = {
     ],
   },
   subscriptions: [],
+  invocation: {
+    support: {
+      clients: [
+        { id: 'dsh', label: 'DSH', manual: 'yes', hidden: 'yes', source: 'test' },
+        { id: 'opencode', label: 'OpenCode', manual: 'version', hidden: 'yes', source: 'test' },
+      ],
+    },
+    modes: ['auto', 'manual', 'hidden'],
+  },
   workspaces: [
     { id: 'w1', title: 'dsh-skills-console', path: '/Users/morehao/Documents/practice/ai/dsh-skills-console' },
   ],
   installs: [
     ROW(),
     ROW({ name: 'handoff', status: 'update-available', commit: '9f02aa11bb22', exports: [] }),
-    ROW({ name: 'pdf-tools', status: 'broken-link', enabled: false, brokenExports: 1 }),
+    ROW({ name: 'pdf-tools', status: 'broken-link', enabled: false, legacy: 'dsh-off', brokenExports: 1 }),
   ],
   visible: [],
   visibleComplete: true,
@@ -346,21 +362,24 @@ test('渲染：三个技能、状态标签、tab 计数、操作列四件套', a
     assert.ok(text.includes(expected), `缺少文案：${expected}`);
   }
   const labels = collectButtons(second.tree).map((button) => textOf(button).trim());
-  for (const expected of ['更新', '导出设置', '添加技能']) {
-    assert.ok(labels.includes(expected), `缺少按钮：${expected}`);
-  }
   const named = (label) => collectButtons(second.tree).some(
     (button) => button.props['aria-label'] === label || button.props.title === label,
   );
+  for (const action of ['查看', '更新', '导出设置']) {
+    assert.ok(named(action), `${action} 是图标按钮，但必须有可访问名称`);
+    assert.ok(!labels.includes(action), `${action} 不再占文字宽度`);
+  }
+  assert.ok(labels.includes('添加技能'), '页头的「添加技能」仍是文字按钮');
   assert.ok(named('删除'), '删除是图标按钮，但必须有可访问名称');
   assert.ok(named('检查更新'), '检查更新是图标按钮，但必须有可访问名称');
   assert.ok(!labels.includes('删除'), '删除不再占文字宽度');
   assert.ok(!labels.includes('检查更新'), '检查更新不再占文字宽度');
   assert.ok(labels.some((label) => label.startsWith('全部更新')), '有可更新行时要出现「全部更新 · n」');
   assert.ok(!labels.includes('刷新'), '「刷新」已统一为「检查更新」');
-  const switches = collectButtons(second.tree).filter((button) => button.props.role === 'switch');
-  assert.equal(switches.length, 3, '每个技能一个启停开关');
-  assert.equal(switches[2].props['aria-checked'], 'false', '停用的技能开关应为关');
+  const chips = collectByClass(second.tree, 'dshsc-chip');
+  assert.equal(chips.length, 3, '每个技能一个调用策略 chip');
+  assert.ok(text.includes('自动'), 'auto 行显示「自动」');
+  assert.ok(text.includes('仅 DSH 隐藏'), 'legacy dsh-off 行显示旧模式');
 });
 
 test('空态：给「添加技能」与提示，不崩', async () => {
@@ -371,6 +390,181 @@ test('空态：给「添加技能」与提示，不崩', async () => {
   const text = textOf(stub.render(Component, {}, first.hooks).tree);
   assert.ok(text.includes('还没有安装任何技能'));
   assert.ok(text.includes('添加技能'));
+});
+
+test('已安装表头：四列与窄屏两列并存，列宽与行共用一套网格', async () => {
+  const { Component, stub } = loadModule(STATE);
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+
+  const heads = collectByClass(tree, 'dshsc-listhead');
+  assert.equal(heads.length, 1, '平铺视图只有一个表头');
+  const head = textOf(heads[0]);
+  for (const expected of ['技能', '接入 Agent', '调用策略', '操作']) {
+    assert.ok(head.includes(expected), `表头缺少：${expected}`);
+  }
+
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  const row = (css.match(/\.dshsc-row\s*\{[^}]*\}/) || [''])[0];
+  const listhead = (css.match(/\.dshsc-listhead\s*\{[^}]*\}/) || [''])[0];
+  for (const rule of [row, listhead]) {
+    assert.match(rule, /280px/, '技能列 280px');
+    assert.match(rule, /150px/, '调用策略列 150px');
+  }
+  assert.match(css, /\.dshsc-listhead \.dshsc-hagents[^{]*\{[^}]*display:\s*none/, '窄屏隐藏独立的 Agent 表头');
+  assert.match(css, /\.dshsc-listhead \.dshsc-col-narrow\s*\{[^}]*display:\s*inline/, '窄屏换成合并表头');
+});
+
+test('调用策略：仅手动行点 chip 打开三档弹层，保存发 invocation', async () => {
+  const row = ROW({
+    mode: 'manual',
+    origin: 'plugin',
+    manual: { origin: 'plugin', original: 'absent', appliedAt: '2026-01-01T00:00:00.000Z' },
+  });
+  const calls = [];
+  const fetchStub = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method, body: init.body });
+    if (String(url).endsWith('/state')) {
+      return { ok: true, status: 200, json: async () => ({ ...STATE, installs: [row] }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ ok: true, mode: 'auto' }) };
+  };
+  const { Component, stub } = loadModule({ ...STATE, installs: [row] }, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+
+  const chip = collectByClass(out.tree, 'dshsc-chip').find((node) => textOf(node) === '仅手动');
+  assert.ok(chip, 'manual 行显示「仅手动」chip');
+  chip.props.onClick({ currentTarget: { getBoundingClientRect: () => ({ left: 100, top: 100, width: 60, height: 24, bottom: 124 }) } });
+  out = await settle(stub, Component, out.hooks);
+
+  const text = textOf(out.tree);
+  assert.ok(text.includes('调用策略'), '打开三档弹层');
+  assert.ok(text.includes('客户端覆盖'), '弹层带客户端覆盖表');
+  assert.ok(text.includes('OpenCode'), '覆盖表列出已确认的客户端');
+
+  const autoOption = collectButtons(out.tree).find((button) => textOf(button).includes('模型与 / 都能调用'));
+  assert.ok(autoOption, '三档里包含自动');
+  autoOption.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  const save = collectButtons(out.tree).find((button) => textOf(button).trim() === '保存');
+  assert.ok(save, '选择后出现保存');
+  save.props.onClick();
+  await settle(stub, Component, out.hooks);
+
+  const call = calls.find((item) => item.url.endsWith('/skills/git-kit/invocation'));
+  assert.ok(call, '保存应 POST /skills/:name/invocation');
+  assert.equal(JSON.parse(call.body).mode, 'auto');
+});
+
+test('调用策略：作者声明仅手动时 chip 只读，不弹层', async () => {
+  const row = ROW({
+    mode: 'manual',
+    origin: 'author',
+    manual: { origin: 'author', original: 'true', appliedAt: '2026-01-01T00:00:00.000Z' },
+  });
+  const { Component, stub } = loadModule({ ...STATE, installs: [row] });
+  const out = await settle(stub, Component);
+  const chip = collectByClass(out.tree, 'dshsc-chip').find((node) => textOf(node) === '仅手动 · 只读');
+  assert.ok(chip, '作者声明用只读 chip');
+  assert.equal(chip.type, 'span', '作者声明的 chip 不是按钮');
+  assert.ok(textOf(out.tree).includes('作者已在 SKILL.md 声明，插件不覆盖'), '说明为什么只读');
+});
+
+test('完全停用：chip 打开恢复入口，二次确认后 POST /unpark', async () => {
+  const row = ROW({
+    mode: 'hidden',
+    enabled: true,
+    visible: false,
+    park: { parked: true, recorded: true, previousMode: 'manual' },
+    hidden: { previousMode: 'manual', at: '2026-01-01T00:00:00.000Z' },
+  });
+  const calls = [];
+  const fetchStub = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method });
+    if (String(url).endsWith('/state')) {
+      return { ok: true, status: 200, json: async () => ({ ...STATE, installs: [row] }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ ok: true, mode: 'manual' }) };
+  };
+  const { Component, stub } = loadModule({ ...STATE, installs: [row] }, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+  const chip = collectByClass(out.tree, 'dshsc-chip').find((node) => textOf(node) === '完全停用');
+  assert.ok(chip);
+  chip.props.onClick({ currentTarget: { getBoundingClientRect: () => ({ left: 100, top: 100, width: 70, height: 24, bottom: 124 }) } });
+  out = await settle(stub, Component, out.hooks);
+  const restore = buttonByText(out.tree, '恢复');
+  assert.ok(restore, '停用弹层里有恢复按钮');
+  restore.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.ok(textOf(out.tree).includes('恢复技能'), '恢复要二次确认');
+  assert.ok(textOf(out.tree).includes('仅手动'), '确认文案写明回到停用前的模式');
+  const confirm = buttonByText(out.tree, '恢复');
+  confirm.props.onClick();
+  await settle(stub, Component, out.hooks);
+  assert.ok(calls.some((item) => item.url.endsWith('/skills/git-kit/unpark')), '确认后 POST /unpark');
+});
+
+test('完全停用：操作列只留恢复 / 删除', async () => {
+  const row = ROW({
+    mode: 'hidden',
+    visible: false,
+    park: { parked: true, recorded: true, previousMode: 'auto' },
+  });
+  const { Component, stub } = loadModule({ ...STATE, installs: [row] });
+  const out = await settle(stub, Component);
+  const labels = collectButtons(out.tree)
+    .map((button) => button.props['aria-label'] || '')
+    .filter(Boolean);
+  assert.ok(labels.some((label) => label.startsWith('恢复')));
+  assert.ok(labels.some((label) => label.startsWith('删除')));
+  assert.ok(!labels.some((label) => label.startsWith('更新')), '停用行不给更新');
+  assert.ok(!labels.some((label) => label.startsWith('导出设置')), '停用行不给导出设置');
+});
+
+test('订阅表头：四列 + 展开条目子表头，窄屏收成仓库 / 操作', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    subscriptions: [{
+      id: 'sub-1',
+      source: 'morehao/ai-kit',
+      ref: 'main',
+      snapshot: { entries: [{ name: 'git-kit' }, { name: 'loose-skill' }] },
+    }],
+    installs: [ROW({ subscriptionId: 'sub-1' })],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  let tree = stub.render(Component, {}, first.hooks).tree;
+  const tabs = collectButtons(tree).filter((button) => String(textOf(button)).startsWith('订阅'));
+  tabs[0].props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+
+  const heads = collectByClass(tree, 'dshsc-subhead');
+  assert.equal(heads.length, 1, '订阅列表一个表头');
+  const head = textOf(heads[0]);
+  for (const expected of ['仓库', 'Ref', '条目', '操作']) {
+    assert.ok(head.includes(expected), `订阅表头缺少：${expected}`);
+  }
+  assert.equal(collectByClass(tree, 'dshsc-entryhead').length, 0, '未展开时没有条目子表头');
+
+  const caret = collectButtons(tree).find((button) => String(button.props.className || '').includes('dshsc-caret'));
+  caret.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const entryHeads = collectByClass(tree, 'dshsc-entryhead');
+  assert.equal(entryHeads.length, 1, '展开后出现条目子表头');
+  const entryHead = textOf(entryHeads[0]);
+  for (const expected of ['技能', '状态', '操作']) {
+    assert.ok(entryHead.includes(expected), `条目子表头缺少：${expected}`);
+  }
+
+  const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  const subhead = (css.match(/\.dshsc-subhead\s*\{[^}]*\}/) || [''])[0];
+  assert.match(subhead, /position:\s*sticky/, '订阅表头要 sticky');
+  assert.match(subhead, /grid-template-columns:\s*minmax\(0, 1fr\) 86px 178px 118px/, '表头与行共用四列列宽');
+  assert.match(css, /\.dshsc-subhead \.dshsc-href[^{]*\{[^}]*display:\s*none/, '窄屏隐藏 Ref 表头');
 });
 
 test('CLI 不可用 / 只读：顶部提示 + 写操作按钮禁用', async () => {
@@ -409,10 +603,9 @@ test('未纳入追踪：开关禁用、可见性以中性状态点表达、保�
   const dots = collectByClass(tree, 'dshsc-vdot');
   assert.equal(dots.length, 1, '可见性用一个状态点表达');
   assert.equal(dots[0].props['aria-label'], '模型可见');
-  const switches = collectButtons(tree).filter((button) => button.props.role === 'switch');
-  assert.equal(switches.length, 1);
-  assert.equal(switches[0].props.disabled, true, '未追踪时开关应禁用');
-  assert.equal(switches[0].props['aria-checked'], 'false');
+  const chip = collectByClass(tree, 'dshsc-chip')[0];
+  assert.equal(textOf(chip), '未纳入追踪', '未追踪行只显示一个不可点的 chip');
+  assert.equal(chip.props.title, '还未纳入追踪，不能启停');
 });
 
 test('同名副本：可见的不是这一份时，点名模型实际看到的那份', async () => {
@@ -507,18 +700,19 @@ test('主按钮文本色不能写死 #fff（深色主题白底白字）', async 
   assert.ok(css.includes('color: var(--dsw-alias-bg-base)'), '主按钮文字应跟随背景反色');
 });
 
-test('开关开启时旋钮用反色，不能白底白旋钮', async () => {
+test('调用策略 chip 用语义 token 着色，不写死颜色', async () => {
   const { Component, stub } = loadModule(STATE);
   const first = stub.render(Component, {});
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
-  const on = (css.match(/\.dshsc-switch\[aria-checked="true"\]\s*\{[^}]*\}/) || [''])[0];
-  const knobOn = (css.match(/\.dshsc-switch\[aria-checked="true"\]\s+\.dshsc-knob\s*\{[^}]*\}/) || [''])[0];
-  assert.ok(on.includes('background: var(--dsw-alias-brand-primary)'), '开启态轨道用品牌色');
-  assert.ok(knobOn.includes('background: var(--dsw-alias-label-primary-foreground)'), '开启态旋钮用前景反色');
-  assert.ok(!/#fff/i.test(knobOn), '旋钮不能写死白色');
+  const auto = (css.match(/\.dshsc-chip\.auto\s*\{[^}]*\}/) || [''])[0];
+  const manual = (css.match(/\.dshsc-chip\.manual\s*\{[^}]*\}/) || [''])[0];
+  assert.ok(auto.includes('var(--dsw-alias-state-success-primary)'), 'auto 用成功色');
+  assert.ok(manual.includes('var(--dsw-alias-brand-primary)'), 'manual 用品牌色');
+  assert.ok(!/#[0-9a-f]{3,8}/i.test(auto + manual), '不写死颜色');
+  assert.ok(!css.includes('.dshsc-switch'), '旧开关样式已移除');
 });
 
 test('方形复选框选中用反色圆点，不能白底白勾', async () => {
@@ -558,8 +752,11 @@ test('窄面板用容器查询，不能只靠视口 media query', async () => {
   assert.match(css, /\.dshsc-root\s*\{[^}]*container-name:\s*dshsc/, '容器要有名字，避免嵌套时查错');
   assert.ok(css.includes('@container dshsc (max-width: 860px)'), '窄面板降级要用容器查询');
   assert.ok(!css.includes('@media (max-width: 860px)'), '不能只看视口宽度：设置面板可能比窗口窄很多');
-  assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) 196px'), '窄面板切两列，Agent 标签回到名字下方');
-  assert.ok(css.includes('grid-row: 1 / span 2'), '操作列跨两行，避免和标签挤在一起');
+  assert.ok(css.includes('grid-template-columns: minmax(0, 1fr) 102px'), '窄面板切两列，Agent 标签回到名字下方');
+  assert.ok(
+    /\.dshsc-agents\s*\{[^}]*grid-column:\s*1/.test(css) && /\.dshsc-policy\s*\{[^}]*grid-column:\s*2/.test(css),
+    'Agent 留左列，调用策略与操作挪到右列',
+  );
   assert.ok(!css.includes('max-width: 900px'), '页面断点不能贴在面板常见的 ~900px 上（会有几像素就翻面的抖动）');
 });
 
@@ -910,7 +1107,7 @@ test('导出设置：只列本机已装 Agent，不再有作用范围', async ()
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
-  const exportButton = collectButtons(tree).find((button) => textOf(button).trim() === '导出设置');
+  const exportButton = buttonByText(tree, '导出设置');
   assert.ok(exportButton);
   exportButton.props.onClick();
 
@@ -1213,7 +1410,7 @@ test('状态筛选：计数来自全量，点选后只留对应行', async () =>
   text = textOf(tree);
   assert.ok(text.includes('pdf-tools'), '已停用行');
   assert.ok(!text.includes('handoff'), '其它状态被筛掉');
-  assert.ok(text.includes('DSH 的模型调用与 `/` 手动调用'), '停用提示用用户语言，不暴露停用桩');
+  assert.ok(text.includes('旧版 DSH-only 停用'), '旧模式用用户语言说明');
   assert.ok(!text.includes('扫描根里有停用标记'));
 });
 
@@ -1450,7 +1647,7 @@ async function openDrawer(options = {}) {
   const fetchStub = skillFetch(options);
   const { Component, stub } = loadModule(options.state || STATE, { fetch: fetchStub, refNodes: options.refNodes });
   let out = await settle(stub, Component);
-  const view = collectButtons(out.tree).find((button) => textOf(button).trim() === '查看');
+  const view = buttonByText(out.tree, '查看');
   assert.ok(view, '已安装行要有「查看」入口');
   view.props.onClick();
   out = await settle(stub, Component, out.hooks);

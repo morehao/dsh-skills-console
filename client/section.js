@@ -48,13 +48,15 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   // 批量更新只处理无本地改动、可直接 fast-forward 的行；有本地改动仍需逐个确认
   const bulkCount = rows.filter((row) => row.status === 'update-available').length;
   const unknownCount = rows.filter((row) => row.status === 'unknown').length;
-  const offCount = rows.filter((row) => row.enabled === false).length;
-  const counts = { all: rows.length, update: updateCount, unknown: unknownCount, off: offCount };
+  const offCount = rows.filter((row) => row.mode === 'hidden' || row.enabled === false).length;
+  const manualCount = rows.filter((row) => row.mode === 'manual').length;
+  const counts = { all: rows.length, update: updateCount, unknown: unknownCount, manual: manualCount, off: offCount };
   const queryText = query.trim().toLowerCase();
   const visibleRows = rows.filter((row) => {
     if (filter === 'update' && !updatable(row)) return false;
     if (filter === 'unknown' && row.status !== 'unknown') return false;
-    if (filter === 'off' && row.enabled !== false) return false;
+    if (filter === 'manual' && row.mode !== 'manual') return false;
+    if (filter === 'off' && row.mode !== 'hidden' && row.enabled !== false) return false;
     if (!queryText) return true;
     const agentLabels = row.exports.map((item) => item.label);
     return [row.name, row.source || '', ...agentLabels].join(' ').toLowerCase().includes(queryText);
@@ -141,6 +143,8 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onView: (row) => openViewer(row),
     onAdopt: actions.adopt,
     onToggleMode: actions.toggleMode,
+    onSetInvocation: actions.setInvocation,
+    onRequestUnpark: actions.requestUnpark,
     onUpdate: actions.requestUpdate,
     onDelete: actions.requestDelete,
     onExports: (row) => setModal({ type: 'exports', row }),

@@ -2,9 +2,12 @@
  * 已安装 tab：行 / 分组 / 筛选 / 搜索 / 空态 / 内置技能说明。
  * 纯展示 + 事件回调：不直接发请求，不持有跨视图状态。
  */
+import React from 'react';
+
 import { h } from '../host.js';
 import { short } from '../api.js';
-import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon } from '../icons.js';
+import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, PlugIcon } from '../icons.js';
+import { PolicyPopover } from './policy-popover.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
@@ -14,10 +17,95 @@ export function InstalledTab({
   actions,
 }) {
   const updatable = (row) => UPDATABLE.has(row.status);
+  const [policy, setPolicy] = React.useState(null);
   // 直读共享根的 Agent 不需要导出；旧 Host 若还把它们的链塞进 row.exports，这里也不显示
   const sharedTargets = new Set((data?.agents?.detected || [])
     .filter((agent) => agent.kind === 'agent' && agent.sharedHome === 'yes')
     .map((agent) => agent.target));
+
+  // 行被删 / 筛选掉后浮层不能留在原地
+  React.useEffect(() => {
+    if (!policy) return;
+    if (rows.some((row) => row.name === policy.row.name)) return;
+    setPolicy(null);
+  }, [policy, rows]);
+
+  function openPolicy(event, row) {
+    if (busy !== null || row.kind === 'file') return;
+    if (row.mode === 'manual' && row.origin === 'author') return;
+    const el = event.currentTarget;
+    const rect = el.getBoundingClientRect();
+    setPolicy({
+      row,
+      anchorEl: el,
+      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height },
+    });
+  }
+
+  /** 行内唯一的状态入口：自动 / 仅手动 / 完全停用 / 旧版 DSH-only / 作者声明 / 需修复。 */
+  function policyChip(row) {
+    if (row.status === 'unmanaged') {
+      return h('span', { className: 'dshsc-chip muted', title: t('adopt.switchHint') }, t('policy.unmanaged'));
+    }
+    if (row.kind === 'file') {
+      return h('span', { className: 'dshsc-chip muted', title: t('policy.flat') }, t('policy.flat'));
+    }
+    const mode = row.mode || 'auto';
+    if (mode === 'hidden') {
+      return h('button', {
+        type: 'button',
+        className: 'dshsc-chip hidden',
+        disabled: busy !== null,
+        title: t('policy.hiddenHint'),
+        'aria-haspopup': 'dialog',
+        onClick: (event) => openPolicy(event, row),
+      }, t('policy.hidden'));
+    }
+    if (mode === 'manual' && row.origin === 'author') {
+      return h('span', {
+        className: 'dshsc-chip author',
+        title: t('policy.authorHint'),
+      }, t('policy.author'));
+    }
+    if (row.drift) {
+      return h('button', {
+        type: 'button',
+        className: 'dshsc-chip drift',
+        disabled: busy !== null,
+        title: t('policy.driftHint'),
+        'aria-haspopup': 'dialog',
+        onClick: (event) => openPolicy(event, row),
+      }, t('policy.drift'));
+    }
+    if (row.legacy === 'dsh-off') {
+      return h('button', {
+        type: 'button',
+        className: 'dshsc-chip legacy',
+        disabled: busy !== null,
+        title: t('policy.legacyHint'),
+        'aria-haspopup': 'dialog',
+        onClick: (event) => openPolicy(event, row),
+      }, t('policy.legacy'));
+    }
+    if (mode === 'manual') {
+      return h('button', {
+        type: 'button',
+        className: 'dshsc-chip manual',
+        disabled: busy !== null,
+        title: t('policy.manualOnlyHint'),
+        'aria-haspopup': 'dialog',
+        onClick: (event) => openPolicy(event, row),
+      }, t('policy.manual'));
+    }
+    return h('button', {
+      type: 'button',
+      className: 'dshsc-chip auto',
+      disabled: busy !== null,
+      title: t('policy.open'),
+      'aria-haspopup': 'dialog',
+      onClick: (event) => openPolicy(event, row),
+    }, t('policy.auto'));
+  }
 
   function statusTag(row) {
     // 「待检查」不逐行刷：由列表头的计数与底部提示承接
@@ -95,9 +183,29 @@ export function InstalledTab({
     return chips;
   }
 
+  /**
+   * 表头：宽屏 4 列；窄屏收成「技能（含 Agent）」/「策略与操作」两列。
+   * 不挂 columnheader 语义：行本身不是表格结构，避免对读屏软件撒谎。
+   */
+  function headView() {
+    return h('div', { className: 'dshsc-listhead' },
+      h('div', { className: 'dshsc-hskill' },
+        h('span', { className: 'dshsc-col-wide' }, t('column.skill')),
+        h('span', { className: 'dshsc-col-narrow' }, t('column.skillAgents'))),
+      h('div', { className: 'dshsc-hagents' }, t('column.agents')),
+      h('div', { className: 'dshsc-hpolicy' }, t('column.policy')),
+      h('div', { className: 'dshsc-hactions' },
+        h('span', { className: 'dshsc-col-wide' }, t('column.actions')),
+        h('span', { className: 'dshsc-col-narrow' }, t('column.policyActions'))));
+  }
+
+  function listView(listRows) {
+    return h('div', { className: 'dshsc-list' }, headView(), listRows);
+  }
+
   function rowView(row) {
-    const off = row.enabled === false;
-    const tracked = row.status !== 'unmanaged';
+    const parked = row.mode === 'hidden';
+    const off = parked || row.enabled === false;
     const canUpdate = writable && updatable(row);
     // 启用却看不见：要么真身不在扫描根里，要么项目副本盖过了停用标记
     const hidden = !off && !row.visible;
@@ -129,19 +237,18 @@ export function InstalledTab({
             onClick: () => actions.onView(row),
           }, row.name),
           statusTag(row),
-          manualOnly
-            ? h('span', {
-                className: 'dshsc-tag off',
-                title: t('visibility.manualOnlyHint'),
-                'aria-label': t('visibility.manualOnlyHint'),
-              }, t('meta.manualOnly'))
-            : null,
-          off ? h('span', { className: 'dshsc-tag off' }, t('status.off')) : null,
         ),
         sourceLine(row),
-        off ? h('div', { className: 'dshsc-note' }, t('mode.offHint')) : null,
-        // manual-only 用名字旁的「仅手动」标志表达，不占一行警告；
-        // 被更靠前的同名副本盖住时由下面的 foreignWinner 点名，这里不再补「扫描目录里没有它」。
+        parked
+          ? h('div', { className: 'dshsc-note' }, t('policy.hiddenNote'))
+          : row.legacy === 'dsh-off'
+            ? h('div', { className: 'dshsc-note' }, t('policy.legacyNote'))
+            : null,
+        row.origin === 'author' && row.mode === 'manual'
+          ? h('div', { className: 'dshsc-note' }, t('policy.authorNote'))
+          : null,
+        row.drift ? h('div', { className: 'dshsc-note warn' }, t('policy.driftNote')) : null,
+        // 仅手动用行内 chip 表达；被更靠前的同名副本盖住时由下面的 foreignWinner 点名。
         hidden && !manualOnly && row.visibility?.winnerIsCanonical !== false
           ? h('div', { className: 'dshsc-note warn' }, t('visibility.hiddenHint'))
           : null,
@@ -159,56 +266,85 @@ export function InstalledTab({
         row.status === 'broken-link' ? h('div', { className: 'dshsc-note warn' }, t('status.brokenHint')) : null,
       ),
       h('div', { className: 'dshsc-agents' }, agentChips(row)),
+      h('div', { className: 'dshsc-policy' }, policyChip(row)),
       h(
         'div',
         { className: 'dshsc-actions' },
-        h('button', {
-          className: 'dshsc-switch',
-          role: 'switch',
-          'aria-checked': String(tracked && row.enabled !== false),
-          'aria-label': `${row.name} ${t('mode.on')}/${t('mode.off')}`,
-          // 未纳入追踪时调 setMode 只会报「没有安装记录」，不如直接禁用
-          disabled: busy !== null || !tracked,
-          onClick: () => void actions.onToggleMode(row),
-          title: tracked ? (row.enabled !== false ? t('mode.off') : t('mode.on')) : t('adopt.switchHint'),
-        }, h('span', { className: 'dshsc-knob' })),
-        h('button', {
-          className: 'dshsc-btn ghost dshsc-view',
-          disabled: busy !== null,
-          'aria-haspopup': 'dialog',
-          title: t('action.view'),
-          onClick: () => actions.onView(row),
-        }, h(EyeIcon, { size: 12 }), t('action.view')),
-        row.status === 'unmanaged'
-          ? h('button', {
-              className: 'dshsc-btn ghost',
-              disabled: !writable || busy !== null,
-              title: row.source ? row.source : t('meta.none'),
-              onClick: () => void actions.onAdopt(row),
-            }, t('action.adopt'))
-          : h('button', {
-              className: `dshsc-btn ghost${canUpdate ? ' dshsc-update' : ''}`,
-              disabled: !canUpdate || busy !== null,
-              onClick: () => actions.onUpdate(row),
-            }, t('action.update')),
-        h('button', { className: 'dshsc-btn ghost', disabled: busy !== null, onClick: () => actions.onExports(row) }, t('action.exports')),
-        h('button', {
-          className: 'dshsc-btn ghost danger sq',
-          disabled: !writable || busy !== null,
-          title: t('action.delete'),
-          'aria-label': `${t('action.delete')} ${row.name}`,
-          onClick: () => actions.onDelete(row),
-        }, h(TrashIcon, { size: 13 })),
+        parked
+          // 完全停用：只给「恢复」和「删除」；更新/导出在 parked 期间没有意义
+          ? [
+              h('button', {
+                key: 'restore',
+                className: 'dshsc-btn ghost sq dshsc-restore',
+                disabled: !writable || busy !== null,
+                title: t('policy.unpark'),
+                'aria-label': `${t('policy.unpark')} ${row.name}`,
+                onClick: () => actions.onRequestUnpark(row),
+              }, h(RefreshIcon, { size: 13 })),
+              h('button', {
+                key: 'delete',
+                className: 'dshsc-btn ghost danger sq',
+                disabled: !writable || busy !== null,
+                title: t('action.delete'),
+                'aria-label': `${t('action.delete')} ${row.name}`,
+                onClick: () => actions.onDelete(row),
+              }, h(TrashIcon, { size: 13 })),
+            ]
+          : [
+              h('button', {
+                key: 'view',
+                className: 'dshsc-btn ghost sq dshsc-view',
+                disabled: busy !== null,
+                'aria-haspopup': 'dialog',
+                title: t('action.view'),
+                'aria-label': `${t('action.view')} ${row.name}`,
+                onClick: () => actions.onView(row),
+              }, h(EyeIcon, { size: 13 })),
+              row.status === 'unmanaged'
+                ? h('button', {
+                    key: 'adopt',
+                    className: 'dshsc-btn ghost',
+                    disabled: !writable || busy !== null,
+                    title: row.source ? row.source : t('meta.none'),
+                    onClick: () => void actions.onAdopt(row),
+                  }, t('action.adopt'))
+                : h('button', {
+                    key: 'update',
+                    className: `dshsc-btn ghost sq${canUpdate ? ' dshsc-update' : ''}`,
+                    disabled: !canUpdate || busy !== null,
+                    title: t('action.update'),
+                    'aria-label': `${t('action.update')} ${row.name}`,
+                    onClick: () => actions.onUpdate(row),
+                  }, h(DownloadIcon, { size: 13 })),
+              h('button', {
+                key: 'exports',
+                className: 'dshsc-btn ghost sq',
+                disabled: busy !== null,
+                title: t('action.exports'),
+                'aria-label': `${t('action.exports')} ${row.name}`,
+                onClick: () => actions.onExports(row),
+              }, h(PlugIcon, { size: 13 })),
+              h('button', {
+                key: 'delete',
+                className: 'dshsc-btn ghost danger sq',
+                disabled: !writable || busy !== null,
+                title: t('action.delete'),
+                'aria-label': `${t('action.delete')} ${row.name}`,
+                onClick: () => actions.onDelete(row),
+              }, h(TrashIcon, { size: 13 })),
+            ],
       ),
     );
   }
 
   function groupedRows() {
     const groups = [];
-    const visibleGroup = visibleRows.filter((row) => row.enabled !== false && row.visible);
-    const offRows = visibleRows.filter((row) => row.enabled === false);
-    const hiddenRows = visibleRows.filter((row) => row.enabled !== false && !row.visible);
-    groups.push({ key: 'visible', title: t('group.visible'), rows: visibleGroup, dot: true });
+    const visibleGroup = visibleRows.filter((row) => row.mode === 'auto' && row.enabled !== false && row.visible);
+    const manualRows = visibleRows.filter((row) => row.mode === 'manual');
+    const offRows = visibleRows.filter((row) => row.mode === 'hidden' || row.enabled === false);
+    const hiddenRows = visibleRows.filter((row) => row.mode === 'auto' && row.enabled !== false && !row.visible);
+    if (visibleGroup.length) groups.push({ key: 'visible', title: t('group.visible'), rows: visibleGroup, dot: true });
+    if (manualRows.length) groups.push({ key: 'manual', title: t('group.manual'), rows: manualRows });
     if (offRows.length) groups.push({ key: 'off', title: t('group.off'), rows: offRows });
     if (hiddenRows.length) groups.push({ key: 'hidden', title: t('group.hidden'), rows: hiddenRows });
     for (const agent of data?.agents?.detected || []) {
@@ -241,6 +377,7 @@ export function InstalledTab({
         filterChip('all', t('filter.all')),
         filterChip('update', t('filter.update'), h('i', { className: 'dshsc-fdot' })),
         filterChip('unknown', t('filter.unknown')),
+        filterChip('manual', t('filter.manual')),
         filterChip('off', t('filter.off'))),
       h('div', { className: 'dshsc-listbar-actions' },
         h('button', {
@@ -325,8 +462,8 @@ export function InstalledTab({
               group.dot ? h('i', { className: 'dshsc-gdot' }) : null,
               h('span', null, group.title),
               h('span', { className: 'n' }, group.rows.length)),
-            h('div', { className: 'dshsc-list' }, group.rows.map(rowView)))))
-      : h('div', { className: 'dshsc-list' }, visibleRows.map(rowView));
+            listView(group.rows.map(rowView)))))
+      : listView(visibleRows.map(rowView));
     return h(
       'div',
       { className: 'dshsc-tabpane' },
@@ -338,5 +475,26 @@ export function InstalledTab({
     );
   }
 
-  return content();
+  const popover = policy
+    ? h(PolicyPopover, {
+        t,
+        row: policy.row,
+        support: data?.invocation?.support || null,
+        anchor: policy.anchor,
+        anchorEl: policy.anchorEl,
+        busy: busy !== null,
+        onClose: () => setPolicy(null),
+        onSave: (mode) => {
+          const target = policy.row;
+          setPolicy(null);
+          void actions.onSetInvocation(target, mode);
+        },
+        onUnpark: () => {
+          const target = policy.row;
+          setPolicy(null);
+          actions.onRequestUnpark(target);
+        },
+      })
+    : null;
+  return h(React.Fragment, null, content(), popover);
 }

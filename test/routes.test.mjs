@@ -212,3 +212,81 @@ test('/skills/:name：读取层的错误码 → 400，客户端据此显示失�
   assert.equal(body.ok, false);
   assert.equal(body.code, 'error.skills.bad-path');
 });
+
+test('/skills/:name/invocation：三档 mode 透传给 service，409 原样返回', async () => {
+  const calls = [];
+  const service = {
+    reloadState() {},
+    getState: async () => ({ ok: true }),
+    setInvocation: async (payload) => {
+      calls.push(payload);
+      if (payload.mode === 'hidden') {
+        throw new ServiceError('error.skills.parked', '已完全停用', null, 409);
+      }
+      return { ok: true, mode: payload.mode };
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  await handler(
+    {
+      url: `${ROUTE_PREFIX}/skills/demo/invocation`,
+      method: 'POST',
+      headers: { 'x-dsh-skills-console': '1' },
+      async *[Symbol.asyncIterator]() {
+        yield Buffer.from(JSON.stringify({ mode: 'manual' }));
+      },
+    },
+    res,
+  );
+  assert.equal(res.out.status, 200);
+  assert.deepEqual(calls, [{ name: 'demo', mode: 'manual' }]);
+  assert.equal(JSON.parse(res.out.body).mode, 'manual');
+
+  const conflict = fakeRes();
+  await handler(
+    {
+      url: `${ROUTE_PREFIX}/skills/demo/invocation`,
+      method: 'POST',
+      headers: { 'x-dsh-skills-console': '1' },
+      async *[Symbol.asyncIterator]() {
+        yield Buffer.from(JSON.stringify({ mode: 'hidden' }));
+      },
+    },
+    conflict,
+  );
+  assert.equal(conflict.out.status, 409);
+  assert.equal(JSON.parse(conflict.out.body).code, 'error.skills.parked');
+});
+
+test('/skills/:name/unpark：默认 keep=null，显式 keep 透传', async () => {
+  const calls = [];
+  const service = {
+    reloadState() {},
+    getState: async () => ({ ok: true }),
+    unpark: async (payload) => {
+      calls.push(payload);
+      return { ok: true, mode: 'auto' };
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  for (const body of [{}, { keep: 'parked' }]) {
+    const res = fakeRes();
+    await handler(
+      {
+        url: `${ROUTE_PREFIX}/skills/demo/unpark`,
+        method: 'POST',
+        headers: { 'x-dsh-skills-console': '1' },
+        async *[Symbol.asyncIterator]() {
+          yield Buffer.from(JSON.stringify(body));
+        },
+      },
+      res,
+    );
+    assert.equal(res.out.status, 200);
+  }
+  assert.deepEqual(calls, [
+    { name: 'demo', keep: null },
+    { name: 'demo', keep: 'parked' },
+  ]);
+});

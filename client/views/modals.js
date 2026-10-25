@@ -174,6 +174,17 @@ export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSav
       onSave: (targets) => void onSaveAutoLink(targets),
     });
   }
+  if (modal.type === 'confirm-unpark') {
+    const previous = modal.row?.park?.previousMode === 'manual' ? t('policy.manual') : t('policy.auto');
+    return h(ConfirmModal, {
+      t,
+      title: t('policy.unparkTitle'),
+      body: t('policy.unparkBody').replace('{mode}', previous),
+      confirmLabel: t('policy.unpark'),
+      onCancel: onClose,
+      onConfirm: modal.onConfirm,
+    });
+  }
   if (modal.type === 'confirm-delete') {
     return h(ConfirmModal, {
       t,
