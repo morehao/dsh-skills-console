@@ -200,7 +200,60 @@ var DICT = {
     visibleOnlyBuiltin: "本插件仅管理 ~/.agents/skills 下的技能，DSH 内置技能不在管理范围内",
     "builtin.view": "查看内置技能（{n}）",
     "builtin.hide": "收起内置技能",
-    external: "非本插件创建"
+    external: "非本插件创建",
+    // 查看器：抽屉 / 整页共用的文案
+    "viewer.title": "技能内容",
+    "viewer.close": "关闭",
+    "viewer.openPage": "在整页打开",
+    "viewer.back": "返回列表",
+    "viewer.tab.doc": "正文",
+    "viewer.tab.files": "文件",
+    "viewer.tab.info": "信息",
+    "viewer.rendered": "渲染",
+    "viewer.raw": "原文",
+    "viewer.loading": "正在读取 SKILL.md…",
+    "viewer.retry": "重试",
+    "viewer.copyPath": "复制路径",
+    "viewer.copyBody": "复制正文",
+    "viewer.copied": "已复制",
+    "viewer.copyFailed": "复制失败，请手动选中后复制",
+    "viewer.gone": "这个技能已不在本地，查看器已关闭",
+    "viewer.noSkill": "这个技能里没有 SKILL.md",
+    "viewer.noSkillHint": "DSH 解析不到它，但目录里的其他文件仍可以看",
+    "viewer.binary": "不在预览范围（二进制或非文本文件）",
+    "viewer.tooLarge": "超过 {size}，只显示前一部分",
+    "viewer.emptyFiles": "这个技能目录里没有可读的文件",
+    "viewer.fileCount": "{n} 个文件",
+    "viewer.size": "{size}",
+    "viewer.backToBody": "回到 SKILL.md",
+    "viewer.openInDoc": "在正文中打开",
+    "viewer.toc": "目录",
+    "viewer.readonlyNote": "只读，内容来自本机 SKILL.md",
+    "viewer.info.basic": "标识",
+    "viewer.info.name": "名称",
+    "viewer.info.desc": "描述",
+    "viewer.info.path": "本地路径",
+    "viewer.info.source": "来源",
+    "viewer.info.repo": "仓库",
+    "viewer.info.ref": "基准",
+    "viewer.info.commit": "commit",
+    "viewer.info.skillPath": "skillPath",
+    "viewer.info.hash": "内容哈希",
+    "viewer.info.installedAt": "安装",
+    "viewer.info.updatedAt": "更新",
+    "viewer.info.size": "大小",
+    "viewer.info.local": "本地",
+    "viewer.info.localChange": "本地改动",
+    "viewer.info.localChangeNone": "无（与安装时一致）",
+    "viewer.info.localChangeYes": "有本地改动",
+    "viewer.info.links": "接入",
+    "viewer.info.agents": "Agent",
+    "viewer.info.scope": "范围",
+    "viewer.info.scopeGlobal": "全局",
+    "viewer.info.scopeProject": "仅项目",
+    "viewer.info.mode": "状态",
+    "viewer.info.status": "更新",
+    "viewer.info.none": "无"
   },
   en: {
     "section.title": "Skills Console",
@@ -331,7 +384,60 @@ var DICT = {
     "builtin.view": "View built-ins ({n})",
     "builtin.hide": "Hide built-ins",
     external: "created outside this plugin",
-    "adopt.done": "now tracked"
+    "adopt.done": "now tracked",
+    // Viewer: shared by the drawer and the full page
+    "viewer.title": "Skill content",
+    "viewer.close": "Close",
+    "viewer.openPage": "Open as page",
+    "viewer.back": "Back to list",
+    "viewer.tab.doc": "Content",
+    "viewer.tab.files": "Files",
+    "viewer.tab.info": "Info",
+    "viewer.rendered": "Rendered",
+    "viewer.raw": "Raw",
+    "viewer.loading": "Reading SKILL.md…",
+    "viewer.retry": "Retry",
+    "viewer.copyPath": "Copy path",
+    "viewer.copyBody": "Copy content",
+    "viewer.copied": "Copied",
+    "viewer.copyFailed": "Copy failed, select the text manually",
+    "viewer.gone": "This skill is gone from disk; the viewer was closed",
+    "viewer.noSkill": "This skill has no SKILL.md",
+    "viewer.noSkillHint": "DSH cannot parse it, but the other files are still readable",
+    "viewer.binary": "Not previewable (binary or non-text file)",
+    "viewer.tooLarge": "Larger than {size}; showing the first part only",
+    "viewer.emptyFiles": "No readable files in this skill folder",
+    "viewer.fileCount": "{n} files",
+    "viewer.size": "{size}",
+    "viewer.backToBody": "Back to SKILL.md",
+    "viewer.openInDoc": "Open in content",
+    "viewer.toc": "Contents",
+    "viewer.readonlyNote": "Read-only, content comes from the local SKILL.md",
+    "viewer.info.basic": "Identity",
+    "viewer.info.name": "Name",
+    "viewer.info.desc": "Description",
+    "viewer.info.path": "Local path",
+    "viewer.info.source": "Origin",
+    "viewer.info.repo": "Repository",
+    "viewer.info.ref": "Baseline",
+    "viewer.info.commit": "commit",
+    "viewer.info.skillPath": "skillPath",
+    "viewer.info.hash": "Content hash",
+    "viewer.info.installedAt": "Installed",
+    "viewer.info.updatedAt": "Updated",
+    "viewer.info.size": "Size",
+    "viewer.info.local": "Local",
+    "viewer.info.localChange": "Local changes",
+    "viewer.info.localChangeNone": "None (matches install)",
+    "viewer.info.localChangeYes": "Modified locally",
+    "viewer.info.links": "Linked",
+    "viewer.info.agents": "Agents",
+    "viewer.info.scope": "Scope",
+    "viewer.info.scopeGlobal": "Global",
+    "viewer.info.scopeProject": "Project only",
+    "viewer.info.mode": "State",
+    "viewer.info.status": "Updates",
+    "viewer.info.none": "None"
   }
 };
 function buildTranslate(locale) {
@@ -617,9 +723,89 @@ function SearchIcon({ size = 13 }) {
     h("path", { d: "M16 16l4.3 4.3" })
   );
 }
+var STROKE_ICON = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+};
+function EyeIcon({ size = 13 }) {
+  return h(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      ...STROKE_ICON,
+      "aria-hidden": true,
+      style: { display: "block" }
+    },
+    h("path", { d: "M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" }),
+    h("circle", { cx: 12, cy: 12, r: 3 })
+  );
+}
+function CopyIcon({ size = 13 }) {
+  return h(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      ...STROKE_ICON,
+      "aria-hidden": true,
+      style: { display: "block" }
+    },
+    h("rect", { x: 9, y: 9, width: 11, height: 11, rx: 2.5 }),
+    h("path", { d: "M15 5.5A2.5 2.5 0 0 0 12.5 3h-6A3.5 3.5 0 0 0 3 6.5v6A2.5 2.5 0 0 0 5.5 15" })
+  );
+}
+function ChevronLeftIcon({ size = 14 }) {
+  return h(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      ...STROKE_ICON,
+      "aria-hidden": true,
+      style: { display: "block" }
+    },
+    h("path", { d: "M14.5 5.5 8 12l6.5 6.5" })
+  );
+}
+function FileIcon({ size = 12 }) {
+  return h(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      ...STROKE_ICON,
+      "aria-hidden": true,
+      style: { display: "block", flex: "none" }
+    },
+    h("path", { d: "M6 3.5h7l5 5V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 20V5a1.5 1.5 0 0 1 1-1.5z" }),
+    h("path", { d: "M13 3.5V9h5" })
+  );
+}
+function FolderIcon({ size = 12 }) {
+  return h(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      ...STROKE_ICON,
+      "aria-hidden": true,
+      style: { display: "block", flex: "none" }
+    },
+    h("path", { d: "M3.5 7.5A1.5 1.5 0 0 1 5 6h4l1.8 2.2H19a1.5 1.5 0 0 1 1.5 1.5V18A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z" })
+  );
+}
 
 // client/section.js
-var import_react4 = __toESM(require("react"), 1);
+var import_react5 = __toESM(require("react"), 1);
 
 // client/styles.js
 var CSS = `
@@ -745,7 +931,7 @@ var CSS = `
 
   .dshsc-list { display: flex; flex-direction: column; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
     background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
-  .dshsc-row { display: grid; grid-template-columns: 300px minmax(0, 1fr) 218px; gap: 14px; align-items: center;
+  .dshsc-row { display: grid; grid-template-columns: 300px minmax(0, 1fr) 268px; gap: 14px; align-items: center;
     padding: 8px 12px 8px 14px; min-height: 54px; border-top: 1px solid var(--dsw-alias-border-l1);
     transition: background .12s ease; }
   .dshsc-list > .dshsc-row:first-child { border-top: 0; }
@@ -755,6 +941,11 @@ var CSS = `
   .dshsc-namerow { display: flex; align-items: center; gap: 7px; min-width: 0; }
   .dshsc-name { font-size: 13px; font-weight: 600; letter-spacing: -.005em; min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 技能名本身是查看入口：清掉 button 默认外观，保留 hover 下划线提示可点 */
+  .dshsc-namebtn { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600;
+    letter-spacing: -.005em; color: inherit; text-align: left; cursor: pointer; }
+  .dshsc-namebtn:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .dshsc-namebtn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; border-radius: 4px; }
   .dshsc-src { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 11.5px; line-height: 16px;
     color: var(--dsw-alias-label-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dshsc-src .dshsc-code { color: var(--dsw-alias-label-secondary); font-size: 11px; }
@@ -950,6 +1141,185 @@ var CSS = `
   .dshsc-panel .dshsc-check.locked:hover { background: transparent; }
 
   .dshsc-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
+  /* ---------- 查看器：抽屉（B1）/ 整页（A1）共用 ---------- */
+  .dshsc-drawer-wrap { position: fixed; inset: 0; z-index: 55; }
+  .dshsc-drawer-scrim { position: absolute; inset: 0; background: rgba(4,6,9,.55); }
+  .dshsc-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(700px, 100vw); display: flex;
+    flex-direction: column; min-height: 0; background: var(--dsw-alias-bg-layer-1);
+    border-left: 1px solid var(--dsw-alias-border-l2); box-shadow: -30px 0 70px rgba(0,0,0,.38); outline: none; }
+  .dshsc-reader-head { flex: none; padding: 15px 20px 12px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-reader-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .dshsc-reader-title h2 { flex: 1; min-width: 0; margin: 0; font-size: 18px; line-height: 1.3; font-weight: 650;
+    letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dshsc-reader-close { flex: none; width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent;
+    color: var(--dsw-alias-label-tertiary); font-size: 18px; line-height: 1; cursor: pointer; }
+  .dshsc-reader-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+  .dshsc-reader-close:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+  .dshsc-reader-desc { margin: 7px 0 0; font-size: 13px; line-height: 1.6; color: var(--dsw-alias-label-secondary);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .dshsc-reader-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px;
+    font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-reader-tabs { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 20px;
+    border-bottom: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-rtabs { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--dsw-alias-border-l1);
+    border-radius: 9px; background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-rtab { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border: 0;
+    border-radius: 7px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px;
+    cursor: pointer; white-space: nowrap; }
+  .dshsc-rtab:hover { color: var(--dsw-alias-label-primary); }
+  .dshsc-rtab.active { background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary);
+    box-shadow: 0 0 0 1px var(--dsw-alias-border-l1), 0 1px 2px rgba(0,0,0,.12); }
+  .dshsc-rtab .n { min-width: 15px; height: 15px; padding: 0 4px; box-sizing: border-box; border-radius: 999px;
+    background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 20%, transparent); color: var(--dsw-alias-label-secondary);
+    font-size: 10px; line-height: 15px; text-align: center; font-style: normal; font-variant-numeric: tabular-nums; }
+  .dshsc-rtab:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+  .dshsc-reader-seg { margin-left: auto; }
+  .dshsc-reader-seg .dshsc-btn { height: 22px; font-size: 11.5px; padding: 0 8px; }
+
+  .dshsc-reader-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 22px; outline: none; }
+  .dshsc-reader-doc { display: flex; flex-direction: column; gap: 10px; }
+  .dshsc-reader-filebar { display: flex; align-items: center; gap: 10px; font-size: 11.5px;
+    color: var(--dsw-alias-label-tertiary); }
+  .dshsc-reader-filebar .dshsc-btn { margin-left: auto; height: 24px; font-size: 11.5px; }
+  .dshsc-reader-raw { margin: 0; padding: 12px 14px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px;
+    background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.65; white-space: pre-wrap;
+    word-break: break-word; }
+  .dshsc-reader-actions { flex: none; display: flex; align-items: center; gap: 7px; padding: 9px 20px;
+    border-top: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); flex-wrap: wrap; }
+  .dshsc-reader-note { margin-right: auto; font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-reader-skeleton { display: flex; flex-direction: column; gap: 8px; }
+  .dshsc-reader-skeleton i { display: block; height: 12px; border-radius: 5px;
+    background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 16%, transparent); }
+  .dshsc-reader-skeleton i:nth-child(3) { width: 82%; }
+  .dshsc-reader-skeleton i:nth-child(4) { width: 64%; }
+  .dshsc-reader-skeleton span { font-size: 12px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-reader-placeholder { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px;
+    border: 1px dashed var(--dsw-alias-border-l2); border-radius: 12px;
+    background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 55%, transparent); font-size: 12.5px;
+    color: var(--dsw-alias-label-secondary); line-height: 1.6; }
+  .dshsc-reader-placeholder b { color: var(--dsw-alias-label-primary); font-size: 13px; }
+
+  /* 文件 tab：左树右预览；抽屉里上下排 */
+  .dshsc-reader-files { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .dshsc-reader-tree { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; overflow: auto;
+    max-height: 300px; background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-reader-preview { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; overflow: hidden;
+    background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-reader-tree-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; background: var(--dsw-alias-bg-layer-2); border-bottom: 1px solid var(--dsw-alias-border-l1);
+    font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-reader-tree-head .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dshsc-reader-tree-head .dshsc-btn { margin-left: auto; height: 22px; font-size: 11px; }
+  .dshsc-reader-tdir { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 11.5px;
+    color: var(--dsw-alias-label-tertiary); }
+  .dshsc-reader-tdir .n { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .dshsc-reader-titem { display: flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box;
+    padding: 5px 10px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary);
+    font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+  .dshsc-reader-titem:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+  .dshsc-reader-titem.on { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
+    color: var(--dsw-alias-brand-primary); }
+  .dshsc-reader-titem:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: -2px; }
+  .dshsc-reader-titem .nname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .dshsc-reader-titem .nsize { flex: none; font-size: 10.5px; color: var(--dsw-alias-label-tertiary);
+    font-variant-numeric: tabular-nums; }
+  .dshsc-reader-preview .dshsc-reader-raw { border: 0; border-radius: 0; background: transparent;
+    max-height: 320px; }
+
+  /* 信息 tab：四段 dl */
+  .dshsc-reader-info { display: flex; flex-direction: column; gap: 14px; }
+  .dshsc-info-sec { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; padding: 11px 13px;
+    background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-info-sec h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+    color: var(--dsw-alias-label-tertiary); text-transform: uppercase; }
+  .dshsc-info-sec dl { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 5px 10px; margin: 0;
+    font-size: 12px; line-height: 1.55; }
+  .dshsc-info-sec dt { color: var(--dsw-alias-label-tertiary); }
+  .dshsc-info-sec dd { margin: 0; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
+  .dshsc-info-sec dd.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+
+  /* 正文排版：只用 token，不写死深浅色 */
+  .dshsc-md { font-size: 13.5px; line-height: 1.72; color: var(--dsw-alias-label-primary); }
+  .dshsc-md-h { margin: 20px 0 8px; line-height: 1.35; font-weight: 650; letter-spacing: -.008em; }
+  .dshsc-md-h:first-child { margin-top: 0; }
+  .dshsc-md h1.dshsc-md-h { font-size: 21px; }
+  .dshsc-md h2.dshsc-md-h { font-size: 16.5px; padding-top: 10px; border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-md h3.dshsc-md-h { font-size: 14px; }
+  .dshsc-md h4.dshsc-md-h, .dshsc-md h5.dshsc-md-h, .dshsc-md h6.dshsc-md-h { font-size: 13px;
+    color: var(--dsw-alias-label-secondary); }
+  .dshsc-md-p { margin: 0 0 10px; }
+  .dshsc-md-inline { padding: 1px 5px; border-radius: 5px; background: var(--dsw-alias-bg-layer-3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+  .dshsc-md-code { margin: 0 0 12px; padding: 11px 13px; border-radius: 9px; overflow: auto;
+    background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.65; white-space: pre; }
+  .dshsc-md-list { margin: 0 0 10px; padding-left: 20px; }
+  .dshsc-md-list .dshsc-md-list { margin: 4px 0 0; }
+  .dshsc-md-list li { margin-bottom: 4px; }
+  .dshsc-md-task { list-style: none; margin-left: -18px; }
+  .dshsc-md-check { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border-radius: 3px;
+    border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); vertical-align: -1px; }
+  .dshsc-md-check.on { background: var(--dsw-alias-brand-primary); border-color: var(--dsw-alias-brand-primary); }
+  .dshsc-md-quote { margin: 0 0 12px; padding: 6px 0 6px 12px; border-left: 2px solid var(--dsw-alias-border-l3);
+    color: var(--dsw-alias-label-secondary); }
+  .dshsc-md-quote .dshsc-md-p:last-child { margin-bottom: 0; }
+  .dshsc-md-hr { height: 0; margin: 16px 0; border: 0; border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-md-link { color: var(--dsw-alias-brand-primary); text-decoration: none; }
+  .dshsc-md-link:hover { text-decoration: underline; }
+  .dshsc-md-nolink { color: inherit; border-bottom: 1px dotted var(--dsw-alias-border-l3); }
+  .dshsc-md-image { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px;
+    border: 1px dashed var(--dsw-alias-border-l2); color: var(--dsw-alias-label-tertiary); font-size: 11.5px; }
+  .dshsc-md-image-tag { font-size: 9.5px; letter-spacing: .06em; }
+  .dshsc-md-table { margin: 0 0 12px; overflow: auto; border: 1px solid var(--dsw-alias-border-l1); border-radius: 9px; }
+  .dshsc-md-table table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  .dshsc-md-table th, .dshsc-md-table td { padding: 7px 10px; border-bottom: 1px solid var(--dsw-alias-border-l1);
+    text-align: left; }
+  .dshsc-md-table th { background: var(--dsw-alias-bg-layer-2); font-weight: 600; }
+  .dshsc-md-table tr:last-child td { border-bottom: 0; }
+
+  /* 整页（A1）：返回条 + hero + 目录 + 720px 正文 */
+  .dshsc-reader-page { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .dshsc-reader-topbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .dshsc-reader-topbar .dshsc-btn { display: inline-flex; align-items: center; gap: 4px; height: 26px; font-size: 12px; }
+  .dshsc-reader-crumb { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px;
+    color: var(--dsw-alias-label-tertiary); }
+  .dshsc-reader-crumb .sep { color: var(--dsw-alias-border-l3); }
+  .dshsc-reader-topbar .spacer { flex: 1; }
+  .dshsc-reader-topbar .dshsc-reader-note { display: none; }
+  .dshsc-reader-hero { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
+    background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-reader-hero .dshsc-reader-head { border-bottom: 0; }
+  .dshsc-reader-hero .dshsc-reader-desc { -webkit-line-clamp: 3; max-width: 78ch; }
+  .dshsc-reader-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px; align-items: start; }
+  .dshsc-reader-toc { position: sticky; top: 0; display: flex; flex-direction: column; gap: 1px;
+    max-height: 70vh; overflow: auto; padding-right: 4px; }
+  .dshsc-reader-toc-title { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--dsw-alias-label-tertiary); margin-bottom: 5px; }
+  .dshsc-reader-tocitem { border: 0; background: transparent; padding: 3px 7px; border-radius: 6px; text-align: left;
+    font: inherit; font-size: 11.5px; line-height: 1.45; color: var(--dsw-alias-label-secondary); cursor: pointer;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dshsc-reader-tocitem.l2 { padding-left: 15px; }
+  .dshsc-reader-tocitem.l3, .dshsc-reader-tocitem.l4 { padding-left: 23px; font-size: 11px; }
+  .dshsc-reader-tocitem:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+  .dshsc-reader-tocitem.on { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
+    color: var(--dsw-alias-brand-primary); }
+  .dshsc-reader-tocitem:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+  .dshsc-reader-col { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--dsw-alias-border-l1);
+    border-radius: 12px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
+  .dshsc-reader-col .dshsc-reader-tabs { border-top: 0; }
+  .dshsc-reader-page .dshsc-reader-body { max-height: none; }
+  .dshsc-reader-page .dshsc-md { max-width: 720px; }
+  .dshsc-reader-page .dshsc-reader-actions { border-radius: 0 0 12px 12px; }
+
+  @container dshsc (max-width: 900px) {
+    /* 行内「查看」先让位：技能名本身仍是入口 */
+    .dshsc-row .dshsc-view { display: none; }
+    .dshsc-reader-layout { grid-template-columns: minmax(0, 1fr); }
+    .dshsc-reader-toc { display: none; }
+    .dshsc-reader-page .dshsc-reader-desc { -webkit-line-clamp: 2; }
+  }
+
   .dshsc-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 10px 13px; border-radius: 9px;
     background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l2);
     box-shadow: 0 8px 24px rgba(0,0,0,.22); max-width: 420px; }
@@ -1260,6 +1630,73 @@ function useAgentTip() {
   }
   return { agentTip, agentTipPos, agentTipRef, openAgentTip, closeAgentTip };
 }
+function useSkillReader(row) {
+  const name = row?.name || null;
+  const stamp = row ? [row.commit || "", row.currentHash || "", row.updatedAt || "", row.status || ""].join("|") : "";
+  const [state, setState] = import_react2.default.useState({ loading: true, body: null, tree: null, bodyError: null, treeError: null });
+  const [file, setFile] = import_react2.default.useState({ relPath: null, content: "", size: 0, truncated: false, loading: false, error: null });
+  const [tick, setTick] = import_react2.default.useState(0);
+  const seq = import_react2.default.useRef(0);
+  const fileSeq = import_react2.default.useRef(0);
+  import_react2.default.useEffect(() => {
+    if (!name) {
+      setState({ loading: false, body: null, tree: null, bodyError: null, treeError: null });
+      return;
+    }
+    const ticket = seq.current + 1;
+    seq.current = ticket;
+    setState({ loading: true, body: null, tree: null, bodyError: null, treeError: null });
+    const encoded = encodeURIComponent(name);
+    void (async () => {
+      const [bodyResult, treeResult] = await Promise.allSettled([
+        apiCall("GET", `/skills/${encoded}`),
+        apiCall("GET", `/skills/${encoded}/files`)
+      ]);
+      if (ticket !== seq.current) return;
+      setState({
+        loading: false,
+        body: bodyResult.status === "fulfilled" ? bodyResult.value : null,
+        tree: treeResult.status === "fulfilled" ? treeResult.value : null,
+        // 没有 SKILL.md 时正文失败但树还在：文件 tab 仍可用
+        bodyError: bodyResult.status === "rejected" ? { code: bodyResult.reason?.code || null, message: bodyResult.reason?.message || "读取失败" } : null,
+        treeError: treeResult.status === "rejected" ? { code: treeResult.reason?.code || null, message: treeResult.reason?.message || "读取失败" } : null
+      });
+    })();
+  }, [name, stamp, tick]);
+  const loadFile = import_react2.default.useCallback(async (relPath) => {
+    if (!name || !relPath) return;
+    const ticket = fileSeq.current + 1;
+    fileSeq.current = ticket;
+    setFile({ relPath, content: "", size: 0, truncated: false, loading: true, error: null });
+    try {
+      const result = await apiCall("GET", `/skills/${encodeURIComponent(name)}?path=${encodeURIComponent(relPath)}`);
+      if (ticket !== fileSeq.current) return;
+      setFile({
+        relPath: result.relPath || relPath,
+        content: result.content || "",
+        size: result.size || 0,
+        truncated: Boolean(result.truncated),
+        loading: false,
+        error: null,
+        mtime: result.mtime || null
+      });
+    } catch (error) {
+      if (ticket !== fileSeq.current) return;
+      setFile({
+        relPath,
+        content: "",
+        size: 0,
+        truncated: false,
+        loading: false,
+        error: { code: error?.code || null, message: error?.message || "读取失败" }
+      });
+    }
+  }, [name]);
+  const retry = import_react2.default.useCallback(() => {
+    setTick((value) => value + 1);
+  }, []);
+  return { state, file, loadFile, retry };
+}
 
 // client/views/header.js
 function Header({
@@ -1550,7 +1987,13 @@ function InstalledTab({
         h(
           "div",
           { className: "dshsc-namerow" },
-          h("span", { className: "dshsc-name", title: row.name }, row.name),
+          h("button", {
+            type: "button",
+            className: "dshsc-name dshsc-namebtn",
+            title: row.name,
+            "aria-haspopup": "dialog",
+            onClick: () => actions.onView(row)
+          }, row.name),
           statusTag(row),
           off ? h("span", { className: "dshsc-tag off" }, t("status.off")) : null
         ),
@@ -1572,6 +2015,13 @@ function InstalledTab({
           onClick: () => void actions.onToggleMode(row),
           title: tracked ? row.mode === "on" ? t("mode.off") : t("mode.on") : t("adopt.switchHint")
         }, h("span", { className: "dshsc-knob" })),
+        h("button", {
+          className: "dshsc-btn ghost dshsc-view",
+          disabled: busy !== null,
+          "aria-haspopup": "dialog",
+          title: t("action.view"),
+          onClick: () => actions.onView(row)
+        }, h(EyeIcon, { size: 12 }), t("action.view")),
         row.status === "unmanaged" ? h("button", {
           className: "dshsc-btn ghost",
           disabled: !writable || busy !== null,
@@ -2315,19 +2765,952 @@ ${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join("\n")}`,
   return null;
 }
 
+// client/views/skill-reader.js
+var import_react4 = __toESM(require("react"), 1);
+
+// client/markdown.js
+function classifyHref(href) {
+  const value = String(href ?? "").trim();
+  if (!value) return { kind: "unsafe", href: value };
+  if (/[\u0000-\u001f\u007f]/.test(value)) return { kind: "unsafe", href: value };
+  if (value.startsWith("#")) return { kind: "anchor", href: value.slice(1) };
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(value);
+  if (scheme) {
+    const name = scheme[1].toLowerCase();
+    if (name === "http" || name === "https" || name === "mailto") return { kind: "external", href: value };
+    return { kind: "unsafe", href: value };
+  }
+  if (value.startsWith("//")) return { kind: "unsafe", href: value };
+  return { kind: "relative", href: value };
+}
+function slugify(text) {
+  return String(text ?? "").trim().toLowerCase().replace(/[`*_~]/g, "").replace(/[^\p{L}\p{N}\s-]/gu, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+}
+function stripFrontmatter(text) {
+  const source = String(text ?? "");
+  const match = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(source);
+  if (!match) return { frontmatter: null, body: source };
+  return { frontmatter: match[1], body: source.slice(match[0].length) };
+}
+var ESCAPABLE = /* @__PURE__ */ new Set(["\\", "`", "*", "_", "[", "]", "(", ")", "#", "+", "-", ".", "!", "|", ">", "~"]);
+function matchBracketLink(text, start) {
+  const close = text.indexOf("]", start + 1);
+  if (close < 0) return null;
+  if (text[close + 1] !== "(") return null;
+  let depth = 0;
+  let index = close + 1;
+  for (; index < text.length; index += 1) {
+    if (text[index] === "(") depth += 1;
+    else if (text[index] === ")") {
+      depth -= 1;
+      if (depth === 0) break;
+    }
+  }
+  if (index >= text.length) return null;
+  const label = text.slice(start + 1, close);
+  const rawTarget = text.slice(close + 2, index).trim();
+  const href = rawTarget.split(/\s+/)[0] || "";
+  return { label, href, end: index + 1 };
+}
+function parseInline(text) {
+  const source = String(text ?? "");
+  const nodes = [];
+  let buffer = "";
+  const flush = () => {
+    if (buffer) {
+      nodes.push({ type: "text", value: buffer });
+      buffer = "";
+    }
+  };
+  let index = 0;
+  while (index < source.length) {
+    const char = source[index];
+    if (char === "\\" && ESCAPABLE.has(source[index + 1])) {
+      buffer += source[index + 1];
+      index += 2;
+      continue;
+    }
+    if (char === "`") {
+      const end = source.indexOf("`", index + 1);
+      if (end > index + 1) {
+        flush();
+        nodes.push({ type: "code", value: source.slice(index + 1, end) });
+        index = end + 1;
+        continue;
+      }
+    }
+    if (char === "!" && source[index + 1] === "[") {
+      const match = matchBracketLink(source, index + 1);
+      if (match) {
+        flush();
+        const target = classifyHref(match.href);
+        nodes.push({ type: "image", alt: match.label, src: match.href, kind: target.kind });
+        index = match.end;
+        continue;
+      }
+    }
+    if (char === "[") {
+      const match = matchBracketLink(source, index);
+      if (match) {
+        flush();
+        const target = classifyHref(match.href);
+        nodes.push({
+          type: "link",
+          href: target.href,
+          kind: target.kind,
+          children: parseInline(match.label)
+        });
+        index = match.end;
+        continue;
+      }
+    }
+    if (char === "*" || char === "_") {
+      const doubled = source[index + 1] === char;
+      const marker = doubled ? char + char : char;
+      const end = source.indexOf(marker, index + marker.length);
+      if (end > index + marker.length) {
+        flush();
+        nodes.push({
+          type: doubled ? "strong" : "em",
+          children: parseInline(source.slice(index + marker.length, end))
+        });
+        index = end + marker.length;
+        continue;
+      }
+    }
+    buffer += char;
+    index += 1;
+  }
+  flush();
+  return nodes;
+}
+function inlineToText(nodes) {
+  if (!Array.isArray(nodes)) return String(nodes ?? "");
+  return nodes.map((node) => {
+    if (node.type === "text" || node.type === "code") return node.value;
+    if (node.type === "image") return node.alt || "";
+    return inlineToText(node.children);
+  }).join("");
+}
+var FENCE = /^(\s*)(`{3,}|~{3,})\s*([^`]*)$/;
+var HEADING = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
+var HR = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/;
+var LIST_ITEM = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
+var QUOTE = /^\s{0,3}>\s?(.*)$/;
+var TABLE_SEPARATOR = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/;
+function splitRow(line) {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return trimmed.split("|").map((cell) => cell.trim());
+}
+function alignOf(cell) {
+  const value = cell.trim();
+  if (/^:-+:$/.test(value)) return "center";
+  if (/^:-+$/.test(value)) return "left";
+  if (/^-+:$/.test(value)) return "right";
+  return null;
+}
+function parseMarkdown(text) {
+  const lines = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
+  const blocks = [];
+  const headings = [];
+  const usedIds = /* @__PURE__ */ new Map();
+  const headingId = (plain) => {
+    const base = slugify(plain) || "section";
+    const seen = usedIds.get(base) || 0;
+    usedIds.set(base, seen + 1);
+    return seen === 0 ? base : `${base}-${seen + 1}`;
+  };
+  const isBlockStart = (line) => FENCE.test(line) || HEADING.test(line) || HR.test(line) || LIST_ITEM.test(line) || QUOTE.test(line) || line.includes("|");
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim()) {
+      index += 1;
+      continue;
+    }
+    const fence = FENCE.exec(line);
+    if (fence) {
+      const marker = fence[2];
+      const info = fence[3].trim();
+      const body = [];
+      index += 1;
+      while (index < lines.length) {
+        const current = lines[index];
+        if (current.trim().startsWith(marker[0].repeat(marker.length)) && current.trim().replace(/[`~]/g, "") === "") {
+          index += 1;
+          break;
+        }
+        body.push(current);
+        index += 1;
+      }
+      blocks.push({ type: "code", lang: info.split(/\s+/)[0] || "", text: body.join("\n") });
+      continue;
+    }
+    const heading = HEADING.exec(line);
+    if (heading) {
+      const level = heading[1].length;
+      const inlines = parseInline(heading[2]);
+      const plain = inlineToText(inlines).trim();
+      const id = headingId(plain);
+      blocks.push({ type: "heading", level, id, inlines, text: plain });
+      headings.push({ id, level, text: plain });
+      index += 1;
+      continue;
+    }
+    if (HR.test(line)) {
+      blocks.push({ type: "hr" });
+      index += 1;
+      continue;
+    }
+    if (QUOTE.test(line)) {
+      const quoted = [];
+      while (index < lines.length && QUOTE.test(lines[index])) {
+        quoted.push(QUOTE.exec(lines[index])[1]);
+        index += 1;
+      }
+      blocks.push({ type: "quote", blocks: parseMarkdown(quoted.join("\n")).blocks });
+      continue;
+    }
+    if (line.includes("|") && index + 1 < lines.length && TABLE_SEPARATOR.test(lines[index + 1])) {
+      const header = splitRow(line).map((cell) => parseInline(cell));
+      const align = splitRow(lines[index + 1]).map(alignOf);
+      index += 2;
+      const rows = [];
+      while (index < lines.length && lines[index].includes("|") && lines[index].trim()) {
+        rows.push(splitRow(lines[index]).map((cell) => parseInline(cell)));
+        index += 1;
+      }
+      blocks.push({ type: "table", align, header, rows });
+      continue;
+    }
+    if (LIST_ITEM.test(line)) {
+      const first = LIST_ITEM.exec(line);
+      const ordered = /\d/.test(first[2]);
+      const items = [];
+      while (index < lines.length) {
+        const match = LIST_ITEM.exec(lines[index]);
+        if (!match) break;
+        const indent = match[1].replace(/\t/g, "  ").length;
+        if (indent > 3) break;
+        const content = match[3];
+        let checked = null;
+        const task = /^\[([ xX])\]\s*(.*)$/.exec(content);
+        const text2 = task ? task[2] : content;
+        if (task) checked = task[1].toLowerCase() === "x";
+        index += 1;
+        const nested = [];
+        while (index < lines.length) {
+          const child = LIST_ITEM.exec(lines[index]);
+          if (!child) break;
+          const childIndent = child[1].replace(/\t/g, "  ").length;
+          if (childIndent === 0) break;
+          nested.push(lines[index]);
+          index += 1;
+        }
+        while (index < lines.length && lines[index].trim() && !LIST_ITEM.test(lines[index]) && !isBlockStart(lines[index])) {
+          index += 1;
+        }
+        const item = { inlines: parseInline(text2), checked };
+        if (nested.length > 0) {
+          const sub = parseMarkdown(nested.map((row) => row.replace(/^\s{1,4}/, "")).join("\n")).blocks;
+          item.children = sub;
+        }
+        items.push(item);
+      }
+      blocks.push({ type: "list", ordered, items });
+      continue;
+    }
+    const paragraph = [line];
+    index += 1;
+    while (index < lines.length && lines[index].trim() && !isBlockStart(lines[index])) {
+      paragraph.push(lines[index]);
+      index += 1;
+    }
+    blocks.push({ type: "paragraph", inlines: parseInline(paragraph.map((row) => row.trim()).join(" ")) });
+  }
+  return { blocks, headings };
+}
+function resolveRelativeHref(currentDir, href) {
+  const target = classifyHref(href);
+  if (target.kind === "anchor") return { relPath: "", anchor: target.href };
+  const raw = String(target.href || "").split("#")[0].split("?")[0];
+  const base = String(currentDir || "").replace(/^\/+|\/+$/g, "");
+  if (!raw) return { relPath: "", anchor: target.kind === "anchor" ? target.href : "" };
+  const segments = `${base ? `${base}/` : ""}${raw}`.split("/");
+  const out = [];
+  for (const segment of segments) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") {
+      out.pop();
+      continue;
+    }
+    out.push(segment);
+  }
+  return { relPath: out.join("/"), anchor: target.kind === "anchor" ? target.href : "" };
+}
+
+// client/views/skill-reader.js
+var PARSE_CACHE = /* @__PURE__ */ new Map();
+function parseCached(text) {
+  const key = String(text ?? "");
+  if (PARSE_CACHE.has(key)) return PARSE_CACHE.get(key);
+  const parsed = parseMarkdown(stripFrontmatter(key).body);
+  PARSE_CACHE.set(key, parsed);
+  if (PARSE_CACHE.size > 8) {
+    const oldest = PARSE_CACHE.keys().next().value;
+    PARSE_CACHE.delete(oldest);
+  }
+  return parsed;
+}
+function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+function formatWhen(iso) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+var TEXTUAL = /\.(md|markdown|txt|json|ya?ml|mjs|js|ts|sh|py|toml|csv)$/i;
+var MARKDOWN = /\.(md|markdown)$/i;
+function isMarkdownPath(relPath) {
+  return MARKDOWN.test(String(relPath || ""));
+}
+var STATUS_KEY = {
+  current: "status.current",
+  "update-available": "status.update",
+  "locally-modified": "status.local",
+  conflict: "status.conflict",
+  "upstream-deleted": "status.deleted",
+  "broken-link": "status.broken",
+  unmanaged: "status.unmanaged"
+};
+function inlineNodes(nodes, { onOpenFile, onOpenAnchor, keyPrefix = "i" }) {
+  if (!Array.isArray(nodes)) return null;
+  return nodes.map((node, index) => {
+    const key = `${keyPrefix}-${index}`;
+    switch (node.type) {
+      case "text":
+        return node.value;
+      case "code":
+        return h("code", { className: "dshsc-md-inline", key }, node.value);
+      case "strong":
+        return h("strong", { key }, inlineNodes(node.children, { onOpenFile, onOpenAnchor, keyPrefix: key }));
+      case "em":
+        return h("em", { key }, inlineNodes(node.children, { onOpenFile, onOpenAnchor, keyPrefix: key }));
+      case "link": {
+        const children = inlineNodes(node.children, { onOpenFile, onOpenAnchor, keyPrefix: key });
+        if (node.kind === "external") {
+          return h("a", {
+            className: "dshsc-md-link",
+            key,
+            href: node.href,
+            target: "_blank",
+            rel: "noopener noreferrer"
+          }, children);
+        }
+        if (node.kind === "anchor") {
+          return h("a", {
+            className: "dshsc-md-link",
+            key,
+            href: `#${node.href}`,
+            onClick: (event) => {
+              event?.preventDefault?.();
+              onOpenAnchor?.(node.href);
+            }
+          }, children);
+        }
+        if (node.kind === "relative") {
+          return h("a", {
+            className: "dshsc-md-link",
+            key,
+            href: "#",
+            title: node.href,
+            onClick: (event) => {
+              event?.preventDefault?.();
+              onOpenFile?.(node.href);
+            }
+          }, children);
+        }
+        return h("span", { className: "dshsc-md-nolink", key }, children);
+      }
+      case "image":
+        return h(
+          "span",
+          { className: "dshsc-md-image", key, title: node.src },
+          h("span", { className: "dshsc-md-image-tag" }, "IMG"),
+          node.alt || node.src
+        );
+      default:
+        return null;
+    }
+  });
+}
+function blockNodes(blocks, options) {
+  return blocks.map((block, index) => {
+    const key = `b-${index}`;
+    switch (block.type) {
+      case "heading": {
+        const tag = `h${Math.min(block.level, 6)}`;
+        return h(
+          tag,
+          { className: "dshsc-md-h", key, id: block.id, "data-md-id": block.id },
+          inlineNodes(block.inlines, { ...options, keyPrefix: key })
+        );
+      }
+      case "paragraph":
+        return h(
+          "p",
+          { className: "dshsc-md-p", key },
+          inlineNodes(block.inlines, { ...options, keyPrefix: key })
+        );
+      case "code":
+        return h(
+          "pre",
+          { className: "dshsc-md-code", key, "data-lang": block.lang || void 0 },
+          h("code", null, block.text)
+        );
+      case "hr":
+        return h("hr", { className: "dshsc-md-hr", key });
+      case "quote":
+        return h("blockquote", { className: "dshsc-md-quote", key }, blockNodes(block.blocks, options));
+      case "list": {
+        const tag = block.ordered ? "ol" : "ul";
+        return h(tag, { className: "dshsc-md-list", key }, block.items.map((item, itemIndex) => h(
+          "li",
+          {
+            key: `${key}-${itemIndex}`,
+            className: item.checked === null || item.checked === void 0 ? void 0 : "dshsc-md-task"
+          },
+          item.checked === null || item.checked === void 0 ? null : h("span", { className: `dshsc-md-check${item.checked ? " on" : ""}`, "aria-hidden": true }),
+          inlineNodes(item.inlines, { ...options, keyPrefix: `${key}-${itemIndex}` }),
+          Array.isArray(item.children) && item.children.length > 0 ? blockNodes(item.children, options) : null
+        )));
+      }
+      case "table":
+        return h(
+          "div",
+          { className: "dshsc-md-table", key },
+          h(
+            "table",
+            null,
+            h("thead", null, h("tr", null, block.header.map((cell, cellIndex) => h("th", {
+              key: `h-${cellIndex}`,
+              style: { textAlign: block.align?.[cellIndex] || "left" }
+            }, inlineNodes(cell, { ...options, keyPrefix: `${key}-h-${cellIndex}` }))))),
+            h("tbody", null, block.rows.map((row, rowIndex) => h(
+              "tr",
+              { key: `r-${rowIndex}` },
+              row.map((cell, cellIndex) => h("td", {
+                key: `c-${cellIndex}`,
+                style: { textAlign: block.align?.[cellIndex] || "left" }
+              }, inlineNodes(cell, { ...options, keyPrefix: `${key}-${rowIndex}-${cellIndex}` })))
+            )))
+          )
+        );
+      default:
+        return null;
+    }
+  });
+}
+function Markdown({ text, onOpenFile, onOpenAnchor }) {
+  const { blocks } = parseCached(text);
+  return h("div", { className: "dshsc-md" }, blockNodes(blocks, { onOpenFile, onOpenAnchor }));
+}
+function TabButton({ id, label, count, active, onSelect }) {
+  return h("button", {
+    type: "button",
+    role: "tab",
+    id: `dshsc-tab-${id}`,
+    "aria-selected": String(active),
+    "aria-controls": `dshsc-panel-${id}`,
+    tabIndex: active ? 0 : -1,
+    className: `dshsc-rtab${active ? " active" : ""}`,
+    onClick: () => onSelect(id)
+  }, label, count === null || count === void 0 ? null : h("i", { className: "n" }, count));
+}
+function InfoSection({ t, title, rows }) {
+  return h(
+    "section",
+    { className: "dshsc-info-sec" },
+    h("h3", null, title),
+    h("dl", null, rows.map((row, index) => [
+      h("dt", { key: `t-${index}` }, t(row[0])),
+      h("dd", { key: `d-${index}`, className: row[2] === "mono" ? "mono" : void 0 }, row[1])
+    ]))
+  );
+}
+function SkillReader({
+  t,
+  variant = "drawer",
+  row,
+  writable,
+  busy,
+  readOnly,
+  version,
+  initialTab = "doc",
+  initialFile = null,
+  onClose,
+  onOpenPage,
+  onUpdate,
+  onLinks,
+  onToast
+}) {
+  const { state, file, loadFile, retry } = useSkillReader(row);
+  const [tab, setTab] = import_react4.default.useState(initialTab);
+  const [format, setFormat] = import_react4.default.useState("rendered");
+  const [docOverride, setDocOverride] = import_react4.default.useState(null);
+  const [tocActive, setTocActive] = import_react4.default.useState(null);
+  const bodyRef = import_react4.default.useRef(null);
+  const dialogRef = import_react4.default.useRef(null);
+  const scrollRef = import_react4.default.useRef(0);
+  const name = row?.name || "";
+  const tree = state.tree;
+  const files = tree?.files || [];
+  const fileCount = files.filter((entry) => entry.kind === "file").length;
+  const bodyText = docOverride ? docOverride.content : state.body?.content || "";
+  const description = row?.description || state.body?.meta?.description || "";
+  const headings = tab === "doc" && bodyText ? parseCached(bodyText).headings : [];
+  import_react4.default.useEffect(() => {
+    setDocOverride(null);
+    scrollRef.current = 0;
+  }, [name]);
+  import_react4.default.useEffect(() => {
+    if (!initialFile) return;
+    setTab("files");
+    void loadFile(initialFile);
+  }, [initialFile, loadFile]);
+  import_react4.default.useEffect(() => {
+    const node = bodyRef.current;
+    if (node && scrollRef.current) node.scrollTop = scrollRef.current;
+  });
+  import_react4.default.useEffect(() => {
+    if (variant !== "drawer" || typeof document === "undefined") return void 0;
+    const previous = document.activeElement;
+    const node = dialogRef.current;
+    node?.focus?.();
+    const onKeyDown = (event) => {
+      if (event?.key === "Escape") {
+        event.stopPropagation?.();
+        onClose?.();
+        return;
+      }
+      if (event?.key !== "Tab" || !node?.querySelectorAll) return;
+      const focusables = Array.from(
+        node.querySelectorAll('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])')
+      ).filter((item) => item.offsetParent !== null || item === document.activeElement);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault?.();
+        last.focus?.();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault?.();
+        first.focus?.();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      previous?.focus?.();
+    };
+  }, [variant, onClose]);
+  import_react4.default.useEffect(() => {
+    if (variant !== "page" || typeof window === "undefined") return void 0;
+    const node = bodyRef.current;
+    if (!node?.querySelectorAll) return void 0;
+    const sync = () => {
+      const containerTop = node.getBoundingClientRect?.().top ?? 0;
+      let current = null;
+      for (const element of Array.from(node.querySelectorAll("[data-md-id]"))) {
+        const top = element.getBoundingClientRect?.().top ?? 0;
+        if (top - containerTop <= 96) current = element.getAttribute("data-md-id");
+      }
+      setTocActive(current || headings[0]?.id || null);
+    };
+    sync();
+    node.addEventListener?.("scroll", sync, { passive: true });
+    return () => node.removeEventListener?.("scroll", sync);
+  }, [variant, headings.length, tab, bodyText]);
+  function scrollToAnchor(id) {
+    const node = bodyRef.current;
+    if (!node?.querySelectorAll) return;
+    const target = Array.from(node.querySelectorAll("[data-md-id]")).find((element) => element.getAttribute("data-md-id") === id);
+    if (!target) return;
+    const offset = target.getBoundingClientRect().top - node.getBoundingClientRect().top;
+    node.scrollTop = Math.max(0, node.scrollTop + offset - 12);
+    setTocActive(id);
+  }
+  function openLinkedFile(href) {
+    const base = docOverride ? docOverride.relPath.split("/").slice(0, -1).join("/") : "";
+    const resolved = resolveRelativeHref(base, href);
+    if (!resolved.relPath) return;
+    setTab("files");
+    void loadFile(resolved.relPath);
+  }
+  async function copyTextWithToast(text, okKey) {
+    let ok = false;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch {
+      ok = false;
+    }
+    onToast?.(ok ? { kind: "ok", text: t(okKey) } : { kind: "err", text: t("viewer.copyFailed") });
+  }
+  function selectTab(next) {
+    if (next === tab) return;
+    if (bodyRef.current) scrollRef.current = 0;
+    setTab(next);
+  }
+  const header = h(
+    "header",
+    { className: "dshsc-reader-head" },
+    h(
+      "div",
+      { className: "dshsc-reader-title" },
+      h("h2", { id: "dshsc-reader-name" }, name || t("viewer.title")),
+      row?.status && STATUS_KEY[row.status] ? h("span", { className: `dshsc-tag ${row.status === "current" ? "ok" : "warn"}` }, t(STATUS_KEY[row.status])) : null,
+      row?.mode === "off" ? h("span", { className: "dshsc-tag off" }, t("status.off")) : null,
+      variant === "drawer" ? h("button", {
+        type: "button",
+        className: "dshsc-reader-close",
+        "aria-label": t("viewer.close"),
+        title: t("viewer.close"),
+        onClick: () => onClose?.()
+      }, "×") : null
+    ),
+    description ? h("p", { className: "dshsc-reader-desc" }, description) : null,
+    h(
+      "div",
+      { className: "dshsc-reader-meta" },
+      h(
+        "span",
+        null,
+        `${t("meta.from")} `,
+        h("span", { className: "dshsc-code" }, row?.source ? `${row.source}${row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : ""}` : t("meta.noUpstream"))
+      ),
+      tree ? h("span", null, t("viewer.fileCount").replace("{n}", String(fileCount))) : null,
+      row?.updatedAt ? h("span", null, formatWhen(row.updatedAt)) : null
+    )
+  );
+  const tabsBar = h(
+    "div",
+    { className: "dshsc-reader-tabs" },
+    h(
+      "div",
+      { className: "dshsc-rtabs", role: "tablist", "aria-label": t("viewer.title") },
+      h(TabButton, { id: "doc", label: t("viewer.tab.doc"), active: tab === "doc", onSelect: selectTab }),
+      h(TabButton, { id: "files", label: t("viewer.tab.files"), count: tree ? fileCount : null, active: tab === "files", onSelect: selectTab }),
+      h(TabButton, { id: "info", label: t("viewer.tab.info"), active: tab === "info", onSelect: selectTab })
+    ),
+    tab === "doc" && !docOverride ? h(
+      "div",
+      { className: "dshsc-segment dshsc-reader-seg", role: "group", "aria-label": t("viewer.rendered") },
+      h("button", {
+        type: "button",
+        className: "dshsc-btn",
+        "aria-pressed": String(format === "rendered"),
+        onClick: () => setFormat("rendered")
+      }, t("viewer.rendered")),
+      h("button", {
+        type: "button",
+        className: "dshsc-btn",
+        "aria-pressed": String(format === "raw"),
+        onClick: () => setFormat("raw")
+      }, t("viewer.raw"))
+    ) : null
+  );
+  function docPanel() {
+    if (state.loading) {
+      return h(
+        "div",
+        { className: "dshsc-reader-skeleton" },
+        h("span", null, t("viewer.loading")),
+        h("i"),
+        h("i"),
+        h("i")
+      );
+    }
+    if (!bodyText) {
+      const error = state.bodyError;
+      const missing = error?.code === "error.skills.no-skill-md";
+      return h(
+        "div",
+        { className: "dshsc-reader-placeholder" },
+        h("b", null, missing ? t("viewer.noSkill") : error?.message || t("viewer.noSkill")),
+        missing ? h("span", null, t("viewer.noSkillHint")) : null,
+        error && !missing ? h("button", { type: "button", className: "dshsc-btn", onClick: retry }, t("viewer.retry")) : null
+      );
+    }
+    if (docOverride) {
+      return h(
+        "div",
+        { className: "dshsc-reader-doc" },
+        h(
+          "div",
+          { className: "dshsc-reader-filebar" },
+          h("span", { className: "mono" }, docOverride.relPath),
+          h("button", {
+            type: "button",
+            className: "dshsc-btn ghost",
+            onClick: () => setDocOverride(null)
+          }, t("viewer.backToBody"))
+        ),
+        h(Markdown, { text: docOverride.content, onOpenFile: openLinkedFile, onOpenAnchor: scrollToAnchor })
+      );
+    }
+    const truncated = Boolean(state.body?.truncated);
+    return h(
+      "div",
+      { className: "dshsc-reader-doc" },
+      truncated ? h("div", { className: "dshsc-banner warn" }, t("viewer.tooLarge").replace("{size}", formatBytes(256 * 1024))) : null,
+      format === "raw" ? h("pre", { className: "dshsc-reader-raw" }, h("code", null, bodyText)) : h(Markdown, { text: bodyText, onOpenFile: openLinkedFile, onOpenAnchor: scrollToAnchor })
+    );
+  }
+  function filesPanel() {
+    if (state.treeError) {
+      return h(
+        "div",
+        { className: "dshsc-reader-placeholder" },
+        h("b", null, state.treeError.message),
+        h("button", { type: "button", className: "dshsc-btn", onClick: retry }, t("viewer.retry"))
+      );
+    }
+    if (!tree) return h("div", { className: "dshsc-reader-skeleton" }, h("i"), h("i"));
+    if (files.length === 0) {
+      return h("div", { className: "dshsc-reader-placeholder" }, h("b", null, t("viewer.emptyFiles")));
+    }
+    const active = file.relPath;
+    const preview = file.loading ? h("div", { className: "dshsc-reader-skeleton" }, h("i"), h("i"), h("i")) : file.error ? h(
+      "div",
+      { className: "dshsc-reader-placeholder" },
+      h("b", null, file.error.code === "error.skills.binary" ? t("viewer.binary") : file.error.message)
+    ) : h(
+      "pre",
+      { className: "dshsc-reader-raw" },
+      h("code", null, file.content + (file.truncated ? `
+
+… ${t("viewer.tooLarge").replace("{size}", formatBytes(256 * 1024))}` : ""))
+    );
+    return h(
+      "div",
+      { className: "dshsc-reader-files" },
+      h(
+        "div",
+        { className: "dshsc-reader-tree" },
+        h(
+          "div",
+          { className: "dshsc-reader-tree-head" },
+          h("span", null, name),
+          h("span", { className: "mono" }, tree.kind === "file" ? tree.body : `~/.agents/skills/${name}`)
+        ),
+        files.map((entry) => {
+          if (entry.kind === "dir") {
+            const count = files.filter((item) => item.kind === "file" && item.path.startsWith(`${entry.path}/`)).length;
+            return h(
+              "div",
+              { className: "dshsc-reader-tdir", key: `d:${entry.path}` },
+              h(FolderIcon, null),
+              h("span", { className: "mono" }, `${entry.path}/`),
+              h("span", { className: "n" }, String(count))
+            );
+          }
+          const depth = entry.path.split("/").length - 1;
+          return h(
+            "button",
+            {
+              type: "button",
+              key: `f:${entry.path}`,
+              className: `dshsc-reader-titem${active === entry.path ? " on" : ""}`,
+              style: { paddingLeft: 8 + depth * 12 },
+              title: entry.path,
+              onClick: () => void loadFile(entry.path)
+            },
+            h(FileIcon, null),
+            h("span", { className: "nname" }, entry.path.split("/").pop()),
+            h("span", { className: "nsize" }, formatBytes(entry.size))
+          );
+        })
+      ),
+      h(
+        "div",
+        { className: "dshsc-reader-preview" },
+        h(
+          "div",
+          { className: "dshsc-reader-tree-head" },
+          h("span", null, t("viewer.tab.files")),
+          h("span", { className: "mono" }, active || "—"),
+          active && TEXTUAL.test(active) && !file.loading && !file.error && isMarkdownPath(active) ? h("button", {
+            type: "button",
+            className: "dshsc-btn ghost",
+            onClick: () => {
+              setDocOverride({ relPath: file.relPath || active, content: file.content });
+              setTab("doc");
+            }
+          }, t("viewer.openInDoc")) : null
+        ),
+        preview
+      )
+    );
+  }
+  function infoPanel() {
+    const agentLabels = (row?.links || []).filter((link) => !link.broken).map((link) => link.target === "dsh-global" ? "DSH" : link.label);
+    const projects = row?.scopeProjects || [];
+    const hash = row?.lockHash || row?.currentHash || null;
+    const rows = [];
+    rows.push(["viewer.info.name", h("span", { className: "mono" }, name), "mono"]);
+    if (description) rows.push(["viewer.info.desc", description]);
+    rows.push(["viewer.info.path", h("span", { className: "mono" }, row?.path || (tree?.root ?? t("viewer.info.none"))), "mono"]);
+    const sourceRows = [
+      ["viewer.info.repo", row?.source ? h("span", { className: "mono" }, row.source) : t("viewer.info.none"), "mono"],
+      ["viewer.info.ref", row?.commit ? h("span", { className: "mono" }, short(row.commit)) : row?.ref || t("viewer.info.none"), "mono"],
+      ["viewer.info.skillPath", row?.skillPath ? h("span", { className: "mono" }, row.skillPath) : t("viewer.info.none"), "mono"],
+      ["viewer.info.hash", hash ? h("span", { className: "mono" }, hash) : t("viewer.info.none"), "mono"]
+    ];
+    const localRows = [
+      ["viewer.info.installedAt", formatWhen(row?.installedAt) || t("viewer.info.none")],
+      ["viewer.info.updatedAt", formatWhen(row?.updatedAt) || t("viewer.info.none")],
+      ["viewer.info.size", tree ? `${formatBytes(tree.totalBytes)} · ${t("viewer.fileCount").replace("{n}", String(fileCount))}` : t("viewer.info.none")],
+      ["viewer.info.localChange", row?.status === "locally-modified" || row?.status === "conflict" ? t("viewer.info.localChangeYes") : t("viewer.info.localChangeNone")]
+    ];
+    const linkRows = [
+      ["viewer.info.agents", agentLabels.length > 0 ? agentLabels.join("、") : t("meta.unlinked")],
+      ["viewer.info.scope", projects.length > 0 ? `${t("viewer.info.scopeProject")}：${projects.map((item) => item.split("/").pop()).join("、")}` : t("viewer.info.scopeGlobal")],
+      ["viewer.info.mode", row?.mode === "off" ? t("status.off") : t("mode.on")],
+      ["viewer.info.status", STATUS_KEY[row?.status] ? t(STATUS_KEY[row.status]) : t("status.unknown")]
+    ];
+    return h(
+      "div",
+      { className: "dshsc-reader-info" },
+      h(InfoSection, { t, title: t("viewer.info.basic"), rows }),
+      h(InfoSection, { t, title: t("viewer.info.source"), rows: sourceRows }),
+      h(InfoSection, { t, title: t("viewer.info.local"), rows: localRows }),
+      h(InfoSection, { t, title: t("viewer.info.links"), rows: linkRows })
+    );
+  }
+  function panel() {
+    if (tab === "files") return filesPanel();
+    if (tab === "info") return infoPanel();
+    return docPanel();
+  }
+  const body = h("div", {
+    className: "dshsc-reader-body",
+    ref: bodyRef,
+    role: "tabpanel",
+    id: `dshsc-panel-${tab}`,
+    "aria-labelledby": `dshsc-tab-${tab}`,
+    tabIndex: -1
+  }, panel());
+  const canUpdate = Boolean(writable) && Boolean(row) && !busy;
+  const actionsFooter = h(
+    "div",
+    { className: "dshsc-reader-actions" },
+    h("span", { className: "dshsc-reader-note" }, readOnly ? t("banner.readonly") : t("viewer.readonlyNote")),
+    h("button", {
+      type: "button",
+      className: "dshsc-btn ghost sq",
+      title: t("viewer.copyBody"),
+      "aria-label": t("viewer.copyBody"),
+      disabled: !bodyText,
+      onClick: () => void copyTextWithToast(bodyText, "viewer.copied")
+    }, h(CopyIcon, null)),
+    h("button", {
+      type: "button",
+      className: "dshsc-btn ghost",
+      title: row?.path || "",
+      disabled: !row?.path,
+      onClick: () => void copyTextWithToast(row?.path || "", "viewer.copied")
+    }, t("viewer.copyPath")),
+    variant === "drawer" && onOpenPage ? h("button", { type: "button", className: "dshsc-btn ghost", onClick: () => onOpenPage() }, t("viewer.openPage")) : null,
+    onLinks ? h("button", { type: "button", className: "dshsc-btn", onClick: () => onLinks?.(row) }, t("action.links")) : null,
+    onUpdate ? h("button", {
+      type: "button",
+      className: "dshsc-btn tint",
+      disabled: !canUpdate,
+      onClick: () => onUpdate?.(row)
+    }, t("action.update")) : null
+  );
+  if (variant === "page") {
+    return h(
+      "div",
+      { className: "dshsc-reader-page" },
+      h(
+        "div",
+        { className: "dshsc-reader-topbar" },
+        h(
+          "button",
+          { type: "button", className: "dshsc-btn ghost", "data-autofocus": true, onClick: () => onClose?.() },
+          h(ChevronLeftIcon, null),
+          t("viewer.back")
+        ),
+        h(
+          "span",
+          { className: "dshsc-reader-crumb" },
+          h("span", null, t("tab.installed")),
+          h("span", { className: "sep" }, "/"),
+          h("span", { className: "mono" }, name)
+        ),
+        h("span", { className: "spacer" }),
+        actionsFooter
+      ),
+      h("div", { className: "dshsc-reader-hero" }, header),
+      h(
+        "div",
+        { className: "dshsc-reader-layout" },
+        headings.length > 1 ? h(
+          "nav",
+          { className: "dshsc-reader-toc", "aria-label": t("viewer.toc") },
+          h("div", { className: "dshsc-reader-toc-title" }, t("viewer.toc")),
+          headings.map((heading) => h("button", {
+            type: "button",
+            key: heading.id,
+            className: `dshsc-reader-tocitem l${heading.level}${tocActive === heading.id ? " on" : ""}`,
+            onClick: () => scrollToAnchor(heading.id)
+          }, heading.text))
+        ) : null,
+        h("div", { className: "dshsc-reader-col" }, tabsBar, body)
+      )
+    );
+  }
+  return h(
+    "div",
+    { className: "dshsc-drawer-wrap" },
+    h("div", { className: "dshsc-drawer-scrim", onClick: () => onClose?.() }),
+    h("aside", {
+      className: "dshsc-drawer",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "dshsc-reader-name",
+      ref: dialogRef,
+      tabIndex: -1
+    }, header, tabsBar, body, actionsFooter)
+  );
+}
+
 // client/section.js
 var UPDATABLE2 = /* @__PURE__ */ new Set(["update-available", "locally-modified", "conflict"]);
 function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();
-  const [tab, setTab] = import_react4.default.useState("installed");
-  const [view, setView] = import_react4.default.useState("flat");
-  const [modal, setModal] = import_react4.default.useState(null);
-  const [expanded, setExpanded] = import_react4.default.useState({});
-  const [placementBusy, setPlacementBusy] = import_react4.default.useState(null);
-  const [placementOverride, setPlacementOverride] = import_react4.default.useState(null);
-  const [query, setQuery] = import_react4.default.useState("");
-  const [filter, setFilter] = import_react4.default.useState("all");
-  const [builtinOpen, setBuiltinOpen] = import_react4.default.useState(false);
+  const [tab, setTab] = import_react5.default.useState("installed");
+  const [view, setView] = import_react5.default.useState("flat");
+  const [modal, setModal] = import_react5.default.useState(null);
+  const [expanded, setExpanded] = import_react5.default.useState({});
+  const [placementBusy, setPlacementBusy] = import_react5.default.useState(null);
+  const [placementOverride, setPlacementOverride] = import_react5.default.useState(null);
+  const [query, setQuery] = import_react5.default.useState("");
+  const [viewer, setViewer] = import_react5.default.useState(null);
+  const rootRef = import_react5.default.useRef(null);
+  const scrollPos = import_react5.default.useRef(null);
+  const [filter, setFilter] = import_react5.default.useState("all");
+  const [builtinOpen, setBuiltinOpen] = import_react5.default.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
   const { agentTip, agentTipPos, agentTipRef, openAgentTip, closeAgentTip } = useAgentTip();
   const rows = data?.installs || [];
@@ -2348,12 +3731,55 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     const agentLabels = row.links.map((link) => link.target === "dsh-global" ? "DSH" : link.label);
     return [row.name, row.source || "", ...agentLabels].join(" ").toLowerCase().includes(queryText);
   });
+  import_react5.default.useEffect(() => {
+    if (!viewer || !data) return;
+    if (rows.some((row) => row.name === viewer.name)) return;
+    setViewer(null);
+    setToast({ kind: "err", text: t("viewer.gone") });
+  }, [data, rows, t, viewer]);
   const autolinkTargets = (data?.agents?.detected || []).filter((agent) => agent.kind === "agent");
   const autoLinkSelection = data?.settings?.autoLinkTargets;
   const autoLinkAgents = Array.isArray(autoLinkSelection) ? autolinkTargets.filter((agent) => autoLinkSelection.includes(agent.target)) : autolinkTargets;
   const autoLinkDsh = (data?.agents?.all || []).find((agent) => agent.target === "dsh-global") || null;
   const autoLinkLabel = [t("links.dshGlobal"), ...autoLinkAgents.map((agent) => agent.label)].join("、");
   const placement = (placementOverride ?? data?.settings?.placement) === "sidebar" ? "sidebar" : "settings";
+  function getScrollParent(node) {
+    let current = node?.parentElement || null;
+    while (current) {
+      if (typeof getComputedStyle === "function") {
+        const style = getComputedStyle(current);
+        if (style && /(auto|scroll)/.test(style.overflowY || "") && current.scrollHeight > current.clientHeight) {
+          return current;
+        }
+      }
+      current = current.parentElement || null;
+    }
+    return typeof document !== "undefined" ? document.scrollingElement || null : null;
+  }
+  function openViewer(row, mode = "drawer") {
+    if (!row) return;
+    if (mode === "page") {
+      scrollPos.current = getScrollParent(rootRef.current)?.scrollTop ?? 0;
+    }
+    setViewer({ name: row.name, mode });
+  }
+  function openPage() {
+    setViewer((prev) => {
+      if (!prev) return prev;
+      scrollPos.current = getScrollParent(rootRef.current)?.scrollTop ?? 0;
+      return { ...prev, mode: "page" };
+    });
+  }
+  function closeViewer() {
+    const restore = viewer?.mode === "page" ? scrollPos.current : null;
+    setViewer(null);
+    if (restore === null || typeof window === "undefined") return;
+    const apply2 = () => {
+      const scroller = getScrollParent(rootRef.current);
+      if (scroller) scroller.scrollTop = restore;
+    };
+    if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(apply2);
+  }
   async function changePlacement(next) {
     if (next === placement || placementBusy) return;
     setPlacementBusy(next);
@@ -2373,6 +3799,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     await run("settings", () => apiCall("POST", "/settings", { autoLinkTargets: targets }));
   }
   const installedActions = {
+    onView: (row) => openViewer(row),
     onAdopt: actions.adopt,
     onToggleMode: actions.toggleMode,
     onUpdate: actions.requestUpdate,
@@ -2398,87 +3825,106 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onInstall: actions.installFromSubscription,
     onAdd: actions.requestAddSubscription
   };
+  const viewerRow = viewer ? rows.find((row) => row.name === viewer.name) || null : null;
+  const readerNode = viewerRow ? h(SkillReader, {
+    t,
+    variant: viewer.mode,
+    row: viewerRow,
+    writable,
+    busy,
+    readOnly: Boolean(data?.readOnly),
+    onClose: closeViewer,
+    onOpenPage: viewer.mode === "drawer" ? openPage : null,
+    onUpdate: actions.requestUpdate,
+    onLinks: (row) => setModal({ type: "links", row }),
+    onToast: (next) => setToast(next)
+  }) : null;
   const root = h(
     "div",
-    { className: "dshsc-root" },
+    { className: "dshsc-root", ref: rootRef },
     h("style", null, CSS),
-    h(Header, {
-      t,
-      page,
-      plugin: data?.plugin,
-      writable,
-      autoLinkLabel,
-      autoLinkCount: autoLinkAgents.length + 1,
-      tab,
-      settingsOpen,
-      settingsRef,
-      settingsPlacement,
-      placement,
-      placementBusy,
-      readOnly: Boolean(data?.readOnly),
-      onToggleSettings: toggleSettings,
-      onChangePlacement: (next) => void changePlacement(next),
-      onOpenAutoLink: () => setModal({ type: "autolink" }),
-      onAddSkill: actions.requestAddSkill,
-      onAddSubscription: actions.requestAddSubscription
-    }),
-    error ? h("div", { className: "dshsc-banner err" }, `${error} · `, h("button", { className: "dshsc-btn ghost", onClick: () => void reload() }, t("action.retry"))) : null,
-    data?.readOnly ? h("div", { className: "dshsc-banner warn" }, t("banner.readonly")) : null,
-    data && !data.cli?.usable ? h("div", { className: "dshsc-banner err" }, `${t("banner.cli")} · ${data.cli?.source || ""} ${data.cli?.version || ""}`) : null,
-    h(Toolbar, {
-      t,
-      tab,
-      onTabChange: setTab,
-      installedCount: rows.length,
-      subscriptionCount: data?.subscriptions?.length || 0,
-      query,
-      onQueryChange: setQuery,
-      view,
-      onViewChange: setView
-    }),
-    tab === "installed" ? h(InstalledTab, {
-      t,
-      data,
-      rows,
-      visibleRows,
-      counts,
-      bulkCount,
-      filter,
-      query,
-      view,
-      busy,
-      writable,
-      agentTip,
-      builtinOpen,
-      actions: installedActions
-    }) : h(SubscriptionsTab, {
-      t,
-      subscriptions: data?.subscriptions || [],
-      rows,
-      expanded,
-      busy,
-      writable,
-      ...subscriptionActions
-    }),
-    busy ? h("div", { className: "dshsc-meta" }, `${t("busy.working")} ${busy}`) : null,
-    toast ? h("div", { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
-    modal ? h(Modals, {
-      t,
-      modal,
-      data,
-      autoLinkAgents: autolinkTargets,
-      autoLinkDsh,
-      pickDirectory,
-      actions: {
-        probeSkills: actions.probeSkills,
-        installSkills: actions.installSkills,
-        addSubscription: actions.addSubscription,
-        saveLinks: actions.saveLinks
-      },
-      onClose: () => setModal(null),
-      onSaveAutoLink: saveAutoLink
-    }) : null,
-    agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null
+    viewer?.mode === "page" && readerNode ? readerNode : h(
+      import_react5.default.Fragment,
+      null,
+      h(Header, {
+        t,
+        page,
+        plugin: data?.plugin,
+        writable,
+        autoLinkLabel,
+        autoLinkCount: autoLinkAgents.length + 1,
+        tab,
+        settingsOpen,
+        settingsRef,
+        settingsPlacement,
+        placement,
+        placementBusy,
+        readOnly: Boolean(data?.readOnly),
+        onToggleSettings: toggleSettings,
+        onChangePlacement: (next) => void changePlacement(next),
+        onOpenAutoLink: () => setModal({ type: "autolink" }),
+        onAddSkill: actions.requestAddSkill,
+        onAddSubscription: actions.requestAddSubscription
+      }),
+      error ? h("div", { className: "dshsc-banner err" }, `${error} · `, h("button", { className: "dshsc-btn ghost", onClick: () => void reload() }, t("action.retry"))) : null,
+      data?.readOnly ? h("div", { className: "dshsc-banner warn" }, t("banner.readonly")) : null,
+      data && !data.cli?.usable ? h("div", { className: "dshsc-banner err" }, `${t("banner.cli")} · ${data.cli?.source || ""} ${data.cli?.version || ""}`) : null,
+      h(Toolbar, {
+        t,
+        tab,
+        onTabChange: setTab,
+        installedCount: rows.length,
+        subscriptionCount: data?.subscriptions?.length || 0,
+        query,
+        onQueryChange: setQuery,
+        view,
+        onViewChange: setView
+      }),
+      tab === "installed" ? h(InstalledTab, {
+        t,
+        data,
+        rows,
+        visibleRows,
+        counts,
+        bulkCount,
+        filter,
+        query,
+        view,
+        busy,
+        writable,
+        agentTip,
+        builtinOpen,
+        actions: installedActions
+      }) : h(SubscriptionsTab, {
+        t,
+        subscriptions: data?.subscriptions || [],
+        rows,
+        expanded,
+        busy,
+        writable,
+        ...subscriptionActions
+      }),
+      busy ? h("div", { className: "dshsc-meta" }, `${t("busy.working")} ${busy}`) : null,
+      toast ? h("div", { className: `dshsc-toast ${toast.kind}` }, toast.text) : null,
+      modal ? h(Modals, {
+        t,
+        modal,
+        data,
+        autoLinkAgents: autolinkTargets,
+        autoLinkDsh,
+        pickDirectory,
+        actions: {
+          probeSkills: actions.probeSkills,
+          installSkills: actions.installSkills,
+          addSubscription: actions.addSubscription,
+          saveLinks: actions.saveLinks
+        },
+        onClose: () => setModal(null),
+        onSaveAutoLink: saveAutoLink
+      }) : null,
+      agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null
+    ),
+    viewer?.mode === "drawer" && readerNode ? portalize(readerNode) : null
   );
   return page ? h("div", { className: "dshsc-page" }, root) : root;
 }

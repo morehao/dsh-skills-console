@@ -1016,3 +1016,226 @@ test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给�
   labels = collectButtons(tree).map((button) => textOf(button).trim());
   assert.ok(labels.filter((label) => label === '安装').length === 1, '只有未装条目给安装按钮');
 });
+
+// ---------- 查看技能内容（抽屉 / 整页 / 文件 / 信息） ----------
+
+const READER_BODY = {
+  ok: true,
+  name: 'git-kit',
+  kind: 'dir',
+  relPath: 'SKILL.md',
+  path: '/tmp/skills/git-kit/SKILL.md',
+  content: '---\nname: git-kit\ndescription: demo\n---\n# 标题一\n\n正文 **粗** 与 `code`\n\n## 小节二\n\n- 一\n- 二\n',
+  meta: { name: 'git-kit', description: 'demo' },
+  size: 120,
+  truncated: false,
+  mtime: '2026-10-23T10:57:23.136Z',
+};
+
+const READER_FILES = {
+  ok: true,
+  name: 'git-kit',
+  root: '/tmp/skills/git-kit',
+  kind: 'dir',
+  body: 'SKILL.md',
+  hasSkillMd: true,
+  files: [
+    { path: 'references', kind: 'dir' },
+    { path: 'references/guide.md', kind: 'file', size: 2048 },
+    { path: 'SKILL.md', kind: 'file', size: 120 },
+  ],
+  totalBytes: 2168,
+  truncated: false,
+};
+
+/** 按 URL 分派的 fetch 存根：state / 正文 / 文件树 / 单文件各走一条。 */
+function skillFetch({ body = READER_BODY, bodyError = null, files = READER_FILES, state = STATE, fileError = null } = {}) {
+  const calls = [];
+  const fetchStub = async (url) => {
+    const target = String(url);
+    calls.push(target);
+    const respond = (payload, ok = true) => ({ ok, status: ok ? 200 : 400, json: async () => payload });
+    if (target.includes('/skills/') && target.endsWith('/files')) return respond(files);
+    if (target.includes('?path=')) {
+      const relPath = decodeURIComponent(target.split('?path=')[1]);
+      if (fileError) return respond({ ok: false, code: fileError.code, message: fileError.message }, false);
+      return respond({ ok: true, name: 'git-kit', relPath, content: 'guide 第一行\n第二行\n', size: 20, truncated: false });
+    }
+    if (target.includes('/skills/')) {
+      if (bodyError) return respond({ ok: false, code: bodyError.code, message: bodyError.message }, false);
+      return respond(body);
+    }
+    return respond(state);
+  };
+  fetchStub.calls = calls;
+  return fetchStub;
+}
+
+/** 渲染 → 跑 effect → 等微任务 → 再渲染，来回几轮把异步数据落进组件。 */
+async function settle(stub, Component, hooks, rounds = 5) {
+  let out = stub.render(Component, {}, hooks);
+  for (let round = 0; round < rounds; round += 1) {
+    for (const effect of out.effects || []) {
+      try {
+        effect();
+      } catch {
+        // 存根里没有真实 DOM：交互 effect 的清理函数可能拿不到节点
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    out = stub.render(Component, {}, out.hooks);
+  }
+  return out;
+}
+
+function buttonByText(node, label) {
+  return collectButtons(node).find((button) => textOf(button).trim() === label)
+    || collectButtons(node).find((button) => button.props['aria-label'] === label || button.props.title === label);
+}
+
+async function openDrawer(options = {}) {
+  const fetchStub = skillFetch(options);
+  const { Component, stub } = loadModule(options.state || STATE, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+  const view = collectButtons(out.tree).find((button) => textOf(button).trim() === '查看');
+  assert.ok(view, '已安装行要有「查看」入口');
+  view.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  const drawer = collectByType(out.tree, 'aside').find((node) => node.props.role === 'dialog');
+  assert.ok(drawer, '点「查看」应打开抽屉');
+  return { out, stub, Component, fetchStub, drawer };
+}
+
+test('查看：抽屉里有标题、描述、正文与三个 tab，正文按 markdown 渲染', async () => {
+  const { drawer, fetchStub } = await openDrawer();
+  const text = textOf(drawer);
+  assert.ok(text.includes('git-kit'), '标题是技能名');
+  assert.ok(text.includes('demo'), '描述进标题区');
+  assert.ok(text.includes('标题一'), '正文标题渲染出来了');
+  for (const label of ['正文', '文件', '信息']) {
+    assert.ok(collectButtons(drawer).some((button) => textOf(button).trim().startsWith(label)), `缺少 tab：${label}`);
+  }
+  assert.equal(drawer.props['aria-modal'], 'true');
+  assert.ok(collectByType(drawer, 'h1').length >= 1, '# 标题渲染成 h1');
+  assert.ok(collectByType(drawer, 'strong').length >= 1, '粗体渲染成 strong');
+  const reads = fetchStub.calls.filter((url) => url.includes('/skills/git-kit'));
+  assert.ok(reads.some((url) => url.endsWith('/files')), '打开时并行拉文件树');
+  assert.ok(reads.some((url) => url.endsWith('/skills/git-kit')), '打开时拉正文');
+});
+
+test('查看：技能名本身也是入口，点开同一个抽屉', async () => {
+  const fetchStub = skillFetch();
+  const { Component, stub } = loadModule(STATE, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+  const nameButton = collectButtons(out.tree).find(
+    (button) => String(button.props.className || '').includes('dshsc-namebtn') && textOf(button).trim() === 'git-kit',
+  );
+  assert.ok(nameButton, '技能名要是 button');
+  assert.equal(nameButton.props['aria-haspopup'], 'dialog');
+  nameButton.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.ok(collectByType(out.tree, 'aside').some((node) => node.props.role === 'dialog'), '名字可点开抽屉');
+});
+
+test('查看：切「原文」显示带 frontmatter 的原文，切「信息」显示来源与本地信息', async () => {
+  const { out, stub, Component, drawer } = await openDrawer();
+  const raw = buttonByText(drawer, '原文');
+  assert.ok(raw, '正文 tab 要有渲染 / 原文切换');
+  raw.props.onClick();
+  const afterRaw = await settle(stub, Component, out.hooks);
+  const pres = collectByType(afterRaw.tree, 'pre');
+  assert.ok(pres.some((node) => textOf(node).includes('name: git-kit')), '原文包含 frontmatter');
+
+  const info = buttonByText(afterRaw.tree, '信息');
+  info.props.onClick();
+  const afterInfo = await settle(stub, Component, afterRaw.hooks);
+  const text = textOf(afterInfo.tree);
+  assert.ok(text.includes('仓库'), '信息 tab 有来源段');
+  assert.ok(text.includes('morehao/ai-kit'), '来源来自 row');
+  assert.ok(text.includes('本地路径'), '信息 tab 有本地路径');
+  assert.ok(text.includes('安装'), '信息 tab 有安装时间');
+});
+
+test('查看：文件 tab 列出目录与文件，点文件读到内容；二进制给占位', async () => {
+  const { out, stub, Component } = await openDrawer();
+  const filesTab = buttonByText(out.tree, '文件 3') || collectButtons(out.tree).find(
+    (button) => textOf(button).trim().startsWith('文件'),
+  );
+  assert.ok(filesTab, '有文件 tab');
+  filesTab.props.onClick();
+  let tree = await settle(stub, Component, out.hooks);
+  assert.ok(textOf(tree.tree).includes('references/'), '目录节点带斜杠');
+  const fileItem = collectButtons(tree.tree).find(
+    (button) => String(button.props.className || '').includes('dshsc-reader-titem')
+      && textOf(button).includes('guide.md'),
+  );
+  assert.ok(fileItem, '文件树里能点文件');
+  fileItem.props.onClick();
+  tree = await settle(stub, Component, tree.hooks);
+  assert.ok(textOf(tree.tree).includes('guide 第一行'), '点文件后预览内容');
+
+  const binary = await openDrawer({ fileError: { code: 'error.skills.binary', message: '不在预览范围' } });
+  const binaryTab = collectButtons(binary.out.tree).find((button) => textOf(button).trim().startsWith('文件'));
+  binaryTab.props.onClick();
+  let binaryTree = await settle(binary.stub, binary.Component, binary.out.hooks);
+  const binaryItem = collectButtons(binaryTree.tree).find(
+    (button) => String(button.props.className || '').includes('dshsc-reader-titem') && textOf(button).includes('guide.md'),
+  );
+  binaryItem.props.onClick();
+  binaryTree = await settle(binary.stub, binary.Component, binaryTree.hooks);
+  assert.ok(textOf(binaryTree.tree).includes('不在预览范围'), '二进制给明确占位，不报错');
+});
+
+test('查看：缺少 SKILL.md 时给提示，文件 tab 仍可用', async () => {
+  const { drawer } = await openDrawer({
+    bodyError: { code: 'error.skills.no-skill-md', message: '这个技能目录里没有 SKILL.md' },
+    files: { ...READER_FILES, body: null, hasSkillMd: false, files: [{ path: 'notes.md', kind: 'file', size: 12 }] },
+  });
+  const text = textOf(drawer);
+  assert.ok(text.includes('没有 SKILL.md'), '正文区提示缺 SKILL.md');
+  assert.ok(text.includes('其他文件'), '提示里说明仍能看文件');
+});
+
+test('查看：关闭按钮收起抽屉；Esc 与遮罩同样关掉', async () => {
+  const { out, stub, Component } = await openDrawer();
+  const close = buttonByText(out.tree, '关闭');
+  assert.ok(close, '有可访问名称的关闭按钮');
+  close.props.onClick();
+  const closed = await settle(stub, Component, out.hooks);
+  assert.equal(collectByType(closed.tree, 'aside').filter((node) => node.props.role === 'dialog').length, 0, '抽屉应消失');
+
+  const again = await openDrawer();
+  const scrim = collectByType(again.out.tree, 'div').find(
+    (node) => String(node.props.className || '').includes('dshsc-drawer-scrim'),
+  );
+  assert.ok(scrim, '有遮罩');
+  scrim.props.onClick();
+  const away = await settle(again.stub, again.Component, again.out.hooks);
+  assert.equal(collectByType(away.tree, 'aside').filter((node) => node.props.role === 'dialog').length, 0);
+});
+
+test('查看：在整页打开 → 返回条 + 目录；返回回到列表', async () => {
+  const { out, stub, Component } = await openDrawer();
+  const openPage = buttonByText(out.tree, '在整页打开');
+  assert.ok(openPage, '抽屉底部有「在整页打开」');
+  openPage.props.onClick();
+  const page = await settle(stub, Component, out.hooks);
+  const text = textOf(page.tree);
+  assert.ok(text.includes('返回列表'), '整页有返回条');
+  assert.ok(text.includes('目录'), '整页有目录');
+  assert.equal(collectByType(page.tree, 'aside').filter((node) => node.props.role === 'dialog').length, 0, '整页不再有抽屉');
+
+  const back = buttonByText(page.tree, '返回列表');
+  back.props.onClick();
+  const list = await settle(stub, Component, page.hooks);
+  assert.ok(textOf(list.tree).includes('已安装 3'), '返回后回到列表');
+  assert.equal(collectByType(list.tree, 'aside').length, 0);
+});
+
+test('查看：readOnly（state 损坏）时仍能查看，管理动作禁用', async () => {
+  const { drawer } = await openDrawer({ state: { ...STATE, readOnly: true } });
+  assert.ok(textOf(drawer).includes('标题一'), '只读也能读正文');
+  const update = collectButtons(drawer).find((button) => textOf(button).trim() === '更新');
+  assert.ok(update, '仍显示更新按钮');
+  assert.equal(update.props.disabled, true, '只读时禁用更新');
+});

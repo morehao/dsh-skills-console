@@ -1,0 +1,626 @@
+/**
+ * 技能查看器：抽屉（B1）与整页（A1）共用一套正文 / 文件 / 信息三 tab。
+ * 纯展示：数据走 `hooks.useSkillReader`，写动作由 Section 注入回调（这里不发请求）。
+ *
+ * 渲染用 h 建节点，不用 dangerouslySetInnerHTML；链接按 markdown.js 的协议分类决定可点性。
+ */
+import React from 'react';
+
+import { h } from '../host.js';
+import { short } from '../api.js';
+import { useSkillReader } from '../hooks.js';
+import { ChevronLeftIcon, CopyIcon, FileIcon, FolderIcon } from '../icons.js';
+import { parseMarkdown, resolveRelativeHref, stripFrontmatter } from '../markdown.js';
+
+/** 解析结果按正文缓存：切 tab / 切渲染不重复解析，最多留 8 份。 */
+const PARSE_CACHE = new Map();
+function parseCached(text) {
+  const key = String(text ?? '');
+  if (PARSE_CACHE.has(key)) return PARSE_CACHE.get(key);
+  const parsed = parseMarkdown(stripFrontmatter(key).body);
+  PARSE_CACHE.set(key, parsed);
+  if (PARSE_CACHE.size > 8) {
+    const oldest = PARSE_CACHE.keys().next().value;
+    PARSE_CACHE.delete(oldest);
+  }
+  return parsed;
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatWhen(iso) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+const TEXTUAL = /\.(md|markdown|txt|json|ya?ml|mjs|js|ts|sh|py|toml|csv)$/i;
+const MARKDOWN = /\.(md|markdown)$/i;
+
+function isMarkdownPath(relPath) {
+  return MARKDOWN.test(String(relPath || ''));
+}
+
+function extOf(relPath) {
+  const match = /\.([a-z0-9]+)$/i.exec(String(relPath || ''));
+  return match ? match[1].toUpperCase() : 'FILE';
+}
+
+const STATUS_KEY = {
+  current: 'status.current',
+  'update-available': 'status.update',
+  'locally-modified': 'status.local',
+  conflict: 'status.conflict',
+  'upstream-deleted': 'status.deleted',
+  'broken-link': 'status.broken',
+  unmanaged: 'status.unmanaged',
+};
+
+/** 行内 AST → React 节点。 */
+function inlineNodes(nodes, { onOpenFile, onOpenAnchor, keyPrefix = 'i' }) {
+  if (!Array.isArray(nodes)) return null;
+  return nodes.map((node, index) => {
+    const key = `${keyPrefix}-${index}`;
+    switch (node.type) {
+      case 'text':
+        return node.value;
+      case 'code':
+        return h('code', { className: 'dshsc-md-inline', key }, node.value);
+      case 'strong':
+        return h('strong', { key }, inlineNodes(node.children, { onOpenFile, onOpenAnchor, keyPrefix: key }));
+      case 'em':
+        return h('em', { key }, inlineNodes(node.children, { onOpenFile, onOpenAnchor, keyPrefix: key }));
+      case 'link': {
+        const children = inlineNodes(node.children, { onOpenFile, onOpenAnchor, keyPrefix: key });
+        if (node.kind === 'external') {
+          return h('a', {
+            className: 'dshsc-md-link',
+            key,
+            href: node.href,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          }, children);
+        }
+        if (node.kind === 'anchor') {
+          return h('a', {
+            className: 'dshsc-md-link',
+            key,
+            href: `#${node.href}`,
+            onClick: (event) => {
+              event?.preventDefault?.();
+              onOpenAnchor?.(node.href);
+            },
+          }, children);
+        }
+        if (node.kind === 'relative') {
+          return h('a', {
+            className: 'dshsc-md-link',
+            key,
+            href: '#',
+            title: node.href,
+            onClick: (event) => {
+              event?.preventDefault?.();
+              onOpenFile?.(node.href);
+            },
+          }, children);
+        }
+        // javascript: / data: 之类：只显示文字，不给可点的锚
+        return h('span', { className: 'dshsc-md-nolink', key }, children);
+      }
+      case 'image':
+        // v1 不请求本地文件：图片一律占位（路径 + alt），避免把任意文件当图片读
+        return h('span', { className: 'dshsc-md-image', key, title: node.src },
+          h('span', { className: 'dshsc-md-image-tag' }, 'IMG'),
+          node.alt || node.src);
+      default:
+        return null;
+    }
+  });
+}
+
+function blockNodes(blocks, options) {
+  return blocks.map((block, index) => {
+    const key = `b-${index}`;
+    switch (block.type) {
+      case 'heading': {
+        const tag = `h${Math.min(block.level, 6)}`;
+        return h(tag, { className: 'dshsc-md-h', key, id: block.id, 'data-md-id': block.id },
+          inlineNodes(block.inlines, { ...options, keyPrefix: key }));
+      }
+      case 'paragraph':
+        return h('p', { className: 'dshsc-md-p', key },
+          inlineNodes(block.inlines, { ...options, keyPrefix: key }));
+      case 'code':
+        return h('pre', { className: 'dshsc-md-code', key, 'data-lang': block.lang || undefined },
+          h('code', null, block.text));
+      case 'hr':
+        return h('hr', { className: 'dshsc-md-hr', key });
+      case 'quote':
+        return h('blockquote', { className: 'dshsc-md-quote', key }, blockNodes(block.blocks, options));
+      case 'list': {
+        const tag = block.ordered ? 'ol' : 'ul';
+        return h(tag, { className: 'dshsc-md-list', key }, block.items.map((item, itemIndex) => h('li', {
+          key: `${key}-${itemIndex}`,
+          className: item.checked === null || item.checked === undefined ? undefined : 'dshsc-md-task',
+        },
+        item.checked === null || item.checked === undefined
+          ? null
+          : h('span', { className: `dshsc-md-check${item.checked ? ' on' : ''}`, 'aria-hidden': true }),
+        inlineNodes(item.inlines, { ...options, keyPrefix: `${key}-${itemIndex}` }),
+        Array.isArray(item.children) && item.children.length > 0 ? blockNodes(item.children, options) : null)));
+      }
+      case 'table':
+        return h('div', { className: 'dshsc-md-table', key },
+          h('table', null,
+            h('thead', null, h('tr', null, block.header.map((cell, cellIndex) => h('th', {
+              key: `h-${cellIndex}`,
+              style: { textAlign: block.align?.[cellIndex] || 'left' },
+            }, inlineNodes(cell, { ...options, keyPrefix: `${key}-h-${cellIndex}` }))))),
+            h('tbody', null, block.rows.map((row, rowIndex) => h('tr', { key: `r-${rowIndex}` },
+              row.map((cell, cellIndex) => h('td', {
+                key: `c-${cellIndex}`,
+                style: { textAlign: block.align?.[cellIndex] || 'left' },
+              }, inlineNodes(cell, { ...options, keyPrefix: `${key}-${rowIndex}-${cellIndex}` }))))))));
+      default:
+        return null;
+    }
+  });
+}
+
+/** 正文渲染：`text` 可以是完整 SKILL.md（frontmatter 会自动剥掉）。 */
+export function Markdown({ text, onOpenFile, onOpenAnchor }) {
+  const { blocks } = parseCached(text);
+  return h('div', { className: 'dshsc-md' }, blockNodes(blocks, { onOpenFile, onOpenAnchor }));
+}
+
+function TabButton({ id, label, count, active, onSelect }) {
+  return h('button', {
+    type: 'button',
+    role: 'tab',
+    id: `dshsc-tab-${id}`,
+    'aria-selected': String(active),
+    'aria-controls': `dshsc-panel-${id}`,
+    tabIndex: active ? 0 : -1,
+    className: `dshsc-rtab${active ? ' active' : ''}`,
+    onClick: () => onSelect(id),
+  }, label, count === null || count === undefined ? null : h('i', { className: 'n' }, count));
+}
+
+function InfoSection({ t, title, rows }) {
+  return h('section', { className: 'dshsc-info-sec' },
+    h('h3', null, title),
+    h('dl', null, rows.map((row, index) => [
+      h('dt', { key: `t-${index}` }, t(row[0])),
+      h('dd', { key: `d-${index}`, className: row[2] === 'mono' ? 'mono' : undefined }, row[1]),
+    ])));
+}
+
+/**
+ * 查看器。`variant` 只决定外壳（抽屉 / 整页），正文、tab、数据都在同一个组件实例里，
+ * 所以「在整页打开」不会重新拉数据。
+ */
+export function SkillReader({
+  t,
+  variant = 'drawer',
+  row,
+  writable,
+  busy,
+  readOnly,
+  version,
+  initialTab = 'doc',
+  initialFile = null,
+  onClose,
+  onOpenPage,
+  onUpdate,
+  onLinks,
+  onToast,
+}) {
+  const { state, file, loadFile, retry } = useSkillReader(row);
+  const [tab, setTab] = React.useState(initialTab);
+  const [format, setFormat] = React.useState('rendered');
+  const [docOverride, setDocOverride] = React.useState(null);
+  const [tocActive, setTocActive] = React.useState(null);
+  const bodyRef = React.useRef(null);
+  const dialogRef = React.useRef(null);
+  const scrollRef = React.useRef(0);
+
+  const name = row?.name || '';
+  const tree = state.tree;
+  const files = tree?.files || [];
+  const fileCount = files.filter((entry) => entry.kind === 'file').length;
+  const bodyText = docOverride ? docOverride.content : (state.body?.content || '');
+  const description = row?.description || state.body?.meta?.description || '';
+  const headings = tab === 'doc' && bodyText ? parseCached(bodyText).headings : [];
+
+  // 换技能就丢掉「正文里临时打开的文件」和滚动位置
+  React.useEffect(() => {
+    setDocOverride(null);
+    scrollRef.current = 0;
+  }, [name]);
+
+  // 从别处带着文件进来（例如从文件 tab 再次打开同一个文件）：只拉一次
+  React.useEffect(() => {
+    if (!initialFile) return;
+    setTab('files');
+    void loadFile(initialFile);
+  }, [initialFile, loadFile]);
+
+  // 切渲染 / 原文：记住滚动位置，渲染完成后放回去
+  React.useEffect(() => {
+    const node = bodyRef.current;
+    if (node && scrollRef.current) node.scrollTop = scrollRef.current;
+  });
+
+  // 抽屉：Esc 关闭、焦点陷阱、关闭后把焦点还给触发的按钮
+  React.useEffect(() => {
+    if (variant !== 'drawer' || typeof document === 'undefined') return undefined;
+    const previous = document.activeElement;
+    const node = dialogRef.current;
+    node?.focus?.();
+    const onKeyDown = (event) => {
+      if (event?.key === 'Escape') {
+        event.stopPropagation?.();
+        onClose?.();
+        return;
+      }
+      if (event?.key !== 'Tab' || !node?.querySelectorAll) return;
+      const focusables = Array.from(
+        node.querySelectorAll('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])'),
+      ).filter((item) => item.offsetParent !== null || item === document.activeElement);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault?.();
+        last.focus?.();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault?.();
+        first.focus?.();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previous?.focus?.();
+    };
+  }, [variant, onClose]);
+
+  // 整页：目录高亮跟着正文滚动走
+  React.useEffect(() => {
+    if (variant !== 'page' || typeof window === 'undefined') return undefined;
+    const node = bodyRef.current;
+    if (!node?.querySelectorAll) return undefined;
+    const sync = () => {
+      const containerTop = node.getBoundingClientRect?.().top ?? 0;
+      let current = null;
+      for (const element of Array.from(node.querySelectorAll('[data-md-id]'))) {
+        const top = element.getBoundingClientRect?.().top ?? 0;
+        if (top - containerTop <= 96) current = element.getAttribute('data-md-id');
+      }
+      setTocActive(current || headings[0]?.id || null);
+    };
+    sync();
+    node.addEventListener?.('scroll', sync, { passive: true });
+    return () => node.removeEventListener?.('scroll', sync);
+  }, [variant, headings.length, tab, bodyText]);
+
+  function scrollToAnchor(id) {
+    const node = bodyRef.current;
+    if (!node?.querySelectorAll) return;
+    const target = Array.from(node.querySelectorAll('[data-md-id]'))
+      .find((element) => element.getAttribute('data-md-id') === id);
+    if (!target) return;
+    const offset = target.getBoundingClientRect().top - node.getBoundingClientRect().top;
+    node.scrollTop = Math.max(0, node.scrollTop + offset - 12);
+    setTocActive(id);
+  }
+
+  function openLinkedFile(href) {
+    // 相对链接按当前正文所在目录解析；解析结果为空说明只是锚点
+    const base = docOverride ? docOverride.relPath.split('/').slice(0, -1).join('/') : '';
+    const resolved = resolveRelativeHref(base, href);
+    if (!resolved.relPath) return;
+    setTab('files');
+    void loadFile(resolved.relPath);
+  }
+
+  async function copyTextWithToast(text, okKey) {
+    let ok = false;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch {
+      ok = false;
+    }
+    onToast?.(ok ? { kind: 'ok', text: t(okKey) } : { kind: 'err', text: t('viewer.copyFailed') });
+  }
+
+  function selectTab(next) {
+    if (next === tab) return;
+    if (bodyRef.current) scrollRef.current = 0;
+    setTab(next);
+  }
+
+  const header = h('header', { className: 'dshsc-reader-head' },
+    h('div', { className: 'dshsc-reader-title' },
+      h('h2', { id: 'dshsc-reader-name' }, name || t('viewer.title')),
+      row?.status && STATUS_KEY[row.status]
+        ? h('span', { className: `dshsc-tag ${row.status === 'current' ? 'ok' : 'warn'}` }, t(STATUS_KEY[row.status]))
+        : null,
+      row?.mode === 'off' ? h('span', { className: 'dshsc-tag off' }, t('status.off')) : null,
+      variant === 'drawer'
+        ? h('button', {
+            type: 'button',
+            className: 'dshsc-reader-close',
+            'aria-label': t('viewer.close'),
+            title: t('viewer.close'),
+            onClick: () => onClose?.(),
+          }, '×')
+        : null),
+    description ? h('p', { className: 'dshsc-reader-desc' }, description) : null,
+    h('div', { className: 'dshsc-reader-meta' },
+      h('span', null, `${t('meta.from')} `,
+        h('span', { className: 'dshsc-code' }, row?.source
+          ? `${row.source}${row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : ''}`
+          : t('meta.noUpstream'))),
+      tree ? h('span', null, t('viewer.fileCount').replace('{n}', String(fileCount))) : null,
+      row?.updatedAt ? h('span', null, formatWhen(row.updatedAt)) : null));
+
+  const tabsBar = h('div', { className: 'dshsc-reader-tabs' },
+    h('div', { className: 'dshsc-rtabs', role: 'tablist', 'aria-label': t('viewer.title') },
+      h(TabButton, { id: 'doc', label: t('viewer.tab.doc'), active: tab === 'doc', onSelect: selectTab }),
+      h(TabButton, { id: 'files', label: t('viewer.tab.files'), count: tree ? fileCount : null, active: tab === 'files', onSelect: selectTab }),
+      h(TabButton, { id: 'info', label: t('viewer.tab.info'), active: tab === 'info', onSelect: selectTab })),
+    tab === 'doc' && !docOverride
+      ? h('div', { className: 'dshsc-segment dshsc-reader-seg', role: 'group', 'aria-label': t('viewer.rendered') },
+          h('button', {
+            type: 'button',
+            className: 'dshsc-btn',
+            'aria-pressed': String(format === 'rendered'),
+            onClick: () => setFormat('rendered'),
+          }, t('viewer.rendered')),
+          h('button', {
+            type: 'button',
+            className: 'dshsc-btn',
+            'aria-pressed': String(format === 'raw'),
+            onClick: () => setFormat('raw'),
+          }, t('viewer.raw')))
+      : null);
+
+  function docPanel() {
+    if (state.loading) {
+      return h('div', { className: 'dshsc-reader-skeleton' },
+        h('span', null, t('viewer.loading')),
+        h('i'), h('i'), h('i'));
+    }
+    if (!bodyText) {
+      const error = state.bodyError;
+      const missing = error?.code === 'error.skills.no-skill-md';
+      return h('div', { className: 'dshsc-reader-placeholder' },
+        h('b', null, missing ? t('viewer.noSkill') : (error?.message || t('viewer.noSkill'))),
+        missing ? h('span', null, t('viewer.noSkillHint')) : null,
+        error && !missing
+          ? h('button', { type: 'button', className: 'dshsc-btn', onClick: retry }, t('viewer.retry'))
+          : null);
+    }
+    if (docOverride) {
+      return h('div', { className: 'dshsc-reader-doc' },
+        h('div', { className: 'dshsc-reader-filebar' },
+          h('span', { className: 'mono' }, docOverride.relPath),
+          h('button', {
+            type: 'button',
+            className: 'dshsc-btn ghost',
+            onClick: () => setDocOverride(null),
+          }, t('viewer.backToBody'))),
+        h(Markdown, { text: docOverride.content, onOpenFile: openLinkedFile, onOpenAnchor: scrollToAnchor }));
+    }
+    const truncated = Boolean(state.body?.truncated);
+    return h('div', { className: 'dshsc-reader-doc' },
+      truncated
+        ? h('div', { className: 'dshsc-banner warn' }, t('viewer.tooLarge').replace('{size}', formatBytes(256 * 1024)))
+        : null,
+      format === 'raw'
+        ? h('pre', { className: 'dshsc-reader-raw' }, h('code', null, bodyText))
+        : h(Markdown, { text: bodyText, onOpenFile: openLinkedFile, onOpenAnchor: scrollToAnchor }));
+  }
+
+  function filesPanel() {
+    if (state.treeError) {
+      return h('div', { className: 'dshsc-reader-placeholder' },
+        h('b', null, state.treeError.message),
+        h('button', { type: 'button', className: 'dshsc-btn', onClick: retry }, t('viewer.retry')));
+    }
+    if (!tree) return h('div', { className: 'dshsc-reader-skeleton' }, h('i'), h('i'));
+    if (files.length === 0) {
+      return h('div', { className: 'dshsc-reader-placeholder' }, h('b', null, t('viewer.emptyFiles')));
+    }
+    const active = file.relPath;
+    const preview = file.loading
+      ? h('div', { className: 'dshsc-reader-skeleton' }, h('i'), h('i'), h('i'))
+      : file.error
+        ? h('div', { className: 'dshsc-reader-placeholder' },
+            h('b', null, file.error.code === 'error.skills.binary' ? t('viewer.binary') : file.error.message))
+        : h('pre', { className: 'dshsc-reader-raw' },
+            h('code', null, file.content
+              + (file.truncated ? `\n\n… ${t('viewer.tooLarge').replace('{size}', formatBytes(256 * 1024))}` : '')));
+
+    return h('div', { className: 'dshsc-reader-files' },
+      h('div', { className: 'dshsc-reader-tree' },
+        h('div', { className: 'dshsc-reader-tree-head' },
+          h('span', null, name),
+          h('span', { className: 'mono' }, tree.kind === 'file' ? tree.body : `~/.agents/skills/${name}`)),
+        files.map((entry) => {
+          if (entry.kind === 'dir') {
+            const count = files.filter((item) => item.kind === 'file' && item.path.startsWith(`${entry.path}/`)).length;
+            return h('div', { className: 'dshsc-reader-tdir', key: `d:${entry.path}` },
+              h(FolderIcon, null),
+              h('span', { className: 'mono' }, `${entry.path}/`),
+              h('span', { className: 'n' }, String(count)));
+          }
+          const depth = entry.path.split('/').length - 1;
+          return h('button', {
+            type: 'button',
+            key: `f:${entry.path}`,
+            className: `dshsc-reader-titem${active === entry.path ? ' on' : ''}`,
+            style: { paddingLeft: 8 + depth * 12 },
+            title: entry.path,
+            onClick: () => void loadFile(entry.path),
+          },
+          h(FileIcon, null),
+          h('span', { className: 'nname' }, entry.path.split('/').pop()),
+          h('span', { className: 'nsize' }, formatBytes(entry.size)));
+        })),
+      h('div', { className: 'dshsc-reader-preview' },
+        h('div', { className: 'dshsc-reader-tree-head' },
+          h('span', null, t('viewer.tab.files')),
+          h('span', { className: 'mono' }, active || '—'),
+          active && TEXTUAL.test(active) && !file.loading && !file.error && isMarkdownPath(active)
+            ? h('button', {
+                type: 'button',
+                className: 'dshsc-btn ghost',
+                onClick: () => {
+                  setDocOverride({ relPath: file.relPath || active, content: file.content });
+                  setTab('doc');
+                },
+              }, t('viewer.openInDoc'))
+            : null),
+        preview));
+  }
+
+  function infoPanel() {
+    const agentLabels = (row?.links || [])
+      .filter((link) => !link.broken)
+      .map((link) => (link.target === 'dsh-global' ? 'DSH' : link.label));
+    const projects = row?.scopeProjects || [];
+    const hash = row?.lockHash || row?.currentHash || null;
+    const rows = [];
+    rows.push(['viewer.info.name', h('span', { className: 'mono' }, name), 'mono']);
+    if (description) rows.push(['viewer.info.desc', description]);
+    rows.push(['viewer.info.path', h('span', { className: 'mono' }, row?.path || (tree?.root ?? t('viewer.info.none'))), 'mono']);
+
+    const sourceRows = [
+      ['viewer.info.repo', row?.source ? h('span', { className: 'mono' }, row.source) : t('viewer.info.none'), 'mono'],
+      ['viewer.info.ref', row?.commit ? h('span', { className: 'mono' }, short(row.commit)) : (row?.ref || t('viewer.info.none')), 'mono'],
+      ['viewer.info.skillPath', row?.skillPath ? h('span', { className: 'mono' }, row.skillPath) : t('viewer.info.none'), 'mono'],
+      ['viewer.info.hash', hash ? h('span', { className: 'mono' }, hash) : t('viewer.info.none'), 'mono'],
+    ];
+
+    const localRows = [
+      ['viewer.info.installedAt', formatWhen(row?.installedAt) || t('viewer.info.none')],
+      ['viewer.info.updatedAt', formatWhen(row?.updatedAt) || t('viewer.info.none')],
+      ['viewer.info.size', tree
+        ? `${formatBytes(tree.totalBytes)} · ${t('viewer.fileCount').replace('{n}', String(fileCount))}`
+        : t('viewer.info.none')],
+      ['viewer.info.localChange', row?.status === 'locally-modified' || row?.status === 'conflict'
+        ? t('viewer.info.localChangeYes')
+        : t('viewer.info.localChangeNone')],
+    ];
+
+    const linkRows = [
+      ['viewer.info.agents', agentLabels.length > 0 ? agentLabels.join('、') : t('meta.unlinked')],
+      ['viewer.info.scope', projects.length > 0
+        ? `${t('viewer.info.scopeProject')}：${projects.map((item) => item.split('/').pop()).join('、')}`
+        : t('viewer.info.scopeGlobal')],
+      ['viewer.info.mode', row?.mode === 'off' ? t('status.off') : t('mode.on')],
+      ['viewer.info.status', STATUS_KEY[row?.status] ? t(STATUS_KEY[row.status]) : t('status.unknown')],
+    ];
+
+    return h('div', { className: 'dshsc-reader-info' },
+      h(InfoSection, { t, title: t('viewer.info.basic'), rows }),
+      h(InfoSection, { t, title: t('viewer.info.source'), rows: sourceRows }),
+      h(InfoSection, { t, title: t('viewer.info.local'), rows: localRows }),
+      h(InfoSection, { t, title: t('viewer.info.links'), rows: linkRows }));
+  }
+
+  function panel() {
+    if (tab === 'files') return filesPanel();
+    if (tab === 'info') return infoPanel();
+    return docPanel();
+  }
+
+  const body = h('div', {
+    className: 'dshsc-reader-body',
+    ref: bodyRef,
+    role: 'tabpanel',
+    id: `dshsc-panel-${tab}`,
+    'aria-labelledby': `dshsc-tab-${tab}`,
+    tabIndex: -1,
+  }, panel());
+
+  const canUpdate = Boolean(writable) && Boolean(row) && !busy;
+  const actionsFooter = h('div', { className: 'dshsc-reader-actions' },
+    h('span', { className: 'dshsc-reader-note' }, readOnly ? t('banner.readonly') : t('viewer.readonlyNote')),
+    h('button', {
+      type: 'button',
+      className: 'dshsc-btn ghost sq',
+      title: t('viewer.copyBody'),
+      'aria-label': t('viewer.copyBody'),
+      disabled: !bodyText,
+      onClick: () => void copyTextWithToast(bodyText, 'viewer.copied'),
+    }, h(CopyIcon, null)),
+    h('button', {
+      type: 'button',
+      className: 'dshsc-btn ghost',
+      title: row?.path || '',
+      disabled: !row?.path,
+      onClick: () => void copyTextWithToast(row?.path || '', 'viewer.copied'),
+    }, t('viewer.copyPath')),
+    variant === 'drawer' && onOpenPage
+      ? h('button', { type: 'button', className: 'dshsc-btn ghost', onClick: () => onOpenPage() }, t('viewer.openPage'))
+      : null,
+    onLinks ? h('button', { type: 'button', className: 'dshsc-btn', onClick: () => onLinks?.(row) }, t('action.links')) : null,
+    onUpdate
+      ? h('button', {
+          type: 'button',
+          className: 'dshsc-btn tint',
+          disabled: !canUpdate,
+          onClick: () => onUpdate?.(row),
+        }, t('action.update'))
+      : null);
+
+  if (variant === 'page') {
+    return h('div', { className: 'dshsc-reader-page' },
+      h('div', { className: 'dshsc-reader-topbar' },
+        h('button', { type: 'button', className: 'dshsc-btn ghost', 'data-autofocus': true, onClick: () => onClose?.() },
+          h(ChevronLeftIcon, null), t('viewer.back')),
+        h('span', { className: 'dshsc-reader-crumb' },
+          h('span', null, t('tab.installed')),
+          h('span', { className: 'sep' }, '/'),
+          h('span', { className: 'mono' }, name)),
+        h('span', { className: 'spacer' }),
+        actionsFooter),
+      h('div', { className: 'dshsc-reader-hero' }, header),
+      h('div', { className: 'dshsc-reader-layout' },
+        headings.length > 1
+          ? h('nav', { className: 'dshsc-reader-toc', 'aria-label': t('viewer.toc') },
+              h('div', { className: 'dshsc-reader-toc-title' }, t('viewer.toc')),
+              headings.map((heading) => h('button', {
+                type: 'button',
+                key: heading.id,
+                className: `dshsc-reader-tocitem l${heading.level}${tocActive === heading.id ? ' on' : ''}`,
+                onClick: () => scrollToAnchor(heading.id),
+              }, heading.text)))
+          : null,
+        h('div', { className: 'dshsc-reader-col' }, tabsBar, body)));
+  }
+
+  return h('div', { className: 'dshsc-drawer-wrap' },
+    h('div', { className: 'dshsc-drawer-scrim', onClick: () => onClose?.() }),
+    h('aside', {
+      className: 'dshsc-drawer',
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-labelledby': 'dshsc-reader-name',
+      ref: dialogRef,
+      tabIndex: -1,
+    }, header, tabsBar, body, actionsFooter));
+}
