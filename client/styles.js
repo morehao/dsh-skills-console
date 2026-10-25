@@ -11,21 +11,22 @@ export const CSS = `
   .dshsc-page .dshsc-sub { font-size: 13px; line-height: 20px; }
   .dshsc-root { display: flex; flex-direction: column; gap: 14px; color: var(--dsw-alias-label-primary);
     container-type: inline-size; container-name: dshsc; }
-  /* 页头两列：左边标题块、右边业务动作。动作组恒在右上角，宽度自动；
-     页面宽度变化只让标题块收窄（身份胶囊省略、工具组内部换行），动作组不会整组跳到第二行。
-     只有面板真的窄（≤520，见下面容器查询）才改成上下两段。 */
-  .dshsc-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 14px; }
-  .dshsc-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+  /* 页头：左标题块、右业务动作。动作组不靠固定断点换行——标题块的 flex-basis 用内容宽度
+     （auto），放得下就同排、放不下（约 630px 以下）动作组自然换到第二行并靠右。
+     这样窄面板（设置页 ~565px）会回到「动作在下、标识在上」，身份胶囊永远是完整的，
+     也不会像 900px 断点那样被滚动条/几像素窗口变化推过临界点。 */
+  .dshsc-head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+  .dshsc-heading { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1 1 auto; }
   .dshsc-heading-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .dshsc-logo { flex: none; display: block; border-radius: 8px; }
   /* 标题不参与收窄：窄面板里让身份胶囊先省略，标题本身不折行 */
   .dshsc-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; flex: none; white-space: nowrap; }
   .dshsc-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
   .dshsc-spacer { flex: 1; }
-  .dshsc-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
-  /* 标题行恒为一行：身份胶囊按剩余宽度省略，工具组不被挤走。
+  .dshsc-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  /* 标题行恒为一行：身份胶囊只在面板极窄（连标题行都放不下）时才省略，工具组不被挤走。
      不用 wrap 是因为一 wrap 就会按「身份胶囊整段」的宽度断行，窄面板里会折成 2~3 行、
-     把页头撑高；省略号 + title 提示比整行折行更稳，也不随版本号变长而改变布局。 */
+     把页头撑高；行内换行交给外层页头（动作组下移），标识本身保持完整。 */
   .dshsc-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; min-width: 0; }
 
   /* 身份：按「安装时输入的包名」显示（@scope/name@version），等宽只读、不描边 */
@@ -265,13 +266,6 @@ export const CSS = `
     .dshsc-agents { grid-column: 1; }
     .dshsc-row .dshsc-actions { grid-column: 2; grid-row: 1 / span 2; }
     .dshsc-row .dshsc-btn { padding: 0 5px; }
-  }
-  /* 页头自己的断点，和上面的页面断点解耦：只有面板窄到放不下「标题块 + 动作组」才上下堆叠。
-     520 远低于设置面板/侧栏面板的实际宽度，正常窗口里页头永远是右上角那一组。 */
-  @container dshsc (max-width: 520px) {
-    .dshsc-head { grid-template-columns: minmax(0, 1fr); }
-    .dshsc-head-actions { justify-content: flex-end; }
-    .dshsc-tools { border-left: 0; padding-left: 0; margin-left: 0; }
   }
   .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
