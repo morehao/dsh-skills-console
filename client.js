@@ -99,7 +99,9 @@ var DICT = {
     "view.agent": "按 Agent",
     autoLink: "自动接入",
     "settings.title": "插件设置",
-    "version.label": "当前版本",
+    "id.copy": "复制安装标识",
+    "id.copied": "已复制安装标识",
+    "id.copyFailed": "复制失败，请重试",
     "placement.label": "侧边栏入口",
     "placement.effect": "切换后立即生效",
     "placement.on": "已开启",
@@ -287,7 +289,9 @@ var DICT = {
     "view.agent": "By agent",
     "autoLink": "Auto-link",
     "settings.title": "Plugin settings",
-    "version.label": "Version",
+    "id.copy": "Copy install specifier",
+    "id.copied": "Install specifier copied",
+    "id.copyFailed": "Copy failed, please retry",
     "placement.label": "Sidebar entry",
     "placement.effect": "Applies immediately",
     "placement.on": "on",
@@ -448,6 +452,17 @@ var DICT = {
     "viewer.info.none": "None"
   }
 };
+async function copyText(text) {
+  const value = String(text ?? "");
+  if (!value) return false;
+  try {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) return false;
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
 function buildTranslate(locale) {
   const active = () => {
     try {
@@ -835,13 +850,19 @@ var CSS = `
   .dshsc-head-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
   .dshsc-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 
-  /* 身份：包名 + 版本合成一枚低调 chip，不再各占一段 */
-  .dshsc-id { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 22px; padding: 0 7px;
-    border: 1px solid var(--dsw-alias-border-l1); border-radius: 6px; background: var(--dsw-alias-bg-layer-1); }
-  .dshsc-pkg { font-size: 11px; line-height: 1; color: var(--dsw-alias-label-tertiary); white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace); }
-  .dshsc-idsep { flex: none; font-size: 10px; color: var(--dsw-alias-border-l3); }
-  .dshsc-ver { flex: none; font-size: 11px; line-height: 1; color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+  /* 身份：按「安装时输入的包名」显示（@scope/name@version），等宽 + 可点复制 */
+  .dshsc-id { display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; min-width: 0;
+    max-width: 100%; height: 22px; padding: 0 6px 0 7px; border: 1px solid var(--dsw-alias-border-l1);
+    border-radius: 6px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-tertiary);
+    font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 11px; line-height: 1; white-space: nowrap; cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease; }
+  .dshsc-id:hover { border-color: var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2);
+    color: var(--dsw-alias-label-primary); }
+  .dshsc-id:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+  .dshsc-spec { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+  .dshsc-idcopy { display: inline-flex; flex: none; opacity: .5; transition: opacity .12s ease; }
+  .dshsc-id:hover .dshsc-idcopy, .dshsc-id:focus-visible .dshsc-idcopy { opacity: 1; }
 
   /* 插件级工具（设置 / GitHub）：跟在身份胶囊后面，用细线分组；鬼影按钮不和业务按钮抢权重 */
   .dshsc-tools { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: 2px;
@@ -1737,6 +1758,11 @@ function useSkillReader(row) {
 }
 
 // client/views/header.js
+function installSpec(plugin) {
+  const name = plugin?.fullName || plugin?.name;
+  if (!name) return null;
+  return plugin.version ? `${name}@${plugin.version}` : name;
+}
 function Header({
   t,
   page,
@@ -1755,8 +1781,14 @@ function Header({
   onChangePlacement,
   onOpenAutoLink,
   onAddSkill,
-  onAddSubscription
+  onAddSubscription,
+  onToast
 }) {
+  const spec = installSpec(plugin);
+  async function copySpec() {
+    const ok = await copyText(spec);
+    onToast?.(ok ? { kind: "ok", text: t("id.copied") } : { kind: "err", text: t("id.copyFailed") });
+  }
   const headTools = h(
     "div",
     { className: "dshsc-tools" },
@@ -1828,17 +1860,18 @@ function Header({
           "div",
           { className: "dshsc-title-row" },
           h("h2", { className: "dshsc-title" }, page ? t("page.title") : t("section.title")),
-          // 身份：包名 + 版本合成一枚低调 chip，由 Host 从 package.json 注入
-          plugin?.name ? h(
-            "span",
-            { className: "dshsc-id" },
-            h("span", { className: "dshsc-pkg" }, plugin.name),
-            plugin.version ? h("span", { className: "dshsc-idsep" }, "|") : null,
-            plugin.version ? h(
-              "span",
-              { className: "dshsc-ver", title: `${t("version.label")} v${plugin.version}` },
-              `v${plugin.version}`
-            ) : null
+          // 身份：按「安装时输入的包名」显示，点一下整段复制（Host 从 package.json 注入）
+          spec ? h(
+            "button",
+            {
+              type: "button",
+              className: "dshsc-id",
+              title: `${t("id.copy")}：${spec}`,
+              "aria-label": `${t("id.copy")}：${spec}`,
+              onClick: () => void copySpec()
+            },
+            h("span", { className: "dshsc-spec" }, spec),
+            h("span", { className: "dshsc-idcopy", "aria-hidden": "true" }, h(CopyIcon, { size: 11 }))
           ) : null,
           headTools
         ),
@@ -3966,7 +3999,8 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       onChangePlacement: (next) => void changePlacement(next),
       onOpenAutoLink: () => setModal({ type: "autolink" }),
       onAddSkill: actions.requestAddSkill,
-      onAddSubscription: actions.requestAddSubscription
+      onAddSubscription: actions.requestAddSubscription,
+      onToast: (next) => setToast(next)
     }),
     error ? h("div", { className: "dshsc-banner err" }, `${error} · `, h("button", { className: "dshsc-btn ghost", onClick: () => void reload() }, t("action.retry"))) : null,
     data?.readOnly ? h("div", { className: "dshsc-banner warn" }, t("banner.readonly")) : null,
