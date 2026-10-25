@@ -41,7 +41,6 @@ function formatWhen(iso) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-const TEXTUAL = /\.(md|markdown|txt|json|ya?ml|mjs|js|ts|sh|py|toml|csv)$/i;
 const MARKDOWN = /\.(md|markdown)$/i;
 
 function isMarkdownPath(relPath) {
@@ -472,11 +471,15 @@ export function SkillReader({
       return h('div', { className: 'dshsc-reader-placeholder' }, h('b', null, t('viewer.emptyFiles')));
     }
     const active = file.relPath;
+    const activeEntry = files.find((entry) => entry.kind === 'file' && entry.path === active) || null;
     const preview = file.loading
       ? h('div', { className: 'dshsc-reader-skeleton' }, h('i'), h('i'), h('i'))
       : file.error
         ? h('div', { className: 'dshsc-reader-placeholder' },
-            h('b', null, file.error.code === 'error.skills.binary' ? t('viewer.binary') : file.error.message))
+            h('b', null, file.error.code === 'error.skills.binary' ? t('viewer.binary') : file.error.message),
+            h('span', { className: 'mono' },
+              [active, activeEntry ? formatBytes(activeEntry.size) : null].filter(Boolean).join(' · ')),
+            file.error.code === 'error.skills.binary' ? h('span', null, t('viewer.binaryHint')) : null)
         : h('pre', { className: 'dshsc-reader-raw' },
             h('code', null, file.content
               + (file.truncated ? `\n\n… ${t('viewer.tooLarge').replace('{size}', formatBytes(256 * 1024))}` : '')));
@@ -511,7 +514,7 @@ export function SkillReader({
         h('div', { className: 'dshsc-reader-tree-head' },
           h('span', null, t('viewer.tab.files')),
           h('span', { className: 'mono' }, active || '—'),
-          active && TEXTUAL.test(active) && !file.loading && !file.error && isMarkdownPath(active)
+          active && !file.loading && !file.error && isMarkdownPath(active)
             ? h('button', {
                 type: 'button',
                 className: 'dshsc-btn ghost',

@@ -220,7 +220,9 @@ var DICT = {
     "viewer.gone": "这个技能已不在本地，查看器已关闭",
     "viewer.noSkill": "这个技能里没有 SKILL.md",
     "viewer.noSkillHint": "DSH 解析不到它，但目录里的其他文件仍可以看",
-    "viewer.binary": "不在预览范围（二进制或非文本文件）",
+    "viewer.binary": "暂不支持预览",
+    "viewer.binaryHint": "二进制或非文本文件，只显示文件名与大小",
+    "viewer.textNote": "只读，直接显示源码",
     "viewer.tooLarge": "超过 {size}，只显示前一部分",
     "viewer.emptyFiles": "这个技能目录里没有可读的文件",
     "viewer.fileCount": "{n} 个文件",
@@ -404,7 +406,9 @@ var DICT = {
     "viewer.gone": "This skill is gone from disk; the viewer was closed",
     "viewer.noSkill": "This skill has no SKILL.md",
     "viewer.noSkillHint": "DSH cannot parse it, but the other files are still readable",
-    "viewer.binary": "Not previewable (binary or non-text file)",
+    "viewer.binary": "Preview not supported",
+    "viewer.binaryHint": "Binary or non-text file: only the name and size are shown",
+    "viewer.textNote": "Read-only source",
     "viewer.tooLarge": "Larger than {size}; showing the first part only",
     "viewer.emptyFiles": "No readable files in this skill folder",
     "viewer.fileCount": "{n} files",
@@ -3083,7 +3087,6 @@ function formatWhen(iso) {
   const pad = (value) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
-var TEXTUAL = /\.(md|markdown|txt|json|ya?ml|mjs|js|ts|sh|py|toml|csv)$/i;
 var MARKDOWN = /\.(md|markdown)$/i;
 function isMarkdownPath(relPath) {
   return MARKDOWN.test(String(relPath || ""));
@@ -3520,10 +3523,17 @@ function SkillReader({
       return h("div", { className: "dshsc-reader-placeholder" }, h("b", null, t("viewer.emptyFiles")));
     }
     const active = file.relPath;
+    const activeEntry = files.find((entry) => entry.kind === "file" && entry.path === active) || null;
     const preview = file.loading ? h("div", { className: "dshsc-reader-skeleton" }, h("i"), h("i"), h("i")) : file.error ? h(
       "div",
       { className: "dshsc-reader-placeholder" },
-      h("b", null, file.error.code === "error.skills.binary" ? t("viewer.binary") : file.error.message)
+      h("b", null, file.error.code === "error.skills.binary" ? t("viewer.binary") : file.error.message),
+      h(
+        "span",
+        { className: "mono" },
+        [active, activeEntry ? formatBytes(activeEntry.size) : null].filter(Boolean).join(" · ")
+      ),
+      file.error.code === "error.skills.binary" ? h("span", null, t("viewer.binaryHint")) : null
     ) : h(
       "pre",
       { className: "dshsc-reader-raw" },
@@ -3579,7 +3589,7 @@ function SkillReader({
           { className: "dshsc-reader-tree-head" },
           h("span", null, t("viewer.tab.files")),
           h("span", { className: "mono" }, active || "—"),
-          active && TEXTUAL.test(active) && !file.loading && !file.error && isMarkdownPath(active) ? h("button", {
+          active && !file.loading && !file.error && isMarkdownPath(active) ? h("button", {
             type: "button",
             className: "dshsc-btn ghost",
             onClick: () => {

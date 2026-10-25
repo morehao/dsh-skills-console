@@ -1174,7 +1174,7 @@ test('查看：文件 tab 列出目录与文件，点文件读到内容；二进
   tree = await settle(stub, Component, tree.hooks);
   assert.ok(textOf(tree.tree).includes('guide 第一行'), '点文件后预览内容');
 
-  const binary = await openDrawer({ fileError: { code: 'error.skills.binary', message: '不在预览范围' } });
+  const binary = await openDrawer({ fileError: { code: 'error.skills.binary', message: '暂不支持预览' } });
   const binaryTab = collectButtons(binary.out.tree).find((button) => textOf(button).trim().startsWith('文件'));
   binaryTab.props.onClick();
   let binaryTree = await settle(binary.stub, binary.Component, binary.out.hooks);
@@ -1183,7 +1183,9 @@ test('查看：文件 tab 列出目录与文件，点文件读到内容；二进
   );
   binaryItem.props.onClick();
   binaryTree = await settle(binary.stub, binary.Component, binaryTree.hooks);
-  assert.ok(textOf(binaryTree.tree).includes('不在预览范围'), '二进制给明确占位，不报错');
+  const binaryText = textOf(binaryTree.tree);
+  assert.ok(binaryText.includes('暂不支持预览'), '二进制给明确占位，不报错');
+  assert.ok(binaryText.includes('只显示文件名与大小'), '占位里说明为什么看不了');
 });
 
 test('查看：缺少 SKILL.md 时给提示，文件 tab 仍可用', async () => {

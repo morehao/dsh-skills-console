@@ -149,6 +149,10 @@ test('二进制 / 非文本扩展名 / 缺 SKILL.md', async (t) => {
   write('demo/SKILL.md', 'body\n');
   fs.writeFileSync(path.join(paths.canonical, 'demo', 'image.md'), Buffer.from([0x23, 0x20, 0x00, 0x01]));
   write('demo/script.rb', 'puts 1\n');
+  write('demo/LICENSE', 'MIT\n');
+  write('demo/page.html', '<h1>hi</h1>\n');
+  fs.writeFileSync(path.join(paths.canonical, 'demo', 'photo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]));
+  fs.writeFileSync(path.join(paths.canonical, 'demo', 'latin.md'), Buffer.from([0x23, 0x20, 0xe9, 0x74, 0xe9]));
 
   const root = await resolveSkillRoot(paths, 'demo');
   assert.equal(
@@ -156,11 +160,18 @@ test('二进制 / 非文本扩展名 / 缺 SKILL.md', async (t) => {
     'error.skills.binary',
     '含 NUL 视为二进制',
   );
-  assert.equal(
-    await asyncCodeOf(() => readSkillFile({ root: root.root, kind: root.kind, relPath: 'script.rb' })),
-    'error.skills.binary',
-    '不在 allowlist 的扩展名不给读',
-  );
+  // 能按 UTF-8 解码就当源码显示：不再用扩展名白名单卡 .rb / .html / 无扩展名文件
+  for (const relPath of ['script.rb', 'LICENSE', 'page.html']) {
+    const file = await readSkillFile({ root: root.root, kind: root.kind, relPath });
+    assert.ok(file.content.length > 0, `${relPath} 应作为文本读出来`);
+  }
+  for (const relPath of ['photo.png', 'latin.md']) {
+    assert.equal(
+      await asyncCodeOf(() => readSkillFile({ root: root.root, kind: root.kind, relPath })),
+      'error.skills.binary',
+      `${relPath} 暂不支持预览`,
+    );
+  }
   assert.equal(
     await asyncCodeOf(() => readSkillFile({ root: root.root, kind: root.kind, relPath: 'nope.md' })),
     'error.skills.file-not-found',

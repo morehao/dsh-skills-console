@@ -69,7 +69,7 @@
 | `error.skills.bad-path` | `path` 越界 / 绝对路径 / 盘符 / 反斜杠 / NUL / 经过符号链接 |
 | `error.skills.file-not-found` | 相对路径不存在 |
 | `error.skills.not-a-file` | 目标是目录或特殊文件 |
-| `error.skills.binary` | 扩展名不在白名单，或前 8 KB 含 NUL（二进制） |
+| `error.skills.binary` | 暂不支持预览：已知二进制扩展名（图片 / 音视频 / 压缩包 / 字体 / 可执行文件），或前 8 KB 含 NUL、整体不是合法 UTF-8 |
 | `error.skills.file-unreadable` | 权限不足或读取失败 |
 
 ## 路径安全
@@ -85,8 +85,9 @@
 
 ## 限制
 
-- 文本扩展名白名单：`.md` `.markdown` `.txt` `.json` `.yaml` `.yml` `.mjs` `.js` `.ts` `.sh` `.py` `.toml` `.csv`。
-- 单文件上限 256 KB（`truncated: true`，前端提示只显示前一部分）；文件树 500 条目 / 8 层。
+- **按内容判断能否预览**，不靠扩展名白名单：`.md` / `.html` / `.jsx` / `.css` / `.sh` / `.rb` / 无扩展名的脚本都能看源码；
+  只有已知二进制扩展名（`.png` `.jpg` `.mp3` `.zip` `.woff2` `.wasm` …）或内容里出现 NUL / 不是合法 UTF-8 才拒绝，前端显示「暂不支持预览」+ 文件名与大小。
+- 单文件上限 256 KB（`truncated: true`，前端提示只显示前一部分）；文件树 500 条目 / 8 层。截断时只嗅探前 8 KB，避免把多字节字符的截断误判成二进制。
 - 不做缓存与 ETag：每次打开重新读；同一会话内切文件不重拉树；更新成功后前端按 `commit` / 哈希变化自动重拉。
 - 不提供写入、重命名、上传；编辑正文不在范围内（安装 / 更新会整份覆盖）。
 
