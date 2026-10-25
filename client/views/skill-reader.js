@@ -528,31 +528,33 @@ export function SkillReader({
         h('div', { className: 'dshsc-reader-tree-head' },
           h('span', null, t('viewer.tab.files')),
           h('span', { className: 'mono' }, active || '—'),
-          renderable
-            ? h('div', { className: 'dshsc-segment dshsc-reader-seg', role: 'group', 'aria-label': t('viewer.rendered') },
-                h('button', {
+          // 预览的三个动作放在一起，靠右成一排，而不是一个贴路径、一个飘到最右
+          h('div', { className: 'dshsc-reader-tools' },
+            renderable
+              ? h('div', { className: 'dshsc-segment dshsc-reader-seg', role: 'group', 'aria-label': t('viewer.rendered') },
+                  h('button', {
+                    type: 'button',
+                    className: 'dshsc-btn',
+                    'aria-pressed': String(fileFormat === 'rendered'),
+                    onClick: () => setFileFormat('rendered'),
+                  }, t('viewer.rendered')),
+                  h('button', {
+                    type: 'button',
+                    className: 'dshsc-btn',
+                    'aria-pressed': String(fileFormat === 'raw'),
+                    onClick: () => setFileFormat('raw'),
+                  }, t('viewer.raw')))
+              : null,
+            active && !file.loading && !file.error && isMarkdownPath(active)
+              ? h('button', {
                   type: 'button',
-                  className: 'dshsc-btn',
-                  'aria-pressed': String(fileFormat === 'rendered'),
-                  onClick: () => setFileFormat('rendered'),
-                }, t('viewer.rendered')),
-                h('button', {
-                  type: 'button',
-                  className: 'dshsc-btn',
-                  'aria-pressed': String(fileFormat === 'raw'),
-                  onClick: () => setFileFormat('raw'),
-                }, t('viewer.raw')))
-            : null,
-          active && !file.loading && !file.error && isMarkdownPath(active)
-            ? h('button', {
-                type: 'button',
-                className: 'dshsc-btn ghost',
-                onClick: () => {
-                  setDocOverride({ relPath: file.relPath || active, content: file.content });
-                  setTab('doc');
-                },
-              }, t('viewer.openInDoc'))
-            : null),
+                  className: 'dshsc-btn ghost',
+                  onClick: () => {
+                    setDocOverride({ relPath: file.relPath || active, content: file.content });
+                    setTab('doc');
+                  },
+                }, t('viewer.openInDoc'))
+              : null)),
         preview));
   }
 

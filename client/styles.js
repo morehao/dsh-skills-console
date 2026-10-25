@@ -400,8 +400,13 @@ export const CSS = `
   .dshsc-reader-tree-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px;
     padding: 7px 10px; background: var(--dsw-alias-bg-layer-2); border-bottom: 1px solid var(--dsw-alias-border-l1);
     font-size: 11px; color: var(--dsw-alias-label-tertiary); }
-  .dshsc-reader-tree-head .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dshsc-reader-tree-head .dshsc-btn { margin-left: auto; height: 22px; font-size: 11px; }
+  .dshsc-reader-tree-head .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .dshsc-reader-tree-head .dshsc-btn { height: 22px; font-size: 11px; padding: 0 7px; }
+  /* 预览头的动作组：整组贴右，组内紧挨（渲染 / 原文 + 在正文中打开） */
+  .dshsc-reader-tools { margin-left: auto; flex: none; display: flex; align-items: center; gap: 6px; }
+  .dshsc-reader-tools:empty { display: none; }
+  .dshsc-reader-tools .dshsc-segment { height: 22px; }
+  .dshsc-reader-tools .dshsc-seg { margin-left: 0; }
   .dshsc-reader-tdir { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 11.5px;
     color: var(--dsw-alias-label-tertiary); }
   .dshsc-reader-tdir .n { margin-left: auto; font-variant-numeric: tabular-nums; }
