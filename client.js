@@ -848,7 +848,7 @@ function FolderIcon({ size = 12 }) {
 }
 
 // client/section.js
-var import_react5 = __toESM(require("react"), 1);
+var import_react6 = __toESM(require("react"), 1);
 
 // client/scroll.js
 function isScroller(node, tolerance = 4) {
@@ -2479,7 +2479,12 @@ function SubscriptionsTab({
 }
 
 // client/views/modals.js
+var import_react4 = __toESM(require("react"), 1);
+
+// client/views/add-skill.js
 var import_react3 = __toESM(require("react"), 1);
+
+// client/views/overlay.js
 function Overlay({ t, title, children, footer, onCancel }) {
   useOverlayLayer(true, onCancel);
   return portalize(h(
@@ -2504,212 +2509,8 @@ function Overlay({ t, title, children, footer, onCancel }) {
     )
   ), overlayHost());
 }
-function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
-  const [form, setForm] = import_react3.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
-  const incomplete = fields.some(
-    (field) => field.required !== false && !String(form[field.key] || "").trim()
-  );
-  return h(
-    Overlay,
-    {
-      t,
-      title,
-      onCancel,
-      footer: [
-        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
-        h("button", {
-          key: "s",
-          className: "dshsc-btn primary",
-          disabled: incomplete,
-          onClick: () => onSubmit(form)
-        }, t("action.save"))
-      ]
-    },
-    hint ? h("p", { className: "dshsc-sub" }, hint) : null,
-    ...fields.map((field) => h(
-      "label",
-      { className: "dshsc-field", key: field.key },
-      h("span", null, field.label),
-      h("input", {
-        value: form[field.key],
-        placeholder: field.placeholder,
-        onChange: (event) => setForm((prev) => ({ ...prev, [field.key]: event.target.value }))
-      })
-    ))
-  );
-}
-function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel }) {
-  return h(Overlay, {
-    t,
-    title,
-    onCancel,
-    footer: [
-      h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
-      h("button", { key: "o", className: `dshsc-btn${danger ? " danger" : " primary"}`, onClick: onConfirm }, confirmLabel || t("action.save"))
-    ]
-  }, h("p", { className: "dshsc-sub", style: { whiteSpace: "pre-wrap" } }, body));
-}
-function LinksModal({ t, row, agents, workspaces, pickDirectory, onCancel, onSave }) {
-  const candidates = agents.filter(
-    (agent) => agent.kind === "dsh" || agent.kind !== "project" && agent.exists
-  );
-  const [targets, setTargets] = import_react3.default.useState(() => {
-    const visible = new Set(candidates.map((agent) => agent.target));
-    const initial = new Set(row.links.map((link) => link.target).filter((target) => visible.has(target)));
-    initial.add("dsh-global");
-    return initial;
-  });
-  const [scopeProjects, setScopeProjects] = import_react3.default.useState(row.scopeProjects || []);
-  const [scopeMode, setScopeMode] = import_react3.default.useState((row.scopeProjects || []).length > 0 ? "projects" : "global");
-  const workspacePaths = new Set(workspaces.map((workspace) => workspace.path));
-  const otherProjects = scopeProjects.filter((project) => !workspacePaths.has(project));
-  const toggle = (target) => setTargets((prev) => {
-    const next = new Set(prev);
-    if (next.has(target)) next.delete(target);
-    else next.add(target);
-    return next;
-  });
-  const toggleProject = (project) => setScopeProjects((prev) => prev.includes(project) ? prev.filter((item) => item !== project) : [...prev, project]);
-  const chooseDirectory = async () => {
-    const dir = await pickDirectory?.();
-    if (!dir) return;
-    setScopeProjects((prev) => prev.includes(dir) ? prev : [...prev, dir]);
-  };
-  return h(
-    Overlay,
-    {
-      t,
-      title: `${t("action.links")} · ${row.name}`,
-      onCancel,
-      footer: [
-        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
-        h("button", {
-          key: "s",
-          className: "dshsc-btn primary",
-          onClick: () => onSave([...targets], scopeMode === "projects" ? scopeProjects.filter((item) => item.trim()) : [])
-        }, t("action.save"))
-      ]
-    },
-    h("div", { className: "dshsc-group" }, t("links.targets")),
-    h("p", { className: "dshsc-sub" }, t("links.detectedHint")),
-    h("p", { className: "dshsc-sub" }, t("links.canonical").replace("{path}", `~/.agents/skills/${row.name}`)),
-    ...candidates.map((agent) => h(
-      "label",
-      { className: `dshsc-check${agent.target === "dsh-global" ? " locked" : ""}`, key: agent.target },
-      h("input", {
-        type: "checkbox",
-        checked: agent.target === "dsh-global" ? true : targets.has(agent.target),
-        disabled: agent.target === "dsh-global",
-        onChange: () => toggle(agent.target)
-      }),
-      h("span", null, agent.kind === "dsh" ? t("links.dshGlobal") : agent.label),
-      agent.target === "dsh-global" ? h("small", null, t("links.required")) : null,
-      h("small", { title: agent.dir }, agent.dir)
-    )),
-    h("div", { className: "dshsc-group" }, t("links.scope")),
-    h(
-      "label",
-      { className: "dshsc-check" },
-      h("input", { type: "radio", name: `scope-${row.name}`, checked: scopeMode === "global", onChange: () => setScopeMode("global") }),
-      h("span", null, t("links.scopeGlobal"))
-    ),
-    h(
-      "label",
-      { className: "dshsc-check" },
-      h("input", { type: "radio", name: `scope-${row.name}`, checked: scopeMode === "projects", onChange: () => setScopeMode("projects") }),
-      h("span", null, t("links.scopeProjects"))
-    ),
-    scopeMode === "projects" ? h(
-      "div",
-      null,
-      h("div", { className: "dshsc-group" }, t("links.workspaces")),
-      workspaces.length === 0 ? h("p", { className: "dshsc-sub" }, t("links.noWorkspaces")) : h("div", { className: "dshsc-panel" }, workspaces.map((workspace) => h(
-        "label",
-        { className: "dshsc-check", key: workspace.id },
-        h("input", {
-          type: "checkbox",
-          checked: scopeProjects.includes(workspace.path),
-          onChange: () => toggleProject(workspace.path)
-        }),
-        h("span", null, workspace.title),
-        h("small", null, workspace.path)
-      ))),
-      otherProjects.length > 0 ? h("div", { className: "dshsc-group" }, t("links.selected")) : null,
-      ...otherProjects.map((project) => h(
-        "div",
-        { className: "dshsc-sub-entry", key: project },
-        h("span", { className: "dshsc-code" }, project),
-        h(
-          "div",
-          { className: "dshsc-actions" },
-          h("button", {
-            className: "dshsc-btn ghost danger",
-            onClick: () => setScopeProjects((prev) => prev.filter((item) => item !== project))
-          }, t("action.delete"))
-        )
-      )),
-      h("button", { className: "dshsc-btn", style: { alignSelf: "flex-start", marginTop: 6 }, onClick: () => void chooseDirectory() }, t("links.pickDirectory"))
-    ) : null,
-    h("p", { className: "dshsc-sub" }, t("links.hint"))
-  );
-}
-function AutoLinkModal({ t, settings, agents, dsh, onCancel, onSave }) {
-  const [targets, setTargets] = import_react3.default.useState(() => new Set(
-    Array.isArray(settings.autoLinkTargets) ? settings.autoLinkTargets : agents.map((agent) => agent.target)
-  ));
-  const toggle = (target) => setTargets((prev) => {
-    const next = new Set(prev);
-    if (next.has(target)) next.delete(target);
-    else next.add(target);
-    return next;
-  });
-  return h(
-    Overlay,
-    {
-      t,
-      title: t("autoLink"),
-      onCancel,
-      footer: [
-        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
-        h("button", { key: "s", className: "dshsc-btn primary", onClick: () => onSave([...targets]) }, t("action.save"))
-      ]
-    },
-    h("div", { className: "dshsc-group" }, t("autoLink.detected")),
-    h(
-      "div",
-      { className: "dshsc-panel" },
-      // dsh（全局）始终接入：列表里也勾上，只是不能改，勾选数与页头的计数器才对得上
-      h(
-        "label",
-        { className: "dshsc-check locked", key: "dsh-global" },
-        h("input", {
-          type: "checkbox",
-          checked: true,
-          disabled: true,
-          readOnly: true,
-          onChange: () => {
-          }
-        }),
-        h("span", null, dsh?.label || t("links.dshGlobal")),
-        h("small", null, t("links.required")),
-        dsh?.dir ? h("small", { title: dsh.dir }, dsh.dir) : null
-      ),
-      ...agents.map((agent) => h(
-        "label",
-        { className: "dshsc-check", key: agent.target },
-        h("input", {
-          type: "checkbox",
-          checked: targets.has(agent.target),
-          onChange: () => toggle(agent.target)
-        }),
-        h("span", null, agent.label),
-        h("small", null, agent.dir)
-      ))
-    ),
-    agents.length === 0 ? h("p", { className: "dshsc-sub" }, t("autoLink.none")) : null,
-    h("p", { className: "dshsc-sub" }, t("autoLink.hint"))
-  );
-}
+
+// client/views/add-skill.js
 function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
   const [source, setSource] = import_react3.default.useState("");
   const [phase, setPhase] = import_react3.default.useState("idle");
@@ -2850,6 +2651,214 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
     h("p", { className: "dshsc-sub" }, t("form.hint"))
   );
 }
+
+// client/views/modals.js
+function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
+  const [form, setForm] = import_react4.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
+  const incomplete = fields.some(
+    (field) => field.required !== false && !String(form[field.key] || "").trim()
+  );
+  return h(
+    Overlay,
+    {
+      t,
+      title,
+      onCancel,
+      footer: [
+        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
+        h("button", {
+          key: "s",
+          className: "dshsc-btn primary",
+          disabled: incomplete,
+          onClick: () => onSubmit(form)
+        }, t("action.save"))
+      ]
+    },
+    hint ? h("p", { className: "dshsc-sub" }, hint) : null,
+    ...fields.map((field) => h(
+      "label",
+      { className: "dshsc-field", key: field.key },
+      h("span", null, field.label),
+      h("input", {
+        value: form[field.key],
+        placeholder: field.placeholder,
+        onChange: (event) => setForm((prev) => ({ ...prev, [field.key]: event.target.value }))
+      })
+    ))
+  );
+}
+function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel }) {
+  return h(Overlay, {
+    t,
+    title,
+    onCancel,
+    footer: [
+      h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
+      h("button", { key: "o", className: `dshsc-btn${danger ? " danger" : " primary"}`, onClick: onConfirm }, confirmLabel || t("action.save"))
+    ]
+  }, h("p", { className: "dshsc-sub", style: { whiteSpace: "pre-wrap" } }, body));
+}
+function LinksModal({ t, row, agents, workspaces, pickDirectory, onCancel, onSave }) {
+  const candidates = agents.filter(
+    (agent) => agent.kind === "dsh" || agent.kind !== "project" && agent.exists
+  );
+  const [targets, setTargets] = import_react4.default.useState(() => {
+    const visible = new Set(candidates.map((agent) => agent.target));
+    const initial = new Set(row.links.map((link) => link.target).filter((target) => visible.has(target)));
+    initial.add("dsh-global");
+    return initial;
+  });
+  const [scopeProjects, setScopeProjects] = import_react4.default.useState(row.scopeProjects || []);
+  const [scopeMode, setScopeMode] = import_react4.default.useState((row.scopeProjects || []).length > 0 ? "projects" : "global");
+  const workspacePaths = new Set(workspaces.map((workspace) => workspace.path));
+  const otherProjects = scopeProjects.filter((project) => !workspacePaths.has(project));
+  const toggle = (target) => setTargets((prev) => {
+    const next = new Set(prev);
+    if (next.has(target)) next.delete(target);
+    else next.add(target);
+    return next;
+  });
+  const toggleProject = (project) => setScopeProjects((prev) => prev.includes(project) ? prev.filter((item) => item !== project) : [...prev, project]);
+  const chooseDirectory = async () => {
+    const dir = await pickDirectory?.();
+    if (!dir) return;
+    setScopeProjects((prev) => prev.includes(dir) ? prev : [...prev, dir]);
+  };
+  return h(
+    Overlay,
+    {
+      t,
+      title: `${t("action.links")} · ${row.name}`,
+      onCancel,
+      footer: [
+        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
+        h("button", {
+          key: "s",
+          className: "dshsc-btn primary",
+          onClick: () => onSave([...targets], scopeMode === "projects" ? scopeProjects.filter((item) => item.trim()) : [])
+        }, t("action.save"))
+      ]
+    },
+    h("div", { className: "dshsc-group" }, t("links.targets")),
+    h("p", { className: "dshsc-sub" }, t("links.detectedHint")),
+    h("p", { className: "dshsc-sub" }, t("links.canonical").replace("{path}", `~/.agents/skills/${row.name}`)),
+    ...candidates.map((agent) => h(
+      "label",
+      { className: `dshsc-check${agent.target === "dsh-global" ? " locked" : ""}`, key: agent.target },
+      h("input", {
+        type: "checkbox",
+        checked: agent.target === "dsh-global" ? true : targets.has(agent.target),
+        disabled: agent.target === "dsh-global",
+        onChange: () => toggle(agent.target)
+      }),
+      h("span", null, agent.kind === "dsh" ? t("links.dshGlobal") : agent.label),
+      agent.target === "dsh-global" ? h("small", null, t("links.required")) : null,
+      h("small", { title: agent.dir }, agent.dir)
+    )),
+    h("div", { className: "dshsc-group" }, t("links.scope")),
+    h(
+      "label",
+      { className: "dshsc-check" },
+      h("input", { type: "radio", name: `scope-${row.name}`, checked: scopeMode === "global", onChange: () => setScopeMode("global") }),
+      h("span", null, t("links.scopeGlobal"))
+    ),
+    h(
+      "label",
+      { className: "dshsc-check" },
+      h("input", { type: "radio", name: `scope-${row.name}`, checked: scopeMode === "projects", onChange: () => setScopeMode("projects") }),
+      h("span", null, t("links.scopeProjects"))
+    ),
+    scopeMode === "projects" ? h(
+      "div",
+      null,
+      h("div", { className: "dshsc-group" }, t("links.workspaces")),
+      workspaces.length === 0 ? h("p", { className: "dshsc-sub" }, t("links.noWorkspaces")) : h("div", { className: "dshsc-panel" }, workspaces.map((workspace) => h(
+        "label",
+        { className: "dshsc-check", key: workspace.id },
+        h("input", {
+          type: "checkbox",
+          checked: scopeProjects.includes(workspace.path),
+          onChange: () => toggleProject(workspace.path)
+        }),
+        h("span", null, workspace.title),
+        h("small", null, workspace.path)
+      ))),
+      otherProjects.length > 0 ? h("div", { className: "dshsc-group" }, t("links.selected")) : null,
+      ...otherProjects.map((project) => h(
+        "div",
+        { className: "dshsc-sub-entry", key: project },
+        h("span", { className: "dshsc-code" }, project),
+        h(
+          "div",
+          { className: "dshsc-actions" },
+          h("button", {
+            className: "dshsc-btn ghost danger",
+            onClick: () => setScopeProjects((prev) => prev.filter((item) => item !== project))
+          }, t("action.delete"))
+        )
+      )),
+      h("button", { className: "dshsc-btn", style: { alignSelf: "flex-start", marginTop: 6 }, onClick: () => void chooseDirectory() }, t("links.pickDirectory"))
+    ) : null,
+    h("p", { className: "dshsc-sub" }, t("links.hint"))
+  );
+}
+function AutoLinkModal({ t, settings, agents, dsh, onCancel, onSave }) {
+  const [targets, setTargets] = import_react4.default.useState(() => new Set(
+    Array.isArray(settings.autoLinkTargets) ? settings.autoLinkTargets : agents.map((agent) => agent.target)
+  ));
+  const toggle = (target) => setTargets((prev) => {
+    const next = new Set(prev);
+    if (next.has(target)) next.delete(target);
+    else next.add(target);
+    return next;
+  });
+  return h(
+    Overlay,
+    {
+      t,
+      title: t("autoLink"),
+      onCancel,
+      footer: [
+        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
+        h("button", { key: "s", className: "dshsc-btn primary", onClick: () => onSave([...targets]) }, t("action.save"))
+      ]
+    },
+    h("div", { className: "dshsc-group" }, t("autoLink.detected")),
+    h(
+      "div",
+      { className: "dshsc-panel" },
+      // dsh（全局）始终接入：列表里也勾上，只是不能改，勾选数与页头的计数器才对得上
+      h(
+        "label",
+        { className: "dshsc-check locked", key: "dsh-global" },
+        h("input", {
+          type: "checkbox",
+          checked: true,
+          disabled: true,
+          readOnly: true,
+          onChange: () => {
+          }
+        }),
+        h("span", null, dsh?.label || t("links.dshGlobal")),
+        h("small", null, t("links.required")),
+        dsh?.dir ? h("small", { title: dsh.dir }, dsh.dir) : null
+      ),
+      ...agents.map((agent) => h(
+        "label",
+        { className: "dshsc-check", key: agent.target },
+        h("input", {
+          type: "checkbox",
+          checked: targets.has(agent.target),
+          onChange: () => toggle(agent.target)
+        }),
+        h("span", null, agent.label),
+        h("small", null, agent.dir)
+      ))
+    ),
+    agents.length === 0 ? h("p", { className: "dshsc-sub" }, t("autoLink.none")) : null,
+    h("p", { className: "dshsc-sub" }, t("autoLink.hint"))
+  );
+}
 function Modals({ t, modal, data, autoLinkAgents, autoLinkDsh, pickDirectory, actions, onClose, onSaveAutoLink }) {
   if (modal.type === "add-skill") {
     return h(AddSkillModal, {
@@ -2932,7 +2941,7 @@ ${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join("\n")}`,
 }
 
 // client/views/skill-reader.js
-var import_react4 = __toESM(require("react"), 1);
+var import_react5 = __toESM(require("react"), 1);
 
 // client/markdown.js
 function classifyHref(href) {
@@ -3428,17 +3437,17 @@ function SkillReader({
   onToast
 }) {
   const { state, file, loadFile, retry } = useSkillReader(row);
-  const [tab, setTab] = import_react4.default.useState(initialTab);
-  const [format, setFormat] = import_react4.default.useState("rendered");
-  const [docOverride, setDocOverride] = import_react4.default.useState(null);
-  const [fileFormat, setFileFormat] = import_react4.default.useState("rendered");
-  const [tocActive, setTocActive] = import_react4.default.useState(null);
-  const [descOpen, setDescOpen] = import_react4.default.useState(false);
-  const [descClamped, setDescClamped] = import_react4.default.useState(false);
-  const bodyRef = import_react4.default.useRef(null);
-  const dialogRef = import_react4.default.useRef(null);
-  const descRef = import_react4.default.useRef(null);
-  const scrollRef = import_react4.default.useRef(0);
+  const [tab, setTab] = import_react5.default.useState(initialTab);
+  const [format, setFormat] = import_react5.default.useState("rendered");
+  const [docOverride, setDocOverride] = import_react5.default.useState(null);
+  const [fileFormat, setFileFormat] = import_react5.default.useState("rendered");
+  const [tocActive, setTocActive] = import_react5.default.useState(null);
+  const [descOpen, setDescOpen] = import_react5.default.useState(false);
+  const [descClamped, setDescClamped] = import_react5.default.useState(false);
+  const bodyRef = import_react5.default.useRef(null);
+  const dialogRef = import_react5.default.useRef(null);
+  const descRef = import_react5.default.useRef(null);
+  const scrollRef = import_react5.default.useRef(0);
   useOverlayLayer(variant === "drawer" || variant === "page", onClose);
   const name = row?.name || "";
   const tree = state.tree;
@@ -3447,18 +3456,18 @@ function SkillReader({
   const bodyText = docOverride ? docOverride.content : state.body?.content || "";
   const description = row?.description || state.body?.meta?.description || "";
   const headings = tab === "doc" && bodyText ? parseCached(bodyText).headings : [];
-  import_react4.default.useEffect(() => {
+  import_react5.default.useEffect(() => {
     setDocOverride(null);
     scrollRef.current = 0;
   }, [name]);
-  const descOwnerRef = import_react4.default.useRef(name);
-  import_react4.default.useEffect(() => {
+  const descOwnerRef = import_react5.default.useRef(name);
+  import_react5.default.useEffect(() => {
     if (descOwnerRef.current === name) return;
     descOwnerRef.current = name;
     setDescOpen(false);
     setDescClamped(false);
   }, [name]);
-  import_react4.default.useLayoutEffect(() => {
+  import_react5.default.useLayoutEffect(() => {
     const node = descRef.current;
     if (!node) return void 0;
     const measure = () => {
@@ -3480,16 +3489,16 @@ function SkillReader({
       window.removeEventListener("resize", measure);
     };
   }, [description, descOpen]);
-  import_react4.default.useEffect(() => {
+  import_react5.default.useEffect(() => {
     if (!initialFile) return;
     setTab("files");
     void loadFile(initialFile);
   }, [initialFile, loadFile]);
-  import_react4.default.useEffect(() => {
+  import_react5.default.useEffect(() => {
     const node = bodyRef.current;
     if (node && scrollRef.current) node.scrollTop = scrollRef.current;
   });
-  import_react4.default.useEffect(() => {
+  import_react5.default.useEffect(() => {
     if (variant !== "drawer" || typeof document === "undefined") return void 0;
     const previous = document.activeElement;
     const node = dialogRef.current;
@@ -3516,12 +3525,12 @@ function SkillReader({
       previous?.focus?.();
     };
   }, [variant, onClose]);
-  import_react4.default.useEffect(() => {
+  import_react5.default.useEffect(() => {
     if (variant !== "page" || typeof document === "undefined") return;
     const node = document.getElementById("dshsc-reader-name");
     node?.focus?.();
   }, [variant, name]);
-  import_react4.default.useEffect(() => {
+  import_react5.default.useEffect(() => {
     if (variant !== "page" || typeof window === "undefined") return void 0;
     const node = bodyRef.current;
     if (!node?.querySelectorAll) return void 0;
@@ -3960,19 +3969,19 @@ function SkillReader({
 var UPDATABLE2 = /* @__PURE__ */ new Set(["update-available", "locally-modified", "conflict"]);
 function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();
-  const [tab, setTab] = import_react5.default.useState("installed");
-  const [view, setView] = import_react5.default.useState("flat");
-  const [modal, setModal] = import_react5.default.useState(null);
-  const [expanded, setExpanded] = import_react5.default.useState({});
-  const [placementBusy, setPlacementBusy] = import_react5.default.useState(null);
-  const [placementOverride, setPlacementOverride] = import_react5.default.useState(null);
-  const [query, setQuery] = import_react5.default.useState("");
-  const [viewer, setViewer] = import_react5.default.useState(null);
-  const rootRef = import_react5.default.useRef(null);
-  const scrollPos = import_react5.default.useRef(null);
-  const restoreScroll = import_react5.default.useRef(null);
-  const [filter, setFilter] = import_react5.default.useState("all");
-  const [builtinOpen, setBuiltinOpen] = import_react5.default.useState(false);
+  const [tab, setTab] = import_react6.default.useState("installed");
+  const [view, setView] = import_react6.default.useState("flat");
+  const [modal, setModal] = import_react6.default.useState(null);
+  const [expanded, setExpanded] = import_react6.default.useState({});
+  const [placementBusy, setPlacementBusy] = import_react6.default.useState(null);
+  const [placementOverride, setPlacementOverride] = import_react6.default.useState(null);
+  const [query, setQuery] = import_react6.default.useState("");
+  const [viewer, setViewer] = import_react6.default.useState(null);
+  const rootRef = import_react6.default.useRef(null);
+  const scrollPos = import_react6.default.useRef(null);
+  const restoreScroll = import_react6.default.useRef(null);
+  const [filter, setFilter] = import_react6.default.useState("all");
+  const [builtinOpen, setBuiltinOpen] = import_react6.default.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
   const { agentTip, agentTipPos, agentTipRef, openAgentTip, closeAgentTip } = useAgentTip();
   const rows = data?.installs || [];
@@ -3993,7 +4002,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     const agentLabels = row.links.map((link) => link.target === "dsh-global" ? "DSH" : link.label);
     return [row.name, row.source || "", ...agentLabels].join(" ").toLowerCase().includes(queryText);
   });
-  import_react5.default.useEffect(() => {
+  import_react6.default.useEffect(() => {
     if (!viewer || !data) return;
     if (rows.some((row) => row.name === viewer.name)) return;
     setViewer(null);
@@ -4028,7 +4037,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     if (viewer?.mode === "page") restoreScroll.current = scrollPos.current;
     setViewer(null);
   }
-  import_react5.default.useLayoutEffect(() => {
+  import_react6.default.useLayoutEffect(() => {
     if (restoreScroll.current === null) return;
     const target = restoreScroll.current;
     restoreScroll.current = null;
@@ -4095,7 +4104,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onToast: (next) => setToast(next)
   }) : null;
   const listNode = h(
-    import_react5.default.Fragment,
+    import_react6.default.Fragment,
     null,
     h(Header, {
       t,
