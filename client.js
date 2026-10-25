@@ -850,6 +850,25 @@ function FolderIcon({ size = 12 }) {
 // client/section.js
 var import_react5 = __toESM(require("react"), 1);
 
+// client/scroll.js
+function isScroller(node, tolerance = 4) {
+  if (!node || typeof getComputedStyle !== "function") return false;
+  const style = getComputedStyle(node);
+  return Boolean(style && /(auto|scroll)/.test(style.overflowY || "") && node.scrollHeight > node.clientHeight + tolerance);
+}
+function nearestScroller(node, tolerance = 4) {
+  let current = node?.parentElement || null;
+  while (current) {
+    if (isScroller(current, tolerance)) return current;
+    current = current.parentElement || null;
+  }
+  return typeof document !== "undefined" ? document.scrollingElement || null : null;
+}
+function scrollHost(node, tolerance = 4) {
+  if (isScroller(node, tolerance)) return node;
+  return node && nearestScroller(node, tolerance) || node;
+}
+
 // client/styles.js
 var CSS = `
   /* 主面板形态：页面本身固定不滚，滚动条只出现在列表区（.dshsc-listscroll）。
@@ -3196,7 +3215,7 @@ function resolveRelativeHref(currentDir, href) {
   return { relPath: out.join("/"), anchor: target.kind === "anchor" ? target.href : "" };
 }
 
-// client/views/skill-reader.js
+// client/views/markdown-view.js
 var PARSE_CACHE = /* @__PURE__ */ new Map();
 function parseCached(text) {
   const key = String(text ?? "");
@@ -3209,49 +3228,6 @@ function parseCached(text) {
   }
   return parsed;
 }
-function formatBytes(bytes) {
-  const value = Number(bytes) || 0;
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-function formatWhen(iso) {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-var MARKDOWN = /\.(md|markdown)$/i;
-function isMarkdownPath(relPath) {
-  return MARKDOWN.test(String(relPath || ""));
-}
-function isScroller(node) {
-  if (!node || typeof getComputedStyle !== "function") return false;
-  const style = getComputedStyle(node);
-  return Boolean(style && /(auto|scroll)/.test(style.overflowY || "") && node.scrollHeight > node.clientHeight + 4);
-}
-function nearestScroller(node) {
-  let current = node?.parentElement || null;
-  while (current) {
-    if (isScroller(current)) return current;
-    current = current.parentElement || null;
-  }
-  return typeof document !== "undefined" ? document.scrollingElement || null : null;
-}
-function scrollHost(node) {
-  if (isScroller(node)) return node;
-  return node && nearestScroller(node) || node;
-}
-var STATUS_KEY = {
-  current: "status.current",
-  "update-available": "status.update",
-  "locally-modified": "status.local",
-  conflict: "status.conflict",
-  "upstream-deleted": "status.deleted",
-  "broken-link": "status.broken",
-  unmanaged: "status.unmanaged"
-};
 function inlineNodes(nodes, { onOpenFile, onOpenAnchor, keyPrefix = "i" }) {
   if (!Array.isArray(nodes)) return null;
   return nodes.map((node, index) => {
@@ -3384,6 +3360,34 @@ function Markdown({ text, onOpenFile, onOpenAnchor }) {
   const { blocks } = parseCached(text);
   return h("div", { className: "dshsc-md" }, blockNodes(blocks, { onOpenFile, onOpenAnchor }));
 }
+
+// client/views/skill-reader.js
+function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+function formatWhen(iso) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+var MARKDOWN = /\.(md|markdown)$/i;
+function isMarkdownPath(relPath) {
+  return MARKDOWN.test(String(relPath || ""));
+}
+var STATUS_KEY = {
+  current: "status.current",
+  "update-available": "status.update",
+  "locally-modified": "status.local",
+  conflict: "status.conflict",
+  "upstream-deleted": "status.deleted",
+  "broken-link": "status.broken",
+  unmanaged: "status.unmanaged"
+};
 function TabButton({ id, label, count, active, onSelect }) {
   return h("button", {
     type: "button",
@@ -4001,23 +4005,10 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const autoLinkDsh = (data?.agents?.all || []).find((agent) => agent.target === "dsh-global") || null;
   const autoLinkLabel = [t("links.dshGlobal"), ...autoLinkAgents.map((agent) => agent.label)].join("、");
   const placement = (placementOverride ?? data?.settings?.placement) === "sidebar" ? "sidebar" : "settings";
-  function getScrollParent(node) {
-    let current = node?.parentElement || null;
-    while (current) {
-      if (typeof getComputedStyle === "function") {
-        const style = getComputedStyle(current);
-        if (style && /(auto|scroll)/.test(style.overflowY || "") && current.scrollHeight > current.clientHeight) {
-          return current;
-        }
-      }
-      current = current.parentElement || null;
-    }
-    return typeof document !== "undefined" ? document.scrollingElement || null : null;
-  }
   function listScroller() {
     const node = rootRef.current?.querySelector?.(".dshsc-listscroll");
-    if (node && node.scrollHeight > node.clientHeight) return node;
-    return getScrollParent(rootRef.current);
+    if (isScroller(node)) return node;
+    return nearestScroller(rootRef.current);
   }
   function openViewer(row, mode = "drawer") {
     if (!row) return;
