@@ -7,16 +7,20 @@ export function SubscriptionsTab({
   onToggle, onRefresh, onDelete, onInstall, onAdd,
 }) {
   if (subscriptions.length === 0) {
-    return h(
-      'div',
-      { className: 'dshsc-empty' },
-      h('div', { className: 'dshsc-name' }, t('empty.subs')),
-      h('div', { className: 'dshsc-meta', style: { justifyContent: 'center' } }, t('empty.subsHint')),
-      h('div', { style: { marginTop: 10 } },
-        h('button', { className: 'dshsc-btn primary', disabled: !writable, onClick: onAdd }, t('action.addSubscription'))),
-    );
+    return h('div', { className: 'dshsc-tabpane' },
+      h('div', { className: 'dshsc-listscroll' },
+        h(
+          'div',
+          { className: 'dshsc-empty' },
+          h('div', { className: 'dshsc-name' }, t('empty.subs')),
+          h('div', { className: 'dshsc-meta', style: { justifyContent: 'center' } }, t('empty.subsHint')),
+          h('div', { style: { marginTop: 10 } },
+            h('button', { className: 'dshsc-btn primary', disabled: !writable, onClick: onAdd }, t('action.addSubscription'))),
+        )));
   }
-  return h('div', { className: 'dshsc-list' }, subscriptions.map((subscription) => {
+  return h('div', { className: 'dshsc-tabpane' },
+    h('div', { className: 'dshsc-listscroll' },
+      h('div', { className: 'dshsc-list' }, subscriptions.map((subscription) => {
     const entries = subscription.snapshot?.entries || [];
     const installedNames = new Set(rows.filter((row) => row.subscriptionId === subscription.id).map((row) => row.name));
     const open = Boolean(expanded[subscription.id]);
@@ -61,5 +65,5 @@ export function SubscriptionsTab({
           }))
         : null,
     );
-  }));
+  }))));
 }

@@ -265,16 +265,23 @@ export function InstalledTab({
   }
 
   function content() {
-    if (!data) return h('div', { className: 'dshsc-empty' }, t('empty.loading'));
+    // 列表区是唯一的滚动容器：顶部的提示 / 筛选条固定，只有行区域跟着页面剩余高度滚。
+    if (!data) {
+      return h('div', { className: 'dshsc-tabpane' },
+        h('div', { className: 'dshsc-listscroll' },
+          h('div', { className: 'dshsc-empty' }, t('empty.loading'))));
+    }
     if (rows.length === 0) {
-      return h(
-        'div',
-        { className: 'dshsc-empty' },
-        h('div', { className: 'dshsc-name' }, t('empty.skills')),
-        h('div', { className: 'dshsc-meta', style: { justifyContent: 'center' } }, t('empty.skillsHint')),
-        h('div', { style: { marginTop: 10 } },
-          h('button', { className: 'dshsc-btn primary', disabled: !writable, onClick: actions.onAddSkill }, t('action.addSkill'))),
-      );
+      return h('div', { className: 'dshsc-tabpane' },
+        h('div', { className: 'dshsc-listscroll' },
+          h(
+            'div',
+            { className: 'dshsc-empty' },
+            h('div', { className: 'dshsc-name' }, t('empty.skills')),
+            h('div', { className: 'dshsc-meta', style: { justifyContent: 'center' } }, t('empty.skillsHint')),
+            h('div', { style: { marginTop: 10 } },
+              h('button', { className: 'dshsc-btn primary', disabled: !writable, onClick: actions.onAddSkill }, t('action.addSkill'))),
+          )));
     }
     const body = view === 'agent'
       ? h('div', { className: 'dshsc-groupstack' }, groupedRows().map((group) =>
@@ -287,11 +294,12 @@ export function InstalledTab({
       : h('div', { className: 'dshsc-list' }, visibleRows.map(rowView));
     return h(
       'div',
-      { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      { className: 'dshsc-tabpane' },
       visibleOnlyBanners(),
       builtinNotice(),
       listBar(),
-      visibleRows.length === 0 ? filteredEmpty() : body,
+      h('div', { className: 'dshsc-listscroll' },
+        visibleRows.length === 0 ? filteredEmpty() : body),
     );
   }
 

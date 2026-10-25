@@ -115,6 +115,19 @@ function collectByType(node, type, out = []) {
   return out;
 }
 
+/** 按 className 收集节点（className 是普通字符串，够本插件的视图用）。 */
+function collectByClass(node, className, out = []) {
+  if (!node || typeof node !== 'object') return out;
+  if (Array.isArray(node)) {
+    for (const child of node) collectByClass(child, className, out);
+    return out;
+  }
+  const classes = String(node.props?.className || '').split(/\s+/);
+  if (classes.includes(className)) out.push(node);
+  for (const child of node.children) collectByClass(child, className, out);
+  return out;
+}
+
 /** 设置导航的一行：只实现 client.js 用到的 textContent / attribute 接口。 */
 function navRow(text) {
   const attrs = new Set();
@@ -531,14 +544,34 @@ test('页头按内容自然换行，不靠固定宽度断点，也不强制整�
   assert.ok(!css.includes('max-width: 520px'), '页头不再单独维护固定断点');
 });
 
-test('页面预留滚动条槽位：滚动条出现/消失不改变内容宽度', async () => {
+test('滚动条只出现在列表区：页面固定、行区域自己滚', async () => {
   const { Component, stub } = loadModule(STATE);
   const first = stub.render(Component, {});
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
-  assert.match(css, /\.dshsc-page\s*\{[^}]*scrollbar-gutter:\s*stable/, '滚动条不能挤占内容宽度');
+
+  assert.match(css, /\.dshsc-page\s*\{[^}]*overflow:\s*hidden/, '页面本身不能滚，滚动条只留在列表区');
+  assert.ok(
+    !/\.dshsc-page\s*\{[^}]*overflow:\s*auto/.test(css),
+    '页面不能再是全局滚动容器',
+  );
+  assert.match(css, /\.dshsc-root\s*\{[^}]*height:\s*100%/, '根节点要撑满挂载面，列表区才有确定高度');
+  assert.match(css, /\.dshsc-listscroll\s*\{[^}]*flex:\s*1/, '列表区吃满页头 / 工具栏之外的剩余高度');
+  assert.match(css, /\.dshsc-listscroll\s*\{[^}]*overflow:\s*auto/, '只有列表区出现滚动条');
+  assert.match(css, /\.dshsc-listscroll\s*\{[^}]*scrollbar-gutter:\s*stable/, '滚动条出现/消失不能挤窄行区域');
+
+  const scroll = collectByClass(tree, 'dshsc-listscroll');
+  assert.equal(scroll.length, 1, '已安装 tab 只有一个列表滚动容器');
+  assert.ok(collectByClass(scroll[0], 'dshsc-list').length >= 1, '技能行在滚动容器里');
+  const tabpane = collectByClass(tree, 'dshsc-tabpane');
+  assert.equal(tabpane.length, 1, 'tab 面板是列表区的外壳');
+  assert.ok(collectByClass(tabpane[0], 'dshsc-listbar').length === 1, '筛选条固定在面板里，不跟着行滚动');
+  assert.ok(
+    collectByClass(scroll[0], 'dshsc-toolbar').length === 0,
+    '工具栏不能被吞进滚动区',
+  );
 });
 
 test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧', async () => {
@@ -1326,6 +1359,12 @@ test('查看：在整页打开 → 返回条 + 目录；返回回到列表', asy
   const list = await settle(stub, Component, page.hooks);
   assert.ok(textOf(list.tree).includes('已安装 3'), '返回后回到列表');
   assert.equal(collectByType(list.tree, 'aside').length, 0);
+
+  // 页面本身固定后，整页阅读器要自己撑满：顶栏固定，正文列内部滚
+  const css = collectByType(page.tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  assert.match(css, /\.dshsc-reader-page\s*\{[^}]*flex:\s*1/, '整页阅读器吃满列表页面高度');
+  assert.match(css, /\.dshsc-reader-layout\s*\{[^}]*flex:\s*1/, '正文布局区自己占满剩余高度');
+  assert.match(css, /\.dshsc-reader-body\s*\{[^}]*overflow:\s*auto/, '长正文在正文列内部滚动，返回条不跟着滚走');
 });
 
 test('查看：readOnly（state 损坏）时仍能查看，管理动作禁用', async () => {
