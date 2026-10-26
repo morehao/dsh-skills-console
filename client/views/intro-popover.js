@@ -132,18 +132,18 @@ export function IntroPopover({
 
   return portalize(h('div', {
     ref,
-    className: 'dshsc-policy-pop dshsc-intro-pop',
+    className: 'dshsc-floatpop dshsc-intro-pop',
     role: 'dialog',
     'aria-label': `${t('intro.title')} · ${name}`,
     style: { left: `${pos.left}px`, top: `${pos.top}px`, visibility: pos.visibility },
   },
-  h('div', { className: 'dshsc-policy-head' },
+  h('div', { className: 'dshsc-floatpop-head' },
     h('div', null,
-      h('div', { className: 'dshsc-policy-title' }, `✨ ${t('intro.title')}`),
-      h('div', { className: 'dshsc-policy-sub', title: subtitle || name }, subtitle || name)),
+      h('div', { className: 'dshsc-floatpop-title' }, `✨ ${t('intro.title')}`),
+      h('div', { className: 'dshsc-floatpop-sub', title: subtitle || name }, subtitle || name)),
     h('button', {
       type: 'button',
-      className: 'dshsc-policy-close',
+      className: 'dshsc-floatpop-close',
       'aria-label': t('action.close'),
       onClick: onClose,
     }, '×')),

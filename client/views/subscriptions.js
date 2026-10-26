@@ -170,7 +170,7 @@ export function SubscriptionsTab({
                       ? h('div', { className: 'dshsc-sub-desc', title: entry.description }, entry.description)
                       : null),
                   h('span', { className: `dshsc-state${installedAlready ? ' ok' : ''}` },
-                    installedAlready ? '✓ ' : '', installedAlready ? t('installed') : t('notInstalled')),
+                    installedAlready ? t('installed') : t('notInstalled')),
                   h('div', { className: 'dshsc-actions' },
                     installedAlready
                       // 没有可做的操作也用破折号占位，避免操作列看起来像漏渲染

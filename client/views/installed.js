@@ -8,7 +8,7 @@ import { h } from '../host.js';
 import { short } from '../api.js';
 import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, ShareIcon } from '../icons.js';
 import { IntroPopover } from './intro-popover.js';
-import { PolicyPopover } from './policy-popover.js';
+import { PolicyModal } from './policy-modal.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
@@ -49,16 +49,11 @@ export function InstalledTab({
     });
   }
 
-  function openPolicy(event, row) {
+  /** 行内策略 chip：和共享设置 / 删除一样，打开居中的标准弹窗。 */
+  function openPolicy(row) {
     if (busy !== null || row.kind === 'file') return;
     if (row.mode === 'manual' && row.origin === 'author') return;
-    const el = event.currentTarget;
-    const rect = el.getBoundingClientRect();
-    setPolicy({
-      row,
-      anchorEl: el,
-      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height },
-    });
+    setPolicy({ row });
   }
 
   /** 行内唯一的状态入口：自动 / 仅手动 / 完全停用 / 旧版 DSH-only / 作者声明 / 需修复。 */
@@ -77,7 +72,7 @@ export function InstalledTab({
         disabled: busy !== null,
         title: t('policy.hiddenHint'),
         'aria-haspopup': 'dialog',
-        onClick: (event) => openPolicy(event, row),
+        onClick: () => openPolicy(row),
       }, t('policy.hidden'));
     }
     if (mode === 'manual' && row.origin === 'author') {
@@ -93,7 +88,7 @@ export function InstalledTab({
         disabled: busy !== null,
         title: t('policy.driftHint'),
         'aria-haspopup': 'dialog',
-        onClick: (event) => openPolicy(event, row),
+        onClick: () => openPolicy(row),
       }, t('policy.drift'));
     }
     if (row.legacy === 'dsh-off') {
@@ -103,7 +98,7 @@ export function InstalledTab({
         disabled: busy !== null,
         title: t('policy.legacyHint'),
         'aria-haspopup': 'dialog',
-        onClick: (event) => openPolicy(event, row),
+        onClick: () => openPolicy(row),
       }, t('policy.legacy'));
     }
     if (mode === 'manual') {
@@ -113,7 +108,7 @@ export function InstalledTab({
         disabled: busy !== null,
         title: t('policy.manualOnlyHint'),
         'aria-haspopup': 'dialog',
-        onClick: (event) => openPolicy(event, row),
+        onClick: () => openPolicy(row),
       }, t('policy.manual'));
     }
     return h('button', {
@@ -122,7 +117,7 @@ export function InstalledTab({
       disabled: busy !== null,
       title: t('policy.open'),
       'aria-haspopup': 'dialog',
-      onClick: (event) => openPolicy(event, row),
+      onClick: () => openPolicy(row),
     }, t('policy.auto'));
   }
 
@@ -524,12 +519,10 @@ export function InstalledTab({
       })
     : null;
 
-  const popover = policy
-    ? h(PolicyPopover, {
+  const policyModal = policy
+    ? h(PolicyModal, {
         t,
         row: policy.row,
-        anchor: policy.anchor,
-        anchorEl: policy.anchorEl,
         busy: busy !== null,
         onClose: () => setPolicy(null),
         onSave: (mode) => {
@@ -544,5 +537,5 @@ export function InstalledTab({
         },
       })
     : null;
-  return h(React.Fragment, null, content(), popover, introPopover);
+  return h(React.Fragment, null, content(), policyModal, introPopover);
 }

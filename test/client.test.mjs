@@ -437,15 +437,20 @@ test('调用策略：仅手动行点 chip 打开三档弹层，保存发 invocat
   out = await settle(stub, Component, out.hooks);
 
   const text = textOf(out.tree);
-  assert.ok(text.includes('调用策略'), '打开三档弹层');
+  assert.ok(text.includes('调用策略'), '打开三档弹窗');
   assert.ok(!text.includes('客户端覆盖'), '不再展示客户端覆盖表');
   assert.ok(!text.includes('OpenCode'), '弹层不再列各客户端');
-  // 矮窗口里标题与底栏要钉住：只有中间那层滚，footer 掉进滚动区就会被裁掉
-  const scroll = collectByClass(out.tree, 'dshsc-policy-scroll');
-  assert.equal(scroll.length, 1, '弹层有独立滚动区');
-  assert.equal(collectByClass(scroll[0], 'dshsc-policy-head').length, 0, '标题不在滚动区里');
-  assert.equal(collectByClass(scroll[0], 'dshsc-policy-foot').length, 0, '底部按钮不在滚动区里');
-  assert.equal(collectByClass(scroll[0], 'dshsc-policyopt').length, 3, '三档选项在滚动区里');
+  // 和共享设置 / 删除一样：居中遮罩 + 标准弹窗外壳 + 标准底栏，不再锚在 chip 旁边
+  assert.equal(collectByClass(out.tree, 'dshsc-overlay').length, 1, '调用策略走居中弹窗');
+  assert.equal(collectByClass(out.tree, 'dshsc-modal').length, 1, '复用标准弹窗外壳');
+  assert.equal(collectByClass(out.tree, 'dshsc-modal-foot').length, 1, '底栏是标准弹窗底栏');
+  assert.equal(collectByClass(out.tree, 'dshsc-policyopt').length, 3, '三档选项都在弹窗里');
+  assert.equal(collectByClass(out.tree, 'dshsc-floatpop').length, 0, '不再渲染锚定浮层');
+
+  // 三档放进共享设置同款列表容器，不再自己滚一层
+  const css = collectByType(out.tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
+  assert.match(css, /\.dshsc-policy-options\s*\{[^}]*max-height:\s*none/, '三档列表不额外滚动');
+  assert.match(css, /\.dshsc-policyopt-dot\s*\{[^}]*width:\s*15px/, '单选圆点与共享设置的勾选同尺寸');
 
   const autoOption = collectButtons(out.tree).find((button) => textOf(button).includes('模型与 / 都能调用'));
   assert.ok(autoOption, '三档里包含自动');
@@ -459,6 +464,51 @@ test('调用策略：仅手动行点 chip 打开三档弹层，保存发 invocat
   const call = calls.find((item) => item.url.endsWith('/skills/git-kit/invocation'));
   assert.ok(call, '保存应 POST /skills/:name/invocation');
   assert.equal(JSON.parse(call.body).mode, 'auto');
+});
+
+test('调用策略：完全停用先在弹窗底栏二次确认，确认后才 POST', async () => {
+  const row = ROW();
+  const calls = [];
+  const fetchStub = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method, body: init.body });
+    if (String(url).endsWith('/state')) {
+      return { ok: true, status: 200, json: async () => ({ ...STATE, installs: [row] }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ ok: true, mode: 'hidden' }) };
+  };
+  const { Component, stub } = loadModule({ ...STATE, installs: [row] }, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+
+  const chip = collectByClass(out.tree, 'dshsc-chip').find((node) => textOf(node) === '自动');
+  assert.ok(chip, 'auto 行显示「自动」chip');
+  chip.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+
+  const hiddenOption = collectButtons(out.tree).find((button) => textOf(button).includes('所有 Agent 都看不到'));
+  assert.ok(hiddenOption, '弹窗里有完全停用选项');
+  hiddenOption.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+
+  const save = collectButtons(out.tree).find((button) => textOf(button).trim() === '保存');
+  assert.ok(save, '选中完全停用后仍先给保存');
+  save.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.ok(textOf(out.tree).includes('完全停用这个技能？'), '保存时先显示二次确认');
+  assert.ok(
+    !calls.some((item) => item.url.endsWith('/skills/git-kit/invocation')),
+    '仅仅选中选项 / 点保存不发请求',
+  );
+
+  const confirm = collectButtons(out.tree).find(
+    (button) => textOf(button).trim() === '完全停用' && String(button.props.className || '').includes('danger'),
+  );
+  assert.ok(confirm, '确认按钮在标准弹窗底栏');
+  confirm.props.onClick();
+  await settle(stub, Component, out.hooks);
+
+  const call = calls.find((item) => item.url.endsWith('/skills/git-kit/invocation'));
+  assert.ok(call, '确认后 POST /skills/:name/invocation');
+  assert.equal(JSON.parse(call.body).mode, 'hidden');
 });
 
 test('调用策略：作者声明仅手动时 chip 只读，不弹层', async () => {
@@ -1583,6 +1633,11 @@ test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给�
   const entryRows = collectByClass(tree, 'dshsc-sub-entry');
   assert.equal(entryRows.length, 2);
   assert.ok(textOf(entryRows[0]).includes('已安装'), '已装条目显示已安装');
+  assert.equal(
+    textOf(collectByClass(entryRows[0], 'dshsc-state')[0]).trim(),
+    '已安装',
+    '已安装状态只用文字，不再带对钩',
+  );
   assert.ok(!collectButtons(entryRows[0]).some((button) => textOf(button).trim() === '安装'), '已装条目不再给安装按钮');
   assert.ok(textOf(entryRows[0]).includes('-'), '已装条目的操作列用破折号占位');
 });
