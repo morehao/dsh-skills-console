@@ -15,6 +15,7 @@ const run = promisify(execFile);
 const ALLOWED_EXACT = new Set([
 	"package.json",
 	"README.md",
+	"README.en.md",
 	"LICENSE",
 	"cordis.patch.yml",
 	"icon.svg",
@@ -28,6 +29,7 @@ const FORBIDDEN_PREFIX = ["client/", "scripts/", "test/", ".dsh/", ".github/"];
 const required = [
 	"package.json",
 	"README.md",
+	"README.en.md",
 	"LICENSE",
 	"cordis.patch.yml",
 	"icon.svg",
