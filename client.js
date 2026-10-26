@@ -1357,10 +1357,15 @@ var CSS = `
   .dshsc-sub-list { display: flex; flex-direction: column; padding: 0 12px 7px 46px;
     background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 22%, transparent);
     border-top: 1px solid var(--dsw-alias-border-l1); }
+  /* 条目操作列 92px 是照两枚按钮预留的，眼下每行只有一枚「安装」（两字 ≈ 43px：0 9px padding + 边框）。
+     表头「操作」和已装行的破折号都按按钮宽度做一个右对齐的居中盒子：三者落在同一条中轴上，
+     既不贴着列右缘，也不用改列宽 / 挪按钮。换语言或字号时盒子只是不再严格等于按钮宽度。 */
+  .dshsc-sub-list { --dshsc-entry-act: 44px; }
   .dshsc-entryhead { display: grid; grid-template-columns: minmax(0, 1fr) 110px 92px; gap: 10px;
     align-items: center; height: 26px; border-bottom: 1px solid var(--dsw-alias-border-l1);
     color: var(--dsw-alias-label-tertiary); font-size: 10px; font-weight: 500; letter-spacing: .02em; }
-  .dshsc-entryhead .right { text-align: right; padding-right: 2px; }
+  .dshsc-entryhead .right { justify-self: end; box-sizing: border-box; width: var(--dshsc-entry-act);
+    text-align: center; padding-right: 0; }
   .dshsc-sub-entry { display: grid; grid-template-columns: minmax(0, 1fr) 110px 92px; gap: 10px;
     align-items: center; font-size: 12px; padding: 6px 0; border-top: 1px solid var(--dsw-alias-border-l1); }
   .dshsc-entryhead + .dshsc-sub-entry { border-top: 0; }
@@ -1374,8 +1379,9 @@ var CSS = `
   .dshsc-state.ok svg { color: var(--dsw-alias-state-success-primary); }
   .dshsc-sub-entry .dshsc-actions { justify-self: end; display: flex; justify-content: flex-end; }
   .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
-  /* 已装条目的操作列没有动作：破折号占位，保持右对齐与按钮基线一致 */
-  .dshsc-sub-entry .dshsc-noop { color: var(--dsw-alias-label-tertiary); font-size: 11.5px; line-height: 24px; padding-right: 9px; }
+  /* 已装条目的操作列没有动作：破折号占位，居中在按钮宽度里，和表头、安装按钮同一条中轴 */
+  .dshsc-sub-entry .dshsc-noop { box-sizing: border-box; width: var(--dshsc-entry-act); padding: 0;
+    text-align: center; color: var(--dsw-alias-label-tertiary); font-size: 11.5px; line-height: 24px; }
   /* 设置页的真实宽度常常远小于窗口（侧栏 + 页面缩放），视口 media query 不可靠；
      以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。
      断点取 860 而不是贴着面板常见的 ~900：四列网格需要 280 + 150 + 操作列 + 3×14 gap + 中间列，
