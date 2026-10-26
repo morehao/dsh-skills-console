@@ -1,4 +1,4 @@
-/** 弹层：表单 / 确认 / 接入设置 / 自动接入 + 按 modal.type 分发；外壳在 overlay.js，添加技能在 add-skill.js。 */
+/** 弹层：表单 / 确认 / 共享设置 / 自动共享 + 按 modal.type 分发；外壳在 overlay.js，添加技能在 add-skill.js。 */
 import React from 'react';
 
 import { h } from '../host.js';
@@ -49,8 +49,8 @@ export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, conf
 }
 
 /**
- * 导出设置：把技能暴露给**不读共享根**的其他 Agent。
- * 这里没有作用范围：DSH 的可见性由本地策略决定，导出只影响别的 agent。
+ * 共享设置：把技能暴露给**不读共享根**的其他 Agent。
+ * 这里没有作用范围：DSH 的可见性由本地策略决定，共享只影响别的 agent。
  */
 export function ExportsModal({ t, row, agents, onCancel, onSave }) {
   // 只列本机真有目录、且能当导出目标的 agent（`exportable` 由 Host 判断：

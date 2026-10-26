@@ -74,11 +74,11 @@ var DICT = {
   zh: {
     "section.title": "技能控制台",
     "page.title": "技能控制台",
-    "section.subtitle": "统一管理本地技能的安装、更新、删除与接入，让同一份技能在多个 Agent 间复用。",
+    "section.subtitle": "统一管理本地技能的安装、更新、删除与共享，让同一份技能在多个 Agent 间复用。",
     "tab.installed": "已安装",
     "tab.subscriptions": "订阅",
     "column.skill": "技能",
-    "column.agents": "接入 Agent",
+    "column.agents": "共享 Agent",
     "column.policy": "调用策略",
     "column.actions": "操作",
     "column.skillAgents": "技能（含 Agent）",
@@ -96,7 +96,7 @@ var DICT = {
     "action.unsubscribe": "取消订阅",
     "action.view": "查看",
     "action.hide": "收起",
-    "action.exports": "导出设置",
+    "action.exports": "共享设置",
     "action.install": "安装",
     "action.expand": "展开",
     "action.collapse": "收起",
@@ -108,7 +108,7 @@ var DICT = {
     "action.retry": "重新加载",
     "view.flat": "平铺",
     "view.agent": "按 Agent",
-    exportDefault: "新安装时自动导出",
+    exportDefault: "新安装时自动共享",
     "settings.title": "插件设置",
     "placement.label": "侧边栏入口",
     "placement.effect": "切换后立即生效",
@@ -127,14 +127,14 @@ var DICT = {
     "status.noUpstream": "无上游",
     "status.noUpstreamHint": "没有可用的订阅来源，无法检查更新；重新接管或添加订阅后再试",
     "status.off": "已停用",
-    "status.brokenHint": "软链目标不存在：重新接入，或删除后重装",
+    "status.brokenHint": "共享链接失效：重新共享，或删除后重装",
     "adopt.switchHint": "还未纳入追踪，不能启停",
     "adopt.noUpstream": "没有远端来源，暂时无法检测更新",
     "adopt.done": "已纳入追踪",
     "toast.checked": "检查完成",
     "mode.on": "启用",
     "mode.off": "停用",
-    "mode.offHint": "已停用：DSH 的模型调用与 `/` 手动调用都看不到它；技能文件、导出关系与其他 Agent 都不受影响",
+    "mode.offHint": "已停用：DSH 的模型调用与 `/` 手动调用都看不到它；技能文件、共享关系与其他 Agent 都不受影响",
     "policy.auto": "自动",
     "policy.manual": "仅手动",
     "policy.hidden": "完全停用",
@@ -145,55 +145,47 @@ var DICT = {
     "policy.flat": "平铺 .md 不支持",
     "policy.open": "设置调用策略",
     "policy.title": "调用策略",
-    "policy.subtitle": "只改 canonical 的 SKILL.md frontmatter；项目副本不受影响。",
+    "policy.subtitle": "只改变 DSH 对这份技能的调用方式；项目里的同名副本不受影响。",
     "policy.autoDesc": "模型与 / 都能调用。",
     "policy.manualDesc": "模型不自动调用，手动 / 仍可用。",
-    "policy.hiddenDesc": "改成 SKILL.md.disabled；所有 Agent 都看不到，可随时恢复。",
-    "policy.authorHint": "作者已在 SKILL.md 里声明 disable-model-invocation；插件只读，改回自动请编辑文件。",
+    "policy.hiddenDesc": "所有 Agent 都看不到，可随时恢复。",
+    "policy.authorHint": "作者已把这份技能固定为「仅手动」；插件不会覆盖，改回自动需要编辑技能文件。",
     "policy.legacyHint": "旧版 DSH-only 停用：只隐藏 DSH 的模型调用；选择任一模式完成迁移。",
-    "policy.driftHint": "文件里的标记与记录不一致，可能被外部改过；选择「仅手动」可重试写入。",
-    "policy.coverage": "客户端覆盖",
-    "policy.coverageHint": "disable-model-invocation 不是规范字段；只承诺已确认的客户端。",
-    "policy.risk": "「完全停用」会改名文件，所有客户端一致不可见；恢复只改文件名，不重新下载。",
+    "policy.driftHint": "记录与技能文件不一致，可能被外部改过；选择「仅手动」可重试。",
     "policy.hiddenConfirmTitle": "完全停用这个技能？",
-    "policy.hiddenConfirmBody": "会把 SKILL.md 改名为 SKILL.md.disabled，并写一个恢复标记；所有 Agent 都看不到。不会删除内容，随时可恢复。",
+    "policy.hiddenConfirmBody": "所有 Agent 都看不到；不会删除内容，随时可恢复。",
     "policy.hiddenConfirm": "完全停用",
     "policy.saving": "保存中…",
     "policy.saved": "调用策略已更新",
-    "policy.savedManual": "已写入 SKILL.md；更新后自动重放",
-    "policy.savedAuto": "已恢复自动；标记行已移除",
+    "policy.savedManual": "已设为仅手动；更新后会保持",
+    "policy.savedAuto": "已恢复自动",
     "policy.savedHidden": "已完全停用；可随时恢复",
     "policy.unpark": "恢复",
     "policy.unparkTitle": "恢复技能",
-    "policy.unparkBody": "将回到停用前的模式（{mode}）。只把文件名改回来，不重新下载，也不用重建导出链。",
+    "policy.unparkBody": "将回到停用前的模式（{mode}）；不需要重新下载，其他设置也不受影响。",
     "policy.unparkDone": "已恢复；模型与 / 按停用前的模式生效",
     "policy.manualOnlyHint": "仅手动：模型不会自动调用，手动 / 仍可用",
-    "policy.hiddenHint": "完全停用：目录里没有 SKILL.md；随时可恢复",
+    "policy.hiddenHint": "完全停用：所有 Agent 都看不到；随时可恢复",
     "policy.legacyNote": "当前仍是旧版 DSH-only 停用",
     "policy.driftNote": "仅手动标记需修复",
-    "policy.authorNote": "作者已在 SKILL.md 声明，插件不覆盖",
+    "policy.authorNote": "作者已设为仅手动，插件不覆盖",
     "policy.hiddenNote": "恢复后回到停用前的模式；停用期间不能更新或重装",
     "policy.unparkKept": "已恢复；冲突文件保留在 {path}",
     "policy.unparkDrift": "已恢复，但文件内容与停用时不一致；请检查或重新检查更新",
-    "coverage.yes": "支持",
-    "coverage.no": "不支持",
-    "coverage.version": "版本相关",
-    "coverage.unverified": "未验证",
-    "coverage.spec": "按规范不可见",
     "filter.manual": "仅手动",
     "visibility.hiddenHint": "已启用，但扫描目录里没有它：确认 ~/.agents/skills 下真有这个技能，或检查 DSH_AGENTS_HOME。",
-    "visibility.manualOnlyHint": "该技能自己声明了 `disable-model-invocation`：模型调用看不到它，手动 `/` 调用仍可用。",
-    "visibility.scopeMismatch": "当前有另一份同名技能排在前面（项目或用户目录）；停用只影响 canonical，不会隐藏它。",
+    "visibility.manualOnlyHint": "技能作者自己设了「仅手动」：模型调用看不到它，手动 `/` 调用仍可用。",
+    "visibility.scopeMismatch": "当前有另一份同名技能排在前面（项目或用户目录）；停用只影响这一份，不会隐藏它。",
     "visibility.foreignWinner": "模型看到的是另一份同名技能：{path}（它的扫描根 rank 更小，会遮住这一份）",
-    "exports.targets": "导出到哪些 Agent",
-    "exports.detectedHint": "只列出本机已安装（目录存在）的 Agent。导出只影响它们；DSH 自己看不看得见由 DSH 决定，和导出无关。",
-    "exports.canonical": "技能本体：{path}；下面的链只是把它暴露给不直接读该目录的 Agent。",
-    "exports.none": "本机没有可导出的 Agent 目录",
-    "exports.hint": "保存后按勾选建立或移除软链；技能本体留在原位置，不会移动。",
-    "exports.sharedUnknown": "共享根未验证",
-    "exportDefault.detected": "装完后默认导出到",
-    "exportDefault.none": "本机没有需要导出的 Agent",
-    "exportDefault.hint": "默认一个都不勾：技能装进 ~/.agents/skills 后 DSH 本来就能看见。导出只用于仍只认私有目录的 Agent，且只影响之后的安装。",
+    "exports.targets": "共享 Agent",
+    "exports.detectedHint": "只列出本机已安装（目录存在）的 Agent。共享只影响它们；DSH 自己看不看得见由 DSH 决定，和共享无关。",
+    "exports.canonical": "技能本体：{path}；勾选后只是让不直接读该目录的 Agent 也能用，不会复制文件。",
+    "exports.none": "本机没有可共享的 Agent 目录",
+    "exports.hint": "保存后按勾选建立或移除链接；技能本体留在原位置，不会移动。",
+    "exports.sharedUnknown": "共享目录未验证",
+    "exportDefault.detected": "装完后默认共享至以下 Agent",
+    "exportDefault.none": "本机没有需要共享的 Agent",
+    "exportDefault.hint": "默认一个都不勾：技能装进 ~/.agents/skills 后 DSH 本来就能看见。共享只用于仍只认私有目录的 Agent，且只影响之后的安装。",
     "empty.skills": "还没有安装任何技能",
     "empty.skillsHint": "在终端跑 `npx skills add owner/repo`，或点右上角「添加技能」",
     "empty.subs": "还没有添加订阅",
@@ -207,7 +199,7 @@ var DICT = {
     "form.probing": "读取中…",
     "form.probingHint": "正在读仓库的文件树，稍等一下…",
     "form.detected": "检测到 {n} 个技能，勾选要安装的",
-    "form.skipped": "另有 {n} 个 SKILL.md 缺少 name/description，CLI 无法安装，已跳过",
+    "form.skipped": "另有 {n} 个技能缺少名称或描述，已跳过",
     "form.selectAll": "全选",
     "form.selectNone": "全不选",
     "form.pickHint": "先填来源并检测；仓库里有多个技能时可以多选，只有一个会默认勾上。",
@@ -217,23 +209,23 @@ var DICT = {
     "form.ref": "ref（分支 / tag，可空）",
     "form.refHint": "留空则自动跟随仓库默认分支",
     "form.subpath": "子目录（可空）",
-    "form.hint": "会立即下载并写入 ~/.agents/skills，并按「自动接入」设置接到对应 Agent。",
+    "form.hint": "会立即下载并写入 ~/.agents/skills，并按「新安装时自动共享」的选择共享至对应 Agent。",
     "form.subHint": "只记录你关注这个仓库，不会安装任何技能。",
     "subscription.defaultRef": "默认分支",
     "confirm.deleteTitle": "删除技能",
-    "confirm.deleteBody": "会从本机移除，断开本插件建立的软链并删除 canonical / lock 条目；目录先备份到回收站（保留 7 天）。不会删除你的源仓库。",
+    "confirm.deleteBody": "会从本机移除，断开本插件建立的其他 Agent 链接并清理记录；目录先备份到回收站（保留 7 天）。不会删除你的源仓库。",
     "confirm.updateTitle": "本地有改动",
     "confirm.updateBody": "更新会覆盖这些本地改动；旧内容已备份，可回滚。",
     "error.conflictTitle": "删除被拦截",
     "busy.working": "处理中…",
     "meta.from": "来自",
     "meta.noUpstream": "无远端来源 · 不检测更新",
-    "meta.noExport": "未导出",
-    "meta.noExportHint": "没有给不支持共享根的 Agent 建导出链；直读 ~/.agents/skills 的 Agent 装好即见，无需导出。",
+    "meta.noExport": "未共享",
+    "meta.noExportHint": "没有给不支持共享根的 Agent 建链接；直读 ~/.agents/skills 的 Agent 装好即见，无需共享。",
     "meta.modelVisible": "模型可见",
     "meta.modelHidden": "模型不可见",
     "meta.manualOnly": "仅手动",
-    "meta.agentsAll": "已导出的 Agent",
+    "meta.agentsAll": "已共享的 Agent",
     "meta.none": "无",
     "filter.all": "全部",
     "filter.update": "可更新",
@@ -305,8 +297,8 @@ var DICT = {
     "viewer.info.localChange": "本地改动",
     "viewer.info.localChangeNone": "无（与安装时一致）",
     "viewer.info.localChangeYes": "有本地改动",
-    "viewer.info.links": "接入",
-    "viewer.info.exported": "已导出",
+    "viewer.info.links": "共享",
+    "viewer.info.exported": "已共享",
     "viewer.info.visibility": "可见性",
     "viewer.info.mode": "状态",
     "viewer.info.status": "更新",
@@ -315,11 +307,11 @@ var DICT = {
   en: {
     "section.title": "Skills Console",
     "page.title": "Skills Console",
-    "section.subtitle": "Manage local skills in one place: install, update, remove and link — so the same skill can be reused across agents.",
+    "section.subtitle": "Manage local skills in one place: install, update, remove and share — so the same skill can be reused across agents.",
     "tab.installed": "Installed",
     "tab.subscriptions": "Subscriptions",
     "column.skill": "Skill",
-    "column.agents": "Agents",
+    "column.agents": "Shared with",
     "column.policy": "Invocation",
     "column.actions": "Actions",
     "column.skillAgents": "Skill & agents",
@@ -337,7 +329,7 @@ var DICT = {
     "action.unsubscribe": "Unsubscribe",
     "action.view": "View",
     "action.hide": "Hide",
-    "action.exports": "Export settings",
+    "action.exports": "Share settings",
     "action.install": "Install",
     "action.expand": "Expand",
     "action.collapse": "Collapse",
@@ -349,7 +341,7 @@ var DICT = {
     "action.retry": "Reload",
     "view.flat": "Flat",
     "view.agent": "By agent",
-    "exportDefault": "Auto-export on install",
+    "exportDefault": "Auto-share on install",
     "settings.title": "Plugin settings",
     "placement.label": "Sidebar entry",
     "placement.effect": "Applies immediately",
@@ -368,13 +360,13 @@ var DICT = {
     "status.noUpstream": "No upstream",
     "status.noUpstreamHint": "No usable subscription source, so update checks are impossible; re-adopt or add a subscription",
     "status.off": "Disabled",
-    "status.brokenHint": "The link target is missing: relink, or delete and reinstall",
+    "status.brokenHint": "The shared link is broken: share it again, or delete and reinstall",
     "adopt.switchHint": "Not tracked yet, cannot be enabled or disabled",
     "adopt.noUpstream": "No upstream source; update checks are unavailable",
     "toast.checked": "Checked",
     "mode.on": "Enabled",
     "mode.off": "Disabled",
-    "mode.offHint": "Disabled for DSH’s model and `/` calls; the skill files, exports, and other agents are untouched",
+    "mode.offHint": "Disabled for DSH’s model and `/` calls; the skill files, shares, and other agents are untouched",
     "policy.auto": "Auto",
     "policy.manual": "Manual only",
     "policy.hidden": "Fully disabled",
@@ -385,55 +377,47 @@ var DICT = {
     "policy.flat": "Flat .md unsupported",
     "policy.open": "Set invocation policy",
     "policy.title": "Invocation policy",
-    "policy.subtitle": "Only edits the canonical SKILL.md frontmatter; project copies are untouched.",
+    "policy.subtitle": "Applies only to how DSH invokes this skill; project copies are untouched.",
     "policy.autoDesc": "The model and `/` can invoke it.",
     "policy.manualDesc": "The model will not invoke it; `/` still works.",
-    "policy.hiddenDesc": "Renames SKILL.md to SKILL.md.disabled; invisible to every agent, restorable.",
-    "policy.authorHint": "The author declares disable-model-invocation in SKILL.md; the plugin is read-only — edit the file to restore auto.",
+    "policy.hiddenDesc": "Invisible to every agent; restorable at any time.",
+    "policy.authorHint": "The author fixed this skill to “Manual only”; the plugin will not override it — edit the skill file to restore auto.",
     "policy.legacyHint": "Legacy DSH-only disable: only hides DSH model calls; pick a mode to migrate.",
-    "policy.driftHint": "The file marker and the record disagree; it may have been edited externally. Pick “Manual only” to retry.",
-    "policy.coverage": "Client coverage",
-    "policy.coverageHint": "disable-model-invocation is a client extension, not part of the spec; only verified clients are promised.",
-    "policy.risk": "“Fully disabled” renames the file so every client agrees; restoring only renames it back, with no re-download.",
+    "policy.driftHint": "The record and the skill file disagree; it may have been edited externally. Pick “Manual only” to retry.",
     "policy.hiddenConfirmTitle": "Fully disable this skill?",
-    "policy.hiddenConfirmBody": "SKILL.md becomes SKILL.md.disabled and a restore marker is written; every agent stops seeing it. Nothing is deleted, and you can restore at any time.",
+    "policy.hiddenConfirmBody": "Every agent stops seeing it. Nothing is deleted, and you can restore at any time.",
     "policy.hiddenConfirm": "Disable fully",
     "policy.saving": "Saving…",
     "policy.saved": "Invocation policy updated",
-    "policy.savedManual": "Written to SKILL.md; replayed after updates",
-    "policy.savedAuto": "Auto restored; the marker line was removed",
+    "policy.savedManual": "Set to manual only; kept after updates",
+    "policy.savedAuto": "Auto restored",
     "policy.savedHidden": "Fully disabled; restorable at any time",
     "policy.unpark": "Restore",
     "policy.unparkTitle": "Restore skill",
-    "policy.unparkBody": "Returns to the mode before disabling ({mode}). It only renames the file back; no re-download or relink.",
+    "policy.unparkBody": "Returns to the mode before disabling ({mode}); no re-download, and other settings stay as they are.",
     "policy.unparkDone": "Restored; the model and `/` follow the previous mode",
     "policy.manualOnlyHint": "Manual only: the model will not invoke it; `/` still works",
-    "policy.hiddenHint": "Fully disabled: no SKILL.md in the directory; restorable",
+    "policy.hiddenHint": "Fully disabled: invisible to every agent; restorable",
     "policy.legacyNote": "Still on the legacy DSH-only disable",
     "policy.driftNote": "The manual-only marker needs repair",
-    "policy.authorNote": "Declared in SKILL.md by the author; the plugin will not overwrite it",
+    "policy.authorNote": "Set to manual only by the author; the plugin will not override it",
     "policy.hiddenNote": "Restores to the previous mode; updates and reinstalls are blocked while parked",
     "policy.unparkKept": "Restored; conflict copy kept at {path}",
     "policy.unparkDrift": "Restored, but the file differs from when it was parked; review or check for updates",
-    "coverage.yes": "Supported",
-    "coverage.no": "Not supported",
-    "coverage.version": "Version dependent",
-    "coverage.unverified": "Unverified",
-    "coverage.spec": "Hidden by spec discovery",
     "filter.manual": "Manual only",
     "visibility.hiddenHint": "Enabled, but no copy sits in a scan directory: check that the skill really exists under ~/.agents/skills, or inspect DSH_AGENTS_HOME.",
-    "visibility.manualOnlyHint": "This skill declares `disable-model-invocation`: the model cannot invoke it, but manual `/` invocation still works.",
-    "visibility.scopeMismatch": "Another copy of this skill ranks first (project or user directory); disabling only affects the canonical copy.",
+    "visibility.manualOnlyHint": "The skill author set it to “Manual only”: the model cannot invoke it, but manual `/` invocation still works.",
+    "visibility.scopeMismatch": "Another copy of this skill ranks first (project or user directory); disabling only affects this copy.",
     "visibility.foreignWinner": "The model sees a different copy of this skill: {path} (its scan root ranks higher, so it shadows this one)",
-    "exports.targets": "Export to agents",
-    "exports.detectedHint": "Only installed agents (existing directories) are listed. Exports only affect them; whether DSH sees the skill is up to DSH, not exports.",
-    "exports.canonical": "Skill source: {path}; the entries below only expose it to agents that do not read that directory directly.",
-    "exports.none": "No agent directories available for export on this machine",
-    "exports.hint": "Saving only adds or removes links; the skill itself stays where it is.",
-    "exports.sharedUnknown": "shared root unverified",
-    "exportDefault.detected": "Export new installs to",
-    "exportDefault.none": "No agents need exporting on this machine",
-    "exportDefault.hint": "Nothing is checked by default: once a skill lands in ~/.agents/skills, DSH already sees it. Exports only matter for agents that still read their own directory, and only affect future installs.",
+    "exports.targets": "Share with which agents",
+    "exports.detectedHint": "Only installed agents (existing directories) are listed. Sharing only affects them; whether DSH sees the skill is up to DSH, not sharing.",
+    "exports.canonical": "Skill source: {path}; ticking an agent only makes it available there — nothing is copied.",
+    "exports.none": "No agent directories available to share to on this machine",
+    "exports.hint": "Saving adds or removes links; the skill itself stays where it is.",
+    "exports.sharedUnknown": "shared directory unverified",
+    "exportDefault.detected": "Share new installs with",
+    "exportDefault.none": "No agents need sharing on this machine",
+    "exportDefault.hint": "Nothing is checked by default: once a skill lands in ~/.agents/skills, DSH already sees it. Sharing only matters for agents that still read their own directory, and only affects future installs.",
     "empty.skills": "No skills installed yet",
     "empty.skillsHint": 'Run `npx skills add owner/repo` or use "Add skill".',
     "empty.subs": "No subscriptions yet",
@@ -447,7 +431,7 @@ var DICT = {
     "form.probing": "Reading…",
     "form.probingHint": "Reading the repository tree…",
     "form.detected": "Found {n} skills; pick the ones to install",
-    "form.skipped": "{n} SKILL.md file(s) skipped: missing name/description",
+    "form.skipped": "{n} skill(s) skipped: missing a name or description",
     "form.selectAll": "Select all",
     "form.selectNone": "Clear",
     "form.pickHint": "Enter a source and detect first. Pick one or more when the repo has several.",
@@ -457,23 +441,23 @@ var DICT = {
     "form.ref": "ref (branch / tag, optional)",
     "form.refHint": "empty follows the repository default branch",
     "form.subpath": "Subdirectory (optional)",
-    "form.hint": "Downloads into ~/.agents/skills and links agents per the auto-link setting.",
+    "form.hint": "Downloads into ~/.agents/skills and shares it with agents per the auto-share setting.",
     "form.subHint": "Only records the repository; installs nothing.",
     "subscription.defaultRef": "default branch",
     "confirm.deleteTitle": "Delete skill",
-    "confirm.deleteBody": "Removes it locally, disconnects this plugin’s links, and deletes the canonical directory and lock entry. A snapshot stays in trash for 7 days. Your source repo is untouched.",
+    "confirm.deleteBody": "Removes it locally, disconnects the agent links this plugin created, and clears the record. A snapshot stays in trash for 7 days. Your source repo is untouched.",
     "confirm.updateTitle": "Local changes",
     "confirm.updateBody": "Updating overwrites local changes; the old content is backed up and can be rolled back.",
     "error.conflictTitle": "Delete blocked",
     "busy.working": "Working…",
     "meta.from": "from",
     "meta.noUpstream": "no upstream · updates not checked",
-    "meta.noExport": "Not exported",
-    "meta.noExportHint": "No export links to agents that need them; agents that read ~/.agents/skills can use it as-is.",
+    "meta.noExport": "Not shared",
+    "meta.noExportHint": "No links to agents that need them; agents that read ~/.agents/skills can use it as-is.",
     "meta.modelVisible": "visible to the model",
     "meta.modelHidden": "hidden from the model",
     "meta.manualOnly": "Manual only",
-    "meta.agentsAll": "Exported agents",
+    "meta.agentsAll": "Shared with",
     "meta.none": "none",
     "filter.all": "All",
     "filter.update": "Updates",
@@ -546,8 +530,8 @@ var DICT = {
     "viewer.info.localChange": "Local changes",
     "viewer.info.localChangeNone": "None (matches install)",
     "viewer.info.localChangeYes": "Modified locally",
-    "viewer.info.links": "Linked",
-    "viewer.info.exported": "Exported",
+    "viewer.info.links": "Shared",
+    "viewer.info.exported": "Shared",
     "viewer.info.visibility": "Visibility",
     "viewer.info.mode": "State",
     "viewer.info.status": "Updates",
@@ -828,7 +812,7 @@ function DownloadIcon({ size = 14 }) {
     h("path", { d: "M4 20h16" })
   );
 }
-function PlugIcon({ size = 14 }) {
+function ShareIcon({ size = 14 }) {
   return h(
     "svg",
     {
@@ -843,9 +827,11 @@ function PlugIcon({ size = 14 }) {
       "aria-hidden": true,
       style: { display: "block" }
     },
-    h("path", { d: "M9 6V3M15 6V3" }),
-    h("path", { d: "M6 6h12v5a6 6 0 0 1-12 0V6Z" }),
-    h("path", { d: "M12 17v4" })
+    h("rect", { x: 9.2, y: 2.8, width: 5.6, height: 5.6, rx: 1.2 }),
+    h("rect", { x: 2.4, y: 15.4, width: 5.6, height: 5.6, rx: 1.2 }),
+    h("rect", { x: 16, y: 15.4, width: 5.6, height: 5.6, rx: 1.2 }),
+    h("path", { d: "M10.4 8.8 6.2 15.4" }),
+    h("path", { d: "M13.6 8.8 17.8 15.4" })
   );
 }
 function InfoIcon({ size = 13 }) {
@@ -1169,7 +1155,7 @@ var CSS = `
     transition: background .12s ease; }
   .dshsc-list > .dshsc-row:first-child, .dshsc-listhead + .dshsc-row { border-top: 0; }
   /* 表头与行共用同一套列宽/间距，只有列语义；不参与排序或筛选。
-     操作列暂按 4 个图标按钮（查看/更新/导出设置/删除）取 104px，三档 chip 落地、行内
+     操作列暂按 4 个图标按钮（查看/更新/共享设置/删除）取 104px，三档 chip 落地、行内
      去掉重复的「查看」后收窄到设计稿的 92px。 */
   .dshsc-listhead { display: grid; grid-template-columns: 280px minmax(0, 1fr) 150px 104px;
     gap: 14px; align-items: center; padding: 7px 12px 7px 14px;
@@ -1325,6 +1311,8 @@ var CSS = `
   .dshsc-state.ok svg { color: var(--dsw-alias-state-success-primary); }
   .dshsc-sub-entry .dshsc-actions { justify-self: end; display: flex; justify-content: flex-end; }
   .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
+  /* 已装条目的操作列没有动作：破折号占位，保持右对齐与按钮基线一致 */
+  .dshsc-sub-entry .dshsc-noop { color: var(--dsw-alias-label-tertiary); font-size: 11.5px; line-height: 24px; padding-right: 9px; }
   /* 设置页的真实宽度常常远小于窗口（侧栏 + 页面缩放），视口 media query 不可靠；
      以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。
      断点取 860 而不是贴着面板常见的 ~900：四列网格需要 280 + 150 + 操作列 + 3×14 gap + 中间列，
@@ -1410,19 +1398,7 @@ var CSS = `
     background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 9%, transparent); }
   .dshsc-policy-hidden { display: flex; flex-direction: column; gap: 8px; }
   .dshsc-policy-restore { align-self: flex-start; }
-  .dshsc-policy-coverage { padding-top: 9px; border-top: 1px solid var(--dsw-alias-border-l1); }
-  .dshsc-policy-coverage-head, .dshsc-policy-coverage-row { display: grid;
-    grid-template-columns: minmax(0, 1fr) 88px 92px; gap: 6px; align-items: center; }
-  .dshsc-policy-coverage-head { padding-bottom: 4px; color: var(--dsw-alias-label-tertiary);
-    font-size: 10.5px; font-weight: 600; letter-spacing: .02em; }
-  .dshsc-policy-coverage-row { padding: 3px 0; color: var(--dsw-alias-label-secondary); font-size: 11px; }
-  .dshsc-policy-coverage-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cov { font-size: 10.5px; }
-  .cov.yes { color: var(--dsw-alias-state-success-primary); }
-  .cov.version { color: var(--dsw-alias-state-warn-primary); }
-  .cov.unverified, .cov.spec { color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; }
-  .dshsc-policy-risk { margin: 0; font-size: 10.5px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 9px;
     border: 1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 34%, var(--dsw-alias-border-l1));
     background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 7%, transparent); }
@@ -2322,14 +2298,7 @@ var import_react4 = __toESM(require("react"), 1);
 
 // client/views/policy-popover.js
 var import_react3 = __toESM(require("react"), 1);
-function coverageLabel(t, value) {
-  if (value === "yes") return t("coverage.yes");
-  if (value === "no") return t("coverage.no");
-  if (value === "version") return t("coverage.version");
-  if (value === "spec") return t("coverage.spec");
-  return t("coverage.unverified");
-}
-function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSave, onUnpark }) {
+function PolicyPopover({ t, row, anchor, anchorEl, busy, onClose, onSave, onUnpark }) {
   const initial = row.mode === "hidden" ? "auto" : row.mode;
   const [mode, setMode] = import_react3.default.useState(initial);
   const [confirming, setConfirming] = import_react3.default.useState(false);
@@ -2364,7 +2333,6 @@ function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSav
   const hidden = row.mode === "hidden";
   const author = row.origin === "author" && row.mode === "manual";
   const flat = row.kind === "file";
-  const clients = support?.clients || [];
   const dirty = mode !== initial || Boolean(row.legacy) || Boolean(row.drift);
   function choose(next) {
     setMode(next);
@@ -2451,25 +2419,6 @@ function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSav
       option("manual", t("policy.manual"), t("policy.manualDesc")),
       option("hidden", t("policy.hidden"), t("policy.hiddenDesc"))
     ),
-    clients.length > 0 ? h(
-      "div",
-      { className: "dshsc-policy-coverage" },
-      h(
-        "div",
-        { className: "dshsc-policy-coverage-head" },
-        h("span", null, t("policy.coverage")),
-        h("span", null, t("policy.manual")),
-        h("span", null, t("policy.hidden"))
-      ),
-      clients.map((client) => h(
-        "div",
-        { className: "dshsc-policy-coverage-row", key: client.id },
-        h("span", { title: client.source || "" }, client.label),
-        h("span", { className: `cov ${client.manual}` }, coverageLabel(t, client.manual)),
-        h("span", { className: `cov ${client.hidden}` }, coverageLabel(t, client.hidden))
-      )),
-      h("p", { className: "dshsc-policy-sub" }, t("policy.coverageHint"))
-    ) : null,
     confirming ? h(
       "div",
       { className: "dshsc-policy-confirm" },
@@ -2501,8 +2450,7 @@ function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSav
         disabled: busy || !dirty || flat,
         onClick: submit
       }, busy ? t("policy.saving") : t("action.save"))
-    ),
-    h("p", { className: "dshsc-policy-risk" }, t("policy.risk"))
+    )
   ), overlayHost());
 }
 
@@ -2795,7 +2743,7 @@ function InstalledTab({
             title: t("action.exports"),
             "aria-label": `${t("action.exports")} ${row.name}`,
             onClick: () => actions.onExports(row)
-          }, h(PlugIcon, { size: 13 })),
+          }, h(ShareIcon, { size: 13 })),
           h("button", {
             key: "delete",
             className: "dshsc-btn ghost danger sq",
@@ -2976,7 +2924,6 @@ function InstalledTab({
   const popover = policy ? h(PolicyPopover, {
     t,
     row: policy.row,
-    support: data?.invocation?.support || null,
     anchor: policy.anchor,
     anchorEl: policy.anchorEl,
     busy: busy !== null,
@@ -3027,6 +2974,10 @@ function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
 }
 
 // client/views/subscriptions.js
+function repoOf(source) {
+  const value = String(source || "").trim().toLowerCase().replace(/\.git$/, "");
+  return value || null;
+}
 function SubscriptionsTab({
   t,
   subscriptions,
@@ -3078,7 +3029,15 @@ function SubscriptionsTab({
       ),
       subscriptions.map((subscription) => {
         const entries = subscription.snapshot?.entries || [];
-        const installedNames = new Set(rows.filter((row) => row.subscriptionId === subscription.id).map((row) => row.name));
+        const repo = repoOf(subscription.source);
+        const rowsByName = new Map(rows.map((row) => [row.name, row]));
+        const installedRow = (name) => {
+          const row = rowsByName.get(name);
+          if (!row) return null;
+          if (row.subscriptionId === subscription.id) return row;
+          return repo && repoOf(row.source) === repo ? row : null;
+        };
+        const installedCount = entries.filter((entry) => installedRow(entry.name)).length;
         const open = Boolean(expanded[subscription.id]);
         return h(
           "div",
@@ -3105,7 +3064,7 @@ function SubscriptionsTab({
               h(
                 "span",
                 { className: "dshsc-substat" },
-                `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedNames.size}`
+                `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedCount}`
               )
             ),
             h(
@@ -3132,7 +3091,7 @@ function SubscriptionsTab({
               h("div", { className: "right" }, t("column.actions"))
             ),
             entries.map((entry) => {
-              const installedAlready = installedNames.has(entry.name);
+              const installedAlready = Boolean(installedRow(entry.name));
               return h(
                 "div",
                 { className: "dshsc-sub-entry", key: entry.name },
@@ -3146,7 +3105,7 @@ function SubscriptionsTab({
                 h(
                   "div",
                   { className: "dshsc-actions" },
-                  installedAlready ? null : h("button", {
+                  installedAlready ? h("span", { className: "dshsc-noop" }, "-") : h("button", {
                     className: "dshsc-btn",
                     disabled: !writable || busy !== null,
                     onClick: () => void onInstall(subscription, entry)

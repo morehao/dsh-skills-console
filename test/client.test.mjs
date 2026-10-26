@@ -324,12 +324,6 @@ const STATE = {
   },
   subscriptions: [],
   invocation: {
-    support: {
-      clients: [
-        { id: 'dsh', label: 'DSH', manual: 'yes', hidden: 'yes', source: 'test' },
-        { id: 'opencode', label: 'OpenCode', manual: 'version', hidden: 'yes', source: 'test' },
-      ],
-    },
     modes: ['auto', 'manual', 'hidden'],
   },
   workspaces: [
@@ -358,14 +352,14 @@ test('渲染：三个技能、状态标签、tab 计数、操作列四件套', a
   await new Promise((resolve) => setTimeout(resolve, 20));
   const second = stub.render(Component, {}, first.hooks);
   const text = textOf(second.tree);
-  for (const expected of ['git-kit', 'handoff', 'pdf-tools', '最新', '可更新', '异常：软链断裂', '已安装 3', '新安装时自动导出']) {
+  for (const expected of ['git-kit', 'handoff', 'pdf-tools', '最新', '可更新', '异常：软链断裂', '已安装 3', '新安装时自动共享']) {
     assert.ok(text.includes(expected), `缺少文案：${expected}`);
   }
   const labels = collectButtons(second.tree).map((button) => textOf(button).trim());
   const named = (label) => collectButtons(second.tree).some(
     (button) => button.props['aria-label'] === label || button.props.title === label,
   );
-  for (const action of ['查看', '更新', '导出设置']) {
+  for (const action of ['查看', '更新', '共享设置']) {
     assert.ok(named(action), `${action} 是图标按钮，但必须有可访问名称`);
     assert.ok(!labels.includes(action), `${action} 不再占文字宽度`);
   }
@@ -402,7 +396,7 @@ test('已安装表头：四列与窄屏两列并存，列宽与行共用一套�
   const heads = collectByClass(tree, 'dshsc-listhead');
   assert.equal(heads.length, 1, '平铺视图只有一个表头');
   const head = textOf(heads[0]);
-  for (const expected of ['技能', '接入 Agent', '调用策略', '操作']) {
+  for (const expected of ['技能', '共享 Agent', '调用策略', '操作']) {
     assert.ok(head.includes(expected), `表头缺少：${expected}`);
   }
 
@@ -441,8 +435,8 @@ test('调用策略：仅手动行点 chip 打开三档弹层，保存发 invocat
 
   const text = textOf(out.tree);
   assert.ok(text.includes('调用策略'), '打开三档弹层');
-  assert.ok(text.includes('客户端覆盖'), '弹层带客户端覆盖表');
-  assert.ok(text.includes('OpenCode'), '覆盖表列出已确认的客户端');
+  assert.ok(!text.includes('客户端覆盖'), '不再展示客户端覆盖表');
+  assert.ok(!text.includes('OpenCode'), '弹层不再列各客户端');
 
   const autoOption = collectButtons(out.tree).find((button) => textOf(button).includes('模型与 / 都能调用'));
   assert.ok(autoOption, '三档里包含自动');
@@ -469,7 +463,7 @@ test('调用策略：作者声明仅手动时 chip 只读，不弹层', async ()
   const chip = collectByClass(out.tree, 'dshsc-chip').find((node) => textOf(node) === '仅手动 · 只读');
   assert.ok(chip, '作者声明用只读 chip');
   assert.equal(chip.type, 'span', '作者声明的 chip 不是按钮');
-  assert.ok(textOf(out.tree).includes('作者已在 SKILL.md 声明，插件不覆盖'), '说明为什么只读');
+  assert.ok(textOf(out.tree).includes('作者已设为仅手动，插件不覆盖'), '说明为什么只读');
 });
 
 test('完全停用：chip 打开恢复入口，二次确认后 POST /unpark', async () => {
@@ -520,7 +514,7 @@ test('完全停用：操作列只留恢复 / 删除', async () => {
   assert.ok(labels.some((label) => label.startsWith('恢复')));
   assert.ok(labels.some((label) => label.startsWith('删除')));
   assert.ok(!labels.some((label) => label.startsWith('更新')), '停用行不给更新');
-  assert.ok(!labels.some((label) => label.startsWith('导出设置')), '停用行不给导出设置');
+  assert.ok(!labels.some((label) => label.startsWith('共享设置')), '停用行不给共享设置');
 });
 
 test('订阅表头：四列 + 展开条目子表头，窄屏收成仓库 / 操作', async () => {
@@ -596,7 +590,7 @@ test('未纳入追踪：开关禁用、可见性以中性状态点表达、保�
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
   const text = textOf(tree);
-  for (const expected of ['未纳入追踪', '未导出', '接管']) {
+  for (const expected of ['未纳入追踪', '未共享', '接管']) {
     assert.ok(text.includes(expected), `缺少文案：${expected}`);
   }
   assert.ok(!text.includes('DSH'), '页面上不再有 DSH 专属标识（可见性只做中性展示）');
@@ -847,7 +841,7 @@ test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧',
   assert.ok(actions, '页头右侧有动作区');
   assert.ok(!collectByType(actions, 'a').includes(link), 'GitHub 不再混在业务动作区');
   const labels = collectButtons(actions).map((button) => textOf(button).trim());
-  assert.deepEqual(labels, ['新安装时自动导出 · 1 ▾', '添加技能'], '右侧只剩业务动作，主按钮在最右');
+  assert.deepEqual(labels, ['新安装时自动共享 · 1 ▾', '添加技能'], '右侧只剩业务动作，主按钮在最右');
 });
 
 test('页头身份：按安装时要输入的包名显示（@scope/name@version），只读不设复制', async () => {
@@ -898,7 +892,7 @@ test('页头副标题：讲清本地技能与跨 Agent 复用，不出现技术�
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const zh = textOf(stub.render(Component, {}, first.hooks).tree);
-  assert.ok(zh.includes('统一管理本地技能的安装、更新、删除与接入'), '中文副标题要保留定稿措辞');
+  assert.ok(zh.includes('统一管理本地技能的安装、更新、删除与共享'), '中文副标题要保留定稿措辞');
   assert.ok(zh.includes('让同一份技能在多个 Agent 间复用'), '中文副标题要说明跨 Agent 复用');
   assert.ok(!zh.includes('canonical'), '中文副标题不出现 canonical');
   assert.ok(!zh.includes('skills CLI'), '中文副标题不出现 skills CLI');
@@ -1020,16 +1014,16 @@ test('自动导出：只列本机已装的 Agent，默认不勾任何目标', as
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
-  const header = collectButtons(tree).find((button) => String(textOf(button)).startsWith('新安装时自动导出'));
-  assert.ok(header, '要有「新安装时自动导出」入口');
+  const header = collectButtons(tree).find((button) => String(textOf(button)).startsWith('新安装时自动共享'));
+  assert.ok(header, '要有「新安装时自动共享」入口');
   assert.ok(String(header.props.title).includes('Claude Code'), 'tooltip 里要有已勾选的 Agent');
   assert.ok(!String(header.props.title).includes('CodeBuddy'), '未安装的 Agent 不进摘要');
-  assert.match(String(textOf(header)), /新安装时自动导出 · 1/, '摘要只数真正会被导出的 Agent');
+  assert.match(String(textOf(header)), /新安装时自动共享 · 1/, '摘要只数真正会被导出的 Agent');
 
   header.props.onClick();
   const modal = stub.render(Component, {}, first.hooks).tree;
   const text = textOf(modal);
-  assert.ok(text.includes('装完后默认导出到'));
+  assert.ok(text.includes('装完后默认共享至以下 Agent'));
   assert.ok(text.includes('Claude Code'));
   assert.ok(!text.includes('CodeBuddy'), '未安装的 Agent 不展示');
   assert.ok(!text.includes('dsh（全局）'), 'DSH 读共享根，不参与导出');
@@ -1063,15 +1057,15 @@ test('自动导出：读共享根的 Agent 不进列表，也不再单独解释'
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
-  const header = collectButtons(tree).find((button) => String(textOf(button)).startsWith('新安装时自动导出'));
+  const header = collectButtons(tree).find((button) => String(textOf(button)).startsWith('新安装时自动共享'));
   assert.ok(header, '要有入口');
-  assert.match(String(textOf(header)), /新安装时自动导出 · 0/, 'v1 残留的 opencode 不该再计数');
+  assert.match(String(textOf(header)), /新安装时自动共享 · 0/, 'v1 残留的 opencode 不该再计数');
 
   header.props.onClick();
   const modal = stub.render(Component, {}, first.hooks).tree;
   // 弹窗叠在列表之上：只断言弹窗自己
   const dialog = collectByClass(modal, 'dshsc-modal')[0];
-  assert.ok(dialog, '导出设置弹窗要在');
+  assert.ok(dialog, '共享设置弹窗要在');
   const text = textOf(dialog);
   const checks = collectByType(modal, 'input').filter((node) => node.props.type === 'checkbox');
   assert.equal(checks.length, 1, '只剩 Claude Code 一个可选目标');
@@ -1092,22 +1086,22 @@ test('自动导出：一个 Agent 都没探测到时，列表为空并说明原�
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
-  const header = collectButtons(tree).find((button) => String(textOf(button)).startsWith('新安装时自动导出'));
-  assert.match(String(textOf(header)), /新安装时自动导出 · 0/, '没有目标时计数为 0');
+  const header = collectButtons(tree).find((button) => String(textOf(button)).startsWith('新安装时自动共享'));
+  assert.match(String(textOf(header)), /新安装时自动共享 · 0/, '没有目标时计数为 0');
   header.props.onClick();
   const modal = stub.render(Component, {}, first.hooks).tree;
   const checks = collectByType(modal, 'input').filter((node) => node.props.type === 'checkbox');
   assert.equal(checks.length, 0, '一个可导出的目标都没有');
-  assert.ok(textOf(modal).includes('本机没有需要导出的 Agent'));
+  assert.ok(textOf(modal).includes('本机没有需要共享的 Agent'));
 });
 
-test('导出设置：只列本机已装 Agent，不再有作用范围', async () => {
+test('共享设置：只列本机已装 Agent，不再有作用范围', async () => {
   const { Component, stub } = loadModule(STATE);
   const first = stub.render(Component, {});
   first.effects.forEach((fn) => fn());
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
-  const exportButton = buttonByText(tree, '导出设置');
+  const exportButton = buttonByText(tree, '共享设置');
   assert.ok(exportButton);
   exportButton.props.onClick();
 
@@ -1126,7 +1120,7 @@ test('导出设置：只列本机已装 Agent，不再有作用范围', async ()
   assert.equal(collectByType(modal, 'input').filter((node) => node.props.type === 'radio').length, 0, '没有作用范围单选');
   const checks = collectByType(modal, 'input').filter((node) => node.props.type === 'checkbox');
   assert.equal(checks.length, 1, '只有探测到的那个 Agent');
-  assert.equal(checks[0].props.checked, true, '已导出的要勾上');
+  assert.equal(checks[0].props.checked, true, '已共享的要勾上');
   checks[0].props.onChange();
   const toggled = stub.render(Component, {}, first.hooks).tree;
   const nextChecks = collectByType(toggled, 'input').filter((node) => node.props.type === 'checkbox');
@@ -1180,7 +1174,7 @@ test('添加技能：先探测再勾选，仓库有多个技能时可多选', as
 
   assert.ok(textOf(tree).includes('检测到 2 个技能'), '多技能要提示数量');
   assert.ok(textOf(tree).includes('Git 工作流辅助工具包'), '列表里要带每个技能的描述');
-  assert.ok(textOf(tree).includes('另有 1 个 SKILL.md'), '缺 name/description 的要提示已跳过');
+  assert.ok(textOf(tree).includes('另有 1 个技能缺少名称或描述'), '缺 name/description 的要提示已跳过');
   let checks = collectByType(tree, 'input').filter((node) => node.props.type === 'checkbox');
   assert.equal(checks.length, 2, '每个技能一个复选框');
   assert.ok(checks.every((node) => node.props.checked), '默认全选');
@@ -1300,7 +1294,7 @@ test('Agent 溢出：+n 悬浮列出全部 Agent，而不是只靠 title', async
   assert.ok(tip, '悬浮后出现气泡');
   assert.equal(tip.props.role, 'tooltip');
   const tipText = textOf(tip);
-  assert.ok(tipText.includes('已导出的 Agent'), '气泡有标题');
+  assert.ok(tipText.includes('已共享的 Agent'), '气泡有标题');
   for (const label of labels) assert.ok(tipText.includes(label), `气泡要列出 ${label}`);
   const openMore = collectButtons(shown).find((button) => String(textOf(button)).trim() === '+3');
   assert.equal(openMore.props['aria-expanded'], 'true');
@@ -1342,10 +1336,10 @@ test('共享根：行内只显示显式导出，不逐个列直读共享根的 A
 
   const text = textOf(tree);
   assert.ok(!text.includes('OpenCode'), '共享根 Agent 不进行内 Agent 列');
-  assert.ok(!text.includes('未导出到任何 Agent'), '不再说「未导出到任何 Agent」');
+  assert.ok(!text.includes('未共享到任何 Agent'), '不再说「未共享到任何 Agent」');
   const none = collectByClass(tree, 'dshsc-unlinked')[0];
-  assert.ok(none, '没有导出链时给出「未导出」占位');
-  assert.equal(textOf(none).trim(), '未导出');
+  assert.ok(none, '没有导出链时给出「未共享」占位');
+  assert.equal(textOf(none).trim(), '未共享');
   assert.ok(String(none.props.title).includes('~/.agents/skills'), '悬停解释共享根 Agent 无需导出');
 
   // 按 Agent 视图：没有导出的共享根 Agent 不成组
@@ -1558,6 +1552,40 @@ test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给�
   tree = stub.render(Component, {}, first.hooks).tree;
   labels = collectButtons(tree).map((button) => textOf(button).trim());
   assert.ok(labels.filter((label) => label === '安装').length === 1, '只有未装条目给安装按钮');
+  const entryRows = collectByClass(tree, 'dshsc-sub-entry');
+  assert.equal(entryRows.length, 2);
+  assert.ok(textOf(entryRows[0]).includes('已安装'), '已装条目显示已安装');
+  assert.ok(!collectButtons(entryRows[0]).some((button) => textOf(button).trim() === '安装'), '已装条目不再给安装按钮');
+  assert.ok(textOf(entryRows[0]).includes('-'), '已装条目的操作列用破折号占位');
+});
+
+test('订阅：同仓库直接安装、账本没有订阅关联时也不再给安装入口', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    subscriptions: [{
+      id: 'sub-1',
+      source: 'tt-a1i/archify',
+      ref: 'main',
+      snapshot: { entries: [{ name: 'archify' }, { name: 'archify-review' }] },
+    }],
+    // 旧版本「添加技能」直接安装 / 接管进来的记录没有 subscriptionId，但物理上已经装了
+    installs: [ROW({ name: 'archify', source: 'TT-A1i/Archify', subscriptionId: null, status: 'no-upstream' })],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tabs = collectButtons(stub.render(Component, {}, first.hooks).tree)
+    .filter((button) => String(textOf(button)).startsWith('订阅'));
+  tabs[0].props.onClick();
+  let tree = stub.render(Component, {}, first.hooks).tree;
+  const caret = collectButtons(tree).find((button) => String(button.props.className || '').includes('dshsc-caret'));
+  caret.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const entries = collectByClass(tree, 'dshsc-sub-entry');
+  assert.ok(textOf(entries[0]).includes('已安装'), '按仓库 + 名称认出已安装');
+  assert.ok(!collectButtons(entries[0]).some((button) => textOf(button).trim() === '安装'), '同仓库已装条目不给安装');
+  assert.ok(collectButtons(entries[1]).some((button) => textOf(button).trim() === '安装'), '真正未装的同名仓库条目仍给安装');
+  assert.ok(collectByClass(tree, 'dshsc-substat').some((node) => textOf(node).includes('已安装 1')), '已装计数按条目算');
 });
 
 // ---------- 查看技能内容（抽屉 / 整页 / 文件 / 信息） ----------
@@ -1734,7 +1762,7 @@ test('查看：切「原文」显示带 frontmatter 的原文，切「信息」�
   assert.ok(text.includes('安装'), '信息 tab 有安装时间');
 });
 
-test('查看信息：只列已导出的 Agent，不列共享根可见', async () => {
+test('查看信息：只列已共享的 Agent，不列共享根可见', async () => {
   const state = {
     ...STATE,
     agents: {
@@ -1750,7 +1778,7 @@ test('查看信息：只列已导出的 Agent，不列共享根可见', async ()
   const infoNode = collectByClass(after.tree, 'dshsc-reader-info')[0];
   assert.ok(infoNode, '信息 tab 要渲染出信息面板');
   const text = textOf(infoNode);
-  assert.ok(text.includes('已导出'), '保留导出行');
+  assert.ok(text.includes('已共享'), '保留导出行');
   assert.ok(!text.includes('OpenCode'), '不列共享根可见的 Agent');
   assert.ok(!text.includes('共享根可见'), '共享根行已移除');
 });

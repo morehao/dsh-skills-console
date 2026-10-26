@@ -126,8 +126,8 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
 
 
   /**
-   * 保存导出选择：增量发给 `/exports`。
-   * 导出只影响「其他 agent 看不看得见」，与 DSH 可见性无关，所以这里不再有作用范围。
+   * 保存共享选择：增量发给 `/exports`。
+   * 共享只影响「其他 agent 看不看得见」，与 DSH 可见性无关，所以这里不再有作用范围。
    */
   async function saveExports(row, targets) {
     const current = new Set(row.exports.map((item) => item.target));

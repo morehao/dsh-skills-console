@@ -150,7 +150,7 @@ export const CSS = `
     transition: background .12s ease; }
   .dshsc-list > .dshsc-row:first-child, .dshsc-listhead + .dshsc-row { border-top: 0; }
   /* 表头与行共用同一套列宽/间距，只有列语义；不参与排序或筛选。
-     操作列暂按 4 个图标按钮（查看/更新/导出设置/删除）取 104px，三档 chip 落地、行内
+     操作列暂按 4 个图标按钮（查看/更新/共享设置/删除）取 104px，三档 chip 落地、行内
      去掉重复的「查看」后收窄到设计稿的 92px。 */
   .dshsc-listhead { display: grid; grid-template-columns: 280px minmax(0, 1fr) 150px 104px;
     gap: 14px; align-items: center; padding: 7px 12px 7px 14px;
@@ -306,6 +306,8 @@ export const CSS = `
   .dshsc-state.ok svg { color: var(--dsw-alias-state-success-primary); }
   .dshsc-sub-entry .dshsc-actions { justify-self: end; display: flex; justify-content: flex-end; }
   .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
+  /* 已装条目的操作列没有动作：破折号占位，保持右对齐与按钮基线一致 */
+  .dshsc-sub-entry .dshsc-noop { color: var(--dsw-alias-label-tertiary); font-size: 11.5px; line-height: 24px; padding-right: 9px; }
   /* 设置页的真实宽度常常远小于窗口（侧栏 + 页面缩放），视口 media query 不可靠；
      以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。
      断点取 860 而不是贴着面板常见的 ~900：四列网格需要 280 + 150 + 操作列 + 3×14 gap + 中间列，
@@ -391,19 +393,7 @@ export const CSS = `
     background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 9%, transparent); }
   .dshsc-policy-hidden { display: flex; flex-direction: column; gap: 8px; }
   .dshsc-policy-restore { align-self: flex-start; }
-  .dshsc-policy-coverage { padding-top: 9px; border-top: 1px solid var(--dsw-alias-border-l1); }
-  .dshsc-policy-coverage-head, .dshsc-policy-coverage-row { display: grid;
-    grid-template-columns: minmax(0, 1fr) 88px 92px; gap: 6px; align-items: center; }
-  .dshsc-policy-coverage-head { padding-bottom: 4px; color: var(--dsw-alias-label-tertiary);
-    font-size: 10.5px; font-weight: 600; letter-spacing: .02em; }
-  .dshsc-policy-coverage-row { padding: 3px 0; color: var(--dsw-alias-label-secondary); font-size: 11px; }
-  .dshsc-policy-coverage-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cov { font-size: 10.5px; }
-  .cov.yes { color: var(--dsw-alias-state-success-primary); }
-  .cov.version { color: var(--dsw-alias-state-warn-primary); }
-  .cov.unverified, .cov.spec { color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; }
-  .dshsc-policy-risk { margin: 0; font-size: 10.5px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 9px;
     border: 1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 34%, var(--dsw-alias-border-l1));
     background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 7%, transparent); }

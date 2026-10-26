@@ -8,15 +8,7 @@ import React from 'react';
 
 import { h, overlayHost, portalize, useOverlayLayer } from '../host.js';
 
-function coverageLabel(t, value) {
-  if (value === 'yes') return t('coverage.yes');
-  if (value === 'no') return t('coverage.no');
-  if (value === 'version') return t('coverage.version');
-  if (value === 'spec') return t('coverage.spec');
-  return t('coverage.unverified');
-}
-
-export function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSave, onUnpark }) {
+export function PolicyPopover({ t, row, anchor, anchorEl, busy, onClose, onSave, onUnpark }) {
   const initial = row.mode === 'hidden' ? 'auto' : row.mode;
   const [mode, setMode] = React.useState(initial);
   const [confirming, setConfirming] = React.useState(false);
@@ -56,7 +48,6 @@ export function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose
   const hidden = row.mode === 'hidden';
   const author = row.origin === 'author' && row.mode === 'manual';
   const flat = row.kind === 'file';
-  const clients = support?.clients || [];
   const dirty = mode !== initial || Boolean(row.legacy) || Boolean(row.drift);
 
   function choose(next) {
@@ -128,19 +119,6 @@ export function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose
         option('manual', t('policy.manual'), t('policy.manualDesc')),
         option('hidden', t('policy.hidden'), t('policy.hiddenDesc'))),
 
-  clients.length > 0
-    ? h('div', { className: 'dshsc-policy-coverage' },
-        h('div', { className: 'dshsc-policy-coverage-head' },
-          h('span', null, t('policy.coverage')),
-          h('span', null, t('policy.manual')),
-          h('span', null, t('policy.hidden'))),
-        clients.map((client) => h('div', { className: 'dshsc-policy-coverage-row', key: client.id },
-          h('span', { title: client.source || '' }, client.label),
-          h('span', { className: `cov ${client.manual}` }, coverageLabel(t, client.manual)),
-          h('span', { className: `cov ${client.hidden}` }, coverageLabel(t, client.hidden)))),
-        h('p', { className: 'dshsc-policy-sub' }, t('policy.coverageHint')))
-    : null,
-
   confirming
     ? h('div', { className: 'dshsc-policy-confirm' },
         h('b', null, t('policy.hiddenConfirmTitle')),
@@ -167,7 +145,5 @@ export function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose
               className: 'dshsc-btn primary',
               disabled: busy || !dirty || flat,
               onClick: submit,
-            }, busy ? t('policy.saving') : t('action.save'))),
-
-  h('p', { className: 'dshsc-policy-risk' }, t('policy.risk'))), overlayHost());
+            }, busy ? t('policy.saving') : t('action.save')))), overlayHost());
 }

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "技能控制台",
-    "description": "安装、更新、删除、接入与调用策略管理本机 Agent 技能；正文由 skills CLI 写入，仅「仅手动」会改 frontmatter 一行。"
+    "description": "安装、更新、删除与调用策略管理本机 Agent 技能；技能正文保持原样，仅「仅手动」会加一行标记。"
   }
 }

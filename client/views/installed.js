@@ -6,7 +6,7 @@ import React from 'react';
 
 import { h } from '../host.js';
 import { short } from '../api.js';
-import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, PlugIcon } from '../icons.js';
+import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, ShareIcon } from '../icons.js';
 import { PolicyPopover } from './policy-popover.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
@@ -142,7 +142,7 @@ export function InstalledTab({
   }
 
   /**
-   * Agent 列只列「显式导出」：不支持共享根、且真的建了导出链的 Agent。
+   * Agent 列只列「显式共享」：不支持共享根、且真的建了共享链的 Agent。
    * 直读 `~/.agents/skills` 的 Agent 装好即可用，不在这里重复出现。
    */
   function agentChips(row) {
@@ -271,7 +271,7 @@ export function InstalledTab({
         'div',
         { className: 'dshsc-actions' },
         parked
-          // 完全停用：只给「恢复」和「删除」；更新/导出在 parked 期间没有意义
+          // 完全停用：只给「恢复」和「删除」；更新/共享在 parked 期间没有意义
           ? [
               h('button', {
                 key: 'restore',
@@ -323,7 +323,7 @@ export function InstalledTab({
                 title: t('action.exports'),
                 'aria-label': `${t('action.exports')} ${row.name}`,
                 onClick: () => actions.onExports(row),
-              }, h(PlugIcon, { size: 13 })),
+              }, h(ShareIcon, { size: 13 })),
               h('button', {
                 key: 'delete',
                 className: 'dshsc-btn ghost danger sq',
@@ -349,7 +349,7 @@ export function InstalledTab({
     if (hiddenRows.length) groups.push({ key: 'hidden', title: t('group.hidden'), rows: hiddenRows });
     for (const agent of data?.agents?.detected || []) {
       if (agent.kind !== 'agent') continue;
-      // 只给「有显式导出」的 Agent 分组；直读共享根的 Agent 不逐行展示
+      // 只给「有显式共享」的 Agent 分组；直读共享根的 Agent 不逐行展示
       const matched = visibleRows.filter(
         (row) => (row.exports || []).some((item) => item.target === agent.target && !item.broken),
       );
@@ -479,7 +479,6 @@ export function InstalledTab({
     ? h(PolicyPopover, {
         t,
         row: policy.row,
-        support: data?.invocation?.support || null,
         anchor: policy.anchor,
         anchorEl: policy.anchorEl,
         busy: busy !== null,
