@@ -71,6 +71,19 @@ export const CSS = `
   .dshsc-pop-label em { font-style: normal; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-pop-name { display: inline-flex; align-items: baseline; gap: 6px; }
   .dshsc-pop-hint { font-size: 11px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); }
+  /* 与 DSH 自带开关同尺寸/同 token：关是 border-l3 轨道，开是 brand-primary 轨道。
+     0.5.0 换三档 chip 时这组规则被一起删掉，但「侧边栏入口」还在用 .dshsc-switch，补回来。 */
+  .dshsc-switch { box-sizing: border-box; position: relative; flex: none; width: 36px; height: 20px; padding: 2px;
+    border: 0; border-radius: 999px; background: var(--dsw-alias-border-l3); cursor: pointer;
+    transition: background .14s ease; }
+  .dshsc-switch:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+  .dshsc-switch:disabled { cursor: not-allowed; opacity: .5; }
+  .dshsc-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
+  .dshsc-knob { display: block; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--dsw-alias-switch-thumb, #fff); box-shadow: 0 1px 2px rgba(0, 0, 0, .28);
+    transition: transform .12s ease, background .12s ease; }
+  .dshsc-switch[aria-checked="true"] .dshsc-knob { transform: translateX(16px);
+    background: var(--dsw-alias-label-primary-foreground, #fff); }
 
   .dshsc-btn { font: inherit; font-size: 12px; line-height: 1; padding: 7px 11px; border-radius: 8px; cursor: pointer;
     white-space: nowrap;

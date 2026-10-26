@@ -715,7 +715,11 @@ test('调用策略 chip 用语义 token 着色，不写死颜色', async () => {
   assert.ok(auto.includes('var(--dsw-alias-state-success-primary)'), 'auto 用成功色');
   assert.ok(manual.includes('var(--dsw-alias-brand-primary)'), 'manual 用品牌色');
   assert.ok(!/#[0-9a-f]{3,8}/i.test(auto + manual), '不写死颜色');
-  assert.ok(!css.includes('.dshsc-switch'), '旧开关样式已移除');
+  // 0.5.0 删这段 CSS 时以为开关一起没了，但「侧边栏入口」仍在渲染 .dshsc-switch。
+  // 这里改成「必须存在」，防止再被无声删掉。
+  assert.ok(css.includes('.dshsc-switch {'), '侧边栏入口开关有轨道样式');
+  assert.ok(css.includes('.dshsc-switch[aria-checked="true"]'), '开关有开启态样式');
+  assert.ok(css.includes('.dshsc-knob {'), '开关有滑块样式');
 });
 
 test('方形复选框选中用反色圆点，不能白底白勾', async () => {
