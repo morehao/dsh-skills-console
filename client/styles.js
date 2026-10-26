@@ -372,11 +372,16 @@ export const CSS = `
   .dshsc-chip.muted { color: var(--dsw-alias-label-tertiary); cursor: default; opacity: .8; }
 
   .dshsc-policy-pop { position: fixed; z-index: 70; box-sizing: border-box; width: min(380px, calc(100vw - 16px));
-    max-height: min(600px, calc(100vh - 16px)); overflow: auto; padding: 14px;
+    max-height: min(600px, calc(100vh - 16px)); overflow: hidden; padding: 14px;
     background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px;
     box-shadow: 0 18px 48px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16);
     display: flex; flex-direction: column; gap: 10px; }
-  .dshsc-policy-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  /* 头尾用 flex:none 钉住，中间（说明条 / 三档 / 停用块）单独滚动：弹层被 max-height 夹矮时，
+     标题与「保存 / 取消」不跟着内容滚走。负 margin + 等量 padding 让滚动区多吃 2px/4px，
+     键盘 focus ring 不会被 overflow 裁掉。 */
+  .dshsc-policy-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex: none; }
+  .dshsc-policy-scroll { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: auto;
+    margin: -2px -4px; padding: 2px 4px; }
   .dshsc-policy-title { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); }
   .dshsc-policy-sub { margin: 2px 0 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-close { flex: none; width: 24px; height: 24px; margin: -4px -4px 0 0; border: 0; border-radius: 6px;
@@ -404,7 +409,7 @@ export const CSS = `
     background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 9%, transparent); }
   .dshsc-policy-hidden { display: flex; flex-direction: column; gap: 8px; }
   .dshsc-policy-restore { align-self: flex-start; }
-  .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; }
+  .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; flex: none; }
   .dshsc-policy-confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 9px;
     border: 1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 34%, var(--dsw-alias-border-l1));
     background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 7%, transparent); }
