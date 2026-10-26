@@ -440,6 +440,12 @@ test('调用策略：仅手动行点 chip 打开三档弹层，保存发 invocat
   assert.ok(text.includes('调用策略'), '打开三档弹层');
   assert.ok(!text.includes('客户端覆盖'), '不再展示客户端覆盖表');
   assert.ok(!text.includes('OpenCode'), '弹层不再列各客户端');
+  // 矮窗口里标题与底栏要钉住：只有中间那层滚，footer 掉进滚动区就会被裁掉
+  const scroll = collectByClass(out.tree, 'dshsc-policy-scroll');
+  assert.equal(scroll.length, 1, '弹层有独立滚动区');
+  assert.equal(collectByClass(scroll[0], 'dshsc-policy-head').length, 0, '标题不在滚动区里');
+  assert.equal(collectByClass(scroll[0], 'dshsc-policy-foot').length, 0, '底部按钮不在滚动区里');
+  assert.equal(collectByClass(scroll[0], 'dshsc-policyopt').length, 3, '三档选项在滚动区里');
 
   const autoOption = collectButtons(out.tree).find((button) => textOf(button).includes('模型与 / 都能调用'));
   assert.ok(autoOption, '三档里包含自动');
@@ -709,7 +715,11 @@ test('调用策略 chip 用语义 token 着色，不写死颜色', async () => {
   assert.ok(auto.includes('var(--dsw-alias-state-success-primary)'), 'auto 用成功色');
   assert.ok(manual.includes('var(--dsw-alias-brand-primary)'), 'manual 用品牌色');
   assert.ok(!/#[0-9a-f]{3,8}/i.test(auto + manual), '不写死颜色');
-  assert.ok(!css.includes('.dshsc-switch'), '旧开关样式已移除');
+  // 0.5.0 删这段 CSS 时以为开关一起没了，但「侧边栏入口」仍在渲染 .dshsc-switch。
+  // 这里改成「必须存在」，防止再被无声删掉。
+  assert.ok(css.includes('.dshsc-switch {'), '侧边栏入口开关有轨道样式');
+  assert.ok(css.includes('.dshsc-switch[aria-checked="true"]'), '开关有开启态样式');
+  assert.ok(css.includes('.dshsc-knob {'), '开关有滑块样式');
 });
 
 test('方形复选框选中用反色圆点，不能白底白勾', async () => {

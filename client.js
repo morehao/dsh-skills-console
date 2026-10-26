@@ -1134,6 +1134,19 @@ var CSS = `
   .dshsc-pop-label em { font-style: normal; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-pop-name { display: inline-flex; align-items: baseline; gap: 6px; }
   .dshsc-pop-hint { font-size: 11px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); }
+  /* 与 DSH 自带开关同尺寸/同 token：关是 border-l3 轨道，开是 brand-primary 轨道。
+     0.5.0 换三档 chip 时这组规则被一起删掉，但「侧边栏入口」还在用 .dshsc-switch，补回来。 */
+  .dshsc-switch { box-sizing: border-box; position: relative; flex: none; width: 36px; height: 20px; padding: 2px;
+    border: 0; border-radius: 999px; background: var(--dsw-alias-border-l3); cursor: pointer;
+    transition: background .14s ease; }
+  .dshsc-switch:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+  .dshsc-switch:disabled { cursor: not-allowed; opacity: .5; }
+  .dshsc-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
+  .dshsc-knob { display: block; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--dsw-alias-switch-thumb, #fff); box-shadow: 0 1px 2px rgba(0, 0, 0, .28);
+    transition: transform .12s ease, background .12s ease; }
+  .dshsc-switch[aria-checked="true"] .dshsc-knob { transform: translateX(16px);
+    background: var(--dsw-alias-label-primary-foreground, #fff); }
 
   .dshsc-btn { font: inherit; font-size: 12px; line-height: 1; padding: 7px 11px; border-radius: 8px; cursor: pointer;
     white-space: nowrap;
@@ -1435,11 +1448,16 @@ var CSS = `
   .dshsc-chip.muted { color: var(--dsw-alias-label-tertiary); cursor: default; opacity: .8; }
 
   .dshsc-policy-pop { position: fixed; z-index: 70; box-sizing: border-box; width: min(380px, calc(100vw - 16px));
-    max-height: min(600px, calc(100vh - 16px)); overflow: auto; padding: 14px;
+    max-height: min(600px, calc(100vh - 16px)); overflow: hidden; padding: 14px;
     background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px;
     box-shadow: 0 18px 48px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16);
     display: flex; flex-direction: column; gap: 10px; }
-  .dshsc-policy-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  /* 头尾用 flex:none 钉住，中间（说明条 / 三档 / 停用块）单独滚动：弹层被 max-height 夹矮时，
+     标题与「保存 / 取消」不跟着内容滚走。负 margin + 等量 padding 让滚动区多吃 2px/4px，
+     键盘 focus ring 不会被 overflow 裁掉。 */
+  .dshsc-policy-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex: none; }
+  .dshsc-policy-scroll { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: auto;
+    margin: -2px -4px; padding: 2px 4px; }
   .dshsc-policy-title { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); }
   .dshsc-policy-sub { margin: 2px 0 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-close { flex: none; width: 24px; height: 24px; margin: -4px -4px 0 0; border: 0; border-radius: 6px;
@@ -1467,7 +1485,7 @@ var CSS = `
     background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 9%, transparent); }
   .dshsc-policy-hidden { display: flex; flex-direction: column; gap: 8px; }
   .dshsc-policy-restore { align-self: flex-start; }
-  .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; }
+  .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; flex: none; }
   .dshsc-policy-confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 9px;
     border: 1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 34%, var(--dsw-alias-border-l1));
     background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 7%, transparent); }
@@ -2687,36 +2705,40 @@ function PolicyPopover({ t, row, anchor, anchorEl, busy, onClose, onSave, onUnpa
         onClick: onClose
       }, "×")
     ),
-    author ? h("div", { className: "dshsc-policy-note author" }, t("policy.authorHint")) : null,
-    row.legacy ? h("div", { className: "dshsc-policy-note" }, t("policy.legacyHint")) : null,
-    row.drift ? h("div", { className: "dshsc-policy-note warn" }, t("policy.driftHint")) : null,
-    hidden ? h(
+    h(
       "div",
-      { className: "dshsc-policy-hidden" },
-      h(
+      { className: "dshsc-policy-scroll" },
+      author ? h("div", { className: "dshsc-policy-note author" }, t("policy.authorHint")) : null,
+      row.legacy ? h("div", { className: "dshsc-policy-note" }, t("policy.legacyHint")) : null,
+      row.drift ? h("div", { className: "dshsc-policy-note warn" }, t("policy.driftHint")) : null,
+      hidden ? h(
         "div",
-        { className: "dshsc-policyopt active static" },
-        h("span", { className: "dshsc-policyopt-dot" }),
+        { className: "dshsc-policy-hidden" },
         h(
-          "span",
-          { className: "dshsc-policyopt-body" },
-          h("b", null, t("policy.hidden")),
-          h("small", null, t("policy.hiddenDesc"))
-        )
-      ),
-      h("button", {
-        type: "button",
-        className: "dshsc-btn primary dshsc-policy-restore",
-        disabled: busy,
-        onClick: onUnpark
-      }, t("policy.unpark")),
-      h("p", { className: "dshsc-policy-sub" }, t("policy.hiddenHint"))
-    ) : h(
-      "div",
-      { className: "dshsc-policy-options" },
-      option("auto", t("policy.auto"), t("policy.autoDesc")),
-      option("manual", t("policy.manual"), t("policy.manualDesc")),
-      option("hidden", t("policy.hidden"), t("policy.hiddenDesc"))
+          "div",
+          { className: "dshsc-policyopt active static" },
+          h("span", { className: "dshsc-policyopt-dot" }),
+          h(
+            "span",
+            { className: "dshsc-policyopt-body" },
+            h("b", null, t("policy.hidden")),
+            h("small", null, t("policy.hiddenDesc"))
+          )
+        ),
+        h("button", {
+          type: "button",
+          className: "dshsc-btn primary dshsc-policy-restore",
+          disabled: busy,
+          onClick: onUnpark
+        }, t("policy.unpark")),
+        h("p", { className: "dshsc-policy-sub" }, t("policy.hiddenHint"))
+      ) : h(
+        "div",
+        { className: "dshsc-policy-options" },
+        option("auto", t("policy.auto"), t("policy.autoDesc")),
+        option("manual", t("policy.manual"), t("policy.manualDesc")),
+        option("hidden", t("policy.hidden"), t("policy.hiddenDesc"))
+      )
     ),
     confirming ? h(
       "div",

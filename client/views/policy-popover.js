@@ -94,30 +94,31 @@ export function PolicyPopover({ t, row, anchor, anchorEl, busy, onClose, onSave,
       onClick: onClose,
     }, '×')),
 
-  author
-    ? h('div', { className: 'dshsc-policy-note author' }, t('policy.authorHint'))
-    : null,
-  row.legacy ? h('div', { className: 'dshsc-policy-note' }, t('policy.legacyHint')) : null,
-  row.drift ? h('div', { className: 'dshsc-policy-note warn' }, t('policy.driftHint')) : null,
+  h('div', { className: 'dshsc-policy-scroll' },
+    author
+      ? h('div', { className: 'dshsc-policy-note author' }, t('policy.authorHint'))
+      : null,
+    row.legacy ? h('div', { className: 'dshsc-policy-note' }, t('policy.legacyHint')) : null,
+    row.drift ? h('div', { className: 'dshsc-policy-note warn' }, t('policy.driftHint')) : null,
 
-  hidden
-    ? h('div', { className: 'dshsc-policy-hidden' },
-        h('div', { className: 'dshsc-policyopt active static' },
-          h('span', { className: 'dshsc-policyopt-dot' }),
-          h('span', { className: 'dshsc-policyopt-body' },
-            h('b', null, t('policy.hidden')),
-            h('small', null, t('policy.hiddenDesc')))),
-        h('button', {
-          type: 'button',
-          className: 'dshsc-btn primary dshsc-policy-restore',
-          disabled: busy,
-          onClick: onUnpark,
-        }, t('policy.unpark')),
-        h('p', { className: 'dshsc-policy-sub' }, t('policy.hiddenHint')))
-    : h('div', { className: 'dshsc-policy-options' },
-        option('auto', t('policy.auto'), t('policy.autoDesc')),
-        option('manual', t('policy.manual'), t('policy.manualDesc')),
-        option('hidden', t('policy.hidden'), t('policy.hiddenDesc'))),
+    hidden
+      ? h('div', { className: 'dshsc-policy-hidden' },
+          h('div', { className: 'dshsc-policyopt active static' },
+            h('span', { className: 'dshsc-policyopt-dot' }),
+            h('span', { className: 'dshsc-policyopt-body' },
+              h('b', null, t('policy.hidden')),
+              h('small', null, t('policy.hiddenDesc')))),
+          h('button', {
+            type: 'button',
+            className: 'dshsc-btn primary dshsc-policy-restore',
+            disabled: busy,
+            onClick: onUnpark,
+          }, t('policy.unpark')),
+          h('p', { className: 'dshsc-policy-sub' }, t('policy.hiddenHint')))
+      : h('div', { className: 'dshsc-policy-options' },
+          option('auto', t('policy.auto'), t('policy.autoDesc')),
+          option('manual', t('policy.manual'), t('policy.manualDesc')),
+          option('hidden', t('policy.hidden'), t('policy.hiddenDesc')))),
 
   confirming
     ? h('div', { className: 'dshsc-policy-confirm' },
