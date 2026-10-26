@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.5.3] - 2026-10-26
+
+### Features
+
+- **intro**: 简介写清触发方式，入口改居中弹窗 (#71)
+
+### Docs
+
+- **readme**: add English README with Chinese as default (#70)
+- **readme**: add screenshots and align header layout (#69)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.5.2...v0.5.3
+
 ## [v0.5.2] - 2026-10-26
 
 ### Fixes
