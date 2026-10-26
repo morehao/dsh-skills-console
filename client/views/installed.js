@@ -7,7 +7,7 @@ import React from 'react';
 import { h } from '../host.js';
 import { short } from '../api.js';
 import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, ShareIcon } from '../icons.js';
-import { IntroPopover } from './intro-popover.js';
+import { IntroModal } from './intro-modal.js';
 import { PolicyModal } from './policy-modal.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
@@ -25,7 +25,7 @@ export function InstalledTab({
     .filter((agent) => agent.kind === 'agent' && agent.sharedHome === 'yes')
     .map((agent) => agent.target));
 
-  // 行被删 / 筛选掉后浮层不能留在原地
+  // 行被删 / 筛选掉后弹窗不能留在原地
   React.useEffect(() => {
     if (!policy) return;
     if (rows.some((row) => row.name === policy.row.name)) return;
@@ -38,15 +38,9 @@ export function InstalledTab({
     setIntro(null);
   }, [intro, rows]);
 
-  /** 行内 ✨：只记锚点，取数与生成都在浮层里。 */
-  function openIntro(event, row) {
-    const el = event.currentTarget;
-    const rect = el.getBoundingClientRect();
-    setIntro({
-      row,
-      anchorEl: el,
-      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height },
-    });
+  /** 行内 ✨：只记住行，取数与生成都在居中的简介弹窗里。 */
+  function openIntro(row) {
+    setIntro({ row });
   }
 
   /** 行内策略 chip：和共享设置 / 删除一样，打开居中的标准弹窗。 */
@@ -256,7 +250,7 @@ export function InstalledTab({
                 className: 'dshsc-intro-btn',
                 title: t('intro.open'),
                 'aria-haspopup': 'dialog',
-                onClick: (event) => openIntro(event, row),
+                onClick: () => openIntro(row),
               },
               h('span', { className: 'dshsc-spark', 'aria-hidden': 'true' }, '✨'),
               t('intro.button'))
@@ -502,13 +496,11 @@ export function InstalledTab({
     );
   }
 
-  const introPopover = intro && data?.intro
-    ? h(IntroPopover, {
+  const introModal = intro && data?.intro
+    ? h(IntroModal, {
         t,
         name: intro.row.name,
         stamp: [intro.row.commit || '', intro.row.currentHash || '', intro.row.updatedAt || '', intro.row.status || ''].join('|'),
-        anchor: intro.anchor,
-        anchorEl: intro.anchorEl,
         capability: data.intro,
         onClose: () => setIntro(null),
         onView: () => {
@@ -537,5 +529,5 @@ export function InstalledTab({
         },
       })
     : null;
-  return h(React.Fragment, null, content(), policyModal, introPopover);
+  return h(React.Fragment, null, content(), policyModal, introModal);
 }

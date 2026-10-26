@@ -304,18 +304,18 @@ var DICT = {
     "viewer.info.mode": "状态",
     "viewer.info.status": "更新",
     "viewer.info.none": "无",
-    "intro.button": "介绍",
-    "intro.open": "AI 介绍：这个技能能做什么",
-    "intro.title": "AI 介绍",
+    "intro.button": "简介",
+    "intro.open": "AI 简介：这个技能能做什么",
+    "intro.title": "AI 简介",
     "intro.loading": "读取中…",
-    "intro.empty": "还没有生成介绍",
-    "intro.generate": "生成介绍",
+    "intro.empty": "还没有生成简介",
+    "intro.generate": "生成简介",
     "intro.regenerate": "重新生成",
     "intro.generating": "生成中…",
     "intro.hint": "会把 SKILL.md 正文发送给当前配置的模型提供方",
     "intro.hintRemote": "会把该技能在 {source}@{commit} 的 SKILL.md 发送给当前配置的模型提供方",
     "intro.meta": "{model} · {time} · AI 生成，可能不准确",
-    "intro.stale": "技能内容已更新，介绍可能过期",
+    "intro.stale": "技能内容已更新，简介可能过期",
     "intro.view": "查看技能",
     "intro.unavailable": "当前宿主没有可用的模型服务",
     "intro.error.noModel": "还没有配置可用的模型",
@@ -1040,7 +1040,7 @@ function FolderIcon({ size = 12 }) {
 }
 
 // client/section.js
-var import_react10 = __toESM(require("react"), 1);
+var import_react9 = __toESM(require("react"), 1);
 
 // client/scroll.js
 function isScroller(node, tolerance = 4) {
@@ -1447,19 +1447,6 @@ var CSS = `
   .dshsc-chip.legacy { color: var(--dsw-alias-label-tertiary); background: var(--dsw-alias-bg-layer-2); }
   .dshsc-chip.muted { color: var(--dsw-alias-label-tertiary); cursor: default; opacity: .8; }
 
-  /* 锚定浮层外壳：介绍浮层等共用（fixed + portal 到宿主弹窗），不再和调用策略弹窗共用 */
-  .dshsc-floatpop { position: fixed; z-index: 70; box-sizing: border-box; width: min(380px, calc(100vw - 16px));
-    max-height: min(600px, calc(100vh - 16px)); overflow: hidden; padding: 14px;
-    background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px;
-    box-shadow: 0 18px 48px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16);
-    display: flex; flex-direction: column; gap: 10px; }
-  .dshsc-floatpop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex: none; }
-  .dshsc-floatpop-title { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); }
-  .dshsc-floatpop-sub { margin: 2px 0 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
-  .dshsc-floatpop-close { flex: none; width: 24px; height: 24px; margin: -4px -4px 0 0; border: 0; border-radius: 6px;
-    background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
-  .dshsc-floatpop-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
-
   /* 调用策略：标准居中弹窗（Overlay）里的单选列表；行距 / 圆点尺寸对齐共享设置的 .dshsc-check */
   .dshsc-policy-options { max-height: none; overflow: visible; }
   .dshsc-policyopt { box-sizing: border-box; display: flex; align-items: flex-start; gap: 9px; width: 100%;
@@ -1666,7 +1653,7 @@ var CSS = `
   .dshsc-info-sec dd { margin: 0; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
   .dshsc-info-sec dd.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
-  /* 列表行的 ✨ 介绍入口：只占一个小胶囊，不改变行高与列宽 */
+  /* 列表行的 ✨ 简介入口：只占一个小胶囊，不改变行高与列宽 */
   .dshsc-intro-btn { flex: none; display: inline-flex; align-items: center; gap: 3px;
     height: 19px; padding: 0 7px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px;
     background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 11px;
@@ -1676,15 +1663,15 @@ var CSS = `
   .dshsc-intro-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
   .dshsc-intro-btn .dshsc-spark { font-size: 10px; color: var(--dsw-alias-brand-primary); }
 
-  /* 介绍浮层：复用通用 floatpop 外壳（fixed + portal），只调内容排版 */
-  .dshsc-intro-pop { width: min(360px, calc(100vw - 16px)); gap: 7px; }
+  /* 简介弹窗：和调用策略一样走标准居中弹窗（Overlay），这里只调内容排版 */
+  .dshsc-intro-sub { margin: 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dshsc-intro-text { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--dsw-alias-label-primary);
     white-space: pre-wrap; overflow-wrap: anywhere; }
   .dshsc-intro-note { margin: 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-tertiary); }
   .dshsc-intro-meta { margin: 0; font-size: 11px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-intro-stale { margin: 0; font-size: 11px; line-height: 15px; color: var(--dsw-alias-state-warn-primary); }
   .dshsc-intro-error { margin: 0; font-size: 11.5px; line-height: 16px; color: var(--dsw-alias-state-error-primary); }
-  .dshsc-intro-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 3px; }
 
   /* 正文排版：只用 token，不写死深浅色 */
   .dshsc-md { font-size: 13.5px; line-height: 1.72; color: var(--dsw-alias-label-primary); }
@@ -2460,10 +2447,35 @@ function Toolbar({
 }
 
 // client/views/installed.js
-var import_react5 = __toESM(require("react"), 1);
+var import_react4 = __toESM(require("react"), 1);
 
-// client/views/intro-popover.js
-var import_react3 = __toESM(require("react"), 1);
+// client/views/overlay.js
+function Overlay({ t, title, children, footer, onCancel }) {
+  useOverlayLayer(true, onCancel);
+  return portalize(h(
+    "div",
+    { className: "dshsc-overlay", onClick: (event) => {
+      if (event.target === event.currentTarget) onCancel?.();
+    } },
+    h(
+      "div",
+      { className: "dshsc-modal", role: "dialog", "aria-modal": "true" },
+      h("button", {
+        className: "dshsc-modal-close",
+        "aria-label": t("action.cancel"),
+        onClick: (event) => {
+          event.stopPropagation();
+          onCancel?.();
+        }
+      }, "×"),
+      h("h3", null, title),
+      children,
+      h("div", { className: "dshsc-modal-foot" }, footer)
+    )
+  ), overlayHost());
+}
+
+// client/views/intro-modal.js
 var ERROR_KEY = {
   "error.skills.intro-no-model": "intro.error.noModel",
   "error.skills.intro-rate-limit": "intro.error.rateLimit",
@@ -2489,22 +2501,18 @@ function modelLabel(intro) {
   if (!intro?.model) return "—";
   return intro.provider ? `${intro.provider}/${intro.model}` : intro.model;
 }
-function IntroPopover({
+function IntroModal({
   t,
   name,
   stamp = "",
   subtitle = null,
   endpoint = null,
   capability,
-  anchor,
-  anchorEl,
   hint = null,
   viewLabel = null,
   onClose,
   onView = null
 }) {
-  const ref = import_react3.default.useRef(null);
-  const [pos, setPos] = import_react3.default.useState({ left: 0, top: 0, visibility: "hidden" });
   const enabled = capability?.enabled !== false;
   const available = capability?.available !== false;
   const intro = useSkillIntro({
@@ -2514,32 +2522,6 @@ function IntroPopover({
     enabled,
     endpoint
   });
-  useOverlayLayer(true, onClose);
-  import_react3.default.useLayoutEffect(() => {
-    const node = ref.current;
-    if (!node || !anchor || typeof window === "undefined") return;
-    const rect = node.getBoundingClientRect();
-    const width = rect.width || 360;
-    const height = rect.height || 220;
-    let left = anchor.left;
-    left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
-    let top = anchor.bottom + 8;
-    if (top + height > window.innerHeight - 8) {
-      top = Math.max(8, anchor.top - height - 8);
-    }
-    setPos({ left, top, visibility: "visible" });
-  }, [anchor, intro.loading, intro.intro?.text, intro.generating, intro.genError]);
-  import_react3.default.useEffect(() => {
-    if (typeof document === "undefined") return void 0;
-    const onPointerDown = (event) => {
-      const target = event?.target;
-      if (ref.current?.contains?.(target)) return;
-      if (anchorEl?.contains?.(target)) return;
-      onClose();
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [anchorEl, onClose]);
   const failure = intro.genError || intro.error;
   const failureKey = failure?.code ? ERROR_KEY[failure.code] || "intro.error.generic" : null;
   const meta = intro.intro ? t("intro.meta").replace("{model}", modelLabel(intro.intro)).replace("{time}", formatWhen(intro.intro.generatedAt) || "—") : "";
@@ -2573,75 +2555,30 @@ function IntroPopover({
       }
     }, intro.generating ? t("intro.generating") : t("intro.generate")));
   }
-  return portalize(h(
-    "div",
+  return h(
+    Overlay,
     {
-      ref,
-      className: "dshsc-floatpop dshsc-intro-pop",
-      role: "dialog",
-      "aria-label": `${t("intro.title")} · ${name}`,
-      style: { left: `${pos.left}px`, top: `${pos.top}px`, visibility: pos.visibility }
+      t,
+      title: `✨ ${t("intro.title")}`,
+      onCancel: onClose,
+      footer: actions
     },
-    h(
-      "div",
-      { className: "dshsc-floatpop-head" },
-      h(
-        "div",
-        null,
-        h("div", { className: "dshsc-floatpop-title" }, `✨ ${t("intro.title")}`),
-        h("div", { className: "dshsc-floatpop-sub", title: subtitle || name }, subtitle || name)
-      ),
-      h("button", {
-        type: "button",
-        className: "dshsc-floatpop-close",
-        "aria-label": t("action.close"),
-        onClick: onClose
-      }, "×")
-    ),
-    intro.loading ? h("p", { className: "dshsc-intro-note" }, t("intro.loading")) : intro.intro ? h("p", { className: "dshsc-intro-text" }, intro.intro.text) : h("p", { className: "dshsc-intro-note" }, t("intro.empty")),
-    intro.intro?.stale ? h("p", { className: "dshsc-intro-stale" }, t("intro.stale")) : null,
-    failureKey ? h("p", { className: "dshsc-intro-error" }, t(failureKey)) : null,
-    meta ? h("p", { className: "dshsc-intro-meta" }, meta) : null,
-    available && !intro.intro && !intro.loading ? h("p", { className: "dshsc-intro-meta" }, hint || t("intro.hint")) : null,
-    !available ? h("p", { className: "dshsc-intro-error" }, t("intro.unavailable")) : null,
-    h("div", { className: "dshsc-intro-foot" }, actions)
-  ));
+    h("p", { className: "dshsc-intro-sub", key: "sub", title: subtitle || name }, subtitle || name),
+    intro.loading ? h("p", { className: "dshsc-intro-note", key: "loading" }, t("intro.loading")) : intro.intro ? h("p", { className: "dshsc-intro-text", key: "text" }, intro.intro.text) : h("p", { className: "dshsc-intro-note", key: "empty" }, t("intro.empty")),
+    intro.intro?.stale ? h("p", { className: "dshsc-intro-stale", key: "stale" }, t("intro.stale")) : null,
+    failureKey ? h("p", { className: "dshsc-intro-error", key: "error" }, t(failureKey)) : null,
+    meta ? h("p", { className: "dshsc-intro-meta", key: "meta" }, meta) : null,
+    available && !intro.intro && !intro.loading ? h("p", { className: "dshsc-intro-meta", key: "hint" }, hint || t("intro.hint")) : null,
+    !available ? h("p", { className: "dshsc-intro-error", key: "unavailable" }, t("intro.unavailable")) : null
+  );
 }
 
 // client/views/policy-modal.js
-var import_react4 = __toESM(require("react"), 1);
-
-// client/views/overlay.js
-function Overlay({ t, title, children, footer, onCancel }) {
-  useOverlayLayer(true, onCancel);
-  return portalize(h(
-    "div",
-    { className: "dshsc-overlay", onClick: (event) => {
-      if (event.target === event.currentTarget) onCancel?.();
-    } },
-    h(
-      "div",
-      { className: "dshsc-modal", role: "dialog", "aria-modal": "true" },
-      h("button", {
-        className: "dshsc-modal-close",
-        "aria-label": t("action.cancel"),
-        onClick: (event) => {
-          event.stopPropagation();
-          onCancel?.();
-        }
-      }, "×"),
-      h("h3", null, title),
-      children,
-      h("div", { className: "dshsc-modal-foot" }, footer)
-    )
-  ), overlayHost());
-}
-
-// client/views/policy-modal.js
+var import_react3 = __toESM(require("react"), 1);
 function PolicyModal({ t, row, busy, onClose, onSave, onUnpark }) {
   const initial = row.mode === "hidden" ? "auto" : row.mode;
-  const [mode, setMode] = import_react4.default.useState(initial);
-  const [confirming, setConfirming] = import_react4.default.useState(false);
+  const [mode, setMode] = import_react3.default.useState(initial);
+  const [confirming, setConfirming] = import_react3.default.useState(false);
   const hidden = row.mode === "hidden";
   const author = row.origin === "author" && row.mode === "manual";
   const flat = row.kind === "file";
@@ -2776,27 +2713,21 @@ function InstalledTab({
   actions
 }) {
   const updatable = (row) => UPDATABLE.has(row.status);
-  const [policy, setPolicy] = import_react5.default.useState(null);
-  const [intro, setIntro] = import_react5.default.useState(null);
+  const [policy, setPolicy] = import_react4.default.useState(null);
+  const [intro, setIntro] = import_react4.default.useState(null);
   const sharedTargets = new Set((data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.sharedHome === "yes").map((agent) => agent.target));
-  import_react5.default.useEffect(() => {
+  import_react4.default.useEffect(() => {
     if (!policy) return;
     if (rows.some((row) => row.name === policy.row.name)) return;
     setPolicy(null);
   }, [policy, rows]);
-  import_react5.default.useEffect(() => {
+  import_react4.default.useEffect(() => {
     if (!intro) return;
     if (rows.some((row) => row.name === intro.row.name)) return;
     setIntro(null);
   }, [intro, rows]);
-  function openIntro(event, row) {
-    const el = event.currentTarget;
-    const rect = el.getBoundingClientRect();
-    setIntro({
-      row,
-      anchorEl: el,
-      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height }
-    });
+  function openIntro(row) {
+    setIntro({ row });
   }
   function openPolicy(row) {
     if (busy !== null || row.kind === "file") return;
@@ -2992,7 +2923,7 @@ function InstalledTab({
               className: "dshsc-intro-btn",
               title: t("intro.open"),
               "aria-haspopup": "dialog",
-              onClick: (event) => openIntro(event, row)
+              onClick: () => openIntro(row)
             },
             h("span", { className: "dshsc-spark", "aria-hidden": "true" }, "✨"),
             t("intro.button")
@@ -3246,12 +3177,10 @@ function InstalledTab({
       )
     );
   }
-  const introPopover = intro && data?.intro ? h(IntroPopover, {
+  const introModal = intro && data?.intro ? h(IntroModal, {
     t,
     name: intro.row.name,
     stamp: [intro.row.commit || "", intro.row.currentHash || "", intro.row.updatedAt || "", intro.row.status || ""].join("|"),
-    anchor: intro.anchor,
-    anchorEl: intro.anchorEl,
     capability: data.intro,
     onClose: () => setIntro(null),
     onView: () => {
@@ -3276,7 +3205,7 @@ function InstalledTab({
       actions.onRequestUnpark(target);
     }
   }) : null;
-  return h(import_react5.default.Fragment, null, content(), policyModal, introPopover);
+  return h(import_react4.default.Fragment, null, content(), policyModal, introModal);
 }
 
 // client/views/agent-tip.js
@@ -3311,7 +3240,7 @@ function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
 }
 
 // client/views/subscriptions.js
-var import_react6 = __toESM(require("react"), 1);
+var import_react5 = __toESM(require("react"), 1);
 function repoOf(source) {
   const value = String(source || "").trim().toLowerCase().replace(/\.git$/, "");
   return value || null;
@@ -3333,22 +3262,18 @@ function SubscriptionsTab({
   onInstall,
   onAdd
 }) {
-  const [intro, setIntro] = import_react6.default.useState(null);
-  import_react6.default.useEffect(() => {
+  const [intro, setIntro] = import_react5.default.useState(null);
+  import_react5.default.useEffect(() => {
     if (!intro) return;
     const subscription = subscriptions.find((item) => item.id === intro.subscriptionId);
     const entries = subscription?.snapshot?.entries || [];
     if (entries.some((entry) => entry.name === intro.name)) return;
     setIntro(null);
   }, [intro, subscriptions]);
-  function openIntro(event, subscription, entry) {
-    const el = event.currentTarget;
-    const rect = el.getBoundingClientRect();
+  function openIntro(subscription, entry) {
     setIntro({
       subscriptionId: subscription.id,
-      name: entry.name,
-      anchorEl: el,
-      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height }
+      name: entry.name
     });
   }
   function introButton(subscription, entry) {
@@ -3359,7 +3284,7 @@ function SubscriptionsTab({
         className: "dshsc-intro-btn",
         title: t("intro.open"),
         "aria-haspopup": "dialog",
-        onClick: (clickEvent) => openIntro(clickEvent, subscription, entry)
+        onClick: () => openIntro(subscription, entry)
       },
       h("span", { className: "dshsc-spark", "aria-hidden": "true" }, "✨"),
       t("intro.button")
@@ -3367,22 +3292,20 @@ function SubscriptionsTab({
   }
   const introSubscription = intro ? subscriptions.find((item) => item.id === intro.subscriptionId) || null : null;
   const introEntry = introSubscription ? (introSubscription.snapshot?.entries || []).find((entry) => entry.name === intro.name) || null : null;
-  const introPopover = intro && introEntry && capability ? (() => {
+  const introModal = intro && introEntry && capability ? (() => {
     const commit = introSubscription.snapshot?.commit || "";
     const installedAlready = rows.some((row) => {
       if (row.name !== introEntry.name) return false;
       if (row.subscriptionId === introSubscription.id) return true;
       return repoOf(row.source) === repoOf(introSubscription.source);
     });
-    return h(IntroPopover, {
+    return h(IntroModal, {
       t,
       name: introEntry.name,
       stamp: commit,
       subtitle: `${introSubscription.source}@${shortCommit(commit)}`,
       endpoint: `/subscriptions/${encodeURIComponent(introSubscription.id)}/entries/${encodeURIComponent(introEntry.name)}/intro`,
       capability,
-      anchor: intro.anchor,
-      anchorEl: intro.anchorEl,
       hint: t("intro.hintRemote").replace("{source}", introSubscription.source).replace("{commit}", shortCommit(commit) || "—"),
       viewLabel: t("action.install"),
       onView: installedAlready ? null : () => {
@@ -3414,7 +3337,7 @@ function SubscriptionsTab({
     );
   }
   return h(
-    import_react6.default.Fragment,
+    import_react5.default.Fragment,
     null,
     h(
       "div",
@@ -3531,23 +3454,23 @@ function SubscriptionsTab({
         })
       )
     ),
-    introPopover
+    introModal
   );
 }
 
 // client/views/modals.js
-var import_react8 = __toESM(require("react"), 1);
+var import_react7 = __toESM(require("react"), 1);
 
 // client/views/add-skill.js
-var import_react7 = __toESM(require("react"), 1);
+var import_react6 = __toESM(require("react"), 1);
 function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
-  const [source, setSource] = import_react7.default.useState("");
-  const [phase, setPhase] = import_react7.default.useState("idle");
-  const [options, setOptions] = import_react7.default.useState([]);
-  const [selected, setSelected] = import_react7.default.useState(() => /* @__PURE__ */ new Set());
-  const [manual, setManual] = import_react7.default.useState("");
-  const [skipped, setSkipped] = import_react7.default.useState(0);
-  const [error, setError] = import_react7.default.useState(null);
+  const [source, setSource] = import_react6.default.useState("");
+  const [phase, setPhase] = import_react6.default.useState("idle");
+  const [options, setOptions] = import_react6.default.useState([]);
+  const [selected, setSelected] = import_react6.default.useState(() => /* @__PURE__ */ new Set());
+  const [manual, setManual] = import_react6.default.useState("");
+  const [skipped, setSkipped] = import_react6.default.useState(0);
+  const [error, setError] = import_react6.default.useState(null);
   const reset = (value) => {
     setSource(value);
     setPhase("idle");
@@ -3683,7 +3606,7 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
 
 // client/views/modals.js
 function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
-  const [form, setForm] = import_react8.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
+  const [form, setForm] = import_react7.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
   const incomplete = fields.some(
     (field) => field.required !== false && !String(form[field.key] || "").trim()
   );
@@ -3731,7 +3654,7 @@ function ExportsModal({ t, row, agents, onCancel, onSave }) {
   const candidates = agents.filter(
     (agent) => agent.kind === "agent" && agent.exists && agent.exportable
   );
-  const [targets, setTargets] = import_react8.default.useState(() => {
+  const [targets, setTargets] = import_react7.default.useState(() => {
     const available = new Set(candidates.map((agent) => agent.target));
     return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
   });
@@ -3773,7 +3696,7 @@ function ExportsModal({ t, row, agents, onCancel, onSave }) {
   );
 }
 function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
-  const [targets, setTargets] = import_react8.default.useState(() => new Set(
+  const [targets, setTargets] = import_react7.default.useState(() => new Set(
     Array.isArray(settings.exportTargets) ? settings.exportTargets : []
   ));
   const toggle = (target) => setTargets((prev) => {
@@ -3902,7 +3825,7 @@ ${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join("\n")}`,
 }
 
 // client/views/skill-reader.js
-var import_react9 = __toESM(require("react"), 1);
+var import_react8 = __toESM(require("react"), 1);
 
 // client/markdown.js
 function classifyHref(href) {
@@ -4399,17 +4322,17 @@ function SkillReader({
 }) {
   const { state, file, loadFile, retry } = useSkillReader(row);
   const name = row?.name || "";
-  const [tab, setTab] = import_react9.default.useState(initialTab);
-  const [format, setFormat] = import_react9.default.useState("rendered");
-  const [docOverride, setDocOverride] = import_react9.default.useState(null);
-  const [fileFormat, setFileFormat] = import_react9.default.useState("rendered");
-  const [tocActive, setTocActive] = import_react9.default.useState(null);
-  const [descOpen, setDescOpen] = import_react9.default.useState(false);
-  const [descClamped, setDescClamped] = import_react9.default.useState(false);
-  const bodyRef = import_react9.default.useRef(null);
-  const dialogRef = import_react9.default.useRef(null);
-  const descRef = import_react9.default.useRef(null);
-  const scrollRef = import_react9.default.useRef(0);
+  const [tab, setTab] = import_react8.default.useState(initialTab);
+  const [format, setFormat] = import_react8.default.useState("rendered");
+  const [docOverride, setDocOverride] = import_react8.default.useState(null);
+  const [fileFormat, setFileFormat] = import_react8.default.useState("rendered");
+  const [tocActive, setTocActive] = import_react8.default.useState(null);
+  const [descOpen, setDescOpen] = import_react8.default.useState(false);
+  const [descClamped, setDescClamped] = import_react8.default.useState(false);
+  const bodyRef = import_react8.default.useRef(null);
+  const dialogRef = import_react8.default.useRef(null);
+  const descRef = import_react8.default.useRef(null);
+  const scrollRef = import_react8.default.useRef(0);
   useOverlayLayer(variant === "drawer" || variant === "page", onClose);
   const tree = state.tree;
   const files = tree?.files || [];
@@ -4417,18 +4340,18 @@ function SkillReader({
   const bodyText = docOverride ? docOverride.content : state.body?.content || "";
   const description = row?.description || state.body?.meta?.description || "";
   const headings = tab === "doc" && bodyText ? parseCached(bodyText).headings : [];
-  import_react9.default.useEffect(() => {
+  import_react8.default.useEffect(() => {
     setDocOverride(null);
     scrollRef.current = 0;
   }, [name]);
-  const descOwnerRef = import_react9.default.useRef(name);
-  import_react9.default.useEffect(() => {
+  const descOwnerRef = import_react8.default.useRef(name);
+  import_react8.default.useEffect(() => {
     if (descOwnerRef.current === name) return;
     descOwnerRef.current = name;
     setDescOpen(false);
     setDescClamped(false);
   }, [name]);
-  import_react9.default.useLayoutEffect(() => {
+  import_react8.default.useLayoutEffect(() => {
     const node = descRef.current;
     if (!node) return void 0;
     const measure = () => {
@@ -4450,16 +4373,16 @@ function SkillReader({
       window.removeEventListener("resize", measure);
     };
   }, [description, descOpen]);
-  import_react9.default.useEffect(() => {
+  import_react8.default.useEffect(() => {
     if (!initialFile) return;
     setTab("files");
     void loadFile(initialFile);
   }, [initialFile, loadFile]);
-  import_react9.default.useEffect(() => {
+  import_react8.default.useEffect(() => {
     const node = bodyRef.current;
     if (node && scrollRef.current) node.scrollTop = scrollRef.current;
   });
-  import_react9.default.useEffect(() => {
+  import_react8.default.useEffect(() => {
     if (variant !== "drawer" || typeof document === "undefined") return void 0;
     const previous = document.activeElement;
     const node = dialogRef.current;
@@ -4486,12 +4409,12 @@ function SkillReader({
       previous?.focus?.();
     };
   }, [variant, onClose]);
-  import_react9.default.useEffect(() => {
+  import_react8.default.useEffect(() => {
     if (variant !== "page" || typeof document === "undefined") return;
     const node = document.getElementById("dshsc-reader-name");
     node?.focus?.();
   }, [variant, name]);
-  import_react9.default.useEffect(() => {
+  import_react8.default.useEffect(() => {
     if (variant !== "page" || typeof window === "undefined") return void 0;
     const node = bodyRef.current;
     if (!node?.querySelectorAll) return void 0;
@@ -4929,19 +4852,19 @@ function SkillReader({
 var UPDATABLE2 = /* @__PURE__ */ new Set(["update-available", "locally-modified", "conflict"]);
 function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();
-  const [tab, setTab] = import_react10.default.useState("installed");
-  const [view, setView] = import_react10.default.useState("flat");
-  const [modal, setModal] = import_react10.default.useState(null);
-  const [expanded, setExpanded] = import_react10.default.useState({});
-  const [placementBusy, setPlacementBusy] = import_react10.default.useState(null);
-  const [placementOverride, setPlacementOverride] = import_react10.default.useState(null);
-  const [query, setQuery] = import_react10.default.useState("");
-  const [viewer, setViewer] = import_react10.default.useState(null);
-  const rootRef = import_react10.default.useRef(null);
-  const scrollPos = import_react10.default.useRef(null);
-  const restoreScroll = import_react10.default.useRef(null);
-  const [filter, setFilter] = import_react10.default.useState("all");
-  const [builtinOpen, setBuiltinOpen] = import_react10.default.useState(false);
+  const [tab, setTab] = import_react9.default.useState("installed");
+  const [view, setView] = import_react9.default.useState("flat");
+  const [modal, setModal] = import_react9.default.useState(null);
+  const [expanded, setExpanded] = import_react9.default.useState({});
+  const [placementBusy, setPlacementBusy] = import_react9.default.useState(null);
+  const [placementOverride, setPlacementOverride] = import_react9.default.useState(null);
+  const [query, setQuery] = import_react9.default.useState("");
+  const [viewer, setViewer] = import_react9.default.useState(null);
+  const rootRef = import_react9.default.useRef(null);
+  const scrollPos = import_react9.default.useRef(null);
+  const restoreScroll = import_react9.default.useRef(null);
+  const [filter, setFilter] = import_react9.default.useState("all");
+  const [builtinOpen, setBuiltinOpen] = import_react9.default.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
   const { agentTip, agentTipPos, agentTipRef, openAgentTip, closeAgentTip } = useAgentTip();
   const rows = data?.installs || [];
@@ -4964,7 +4887,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     const agentLabels = row.exports.map((item) => item.label);
     return [row.name, row.source || "", ...agentLabels].join(" ").toLowerCase().includes(queryText);
   });
-  import_react10.default.useEffect(() => {
+  import_react9.default.useEffect(() => {
     if (!viewer || !data) return;
     if (rows.some((row) => row.name === viewer.name)) return;
     setViewer(null);
@@ -4998,7 +4921,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     if (viewer?.mode === "page") restoreScroll.current = scrollPos.current;
     setViewer(null);
   }
-  import_react10.default.useLayoutEffect(() => {
+  import_react9.default.useLayoutEffect(() => {
     if (restoreScroll.current === null) return;
     const target = restoreScroll.current;
     restoreScroll.current = null;
@@ -5067,7 +4990,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onToast: (next) => setToast(next)
   }) : null;
   const listNode = h(
-    import_react10.default.Fragment,
+    import_react9.default.Fragment,
     null,
     h(Header, {
       t,

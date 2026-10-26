@@ -45,9 +45,9 @@ Screenshots are from a real DSH Web session on v0.5.2 (dark theme). All assets l
 
 ![Read-only viewer: the right drawer renders SKILL.md, with raw text and the file tree](https://raw.githubusercontent.com/morehao/dsh-skills-console/main/assets/screenshot-2-viewer.png)
 
-**AI intro**: click the ✨ in a row for a model summary of what the skill can do and when to use it; once generated it reads from the local cache.
+**AI intro**: click the ✨ in a row for a model summary of what the skill can do and when to use it; it opens as a centered dialog like the other modals, and once generated it reads from the local cache.
 
-![AI intro: an overlay shows the model-generated capability summary](https://raw.githubusercontent.com/morehao/dsh-skills-console/main/assets/screenshot-3-intro.png)
+![AI intro: a centered dialog shows the model-generated capability summary](https://raw.githubusercontent.com/morehao/dsh-skills-console/main/assets/screenshot-3-intro.png)
 
 **Subscriptions**: only upstream snapshots of `owner/repo`; expand an entry to see how many skills the repo has, which are installed and their status.
 

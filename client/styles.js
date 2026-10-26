@@ -384,19 +384,6 @@ export const CSS = `
   .dshsc-chip.legacy { color: var(--dsw-alias-label-tertiary); background: var(--dsw-alias-bg-layer-2); }
   .dshsc-chip.muted { color: var(--dsw-alias-label-tertiary); cursor: default; opacity: .8; }
 
-  /* 锚定浮层外壳：介绍浮层等共用（fixed + portal 到宿主弹窗），不再和调用策略弹窗共用 */
-  .dshsc-floatpop { position: fixed; z-index: 70; box-sizing: border-box; width: min(380px, calc(100vw - 16px));
-    max-height: min(600px, calc(100vh - 16px)); overflow: hidden; padding: 14px;
-    background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px;
-    box-shadow: 0 18px 48px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16);
-    display: flex; flex-direction: column; gap: 10px; }
-  .dshsc-floatpop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex: none; }
-  .dshsc-floatpop-title { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); }
-  .dshsc-floatpop-sub { margin: 2px 0 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
-  .dshsc-floatpop-close { flex: none; width: 24px; height: 24px; margin: -4px -4px 0 0; border: 0; border-radius: 6px;
-    background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
-  .dshsc-floatpop-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
-
   /* 调用策略：标准居中弹窗（Overlay）里的单选列表；行距 / 圆点尺寸对齐共享设置的 .dshsc-check */
   .dshsc-policy-options { max-height: none; overflow: visible; }
   .dshsc-policyopt { box-sizing: border-box; display: flex; align-items: flex-start; gap: 9px; width: 100%;
@@ -603,7 +590,7 @@ export const CSS = `
   .dshsc-info-sec dd { margin: 0; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
   .dshsc-info-sec dd.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
-  /* 列表行的 ✨ 介绍入口：只占一个小胶囊，不改变行高与列宽 */
+  /* 列表行的 ✨ 简介入口：只占一个小胶囊，不改变行高与列宽 */
   .dshsc-intro-btn { flex: none; display: inline-flex; align-items: center; gap: 3px;
     height: 19px; padding: 0 7px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px;
     background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 11px;
@@ -613,15 +600,15 @@ export const CSS = `
   .dshsc-intro-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
   .dshsc-intro-btn .dshsc-spark { font-size: 10px; color: var(--dsw-alias-brand-primary); }
 
-  /* 介绍浮层：复用通用 floatpop 外壳（fixed + portal），只调内容排版 */
-  .dshsc-intro-pop { width: min(360px, calc(100vw - 16px)); gap: 7px; }
+  /* 简介弹窗：和调用策略一样走标准居中弹窗（Overlay），这里只调内容排版 */
+  .dshsc-intro-sub { margin: 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dshsc-intro-text { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--dsw-alias-label-primary);
     white-space: pre-wrap; overflow-wrap: anywhere; }
   .dshsc-intro-note { margin: 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-tertiary); }
   .dshsc-intro-meta { margin: 0; font-size: 11px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-intro-stale { margin: 0; font-size: 11px; line-height: 15px; color: var(--dsw-alias-state-warn-primary); }
   .dshsc-intro-error { margin: 0; font-size: 11.5px; line-height: 16px; color: var(--dsw-alias-state-error-primary); }
-  .dshsc-intro-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 3px; }
 
   /* 正文排版：只用 token，不写死深浅色 */
   .dshsc-md { font-size: 13.5px; line-height: 1.72; color: var(--dsw-alias-label-primary); }
