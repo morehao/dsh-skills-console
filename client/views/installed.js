@@ -372,10 +372,12 @@ export function InstalledTab({
   }
 
   function listBar() {
+    // 黄点是「有可更新」的信号，不是 chip 的装饰：数量为 0 时不占位，避免一直亮着骗人
+    const updateDot = counts.update > 0 ? h('i', { className: 'dshsc-fdot' }) : null;
     return h('div', { className: 'dshsc-listbar' },
       h('div', { className: 'dshsc-filters' },
         filterChip('all', t('filter.all')),
-        filterChip('update', t('filter.update'), h('i', { className: 'dshsc-fdot' })),
+        filterChip('update', t('filter.update'), updateDot),
         filterChip('unknown', t('filter.unknown')),
         filterChip('manual', t('filter.manual')),
         filterChip('off', t('filter.off'))),

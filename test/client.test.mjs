@@ -1408,6 +1408,21 @@ test('状态筛选：计数来自全量，点选后只留对应行', async () =>
   assert.ok(!text.includes('扫描根里有停用标记'));
 });
 
+test('可更新 chip：黄点只在可更新数量大于 0 时出现', async () => {
+  const dotCount = (tree) => collectByClass(tree, 'dshsc-fdot').length;
+  const updateChip = (tree) => collectButtons(tree).find((button) => String(textOf(button)).trim().startsWith('可更新'));
+
+  const withUpdate = loadModule(STATE);
+  const some = await settle(withUpdate.stub, withUpdate.Component);
+  assert.equal(dotCount(some.tree), 1, '有可更新行时 chip 带黄点');
+
+  const noUpdate = loadModule({ ...STATE, installs: [ROW()] });
+  const none = await settle(noUpdate.stub, noUpdate.Component);
+  assert.equal(dotCount(none.tree), 0, '没有可更新行时不留黄点');
+  assert.ok(updateChip(none.tree), 'chip 本身仍在，只是不再带黄点');
+  assert.ok(String(textOf(updateChip(none.tree))).includes('0'), '计数为 0');
+});
+
 test('可见性：技能自己声明 manual-only 时给手动调用说明，不报「扫描目录里没有它」', async () => {
   const manual = ROW({
     name: 'handoff',
