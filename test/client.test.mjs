@@ -200,6 +200,8 @@ function loadModule(payload, options = {}) {
     fetch: async () => ({ ok: true, status: 200, json: async () => payload }),
     setTimeout: () => 0,
     clearTimeout: () => {},
+    // 浏览器全局：介绍生成用它取消请求
+    AbortController,
     console,
   };
   if (options.document !== undefined) sandbox.document = options.document;
@@ -323,6 +325,7 @@ const STATE = {
     ],
   },
   subscriptions: [],
+  intro: { enabled: true, available: true, langs: ['zh', 'en'], timeoutMs: 30000 },
   invocation: {
     modes: ['auto', 'manual', 'hidden'],
   },
@@ -1634,7 +1637,7 @@ const READER_FILES = {
   truncated: false,
 };
 
-/** 按 URL 分派的 fetch 存根：state / 正文 / 文件树 / 单文件各走一条。 */
+/** 按 URL 分派的 fetch 存根：state / 正文 / 文件树 / 单文件 / 介绍各走一条。 */
 function skillFetch({
   body = READER_BODY,
   bodyError = null,
@@ -1642,12 +1645,27 @@ function skillFetch({
   state = STATE,
   fileError = null,
   fileContent = 'guide 第一行\n第二行\n',
+  intro = null,
+  generated = null,
 } = {}) {
   const calls = [];
-  const fetchStub = async (url) => {
+  const requests = [];
+  // 存根没有 deps 语义，effect 每轮都会重跑；GET 要能返回生成后的缓存，才像真实宿主
+  let cachedIntro = intro;
+  const fetchStub = async (url, init) => {
     const target = String(url);
+    const method = (init?.method || 'GET').toUpperCase();
     calls.push(target);
+    requests.push({ url: target, method });
     const respond = (payload, ok = true) => ({ ok, status: ok ? 200 : 400, json: async () => payload });
+    if (target.includes('/intro')) {
+      const capability = { enabled: true, available: true, langs: ['zh', 'en'], timeoutMs: 30000 };
+      if (method === 'POST' && generated) {
+        cachedIntro = generated;
+        return respond({ ok: true, name: 'git-kit', lang: 'zh', cached: false, intro: generated, capability });
+      }
+      return respond({ ok: true, name: 'git-kit', lang: 'zh', intro: cachedIntro, capability });
+    }
     if (target.includes('/skills/') && target.endsWith('/files')) return respond(files);
     if (target.includes('?path=')) {
       const relPath = decodeURIComponent(target.split('?path=')[1]);
@@ -1661,6 +1679,7 @@ function skillFetch({
     return respond(state);
   };
   fetchStub.calls = calls;
+  fetchStub.requests = requests;
   return fetchStub;
 }
 
@@ -1796,6 +1815,49 @@ test('查看信息：只列已共享的 Agent，不列共享根可见', async ()
   assert.ok(text.includes('已共享'), '保留导出行');
   assert.ok(!text.includes('OpenCode'), '不列共享根可见的 Agent');
   assert.ok(!text.includes('共享根可见'), '共享根行已移除');
+});
+
+test('已安装列表：行内 ✨ 打开介绍浮层，点「生成介绍」才 POST，生成后显示来源', async () => {
+  const generated = {
+    text: '这个技能用来整理提交信息。',
+    stale: false,
+    generatedAt: '2026-10-26T03:20:00.000Z',
+    provider: 'yygu',
+    model: 'deepseek-flash',
+  };
+  const fetchStub = skillFetch({ generated });
+  const { Component, stub } = loadModule(STATE, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+
+  const entries = collectButtons(out.tree).filter(
+    (button) => String(button.props.className || '').includes('dshsc-intro-btn'),
+  );
+  assert.ok(entries.length >= 2, '每个技能行都有 ✨ 介绍入口');
+  assert.ok(out.tree, '列表已渲染');
+
+  entries[0].props.onClick({
+    currentTarget: { getBoundingClientRect: () => ({ left: 100, top: 100, width: 60, height: 20, bottom: 120 }) },
+  });
+  out = await settle(stub, Component, out.hooks);
+
+  assert.ok(textOf(out.tree).includes('还没有生成介绍'), '未生成时给空态');
+  assert.ok(
+    !fetchStub.requests.some((item) => item.method === 'POST' && item.url.includes('/intro')),
+    '打开浮层不能自动调模型',
+  );
+
+  const generate = buttonByText(out.tree, '生成介绍');
+  assert.ok(generate, '未生成时给生成按钮');
+  generate.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+
+  assert.ok(textOf(out.tree).includes(generated.text), '生成后显示介绍正文');
+  assert.ok(textOf(out.tree).includes('yygu/deepseek-flash'), '标注生成用的模型');
+  assert.ok(textOf(out.tree).includes('AI 生成，可能不准确'), '标注 AI 生成');
+  assert.ok(
+    fetchStub.requests.some((item) => item.method === 'POST' && item.url.includes('/git-kit/intro')),
+    '点按钮才发 POST /intro',
+  );
 });
 
 test('查看：文件 tab 列出目录与文件，点文件读到内容；二进制给占位', async () => {
@@ -1963,3 +2025,88 @@ test('查看：文件 tab 里的 markdown 默认渲染，可切回原文', async
   );
 });
 
+
+test('订阅候选：展开显示作者描述，点 ✨ 打开介绍浮层，点「生成介绍」才 POST', async () => {
+  const commit = 'c'.repeat(40);
+  const generated = {
+    text: '这个技能用来整理提交信息。',
+    stale: false,
+    generatedAt: '2026-10-26T03:20:00.000Z',
+    provider: 'yygu',
+    model: 'deepseek-flash',
+  };
+  const state = {
+    ...STATE,
+    subscriptions: [{
+      id: 'sub-1',
+      source: 'morehao/ai-kit',
+      ref: 'main',
+      snapshot: {
+        commit,
+        entries: [{
+          name: 'alpha',
+          skillPath: 'skills/alpha/SKILL.md',
+          treeSha: 'e'.repeat(40),
+          description: 'Alpha 技能：整理提交信息与版本说明',
+        }],
+      },
+    }],
+    installs: [],
+  };
+  const fetchStub = skillFetch({ generated, state });
+  const { Component, stub } = loadModule(state, { fetch: fetchStub });
+
+  // 订阅页的 /state 会被反复拉取：按现有测试的写法手动推进渲染，避免把所有 effect 循环跑满
+  const pass = async (hooks) => {
+    const rendered = stub.render(Component, {}, hooks);
+    for (const effect of rendered.effects || []) {
+      if (typeof effect === 'function') effect();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return stub.render(Component, {}, rendered.hooks);
+  };
+
+  let out = await pass(undefined);
+  collectButtons(out.tree)
+    .filter((button) => String(textOf(button)).startsWith('订阅'))[0]
+    .props.onClick();
+  out = await pass(out.hooks);
+  collectButtons(out.tree)
+    .find((button) => String(button.props.className || '').includes('dshsc-caret'))
+    .props.onClick();
+  out = await pass(out.hooks);
+
+  const entryRow = collectByClass(out.tree, 'dshsc-sub-entry')[0];
+  assert.ok(entryRow, '展开后有条目行');
+  assert.ok(textOf(entryRow).includes('Alpha 技能：整理提交信息与版本说明'), '显示作者原始描述');
+
+  const spark = collectButtons(entryRow).find(
+    (button) => String(button.props.className || '').includes('dshsc-intro-btn'),
+  );
+  assert.ok(spark, '订阅条目要有 ✨ 介绍入口');
+  spark.props.onClick({
+    currentTarget: { getBoundingClientRect: () => ({ left: 100, top: 100, width: 60, height: 20, bottom: 120 }) },
+  });
+  out = await pass(out.hooks);
+
+  assert.ok(textOf(out.tree).includes('还没有生成介绍'), '未生成时给空态');
+  assert.ok(textOf(out.tree).includes(`morehao/ai-kit@${commit.slice(0, 7)}`), '浮层标出快照来源');
+  assert.ok(
+    !fetchStub.requests.some((item) => item.method === 'POST' && item.url.includes('/intro')),
+    '打开浮层不能自动调模型',
+  );
+
+  const generate = buttonByText(out.tree, '生成介绍');
+  assert.ok(generate, '未生成时给生成按钮');
+  generate.props.onClick();
+  out = await pass(out.hooks);
+
+  assert.ok(textOf(out.tree).includes(generated.text), '生成后显示介绍正文');
+  assert.ok(
+    fetchStub.requests.some(
+      (item) => item.method === 'POST' && item.url.includes('/subscriptions/sub-1/entries/alpha/intro'),
+    ),
+    '点按钮才发订阅条目的 POST /intro',
+  );
+  assert.ok(textOf(out.tree).includes('安装'), '订阅候选的浮层给安装入口');
+});

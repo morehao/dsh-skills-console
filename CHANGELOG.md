@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.5.1] - 2026-10-26
+
+### Features
+
+- **技能介绍（AI 生成）**：已安装列表每行技能名旁新增 `✨ 介绍`，点开浮层就能看到模型写的「这个技能能做什么、什么时候用」——2–3 句能力介绍，不是逐字翻译。生成过的直接读本地缓存；首次点「生成介绍」才调模型，语言跟随界面（zh / en）。
+  - 只发送 `SKILL.md`（按 `maxInputBytes` 截断）与文件名清单（≤30 个），不读其他文件正文；同一时间全局只允许一个生成。
+  - 结果缓存在 `$DSH_HOME/skills-console/intros.json`，按技能名 + 语言分开；`SKILL.md` 内容哈希变化时标「可能过期」，失败不缓存。
+  - 新增 `GET/POST /skills/:name/intro`；`config.intro.*` 可关闭、指定模型、调整输入 / 输出上限与超时。错误按 409 / 413 / 429 / 501 / 502 / 504 / 499 区分，关闭浮层时 abort 模型调用。
+  - **订阅候选也能看**：展开条目行加 `✨ 介绍`，按快照 `commit` 拉远端 `SKILL.md` 再生成；缓存 key 为 `source@commit:path`，不挡「安装」。新增 `GET/POST /subscriptions/:id/entries/:name/intro`（路径由服务端反查快照，不收客户端路径）。
+  - 订阅条目行新增作者 frontmatter 描述（存进快照，不调模型），装不装先看原文。
+
 ## [v0.5.0] - 2026-10-26
 
 ### Breaking Changes

@@ -249,6 +249,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
           expanded,
           busy,
           writable,
+          capability: data?.intro || null,
           ...subscriptionActions,
         }),
 

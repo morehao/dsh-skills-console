@@ -290,3 +290,143 @@ test('/skills/:name/unpark：默认 keep=null，显式 keep 透传', async () =>
     { name: 'demo', keep: 'parked' },
   ]);
 });
+
+test('/skills/:name/intro：GET 只读缓存并把 lang 透给 service', async () => {
+  const calls = [];
+  const service = {
+    reloadState() {},
+    getState: async () => ({ ok: true }),
+    getSkillIntro: async (args) => {
+      calls.push(args);
+      return { ok: true, name: args.name, lang: args.lang, intro: null, capability: { enabled: true, available: true } };
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  await handler(
+    { url: `${ROUTE_PREFIX}/skills/demo/intro?lang=en`, method: 'GET', headers: { 'x-dsh-skills-console': '1' } },
+    res,
+  );
+
+  assert.equal(res.out.status, 200);
+  assert.equal(JSON.parse(res.out.body).lang, 'en');
+  assert.deepEqual(calls, [{ name: 'demo', lang: 'en' }]);
+});
+
+test('/skills/:name/intro：POST 才生成，force 与 signal 都传下去', async () => {
+  const calls = [];
+  const service = {
+    reloadState() {},
+    getState: async () => ({ ok: true }),
+    generateSkillIntro: async (args) => {
+      calls.push(args);
+      return { ok: true, name: args.name, lang: args.lang, cached: false, intro: { text: 'x' } };
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  const req = {
+    url: `${ROUTE_PREFIX}/skills/demo/intro`,
+    method: 'POST',
+    headers: { 'x-dsh-skills-console': '1' },
+    async *[Symbol.asyncIterator]() {
+      yield Buffer.from(JSON.stringify({ lang: 'zh', force: true }));
+    },
+  };
+  await handler(req, res);
+
+  assert.equal(res.out.status, 200);
+  assert.equal(JSON.parse(res.out.body).ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].name, 'demo');
+  assert.equal(calls[0].lang, 'zh');
+  assert.equal(calls[0].force, true);
+  assert.ok(calls[0].signal instanceof AbortSignal, '要带取消信号给模型调用');
+});
+
+test('/skills/:name/intro：service 的错误码与 HTTP 语义原样透出', async () => {
+  const service = {
+    reloadState() {},
+    getState: async () => ({ ok: true }),
+    generateSkillIntro: async () => {
+      throw new ServiceError('error.skills.intro-rate-limit', '模型限流', { retryAfterMs: 1000 }, 429);
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  const req = {
+    url: `${ROUTE_PREFIX}/skills/demo/intro`,
+    method: 'POST',
+    headers: { 'x-dsh-skills-console': '1' },
+    async *[Symbol.asyncIterator]() {
+      yield Buffer.from('{}');
+    },
+  };
+  await handler(req, res);
+
+  assert.equal(res.out.status, 429);
+  const body = JSON.parse(res.out.body);
+  assert.equal(body.code, 'error.skills.intro-rate-limit');
+  assert.deepEqual(body.detail, { retryAfterMs: 1000 });
+});
+
+test('/subscriptions/:id/entries/:name/intro：GET 只读缓存，POST 才生成并透传 signal', async () => {
+  const calls = [];
+  const service = {
+    reloadState() {},
+    getState: async () => ({ ok: true }),
+    getRemoteIntro: async (args) => {
+      calls.push({ kind: 'get', args });
+      return { ok: true, intro: null, capability: { enabled: true, available: true } };
+    },
+    generateRemoteIntro: async (args) => {
+      calls.push({ kind: 'post', args });
+      return { ok: true, cached: false, intro: { text: 'x' } };
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+
+  const res = fakeRes();
+  await handler(
+    { url: `${ROUTE_PREFIX}/subscriptions/sub-1/entries/alpha/intro?lang=en`, method: 'GET', headers: { 'x-dsh-skills-console': '1' } },
+    res,
+  );
+  assert.equal(res.out.status, 200);
+  assert.deepEqual(calls[0], { kind: 'get', args: { subscriptionId: 'sub-1', name: 'alpha', lang: 'en' } });
+
+  const post = fakeRes();
+  const req = {
+    url: `${ROUTE_PREFIX}/subscriptions/sub-1/entries/alpha/intro`,
+    method: 'POST',
+    headers: { 'x-dsh-skills-console': '1' },
+    async *[Symbol.asyncIterator]() {
+      yield Buffer.from(JSON.stringify({ lang: 'zh', force: true }));
+    },
+  };
+  await handler(req, post);
+  assert.equal(post.out.status, 200);
+  assert.equal(calls[1].kind, 'post');
+  assert.equal(calls[1].args.subscriptionId, 'sub-1');
+  assert.equal(calls[1].args.name, 'alpha');
+  assert.equal(calls[1].args.lang, 'zh');
+  assert.equal(calls[1].args.force, true);
+  assert.ok(calls[1].args.signal, 'signal 要传给 service');
+});
+
+test('/subscriptions/:id/entries/:name/intro：service 的 404 / 409 原样透出', async () => {
+  const service = {
+    reloadState() {},
+    getState: async () => ({ ok: true }),
+    getRemoteIntro: async () => {
+      throw new ServiceError('error.skills.subscription-not-found', '订阅不存在', null, 404);
+    },
+  };
+  const handler = createRoutes({ service, logger: () => {} });
+  const res = fakeRes();
+  await handler(
+    { url: `${ROUTE_PREFIX}/subscriptions/nope/entries/alpha/intro`, method: 'GET', headers: { 'x-dsh-skills-console': '1' } },
+    res,
+  );
+  assert.equal(res.out.status, 404);
+  assert.equal(JSON.parse(res.out.body).code, 'error.skills.subscription-not-found');
+});

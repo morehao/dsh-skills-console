@@ -9,6 +9,7 @@ import {
   codeloadUrl,
   downloadTarball,
   fetchAtomCommit,
+  fetchRemoteSkillMd,
   parseAtomCommit,
   snapshotFromTarball,
 } from '../lib/core/remote.js';
@@ -339,8 +340,8 @@ test('snapshotFromTarball：解压→发现→本地 tree SHA，组装 REST 同�
     assert.equal(snapshot.snapshot.commit, commit);
     assert.equal(snapshot.snapshot.etag, null);
     assert.deepEqual(snapshot.snapshot.entries, [
-      { name: 'alpha', skillPath: 'skills/alpha/SKILL.md', treeSha: alphaTree },
-      { name: 'beta', skillPath: 'skills/beta/SKILL.md', treeSha: betaTree },
+      { name: 'alpha', skillPath: 'skills/alpha/SKILL.md', treeSha: alphaTree, description: 'alpha' },
+      { name: 'beta', skillPath: 'skills/beta/SKILL.md', treeSha: betaTree, description: '' },
     ]);
     assert.deepEqual(
       snapshot.tree.filter((entry) => entry.type === 'tree'),
@@ -357,4 +358,73 @@ test('snapshotFromTarball：解压→发现→本地 tree SHA，组装 REST 同�
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+
+test('fetchRemoteSkillMd：按 commit 读单个 SKILL.md，token 只进 header', async () => {
+  const commit = 'e'.repeat(40);
+  const seen = [];
+  const result = await fetchRemoteSkillMd({
+    source: 'morehao/agent-skills',
+    ref: commit,
+    skillPath: 'skills/alpha/SKILL.md',
+    token: 'secret',
+    fetchImpl: async (url, init) => {
+      seen.push({ url: String(url), init });
+      return new Response('---\nname: alpha\n---\n正文', { status: 200 });
+    },
+  });
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].url, `https://raw.githubusercontent.com/morehao/agent-skills/${commit}/skills/alpha/SKILL.md`);
+  assert.equal(seen[0].init.headers.authorization, 'Bearer secret');
+  assert.ok(!seen[0].url.includes('secret'), 'token 绝不进 URL');
+  assert.equal(result.text.includes('正文'), true);
+  assert.equal(result.bytes, Buffer.byteLength(result.text, 'utf8'));
+});
+
+test('fetchRemoteSkillMd：404 / 过大 / 分支 ref / 路径越界都抛 RemoteError', async () => {
+  const commit = 'e'.repeat(40);
+  const notFound = () => new Response('nope', { status: 404 });
+  await assert.rejects(
+    () => fetchRemoteSkillMd({ source: 'a/b', ref: commit, skillPath: 'SKILL.md', fetchImpl: notFound }),
+    (error) => error instanceof RemoteError && error.code === 'intro-source-failed',
+  );
+  await assert.rejects(
+    () => fetchRemoteSkillMd({
+      source: 'a/b',
+      ref: commit,
+      skillPath: 'SKILL.md',
+      maxBytes: 4,
+      fetchImpl: async () => new Response('12345', { status: 200 }),
+    }),
+    (error) => error instanceof RemoteError && error.code === 'intro-source-too-large',
+  );
+  await assert.rejects(
+    () => fetchRemoteSkillMd({ source: 'a/b', ref: 'main', skillPath: 'SKILL.md', fetchImpl: notFound }),
+    (error) => error instanceof RemoteError && error.code === 'invalid-ref',
+  );
+  await assert.rejects(
+    () => fetchRemoteSkillMd({ source: 'a/b', ref: commit, skillPath: '../SKILL.md', fetchImpl: notFound }),
+    (error) => error instanceof RemoteError && error.code === 'intro-source-failed',
+  );
+  await assert.rejects(
+    () => fetchRemoteSkillMd({ source: 'a/b', ref: commit, skillPath: 'skills//SKILL.md', fetchImpl: notFound }),
+    (error) => error instanceof RemoteError && error.code === 'intro-source-failed',
+  );
+});
+
+test('fetchRemoteSkillMd：请求超时映射成 intro-source-timeout', async () => {
+  const commit = 'e'.repeat(40);
+  await assert.rejects(
+    () => fetchRemoteSkillMd({
+      source: 'a/b',
+      ref: commit,
+      skillPath: 'SKILL.md',
+      timeoutMs: 10,
+      fetchImpl: (url, init) => new Promise((resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(new Error('aborted')));
+      }),
+    }),
+    (error) => error instanceof RemoteError && error.code === 'intro-source-timeout',
+  );
 });
