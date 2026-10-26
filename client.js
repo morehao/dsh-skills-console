@@ -2786,6 +2786,7 @@ function InstalledTab({
     }, dot, h("span", null, label), h("span", { className: "n" }, counts[id]));
   }
   function listBar() {
+    const updateDot = counts.update > 0 ? h("i", { className: "dshsc-fdot" }) : null;
     return h(
       "div",
       { className: "dshsc-listbar" },
@@ -2793,7 +2794,7 @@ function InstalledTab({
         "div",
         { className: "dshsc-filters" },
         filterChip("all", t("filter.all")),
-        filterChip("update", t("filter.update"), h("i", { className: "dshsc-fdot" })),
+        filterChip("update", t("filter.update"), updateDot),
         filterChip("unknown", t("filter.unknown")),
         filterChip("manual", t("filter.manual")),
         filterChip("off", t("filter.off"))
