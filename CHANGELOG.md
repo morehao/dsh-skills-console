@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.5.2] - 2026-10-26
+
+### Fixes
+
+- **client**: 订阅状态去对钩，调用策略改用居中弹窗 (#63)
+- **client**: 调用策略弹层固定头尾、补回侧边栏入口开关样式 (#62)
+- **client**: 订阅条目的「操作」表头与破折号对到按钮中轴 (#61)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.5.1...v0.5.2
+
 ## [v0.5.1] - 2026-10-26
 
 ### Features
