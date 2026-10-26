@@ -46,12 +46,13 @@ var API = "/api/morehao/skills-console";
 function short(sha) {
   return sha ? String(sha).slice(0, 7) : "";
 }
-async function apiCall(method, path, body) {
+async function apiCall(method, path, body, options = {}) {
   const response = await fetch(`${API}${path}`, {
     method,
     headers: { "content-type": "application/json", "x-dsh-skills-console": "1" },
     body: body === void 0 ? void 0 : JSON.stringify(body),
-    cache: "no-store"
+    cache: "no-store",
+    ...options.signal ? { signal: options.signal } : {}
   });
   let json = {};
   try {
@@ -302,7 +303,33 @@ var DICT = {
     "viewer.info.visibility": "可见性",
     "viewer.info.mode": "状态",
     "viewer.info.status": "更新",
-    "viewer.info.none": "无"
+    "viewer.info.none": "无",
+    "intro.button": "介绍",
+    "intro.open": "AI 介绍：这个技能能做什么",
+    "intro.title": "AI 介绍",
+    "intro.loading": "读取中…",
+    "intro.empty": "还没有生成介绍",
+    "intro.generate": "生成介绍",
+    "intro.regenerate": "重新生成",
+    "intro.generating": "生成中…",
+    "intro.hint": "会把 SKILL.md 正文发送给当前配置的模型提供方",
+    "intro.hintRemote": "会把该技能在 {source}@{commit} 的 SKILL.md 发送给当前配置的模型提供方",
+    "intro.meta": "{model} · {time} · AI 生成，可能不准确",
+    "intro.stale": "技能内容已更新，介绍可能过期",
+    "intro.view": "查看技能",
+    "intro.unavailable": "当前宿主没有可用的模型服务",
+    "intro.error.noModel": "还没有配置可用的模型",
+    "intro.error.rateLimit": "模型限流或额度不足，请稍后再试",
+    "intro.error.tooLarge": "技能正文超出模型上下文",
+    "intro.error.timeout": "生成超时，请重试",
+    "intro.error.auth": "模型提供方认证失败",
+    "intro.error.empty": "模型没有返回内容",
+    "intro.error.busy": "正在生成，请稍候",
+    "intro.error.source": "读不到远端的 SKILL.md（仓库私有、已删除或网络问题）",
+    "intro.error.noSource": "订阅快照里没有这个技能，请先点「检查更新」",
+    "intro.error.subscription": "订阅不存在，可能已被取消",
+    "intro.error.sourceTimeout": "读取远端 SKILL.md 超时，请重试",
+    "intro.error.generic": "生成失败，请重试"
   },
   en: {
     "section.title": "Skills Console",
@@ -535,7 +562,33 @@ var DICT = {
     "viewer.info.visibility": "Visibility",
     "viewer.info.mode": "State",
     "viewer.info.status": "Updates",
-    "viewer.info.none": "None"
+    "viewer.info.none": "None",
+    "intro.button": "Intro",
+    "intro.open": "AI intro: what this skill does",
+    "intro.title": "AI intro",
+    "intro.loading": "Loading…",
+    "intro.empty": "No intro yet",
+    "intro.generate": "Generate intro",
+    "intro.regenerate": "Regenerate",
+    "intro.generating": "Generating…",
+    "intro.hint": "Sends the SKILL.md body to the model provider configured in DSH",
+    "intro.hintRemote": "Sends the SKILL.md at {source}@{commit} to the model provider configured in DSH",
+    "intro.meta": "{model} · {time} · AI-generated, may be inaccurate",
+    "intro.stale": "The skill changed; this intro may be out of date",
+    "intro.view": "Open skill",
+    "intro.unavailable": "No model service is available in this host",
+    "intro.error.noModel": "No usable model is configured",
+    "intro.error.rateLimit": "The model is rate-limited or out of quota; try again later",
+    "intro.error.tooLarge": "The skill body exceeds the model context window",
+    "intro.error.timeout": "Generation timed out; try again",
+    "intro.error.auth": "The model provider rejected the credentials",
+    "intro.error.empty": "The model returned no content",
+    "intro.error.busy": "Already generating; please wait",
+    "intro.error.source": "Could not read the remote SKILL.md (private repo, deleted, or network)",
+    "intro.error.noSource": "This skill is not in the subscription snapshot; run “Check for updates” first",
+    "intro.error.subscription": "The subscription no longer exists",
+    "intro.error.sourceTimeout": "Timed out reading the remote SKILL.md; try again",
+    "intro.error.generic": "Generation failed; try again"
   }
 };
 function buildTranslate(locale) {
@@ -546,11 +599,16 @@ function buildTranslate(locale) {
       return "zh";
     }
   };
-  return (key) => {
+  const translate = (key) => {
     const id = active();
     const pack = DICT[id] || DICT.zh;
     return pack[key] ?? DICT.zh[key] ?? key;
   };
+  Object.defineProperty(translate, "lang", {
+    get: () => active() === "en" ? "en" : "zh",
+    enumerable: false
+  });
+  return translate;
 }
 
 // client/host.js
@@ -982,7 +1040,7 @@ function FolderIcon({ size = 12 }) {
 }
 
 // client/section.js
-var import_react8 = __toESM(require("react"), 1);
+var import_react10 = __toESM(require("react"), 1);
 
 // client/scroll.js
 function isScroller(node, tolerance = 4) {
@@ -1307,6 +1365,11 @@ var CSS = `
     align-items: center; font-size: 12px; padding: 6px 0; border-top: 1px solid var(--dsw-alias-border-l1); }
   .dshsc-entryhead + .dshsc-sub-entry { border-top: 0; }
   .dshsc-sub-entry .dshsc-name { font-size: 12px; font-weight: 500; }
+  /* 条目第一列：名字 + ✨ 同一行，作者原描述单独一行（超长省略，完整内容在 title） */
+  .dshsc-sub-skill { min-width: 0; }
+  .dshsc-sub-namerow { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .dshsc-sub-desc { margin-top: 1px; font-size: 11px; line-height: 15px; color: var(--dsw-alias-label-tertiary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dshsc-state { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-state.ok svg { color: var(--dsw-alias-state-success-primary); }
   .dshsc-sub-entry .dshsc-actions { justify-self: end; display: flex; justify-content: flex-end; }
@@ -1583,6 +1646,26 @@ var CSS = `
   .dshsc-info-sec dt { color: var(--dsw-alias-label-tertiary); }
   .dshsc-info-sec dd { margin: 0; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
   .dshsc-info-sec dd.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+
+  /* 列表行的 ✨ 介绍入口：只占一个小胶囊，不改变行高与列宽 */
+  .dshsc-intro-btn { flex: none; display: inline-flex; align-items: center; gap: 3px;
+    height: 19px; padding: 0 7px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px;
+    background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 11px;
+    line-height: 1; cursor: pointer; white-space: nowrap; }
+  .dshsc-intro-btn:hover { color: var(--dsw-alias-label-primary); border-color: var(--dsw-alias-border-l3);
+    background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-intro-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+  .dshsc-intro-btn .dshsc-spark { font-size: 10px; color: var(--dsw-alias-brand-primary); }
+
+  /* 介绍浮层：复用 policy 浮层的外壳（fixed + portal），只调内容排版 */
+  .dshsc-intro-pop { width: min(360px, calc(100vw - 16px)); gap: 7px; }
+  .dshsc-intro-text { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--dsw-alias-label-primary);
+    white-space: pre-wrap; overflow-wrap: anywhere; }
+  .dshsc-intro-note { margin: 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-intro-meta { margin: 0; font-size: 11px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-intro-stale { margin: 0; font-size: 11px; line-height: 15px; color: var(--dsw-alias-state-warn-primary); }
+  .dshsc-intro-error { margin: 0; font-size: 11.5px; line-height: 16px; color: var(--dsw-alias-state-error-primary); }
+  .dshsc-intro-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 3px; }
 
   /* 正文排版：只用 token，不写死深浅色 */
   .dshsc-md { font-size: 13.5px; line-height: 1.72; color: var(--dsw-alias-label-primary); }
@@ -2101,6 +2184,70 @@ function useSkillReader(row) {
   }, []);
   return { state, file, loadFile, retry };
 }
+function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = null }) {
+  const base = endpoint || `/skills/${encodeURIComponent(name)}/intro`;
+  const [state, setState] = import_react2.default.useState({ loading: true, intro: null, capability: null, error: null });
+  const [generating, setGenerating] = import_react2.default.useState(false);
+  const [genError, setGenError] = import_react2.default.useState(null);
+  const seq = import_react2.default.useRef(0);
+  const controller = import_react2.default.useRef(null);
+  import_react2.default.useEffect(() => {
+    if (!name || !enabled) {
+      setState({ loading: false, intro: null, capability: null, error: null });
+      return;
+    }
+    const ticket = seq.current + 1;
+    seq.current = ticket;
+    setState({ loading: true, intro: null, capability: null, error: null });
+    void (async () => {
+      try {
+        const result = await apiCall("GET", `${base}?lang=${encodeURIComponent(lang || "zh")}`);
+        if (ticket !== seq.current) return;
+        setState({ loading: false, intro: result.intro || null, capability: result.capability || null, error: null });
+      } catch (error) {
+        if (ticket !== seq.current) return;
+        setState({
+          loading: false,
+          intro: null,
+          capability: null,
+          error: { code: error?.code || null, message: error?.message || "读取失败" }
+        });
+      }
+    })();
+  }, [name, lang, stamp, enabled, base]);
+  import_react2.default.useEffect(() => () => {
+    if (controller.current) {
+      controller.current.abort();
+      controller.current = null;
+    }
+  }, [name, lang, base]);
+  const generate = import_react2.default.useCallback(async (force = false) => {
+    if (!name) return null;
+    if (controller.current) return null;
+    const ctrl = new AbortController();
+    controller.current = ctrl;
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const result = await apiCall(
+        "POST",
+        base,
+        { lang: lang || "zh", force: Boolean(force) },
+        { signal: ctrl.signal }
+      );
+      setState({ loading: false, intro: result.intro || null, capability: result.capability || null, error: null });
+      return result;
+    } catch (error) {
+      if (error?.name === "AbortError") return null;
+      setGenError({ code: error?.code || null, message: error?.message || "生成失败" });
+      return null;
+    } finally {
+      if (controller.current === ctrl) controller.current = null;
+      setGenerating(false);
+    }
+  }, [name, lang, base]);
+  return { ...state, generating, genError, generate };
+}
 
 // client/views/header.js
 function installSpec(plugin) {
@@ -2294,18 +2441,164 @@ function Toolbar({
 }
 
 // client/views/installed.js
-var import_react4 = __toESM(require("react"), 1);
+var import_react5 = __toESM(require("react"), 1);
 
-// client/views/policy-popover.js
+// client/views/intro-popover.js
 var import_react3 = __toESM(require("react"), 1);
-function PolicyPopover({ t, row, anchor, anchorEl, busy, onClose, onSave, onUnpark }) {
-  const initial = row.mode === "hidden" ? "auto" : row.mode;
-  const [mode, setMode] = import_react3.default.useState(initial);
-  const [confirming, setConfirming] = import_react3.default.useState(false);
+var ERROR_KEY = {
+  "error.skills.intro-no-model": "intro.error.noModel",
+  "error.skills.intro-rate-limit": "intro.error.rateLimit",
+  "error.skills.intro-quota": "intro.error.rateLimit",
+  "error.skills.intro-too-large": "intro.error.tooLarge",
+  "error.skills.intro-timeout": "intro.error.timeout",
+  "error.skills.intro-auth": "intro.error.auth",
+  "error.skills.intro-empty": "intro.error.empty",
+  "error.skills.intro-busy": "intro.error.busy",
+  "error.skills.intro-source": "intro.error.source",
+  "error.skills.subscription-not-found": "intro.error.subscription",
+  "error.skills.intro-source-timeout": "intro.error.sourceTimeout",
+  "error.skills.intro-no-source": "intro.error.noSource"
+};
+function formatWhen(iso) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+function modelLabel(intro) {
+  if (!intro?.model) return "—";
+  return intro.provider ? `${intro.provider}/${intro.model}` : intro.model;
+}
+function IntroPopover({
+  t,
+  name,
+  stamp = "",
+  subtitle = null,
+  endpoint = null,
+  capability,
+  anchor,
+  anchorEl,
+  hint = null,
+  viewLabel = null,
+  onClose,
+  onView = null
+}) {
   const ref = import_react3.default.useRef(null);
   const [pos, setPos] = import_react3.default.useState({ left: 0, top: 0, visibility: "hidden" });
+  const enabled = capability?.enabled !== false;
+  const available = capability?.available !== false;
+  const intro = useSkillIntro({
+    name,
+    lang: t.lang || "zh",
+    stamp,
+    enabled,
+    endpoint
+  });
   useOverlayLayer(true, onClose);
   import_react3.default.useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node || !anchor || typeof window === "undefined") return;
+    const rect = node.getBoundingClientRect();
+    const width = rect.width || 360;
+    const height = rect.height || 220;
+    let left = anchor.left;
+    left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+    let top = anchor.bottom + 8;
+    if (top + height > window.innerHeight - 8) {
+      top = Math.max(8, anchor.top - height - 8);
+    }
+    setPos({ left, top, visibility: "visible" });
+  }, [anchor, intro.loading, intro.intro?.text, intro.generating, intro.genError]);
+  import_react3.default.useEffect(() => {
+    if (typeof document === "undefined") return void 0;
+    const onPointerDown = (event) => {
+      const target = event?.target;
+      if (ref.current?.contains?.(target)) return;
+      if (anchorEl?.contains?.(target)) return;
+      onClose();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [anchorEl, onClose]);
+  const failure = intro.genError || intro.error;
+  const failureKey = failure?.code ? ERROR_KEY[failure.code] || "intro.error.generic" : null;
+  const meta = intro.intro ? t("intro.meta").replace("{model}", modelLabel(intro.intro)).replace("{time}", formatWhen(intro.intro.generatedAt) || "—") : "";
+  const actions = [];
+  if (intro.intro) {
+    actions.push(h("button", {
+      type: "button",
+      key: "regen",
+      className: "dshsc-btn ghost",
+      disabled: intro.generating || !available,
+      onClick: () => {
+        void intro.generate(true);
+      }
+    }, intro.generating ? t("intro.generating") : t("intro.regenerate")));
+    if (onView) {
+      actions.push(h("button", {
+        type: "button",
+        key: "view",
+        className: "dshsc-btn primary",
+        onClick: onView
+      }, viewLabel || t("intro.view")));
+    }
+  } else {
+    actions.push(h("button", {
+      type: "button",
+      key: "gen",
+      className: "dshsc-btn primary",
+      disabled: intro.generating || !available || !enabled,
+      onClick: () => {
+        void intro.generate(false);
+      }
+    }, intro.generating ? t("intro.generating") : t("intro.generate")));
+  }
+  return portalize(h(
+    "div",
+    {
+      ref,
+      className: "dshsc-policy-pop dshsc-intro-pop",
+      role: "dialog",
+      "aria-label": `${t("intro.title")} · ${name}`,
+      style: { left: `${pos.left}px`, top: `${pos.top}px`, visibility: pos.visibility }
+    },
+    h(
+      "div",
+      { className: "dshsc-policy-head" },
+      h(
+        "div",
+        null,
+        h("div", { className: "dshsc-policy-title" }, `✨ ${t("intro.title")}`),
+        h("div", { className: "dshsc-policy-sub", title: subtitle || name }, subtitle || name)
+      ),
+      h("button", {
+        type: "button",
+        className: "dshsc-policy-close",
+        "aria-label": t("action.close"),
+        onClick: onClose
+      }, "×")
+    ),
+    intro.loading ? h("p", { className: "dshsc-intro-note" }, t("intro.loading")) : intro.intro ? h("p", { className: "dshsc-intro-text" }, intro.intro.text) : h("p", { className: "dshsc-intro-note" }, t("intro.empty")),
+    intro.intro?.stale ? h("p", { className: "dshsc-intro-stale" }, t("intro.stale")) : null,
+    failureKey ? h("p", { className: "dshsc-intro-error" }, t(failureKey)) : null,
+    meta ? h("p", { className: "dshsc-intro-meta" }, meta) : null,
+    available && !intro.intro && !intro.loading ? h("p", { className: "dshsc-intro-meta" }, hint || t("intro.hint")) : null,
+    !available ? h("p", { className: "dshsc-intro-error" }, t("intro.unavailable")) : null,
+    h("div", { className: "dshsc-intro-foot" }, actions)
+  ));
+}
+
+// client/views/policy-popover.js
+var import_react4 = __toESM(require("react"), 1);
+function PolicyPopover({ t, row, anchor, anchorEl, busy, onClose, onSave, onUnpark }) {
+  const initial = row.mode === "hidden" ? "auto" : row.mode;
+  const [mode, setMode] = import_react4.default.useState(initial);
+  const [confirming, setConfirming] = import_react4.default.useState(false);
+  const ref = import_react4.default.useRef(null);
+  const [pos, setPos] = import_react4.default.useState({ left: 0, top: 0, visibility: "hidden" });
+  useOverlayLayer(true, onClose);
+  import_react4.default.useLayoutEffect(() => {
     const node = ref.current;
     if (!node || !anchor || typeof window === "undefined") return;
     const rect = node.getBoundingClientRect();
@@ -2319,7 +2612,7 @@ function PolicyPopover({ t, row, anchor, anchorEl, busy, onClose, onSave, onUnpa
     }
     setPos({ left, top, visibility: "visible" });
   }, [anchor, confirming, mode]);
-  import_react3.default.useEffect(() => {
+  import_react4.default.useEffect(() => {
     if (typeof document === "undefined") return void 0;
     const onPointerDown = (event) => {
       const target = event?.target;
@@ -2473,13 +2766,28 @@ function InstalledTab({
   actions
 }) {
   const updatable = (row) => UPDATABLE.has(row.status);
-  const [policy, setPolicy] = import_react4.default.useState(null);
+  const [policy, setPolicy] = import_react5.default.useState(null);
+  const [intro, setIntro] = import_react5.default.useState(null);
   const sharedTargets = new Set((data?.agents?.detected || []).filter((agent) => agent.kind === "agent" && agent.sharedHome === "yes").map((agent) => agent.target));
-  import_react4.default.useEffect(() => {
+  import_react5.default.useEffect(() => {
     if (!policy) return;
     if (rows.some((row) => row.name === policy.row.name)) return;
     setPolicy(null);
   }, [policy, rows]);
+  import_react5.default.useEffect(() => {
+    if (!intro) return;
+    if (rows.some((row) => row.name === intro.row.name)) return;
+    setIntro(null);
+  }, [intro, rows]);
+  function openIntro(event, row) {
+    const el = event.currentTarget;
+    const rect = el.getBoundingClientRect();
+    setIntro({
+      row,
+      anchorEl: el,
+      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height }
+    });
+  }
   function openPolicy(event, row) {
     if (busy !== null || row.kind === "file") return;
     if (row.mode === "manual" && row.origin === "author") return;
@@ -2673,6 +2981,18 @@ function InstalledTab({
             "aria-haspopup": "dialog",
             onClick: () => actions.onView(row)
           }, row.name),
+          data?.intro ? h(
+            "button",
+            {
+              type: "button",
+              className: "dshsc-intro-btn",
+              title: t("intro.open"),
+              "aria-haspopup": "dialog",
+              onClick: (event) => openIntro(event, row)
+            },
+            h("span", { className: "dshsc-spark", "aria-hidden": "true" }, "✨"),
+            t("intro.button")
+          ) : null,
           statusTag(row)
         ),
         sourceLine(row),
@@ -2922,6 +3242,20 @@ function InstalledTab({
       )
     );
   }
+  const introPopover = intro && data?.intro ? h(IntroPopover, {
+    t,
+    name: intro.row.name,
+    stamp: [intro.row.commit || "", intro.row.currentHash || "", intro.row.updatedAt || "", intro.row.status || ""].join("|"),
+    anchor: intro.anchor,
+    anchorEl: intro.anchorEl,
+    capability: data.intro,
+    onClose: () => setIntro(null),
+    onView: () => {
+      const target = intro.row;
+      setIntro(null);
+      actions.onView(target);
+    }
+  }) : null;
   const popover = policy ? h(PolicyPopover, {
     t,
     row: policy.row,
@@ -2940,7 +3274,7 @@ function InstalledTab({
       actions.onRequestUnpark(target);
     }
   }) : null;
-  return h(import_react4.default.Fragment, null, content(), popover);
+  return h(import_react5.default.Fragment, null, content(), popover, introPopover);
 }
 
 // client/views/agent-tip.js
@@ -2975,9 +3309,13 @@ function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
 }
 
 // client/views/subscriptions.js
+var import_react6 = __toESM(require("react"), 1);
 function repoOf(source) {
   const value = String(source || "").trim().toLowerCase().replace(/\.git$/, "");
   return value || null;
+}
+function shortCommit(value) {
+  return typeof value === "string" ? value.slice(0, 7) : "";
 }
 function SubscriptionsTab({
   t,
@@ -2986,12 +3324,72 @@ function SubscriptionsTab({
   expanded,
   busy,
   writable,
+  capability = null,
   onToggle,
   onRefresh,
   onDelete,
   onInstall,
   onAdd
 }) {
+  const [intro, setIntro] = import_react6.default.useState(null);
+  import_react6.default.useEffect(() => {
+    if (!intro) return;
+    const subscription = subscriptions.find((item) => item.id === intro.subscriptionId);
+    const entries = subscription?.snapshot?.entries || [];
+    if (entries.some((entry) => entry.name === intro.name)) return;
+    setIntro(null);
+  }, [intro, subscriptions]);
+  function openIntro(event, subscription, entry) {
+    const el = event.currentTarget;
+    const rect = el.getBoundingClientRect();
+    setIntro({
+      subscriptionId: subscription.id,
+      name: entry.name,
+      anchorEl: el,
+      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height }
+    });
+  }
+  function introButton(subscription, entry) {
+    return h(
+      "button",
+      {
+        type: "button",
+        className: "dshsc-intro-btn",
+        title: t("intro.open"),
+        "aria-haspopup": "dialog",
+        onClick: (clickEvent) => openIntro(clickEvent, subscription, entry)
+      },
+      h("span", { className: "dshsc-spark", "aria-hidden": "true" }, "✨"),
+      t("intro.button")
+    );
+  }
+  const introSubscription = intro ? subscriptions.find((item) => item.id === intro.subscriptionId) || null : null;
+  const introEntry = introSubscription ? (introSubscription.snapshot?.entries || []).find((entry) => entry.name === intro.name) || null : null;
+  const introPopover = intro && introEntry && capability ? (() => {
+    const commit = introSubscription.snapshot?.commit || "";
+    const installedAlready = rows.some((row) => {
+      if (row.name !== introEntry.name) return false;
+      if (row.subscriptionId === introSubscription.id) return true;
+      return repoOf(row.source) === repoOf(introSubscription.source);
+    });
+    return h(IntroPopover, {
+      t,
+      name: introEntry.name,
+      stamp: commit,
+      subtitle: `${introSubscription.source}@${shortCommit(commit)}`,
+      endpoint: `/subscriptions/${encodeURIComponent(introSubscription.id)}/entries/${encodeURIComponent(introEntry.name)}/intro`,
+      capability,
+      anchor: intro.anchor,
+      anchorEl: intro.anchorEl,
+      hint: t("intro.hintRemote").replace("{source}", introSubscription.source).replace("{commit}", shortCommit(commit) || "—"),
+      viewLabel: t("action.install"),
+      onView: installedAlready ? null : () => {
+        setIntro(null);
+        void onInstall(introSubscription, introEntry);
+      },
+      onClose: () => setIntro(null)
+    });
+  })() : null;
   if (subscriptions.length === 0) {
     return h(
       "div",
@@ -3014,118 +3412,133 @@ function SubscriptionsTab({
     );
   }
   return h(
-    "div",
-    { className: "dshsc-tabpane" },
-    // 表头与仓库行共用同一个滚动容器，位置 sticky；宽屏 4 列，窄屏收成「仓库」/「操作」。
+    import_react6.default.Fragment,
+    null,
     h(
       "div",
-      { className: "dshsc-listscroll dshsc-subscroll" },
+      { className: "dshsc-tabpane" },
+      // 表头与仓库行共用同一个滚动容器，位置 sticky；宽屏 4 列，窄屏收成「仓库」/「操作」。
       h(
         "div",
-        { className: "dshsc-subhead" },
-        h("div", { className: "dshsc-hrepo" }, t("column.repo")),
-        h("div", { className: "dshsc-href" }, t("column.ref")),
-        h("div", { className: "dshsc-hcount" }, t("column.entries")),
-        h("div", { className: "dshsc-hact" }, t("column.actions"))
-      ),
-      subscriptions.map((subscription) => {
-        const entries = subscription.snapshot?.entries || [];
-        const repo = repoOf(subscription.source);
-        const rowsByName = new Map(rows.map((row) => [row.name, row]));
-        const installedRow = (name) => {
-          const row = rowsByName.get(name);
-          if (!row) return null;
-          if (row.subscriptionId === subscription.id) return row;
-          return repo && repoOf(row.source) === repo ? row : null;
-        };
-        const installedCount = entries.filter((entry) => installedRow(entry.name)).length;
-        const open = Boolean(expanded[subscription.id]);
-        return h(
+        { className: "dshsc-listscroll dshsc-subscroll" },
+        h(
           "div",
-          { className: "dshsc-sub-block", key: subscription.id },
-          h(
+          { className: "dshsc-subhead" },
+          h("div", { className: "dshsc-hrepo" }, t("column.repo")),
+          h("div", { className: "dshsc-href" }, t("column.ref")),
+          h("div", { className: "dshsc-hcount" }, t("column.entries")),
+          h("div", { className: "dshsc-hact" }, t("column.actions"))
+        ),
+        subscriptions.map((subscription) => {
+          const entries = subscription.snapshot?.entries || [];
+          const repo = repoOf(subscription.source);
+          const rowsByName = new Map(rows.map((row) => [row.name, row]));
+          const installedRow = (name) => {
+            const row = rowsByName.get(name);
+            if (!row) return null;
+            if (row.subscriptionId === subscription.id) return row;
+            return repo && repoOf(row.source) === repo ? row : null;
+          };
+          const installedCount = entries.filter((entry) => installedRow(entry.name)).length;
+          const open = Boolean(expanded[subscription.id]);
+          return h(
             "div",
-            { className: "dshsc-sub-row" },
+            { className: "dshsc-sub-block", key: subscription.id },
             h(
               "div",
-              { className: "dshsc-sub-repo" },
-              h("button", {
-                className: "dshsc-caret",
-                "aria-expanded": String(open),
-                "aria-label": `${subscription.source} ${open ? t("action.collapse") : t("action.expand")}`,
-                onClick: () => onToggle(subscription.id)
-              }, h(CaretIcon, { open })),
-              h("span", { className: "dshsc-name" }, subscription.source)
-            ),
-            // 宽屏铺成 Ref / 条目两列；窄屏回到仓库名下方一行。
-            h(
-              "div",
-              { className: "dshsc-sub-meta" },
-              h("span", { className: "dshsc-tag dshsc-subref" }, subscription.ref || t("subscription.defaultRef")),
+              { className: "dshsc-sub-row" },
               h(
-                "span",
-                { className: "dshsc-substat" },
-                `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedCount}`
-              )
-            ),
-            h(
-              "div",
-              { className: "dshsc-actions" },
-              h("button", {
-                className: "dshsc-btn sq",
-                disabled: busy !== null,
-                title: t("action.checkUpdates"),
-                "aria-label": `${t("action.checkUpdates")} ${subscription.source}`,
-                onClick: () => void onRefresh(subscription)
-              }, h(RefreshIcon, { size: 13 })),
-              h("button", { className: "dshsc-btn ghost danger", disabled: busy !== null, onClick: () => void onDelete(subscription) }, t("action.unsubscribe"))
-            )
-          ),
-          open ? h(
-            "div",
-            { className: "dshsc-sub-list" },
-            h(
-              "div",
-              { className: "dshsc-entryhead" },
-              h("div", null, t("column.skill")),
-              h("div", null, t("column.status")),
-              h("div", { className: "right" }, t("column.actions"))
-            ),
-            entries.map((entry) => {
-              const installedAlready = Boolean(installedRow(entry.name));
-              return h(
                 "div",
-                { className: "dshsc-sub-entry", key: entry.name },
-                h("span", { className: "dshsc-name" }, entry.name),
+                { className: "dshsc-sub-repo" },
+                h("button", {
+                  className: "dshsc-caret",
+                  "aria-expanded": String(open),
+                  "aria-label": `${subscription.source} ${open ? t("action.collapse") : t("action.expand")}`,
+                  onClick: () => onToggle(subscription.id)
+                }, h(CaretIcon, { open })),
+                h("span", { className: "dshsc-name" }, subscription.source)
+              ),
+              // 宽屏铺成 Ref / 条目两列；窄屏回到仓库名下方一行。
+              h(
+                "div",
+                { className: "dshsc-sub-meta" },
+                h("span", { className: "dshsc-tag dshsc-subref" }, subscription.ref || t("subscription.defaultRef")),
                 h(
                   "span",
-                  { className: `dshsc-state${installedAlready ? " ok" : ""}` },
-                  installedAlready ? "✓ " : "",
-                  installedAlready ? t("installed") : t("notInstalled")
-                ),
-                h(
-                  "div",
-                  { className: "dshsc-actions" },
-                  installedAlready ? h("span", { className: "dshsc-noop" }, "-") : h("button", {
-                    className: "dshsc-btn",
-                    disabled: !writable || busy !== null,
-                    onClick: () => void onInstall(subscription, entry)
-                  }, t("action.install"))
+                  { className: "dshsc-substat" },
+                  `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedCount}`
                 )
-              );
-            })
-          ) : null
-        );
-      })
-    )
+              ),
+              h(
+                "div",
+                { className: "dshsc-actions" },
+                h("button", {
+                  className: "dshsc-btn sq",
+                  disabled: busy !== null,
+                  title: t("action.checkUpdates"),
+                  "aria-label": `${t("action.checkUpdates")} ${subscription.source}`,
+                  onClick: () => void onRefresh(subscription)
+                }, h(RefreshIcon, { size: 13 })),
+                h("button", { className: "dshsc-btn ghost danger", disabled: busy !== null, onClick: () => void onDelete(subscription) }, t("action.unsubscribe"))
+              )
+            ),
+            open ? h(
+              "div",
+              { className: "dshsc-sub-list" },
+              h(
+                "div",
+                { className: "dshsc-entryhead" },
+                h("div", null, t("column.skill")),
+                h("div", null, t("column.status")),
+                h("div", { className: "right" }, t("column.actions"))
+              ),
+              entries.map((entry) => {
+                const installedAlready = Boolean(installedRow(entry.name));
+                return h(
+                  "div",
+                  { className: "dshsc-sub-entry", key: entry.name },
+                  h(
+                    "div",
+                    { className: "dshsc-sub-skill" },
+                    h(
+                      "div",
+                      { className: "dshsc-sub-namerow" },
+                      h("span", { className: "dshsc-name" }, entry.name),
+                      capability ? introButton(subscription, entry) : null
+                    ),
+                    entry.description ? h("div", { className: "dshsc-sub-desc", title: entry.description }, entry.description) : null
+                  ),
+                  h(
+                    "span",
+                    { className: `dshsc-state${installedAlready ? " ok" : ""}` },
+                    installedAlready ? "✓ " : "",
+                    installedAlready ? t("installed") : t("notInstalled")
+                  ),
+                  h(
+                    "div",
+                    { className: "dshsc-actions" },
+                    installedAlready ? h("span", { className: "dshsc-noop" }, "-") : h("button", {
+                      className: "dshsc-btn",
+                      disabled: !writable || busy !== null,
+                      onClick: () => void onInstall(subscription, entry)
+                    }, t("action.install"))
+                  )
+                );
+              })
+            ) : null
+          );
+        })
+      )
+    ),
+    introPopover
   );
 }
 
 // client/views/modals.js
-var import_react6 = __toESM(require("react"), 1);
+var import_react8 = __toESM(require("react"), 1);
 
 // client/views/add-skill.js
-var import_react5 = __toESM(require("react"), 1);
+var import_react7 = __toESM(require("react"), 1);
 
 // client/views/overlay.js
 function Overlay({ t, title, children, footer, onCancel }) {
@@ -3155,13 +3568,13 @@ function Overlay({ t, title, children, footer, onCancel }) {
 
 // client/views/add-skill.js
 function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
-  const [source, setSource] = import_react5.default.useState("");
-  const [phase, setPhase] = import_react5.default.useState("idle");
-  const [options, setOptions] = import_react5.default.useState([]);
-  const [selected, setSelected] = import_react5.default.useState(() => /* @__PURE__ */ new Set());
-  const [manual, setManual] = import_react5.default.useState("");
-  const [skipped, setSkipped] = import_react5.default.useState(0);
-  const [error, setError] = import_react5.default.useState(null);
+  const [source, setSource] = import_react7.default.useState("");
+  const [phase, setPhase] = import_react7.default.useState("idle");
+  const [options, setOptions] = import_react7.default.useState([]);
+  const [selected, setSelected] = import_react7.default.useState(() => /* @__PURE__ */ new Set());
+  const [manual, setManual] = import_react7.default.useState("");
+  const [skipped, setSkipped] = import_react7.default.useState(0);
+  const [error, setError] = import_react7.default.useState(null);
   const reset = (value) => {
     setSource(value);
     setPhase("idle");
@@ -3297,7 +3710,7 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
 
 // client/views/modals.js
 function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
-  const [form, setForm] = import_react6.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
+  const [form, setForm] = import_react8.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
   const incomplete = fields.some(
     (field) => field.required !== false && !String(form[field.key] || "").trim()
   );
@@ -3345,7 +3758,7 @@ function ExportsModal({ t, row, agents, onCancel, onSave }) {
   const candidates = agents.filter(
     (agent) => agent.kind === "agent" && agent.exists && agent.exportable
   );
-  const [targets, setTargets] = import_react6.default.useState(() => {
+  const [targets, setTargets] = import_react8.default.useState(() => {
     const available = new Set(candidates.map((agent) => agent.target));
     return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
   });
@@ -3387,7 +3800,7 @@ function ExportsModal({ t, row, agents, onCancel, onSave }) {
   );
 }
 function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
-  const [targets, setTargets] = import_react6.default.useState(() => new Set(
+  const [targets, setTargets] = import_react8.default.useState(() => new Set(
     Array.isArray(settings.exportTargets) ? settings.exportTargets : []
   ));
   const toggle = (target) => setTargets((prev) => {
@@ -3516,7 +3929,7 @@ ${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join("\n")}`,
 }
 
 // client/views/skill-reader.js
-var import_react7 = __toESM(require("react"), 1);
+var import_react9 = __toESM(require("react"), 1);
 
 // client/markdown.js
 function classifyHref(href) {
@@ -3952,7 +4365,7 @@ function formatBytes(bytes) {
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
-function formatWhen(iso) {
+function formatWhen2(iso) {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
@@ -4012,37 +4425,37 @@ function SkillReader({
   onToast
 }) {
   const { state, file, loadFile, retry } = useSkillReader(row);
-  const [tab, setTab] = import_react7.default.useState(initialTab);
-  const [format, setFormat] = import_react7.default.useState("rendered");
-  const [docOverride, setDocOverride] = import_react7.default.useState(null);
-  const [fileFormat, setFileFormat] = import_react7.default.useState("rendered");
-  const [tocActive, setTocActive] = import_react7.default.useState(null);
-  const [descOpen, setDescOpen] = import_react7.default.useState(false);
-  const [descClamped, setDescClamped] = import_react7.default.useState(false);
-  const bodyRef = import_react7.default.useRef(null);
-  const dialogRef = import_react7.default.useRef(null);
-  const descRef = import_react7.default.useRef(null);
-  const scrollRef = import_react7.default.useRef(0);
-  useOverlayLayer(variant === "drawer" || variant === "page", onClose);
   const name = row?.name || "";
+  const [tab, setTab] = import_react9.default.useState(initialTab);
+  const [format, setFormat] = import_react9.default.useState("rendered");
+  const [docOverride, setDocOverride] = import_react9.default.useState(null);
+  const [fileFormat, setFileFormat] = import_react9.default.useState("rendered");
+  const [tocActive, setTocActive] = import_react9.default.useState(null);
+  const [descOpen, setDescOpen] = import_react9.default.useState(false);
+  const [descClamped, setDescClamped] = import_react9.default.useState(false);
+  const bodyRef = import_react9.default.useRef(null);
+  const dialogRef = import_react9.default.useRef(null);
+  const descRef = import_react9.default.useRef(null);
+  const scrollRef = import_react9.default.useRef(0);
+  useOverlayLayer(variant === "drawer" || variant === "page", onClose);
   const tree = state.tree;
   const files = tree?.files || [];
   const fileCount = files.filter((entry) => entry.kind === "file").length;
   const bodyText = docOverride ? docOverride.content : state.body?.content || "";
   const description = row?.description || state.body?.meta?.description || "";
   const headings = tab === "doc" && bodyText ? parseCached(bodyText).headings : [];
-  import_react7.default.useEffect(() => {
+  import_react9.default.useEffect(() => {
     setDocOverride(null);
     scrollRef.current = 0;
   }, [name]);
-  const descOwnerRef = import_react7.default.useRef(name);
-  import_react7.default.useEffect(() => {
+  const descOwnerRef = import_react9.default.useRef(name);
+  import_react9.default.useEffect(() => {
     if (descOwnerRef.current === name) return;
     descOwnerRef.current = name;
     setDescOpen(false);
     setDescClamped(false);
   }, [name]);
-  import_react7.default.useLayoutEffect(() => {
+  import_react9.default.useLayoutEffect(() => {
     const node = descRef.current;
     if (!node) return void 0;
     const measure = () => {
@@ -4064,16 +4477,16 @@ function SkillReader({
       window.removeEventListener("resize", measure);
     };
   }, [description, descOpen]);
-  import_react7.default.useEffect(() => {
+  import_react9.default.useEffect(() => {
     if (!initialFile) return;
     setTab("files");
     void loadFile(initialFile);
   }, [initialFile, loadFile]);
-  import_react7.default.useEffect(() => {
+  import_react9.default.useEffect(() => {
     const node = bodyRef.current;
     if (node && scrollRef.current) node.scrollTop = scrollRef.current;
   });
-  import_react7.default.useEffect(() => {
+  import_react9.default.useEffect(() => {
     if (variant !== "drawer" || typeof document === "undefined") return void 0;
     const previous = document.activeElement;
     const node = dialogRef.current;
@@ -4100,12 +4513,12 @@ function SkillReader({
       previous?.focus?.();
     };
   }, [variant, onClose]);
-  import_react7.default.useEffect(() => {
+  import_react9.default.useEffect(() => {
     if (variant !== "page" || typeof document === "undefined") return;
     const node = document.getElementById("dshsc-reader-name");
     node?.focus?.();
   }, [variant, name]);
-  import_react7.default.useEffect(() => {
+  import_react9.default.useEffect(() => {
     if (variant !== "page" || typeof window === "undefined") return void 0;
     const node = bodyRef.current;
     if (!node?.querySelectorAll) return void 0;
@@ -4201,7 +4614,7 @@ function SkillReader({
         h("span", { className: "dshsc-code" }, row?.source ? `${row.source}${row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : ""}` : t("meta.noUpstream"))
       ),
       tree ? h("span", null, t("viewer.fileCount").replace("{n}", String(fileCount))) : null,
-      row?.updatedAt ? h("span", null, formatWhen(row.updatedAt)) : null
+      row?.updatedAt ? h("span", null, formatWhen2(row.updatedAt)) : null
     )
   );
   const tabsBar = h(
@@ -4418,8 +4831,8 @@ function SkillReader({
       ["viewer.info.hash", hash ? h("span", { className: "mono" }, hash) : t("viewer.info.none"), "mono"]
     ];
     const localRows = [
-      ["viewer.info.installedAt", formatWhen(row?.installedAt) || t("viewer.info.none")],
-      ["viewer.info.updatedAt", formatWhen(row?.updatedAt) || t("viewer.info.none")],
+      ["viewer.info.installedAt", formatWhen2(row?.installedAt) || t("viewer.info.none")],
+      ["viewer.info.updatedAt", formatWhen2(row?.updatedAt) || t("viewer.info.none")],
       ["viewer.info.size", tree ? `${formatBytes(tree.totalBytes)} · ${t("viewer.fileCount").replace("{n}", String(fileCount))}` : t("viewer.info.none")],
       ["viewer.info.localChange", row?.status === "locally-modified" || row?.status === "conflict" ? t("viewer.info.localChangeYes") : t("viewer.info.localChangeNone")]
     ];
@@ -4543,19 +4956,19 @@ function SkillReader({
 var UPDATABLE2 = /* @__PURE__ */ new Set(["update-available", "locally-modified", "conflict"]);
 function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();
-  const [tab, setTab] = import_react8.default.useState("installed");
-  const [view, setView] = import_react8.default.useState("flat");
-  const [modal, setModal] = import_react8.default.useState(null);
-  const [expanded, setExpanded] = import_react8.default.useState({});
-  const [placementBusy, setPlacementBusy] = import_react8.default.useState(null);
-  const [placementOverride, setPlacementOverride] = import_react8.default.useState(null);
-  const [query, setQuery] = import_react8.default.useState("");
-  const [viewer, setViewer] = import_react8.default.useState(null);
-  const rootRef = import_react8.default.useRef(null);
-  const scrollPos = import_react8.default.useRef(null);
-  const restoreScroll = import_react8.default.useRef(null);
-  const [filter, setFilter] = import_react8.default.useState("all");
-  const [builtinOpen, setBuiltinOpen] = import_react8.default.useState(false);
+  const [tab, setTab] = import_react10.default.useState("installed");
+  const [view, setView] = import_react10.default.useState("flat");
+  const [modal, setModal] = import_react10.default.useState(null);
+  const [expanded, setExpanded] = import_react10.default.useState({});
+  const [placementBusy, setPlacementBusy] = import_react10.default.useState(null);
+  const [placementOverride, setPlacementOverride] = import_react10.default.useState(null);
+  const [query, setQuery] = import_react10.default.useState("");
+  const [viewer, setViewer] = import_react10.default.useState(null);
+  const rootRef = import_react10.default.useRef(null);
+  const scrollPos = import_react10.default.useRef(null);
+  const restoreScroll = import_react10.default.useRef(null);
+  const [filter, setFilter] = import_react10.default.useState("all");
+  const [builtinOpen, setBuiltinOpen] = import_react10.default.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
   const { agentTip, agentTipPos, agentTipRef, openAgentTip, closeAgentTip } = useAgentTip();
   const rows = data?.installs || [];
@@ -4578,7 +4991,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     const agentLabels = row.exports.map((item) => item.label);
     return [row.name, row.source || "", ...agentLabels].join(" ").toLowerCase().includes(queryText);
   });
-  import_react8.default.useEffect(() => {
+  import_react10.default.useEffect(() => {
     if (!viewer || !data) return;
     if (rows.some((row) => row.name === viewer.name)) return;
     setViewer(null);
@@ -4612,7 +5025,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     if (viewer?.mode === "page") restoreScroll.current = scrollPos.current;
     setViewer(null);
   }
-  import_react8.default.useLayoutEffect(() => {
+  import_react10.default.useLayoutEffect(() => {
     if (restoreScroll.current === null) return;
     const target = restoreScroll.current;
     restoreScroll.current = null;
@@ -4681,7 +5094,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onToast: (next) => setToast(next)
   }) : null;
   const listNode = h(
-    import_react8.default.Fragment,
+    import_react10.default.Fragment,
     null,
     h(Header, {
       t,
@@ -4739,6 +5152,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       expanded,
       busy,
       writable,
+      capability: data?.intro || null,
       ...subscriptionActions
     }),
     busy ? h("div", { className: "dshsc-meta" }, `${t("busy.working")} ${busy}`) : null

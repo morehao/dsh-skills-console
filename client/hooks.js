@@ -262,3 +262,78 @@ export function useSkillReader(row) {
 
   return { state, file, loadFile, retry };
 }
+
+/**
+ * 技能介绍（模型生成）：点行内 ✨ 只 GET 缓存，点「生成介绍」才 POST。
+ * - 换技能 / 换语言 / 技能内容变了 → 重新读缓存；
+ * - 浮层关闭或换技能 → abort 在跑的生成（Host 侧会因此取消模型调用）。
+ */
+export function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = null }) {
+  const base = endpoint || `/skills/${encodeURIComponent(name)}/intro`;
+  const [state, setState] = React.useState({ loading: true, intro: null, capability: null, error: null });
+  const [generating, setGenerating] = React.useState(false);
+  const [genError, setGenError] = React.useState(null);
+  const seq = React.useRef(0);
+  const controller = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!name || !enabled) {
+      setState({ loading: false, intro: null, capability: null, error: null });
+      return;
+    }
+    const ticket = seq.current + 1;
+    seq.current = ticket;
+    setState({ loading: true, intro: null, capability: null, error: null });
+    void (async () => {
+      try {
+        const result = await apiCall('GET', `${base}?lang=${encodeURIComponent(lang || 'zh')}`);
+        if (ticket !== seq.current) return;
+        setState({ loading: false, intro: result.intro || null, capability: result.capability || null, error: null });
+      } catch (error) {
+        if (ticket !== seq.current) return;
+        setState({
+          loading: false,
+          intro: null,
+          capability: null,
+          error: { code: error?.code || null, message: error?.message || '读取失败' },
+        });
+      }
+    })();
+  }, [name, lang, stamp, enabled, base]);
+
+  // 换技能 / 换语言 / 关闭浮层：取消还在跑的生成（Host 侧会把 abort 传给模型）
+  React.useEffect(() => () => {
+    if (controller.current) {
+      controller.current.abort();
+      controller.current = null;
+    }
+  }, [name, lang, base]);
+
+  const generate = React.useCallback(async (force = false) => {
+    if (!name) return null;
+    if (controller.current) return null; // 已经有一个在跑，别重复点
+    const ctrl = new AbortController();
+    controller.current = ctrl;
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const result = await apiCall(
+        'POST',
+        base,
+        { lang: lang || 'zh', force: Boolean(force) },
+        { signal: ctrl.signal },
+      );
+      setState({ loading: false, intro: result.intro || null, capability: result.capability || null, error: null });
+      return result;
+    } catch (error) {
+      if (error?.name === 'AbortError') return null;
+      setGenError({ code: error?.code || null, message: error?.message || '生成失败' });
+      return null;
+    } finally {
+      if (controller.current === ctrl) controller.current = null;
+      setGenerating(false);
+    }
+  }, [name, lang, base]);
+
+  return { ...state, generating, genError, generate };
+}

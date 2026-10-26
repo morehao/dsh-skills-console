@@ -235,6 +235,32 @@ export const DICT = {
     'viewer.info.mode': '状态',
     'viewer.info.status': '更新',
     'viewer.info.none': '无',
+    'intro.button': '介绍',
+    'intro.open': 'AI 介绍：这个技能能做什么',
+    'intro.title': 'AI 介绍',
+    'intro.loading': '读取中…',
+    'intro.empty': '还没有生成介绍',
+    'intro.generate': '生成介绍',
+    'intro.regenerate': '重新生成',
+    'intro.generating': '生成中…',
+    'intro.hint': '会把 SKILL.md 正文发送给当前配置的模型提供方',
+    'intro.hintRemote': '会把该技能在 {source}@{commit} 的 SKILL.md 发送给当前配置的模型提供方',
+    'intro.meta': '{model} · {time} · AI 生成，可能不准确',
+    'intro.stale': '技能内容已更新，介绍可能过期',
+    'intro.view': '查看技能',
+    'intro.unavailable': '当前宿主没有可用的模型服务',
+    'intro.error.noModel': '还没有配置可用的模型',
+    'intro.error.rateLimit': '模型限流或额度不足，请稍后再试',
+    'intro.error.tooLarge': '技能正文超出模型上下文',
+    'intro.error.timeout': '生成超时，请重试',
+    'intro.error.auth': '模型提供方认证失败',
+    'intro.error.empty': '模型没有返回内容',
+    'intro.error.busy': '正在生成，请稍候',
+    'intro.error.source': '读不到远端的 SKILL.md（仓库私有、已删除或网络问题）',
+    'intro.error.noSource': '订阅快照里没有这个技能，请先点「检查更新」',
+    'intro.error.subscription': '订阅不存在，可能已被取消',
+    'intro.error.sourceTimeout': '读取远端 SKILL.md 超时，请重试',
+    'intro.error.generic': '生成失败，请重试',
   },
   en: {
     'section.title': 'Skills Console',
@@ -468,6 +494,32 @@ export const DICT = {
     'viewer.info.mode': 'State',
     'viewer.info.status': 'Updates',
     'viewer.info.none': 'None',
+    'intro.button': 'Intro',
+    'intro.open': 'AI intro: what this skill does',
+    'intro.title': 'AI intro',
+    'intro.loading': 'Loading…',
+    'intro.empty': 'No intro yet',
+    'intro.generate': 'Generate intro',
+    'intro.regenerate': 'Regenerate',
+    'intro.generating': 'Generating…',
+    'intro.hint': 'Sends the SKILL.md body to the model provider configured in DSH',
+    'intro.hintRemote': 'Sends the SKILL.md at {source}@{commit} to the model provider configured in DSH',
+    'intro.meta': '{model} · {time} · AI-generated, may be inaccurate',
+    'intro.stale': 'The skill changed; this intro may be out of date',
+    'intro.view': 'Open skill',
+    'intro.unavailable': 'No model service is available in this host',
+    'intro.error.noModel': 'No usable model is configured',
+    'intro.error.rateLimit': 'The model is rate-limited or out of quota; try again later',
+    'intro.error.tooLarge': 'The skill body exceeds the model context window',
+    'intro.error.timeout': 'Generation timed out; try again',
+    'intro.error.auth': 'The model provider rejected the credentials',
+    'intro.error.empty': 'The model returned no content',
+    'intro.error.busy': 'Already generating; please wait',
+    'intro.error.source': 'Could not read the remote SKILL.md (private repo, deleted, or network)',
+    'intro.error.noSource': 'This skill is not in the subscription snapshot; run “Check for updates” first',
+    'intro.error.subscription': 'The subscription no longer exists',
+    'intro.error.sourceTimeout': 'Timed out reading the remote SKILL.md; try again',
+    'intro.error.generic': 'Generation failed; try again',
   },
 };
 
@@ -484,7 +536,7 @@ export async function copyText(text) {
   }
 }
 
-/** 按 locale 取文案；缺键先回落中文，再回落键名。 */
+/** 按 locale 取文案；缺键先回落中文，再回落键名。`t.lang` 给出当前语言（介绍用它）。 */
 export function buildTranslate(locale) {
   const active = () => {
     try {
@@ -493,9 +545,15 @@ export function buildTranslate(locale) {
       return 'zh';
     }
   };
-  return (key) => {
+  const translate = (key) => {
     const id = active();
     const pack = DICT[id] || DICT.zh;
     return pack[key] ?? DICT.zh[key] ?? key;
   };
+  // 摘要语言跟随界面语言：只认 zh / en，其他语言回落中文
+  Object.defineProperty(translate, 'lang', {
+    get: () => (active() === 'en' ? 'en' : 'zh'),
+    enumerable: false,
+  });
+  return translate;
 }

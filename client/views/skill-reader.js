@@ -77,8 +77,7 @@ function InfoSection({ t, title, rows }) {
  * 查看器。`variant` 只决定外壳（抽屉 / 整页），正文、tab、数据都在同一个组件实例里，
  * 所以「在整页打开」不会重新拉数据。
  */
-export function SkillReader({
-  t,
+export function SkillReader({  t,
   variant = 'drawer',
   row,
   writable,
@@ -94,6 +93,7 @@ export function SkillReader({
   onToast,
 }) {
   const { state, file, loadFile, retry } = useSkillReader(row);
+  const name = row?.name || '';
   const [tab, setTab] = React.useState(initialTab);
   const [format, setFormat] = React.useState('rendered');
   const [docOverride, setDocOverride] = React.useState(null);
@@ -109,7 +109,6 @@ export function SkillReader({
   // 抽屉 / 整页阅读都注册成一层：Esc 只退回列表，不连带关掉背后的宿主设置弹窗
   useOverlayLayer(variant === 'drawer' || variant === 'page', onClose);
 
-  const name = row?.name || '';
   const tree = state.tree;
   const files = tree?.files || [];
   const fileCount = files.filter((entry) => entry.kind === 'file').length;

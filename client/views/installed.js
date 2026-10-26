@@ -7,6 +7,7 @@ import React from 'react';
 import { h } from '../host.js';
 import { short } from '../api.js';
 import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, ShareIcon } from '../icons.js';
+import { IntroPopover } from './intro-popover.js';
 import { PolicyPopover } from './policy-popover.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
@@ -18,6 +19,7 @@ export function InstalledTab({
 }) {
   const updatable = (row) => UPDATABLE.has(row.status);
   const [policy, setPolicy] = React.useState(null);
+  const [intro, setIntro] = React.useState(null);
   // 直读共享根的 Agent 不需要导出；旧 Host 若还把它们的链塞进 row.exports，这里也不显示
   const sharedTargets = new Set((data?.agents?.detected || [])
     .filter((agent) => agent.kind === 'agent' && agent.sharedHome === 'yes')
@@ -29,6 +31,23 @@ export function InstalledTab({
     if (rows.some((row) => row.name === policy.row.name)) return;
     setPolicy(null);
   }, [policy, rows]);
+
+  React.useEffect(() => {
+    if (!intro) return;
+    if (rows.some((row) => row.name === intro.row.name)) return;
+    setIntro(null);
+  }, [intro, rows]);
+
+  /** 行内 ✨：只记锚点，取数与生成都在浮层里。 */
+  function openIntro(event, row) {
+    const el = event.currentTarget;
+    const rect = el.getBoundingClientRect();
+    setIntro({
+      row,
+      anchorEl: el,
+      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height },
+    });
+  }
 
   function openPolicy(event, row) {
     if (busy !== null || row.kind === 'file') return;
@@ -236,6 +255,17 @@ export function InstalledTab({
             'aria-haspopup': 'dialog',
             onClick: () => actions.onView(row),
           }, row.name),
+          data?.intro
+            ? h('button', {
+                type: 'button',
+                className: 'dshsc-intro-btn',
+                title: t('intro.open'),
+                'aria-haspopup': 'dialog',
+                onClick: (event) => openIntro(event, row),
+              },
+              h('span', { className: 'dshsc-spark', 'aria-hidden': 'true' }, '✨'),
+              t('intro.button'))
+            : null,
           statusTag(row),
         ),
         sourceLine(row),
@@ -477,6 +507,23 @@ export function InstalledTab({
     );
   }
 
+  const introPopover = intro && data?.intro
+    ? h(IntroPopover, {
+        t,
+        name: intro.row.name,
+        stamp: [intro.row.commit || '', intro.row.currentHash || '', intro.row.updatedAt || '', intro.row.status || ''].join('|'),
+        anchor: intro.anchor,
+        anchorEl: intro.anchorEl,
+        capability: data.intro,
+        onClose: () => setIntro(null),
+        onView: () => {
+          const target = intro.row;
+          setIntro(null);
+          actions.onView(target);
+        },
+      })
+    : null;
+
   const popover = policy
     ? h(PolicyPopover, {
         t,
@@ -497,5 +544,5 @@ export function InstalledTab({
         },
       })
     : null;
-  return h(React.Fragment, null, content(), popover);
+  return h(React.Fragment, null, content(), popover, introPopover);
 }
