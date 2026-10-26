@@ -3,7 +3,7 @@ import React from 'react';
 
 import { h } from '../host.js';
 import { CaretIcon, RefreshIcon } from '../icons.js';
-import { IntroPopover } from './intro-popover.js';
+import { IntroModal } from './intro-modal.js';
 
 /** 仓库标识归一化：订阅的 source 与账本里的 source 都可能是 owner/repo。 */
 function repoOf(source) {
@@ -21,7 +21,7 @@ export function SubscriptionsTab({
 }) {
   const [intro, setIntro] = React.useState(null);
 
-  // 取消订阅 / 刷新后条目没了，浮层不能留在原地
+  // 取消订阅 / 刷新后条目没了，弹窗不能留在原地
   React.useEffect(() => {
     if (!intro) return;
     const subscription = subscriptions.find((item) => item.id === intro.subscriptionId);
@@ -30,14 +30,10 @@ export function SubscriptionsTab({
     setIntro(null);
   }, [intro, subscriptions]);
 
-  function openIntro(event, subscription, entry) {
-    const el = event.currentTarget;
-    const rect = el.getBoundingClientRect();
+  function openIntro(subscription, entry) {
     setIntro({
       subscriptionId: subscription.id,
       name: entry.name,
-      anchorEl: el,
-      anchor: { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height },
     });
   }
 
@@ -47,20 +43,20 @@ export function SubscriptionsTab({
       className: 'dshsc-intro-btn',
       title: t('intro.open'),
       'aria-haspopup': 'dialog',
-      onClick: (clickEvent) => openIntro(clickEvent, subscription, entry),
+      onClick: () => openIntro(subscription, entry),
     },
     h('span', { className: 'dshsc-spark', 'aria-hidden': 'true' }, '✨'),
     t('intro.button'));
   }
 
-  // 只对仍然存在的订阅 + 条目渲染浮层（刷新期间快照可能被换掉）
+  // 只对仍然存在的订阅 + 条目渲染弹窗（刷新期间快照可能被换掉）
   const introSubscription = intro
     ? subscriptions.find((item) => item.id === intro.subscriptionId) || null
     : null;
   const introEntry = introSubscription
     ? (introSubscription.snapshot?.entries || []).find((entry) => entry.name === intro.name) || null
     : null;
-  const introPopover = intro && introEntry && capability
+  const introModal = intro && introEntry && capability
     ? (() => {
         const commit = introSubscription.snapshot?.commit || '';
         const installedAlready = rows.some((row) => {
@@ -68,15 +64,13 @@ export function SubscriptionsTab({
           if (row.subscriptionId === introSubscription.id) return true;
           return repoOf(row.source) === repoOf(introSubscription.source);
         });
-        return h(IntroPopover, {
+        return h(IntroModal, {
           t,
           name: introEntry.name,
           stamp: commit,
           subtitle: `${introSubscription.source}@${shortCommit(commit)}`,
           endpoint: `/subscriptions/${encodeURIComponent(introSubscription.id)}/entries/${encodeURIComponent(introEntry.name)}/intro`,
           capability,
-          anchor: intro.anchor,
-          anchorEl: intro.anchorEl,
           hint: t('intro.hintRemote')
             .replace('{source}', introSubscription.source)
             .replace('{commit}', shortCommit(commit) || '—'),
@@ -184,5 +178,5 @@ export function SubscriptionsTab({
           : null,
       );
     }))),
-    introPopover);
+    introModal);
 }

@@ -235,18 +235,18 @@ export const DICT = {
     'viewer.info.mode': '状态',
     'viewer.info.status': '更新',
     'viewer.info.none': '无',
-    'intro.button': '介绍',
-    'intro.open': 'AI 介绍：这个技能能做什么',
-    'intro.title': 'AI 介绍',
+    'intro.button': '简介',
+    'intro.open': 'AI 简介：这个技能能做什么',
+    'intro.title': 'AI 简介',
     'intro.loading': '读取中…',
-    'intro.empty': '还没有生成介绍',
-    'intro.generate': '生成介绍',
+    'intro.empty': '还没有生成简介',
+    'intro.generate': '生成简介',
     'intro.regenerate': '重新生成',
     'intro.generating': '生成中…',
     'intro.hint': '会把 SKILL.md 正文发送给当前配置的模型提供方',
     'intro.hintRemote': '会把该技能在 {source}@{commit} 的 SKILL.md 发送给当前配置的模型提供方',
     'intro.meta': '{model} · {time} · AI 生成，可能不准确',
-    'intro.stale': '技能内容已更新，介绍可能过期',
+    'intro.stale': '技能内容已更新，简介可能过期',
     'intro.view': '查看技能',
     'intro.unavailable': '当前宿主没有可用的模型服务',
     'intro.error.noModel': '还没有配置可用的模型',
@@ -536,7 +536,7 @@ export async function copyText(text) {
   }
 }
 
-/** 按 locale 取文案；缺键先回落中文，再回落键名。`t.lang` 给出当前语言（介绍用它）。 */
+/** 按 locale 取文案；缺键先回落中文，再回落键名。`t.lang` 给出当前语言（简介用它）。 */
 export function buildTranslate(locale) {
   const active = () => {
     try {

@@ -200,7 +200,7 @@ function loadModule(payload, options = {}) {
     fetch: async () => ({ ok: true, status: 200, json: async () => payload }),
     setTimeout: () => 0,
     clearTimeout: () => {},
-    // 浏览器全局：介绍生成用它取消请求
+    // 浏览器全局：简介生成用它取消请求
     AbortController,
     console,
   };
@@ -445,7 +445,6 @@ test('调用策略：仅手动行点 chip 打开三档弹层，保存发 invocat
   assert.equal(collectByClass(out.tree, 'dshsc-modal').length, 1, '复用标准弹窗外壳');
   assert.equal(collectByClass(out.tree, 'dshsc-modal-foot').length, 1, '底栏是标准弹窗底栏');
   assert.equal(collectByClass(out.tree, 'dshsc-policyopt').length, 3, '三档选项都在弹窗里');
-  assert.equal(collectByClass(out.tree, 'dshsc-floatpop').length, 0, '不再渲染锚定浮层');
 
   // 三档放进共享设置同款列表容器，不再自己滚一层
   const css = collectByType(out.tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
@@ -1702,7 +1701,7 @@ const READER_FILES = {
   truncated: false,
 };
 
-/** 按 URL 分派的 fetch 存根：state / 正文 / 文件树 / 单文件 / 介绍各走一条。 */
+/** 按 URL 分派的 fetch 存根：state / 正文 / 文件树 / 单文件 / 简介各走一条。 */
 function skillFetch({
   body = READER_BODY,
   bodyError = null,
@@ -1882,7 +1881,7 @@ test('查看信息：只列已共享的 Agent，不列共享根可见', async ()
   assert.ok(!text.includes('共享根可见'), '共享根行已移除');
 });
 
-test('已安装列表：行内 ✨ 打开介绍浮层，点「生成介绍」才 POST，生成后显示来源', async () => {
+test('已安装列表：行内 ✨ 打开简介弹窗，点「生成简介」才 POST，生成后显示来源', async () => {
   const generated = {
     text: '这个技能用来整理提交信息。',
     stale: false,
@@ -1897,26 +1896,29 @@ test('已安装列表：行内 ✨ 打开介绍浮层，点「生成介绍」才
   const entries = collectButtons(out.tree).filter(
     (button) => String(button.props.className || '').includes('dshsc-intro-btn'),
   );
-  assert.ok(entries.length >= 2, '每个技能行都有 ✨ 介绍入口');
+  assert.ok(entries.length >= 2, '每个技能行都有 ✨ 简介入口');
   assert.ok(out.tree, '列表已渲染');
 
-  entries[0].props.onClick({
-    currentTarget: { getBoundingClientRect: () => ({ left: 100, top: 100, width: 60, height: 20, bottom: 120 }) },
-  });
+  entries[0].props.onClick({});
   out = await settle(stub, Component, out.hooks);
 
-  assert.ok(textOf(out.tree).includes('还没有生成介绍'), '未生成时给空态');
+  assert.ok(textOf(out.tree).includes('还没有生成简介'), '未生成时给空态');
+  // 和调用策略 / 共享设置 / 删除一样：居中遮罩 + 标准弹窗外壳 + 标准底栏，不再锚在 ✨ 旁边
+  assert.equal(collectByClass(out.tree, 'dshsc-overlay').length, 1, '简介走居中弹窗');
+  assert.equal(collectByClass(out.tree, 'dshsc-modal').length, 1, '复用标准弹窗外壳');
+  assert.equal(collectByClass(out.tree, 'dshsc-modal-foot').length, 1, '底栏是标准弹窗底栏');
+  assert.ok(textOf(collectByClass(out.tree, 'dshsc-modal-foot')[0]).includes('生成简介'), '生成按钮在标准底栏里');
   assert.ok(
     !fetchStub.requests.some((item) => item.method === 'POST' && item.url.includes('/intro')),
-    '打开浮层不能自动调模型',
+    '打开弹窗不能自动调模型',
   );
 
-  const generate = buttonByText(out.tree, '生成介绍');
+  const generate = buttonByText(out.tree, '生成简介');
   assert.ok(generate, '未生成时给生成按钮');
   generate.props.onClick();
   out = await settle(stub, Component, out.hooks);
 
-  assert.ok(textOf(out.tree).includes(generated.text), '生成后显示介绍正文');
+  assert.ok(textOf(out.tree).includes(generated.text), '生成后显示简介正文');
   assert.ok(textOf(out.tree).includes('yygu/deepseek-flash'), '标注生成用的模型');
   assert.ok(textOf(out.tree).includes('AI 生成，可能不准确'), '标注 AI 生成');
   assert.ok(
@@ -2091,7 +2093,7 @@ test('查看：文件 tab 里的 markdown 默认渲染，可切回原文', async
 });
 
 
-test('订阅候选：展开显示作者描述，点 ✨ 打开介绍浮层，点「生成介绍」才 POST', async () => {
+test('订阅候选：展开显示作者描述，点 ✨ 打开简介弹窗，点「生成简介」才 POST', async () => {
   const commit = 'c'.repeat(40);
   const generated = {
     text: '这个技能用来整理提交信息。',
@@ -2148,30 +2150,30 @@ test('订阅候选：展开显示作者描述，点 ✨ 打开介绍浮层，点
   const spark = collectButtons(entryRow).find(
     (button) => String(button.props.className || '').includes('dshsc-intro-btn'),
   );
-  assert.ok(spark, '订阅条目要有 ✨ 介绍入口');
-  spark.props.onClick({
-    currentTarget: { getBoundingClientRect: () => ({ left: 100, top: 100, width: 60, height: 20, bottom: 120 }) },
-  });
+  assert.ok(spark, '订阅条目要有 ✨ 简介入口');
+  spark.props.onClick({});
   out = await pass(out.hooks);
 
-  assert.ok(textOf(out.tree).includes('还没有生成介绍'), '未生成时给空态');
-  assert.ok(textOf(out.tree).includes(`morehao/ai-kit@${commit.slice(0, 7)}`), '浮层标出快照来源');
+  assert.ok(textOf(out.tree).includes('还没有生成简介'), '未生成时给空态');
+  assert.ok(textOf(out.tree).includes(`morehao/ai-kit@${commit.slice(0, 7)}`), '弹窗标出快照来源');
+  assert.equal(collectByClass(out.tree, 'dshsc-overlay').length, 1, '订阅候选的简介也走居中弹窗');
+  assert.ok(textOf(collectByClass(out.tree, 'dshsc-modal-foot')[0]).includes('生成简介'), '生成按钮在标准底栏里');
   assert.ok(
     !fetchStub.requests.some((item) => item.method === 'POST' && item.url.includes('/intro')),
-    '打开浮层不能自动调模型',
+    '打开弹窗不能自动调模型',
   );
 
-  const generate = buttonByText(out.tree, '生成介绍');
+  const generate = buttonByText(out.tree, '生成简介');
   assert.ok(generate, '未生成时给生成按钮');
   generate.props.onClick();
   out = await pass(out.hooks);
 
-  assert.ok(textOf(out.tree).includes(generated.text), '生成后显示介绍正文');
+  assert.ok(textOf(out.tree).includes(generated.text), '生成后显示简介正文');
   assert.ok(
     fetchStub.requests.some(
       (item) => item.method === 'POST' && item.url.includes('/subscriptions/sub-1/entries/alpha/intro'),
     ),
     '点按钮才发订阅条目的 POST /intro',
   );
-  assert.ok(textOf(out.tree).includes('安装'), '订阅候选的浮层给安装入口');
+  assert.ok(textOf(out.tree).includes('安装'), '订阅候选的弹窗给安装入口');
 });
