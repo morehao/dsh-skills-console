@@ -1,10 +1,8 @@
-<img src="icon.svg" width="64" height="64" alt="技能控制台图标" align="right" />
+<p align="center"><img src="icon.svg" width="64" height="64" alt="技能控制台图标" /></p>
 
 # 技能控制台 · dsh-skills-console
 
-[![npm version](https://img.shields.io/npm/v/@morehao/dsh-skills-console.svg)](https://www.npmjs.com/package/@morehao/dsh-skills-console)
-[![check](https://github.com/morehao/dsh-skills-console/actions/workflows/check.yml/badge.svg)](https://github.com/morehao/dsh-skills-console/actions/workflows/check.yml)
-[![license](https://img.shields.io/npm/l/@morehao/dsh-skills-console.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/@morehao/dsh-skills-console.svg)](https://www.npmjs.com/package/@morehao/dsh-skills-console) [![check](https://github.com/morehao/dsh-skills-console/actions/workflows/check.yml/badge.svg)](https://github.com/morehao/dsh-skills-console/actions/workflows/check.yml) [![license](https://img.shields.io/npm/l/@morehao/dsh-skills-console.svg)](LICENSE)
 
 DSH（DeepSeek Harness）的技能控制台：**装、更新、删除、启停、共享至其他 Agent，外加一份订阅清单**。
 
@@ -32,6 +30,30 @@ DSH（DeepSeek Harness）的技能控制台：**装、更新、删除、启停�
 | 技能介绍 | 列表每行一个 ✨，点开就能看到模型写的「这个技能能做什么、什么时候用」；只发 `SKILL.md` 与文件名清单，结果缓存在本地，内容没变不重复调用 |
 | 订阅 | 关注 `owner/repo` 的上游变化，只记快照、不下载技能；展开条目能看到作者原描述，也可以让模型写一段 AI 介绍再决定装不装；ref / 子目录可选，不填 ref 时跟随默认分支 |
 | 作用范围 | 管 user 级共享技能；暂不支持按项目启停。项目或用户目录里有同名副本时，副本仍优先可见 |
+
+## 截图
+
+截图取自 v0.5.2 的 DSH Web 实机（深色主题）。素材都放在 [`assets/`](https://github.com/morehao/dsh-skills-console/tree/main/assets)（位图图标与界面截图），不随 npm 包发布，所以这里用绝对地址引用，GitHub 与 npm 页面都能看到。
+
+**已安装清单**：来源、调用策略、共享的 Agent、更新状态一屏看全；顶部切「已安装 / 订阅」。
+
+![已安装清单：来源、调用策略、共享的 Agent 与更新状态一屏看全](https://raw.githubusercontent.com/morehao/dsh-skills-console/main/assets/screenshot-1-installed.png)
+
+**只读查看器**：列表不动，右侧抽屉渲染 `SKILL.md`；可切原文、看文件树与信息，也能进整页阅读。
+
+![只读查看器：右侧抽屉渲染 SKILL.md，可切原文与文件树](https://raw.githubusercontent.com/morehao/dsh-skills-console/main/assets/screenshot-2-viewer.png)
+
+**AI 介绍**：点行内 ✨，看模型概括的「能做什么、什么时候用」；生成过就直接读本地缓存。
+
+![AI 介绍：浮层展示模型生成的能力介绍](https://raw.githubusercontent.com/morehao/dsh-skills-console/main/assets/screenshot-3-intro.png)
+
+**订阅清单**：只记 `owner/repo` 的上游快照；展开看仓库里有几个技能、哪些已装、各自状态。
+
+![订阅清单：展开仓库查看技能与安装状态](https://raw.githubusercontent.com/morehao/dsh-skills-console/main/assets/screenshot-4-subscriptions.png)
+
+**添加订阅**：填 `owner/repo` 或 GitHub URL，ref 与子目录可空；只关注，不下载技能。
+
+![添加订阅：填写来源、ref 与子目录](https://raw.githubusercontent.com/morehao/dsh-skills-console/main/assets/screenshot-5-subscribe-dialog.png)
 
 ## 界面
 
