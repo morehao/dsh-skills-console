@@ -360,7 +360,7 @@ export const CSS = `
   }
   .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
-  /* 调用策略 chip：一个入口显示当前模式；点开三档弹层。窄列里允许省略，不撑破 102px */
+  /* 调用策略 chip：一个入口显示当前模式；点开三档弹窗。窄列里允许省略，不撑破 102px */
   .dshsc-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
     height: 24px; padding: 0 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px;
     background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary); font-family: inherit;
@@ -384,45 +384,40 @@ export const CSS = `
   .dshsc-chip.legacy { color: var(--dsw-alias-label-tertiary); background: var(--dsw-alias-bg-layer-2); }
   .dshsc-chip.muted { color: var(--dsw-alias-label-tertiary); cursor: default; opacity: .8; }
 
-  .dshsc-policy-pop { position: fixed; z-index: 70; box-sizing: border-box; width: min(380px, calc(100vw - 16px));
+  /* 锚定浮层外壳：介绍浮层等共用（fixed + portal 到宿主弹窗），不再和调用策略弹窗共用 */
+  .dshsc-floatpop { position: fixed; z-index: 70; box-sizing: border-box; width: min(380px, calc(100vw - 16px));
     max-height: min(600px, calc(100vh - 16px)); overflow: hidden; padding: 14px;
     background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px;
     box-shadow: 0 18px 48px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16);
     display: flex; flex-direction: column; gap: 10px; }
-  /* 头尾用 flex:none 钉住，中间（说明条 / 三档 / 停用块）单独滚动：弹层被 max-height 夹矮时，
-     标题与「保存 / 取消」不跟着内容滚走。负 margin + 等量 padding 让滚动区多吃 2px/4px，
-     键盘 focus ring 不会被 overflow 裁掉。 */
-  .dshsc-policy-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex: none; }
-  .dshsc-policy-scroll { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: auto;
-    margin: -2px -4px; padding: 2px 4px; }
-  .dshsc-policy-title { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); }
-  .dshsc-policy-sub { margin: 2px 0 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
-  .dshsc-policy-close { flex: none; width: 24px; height: 24px; margin: -4px -4px 0 0; border: 0; border-radius: 6px;
+  .dshsc-floatpop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex: none; }
+  .dshsc-floatpop-title { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+  .dshsc-floatpop-sub { margin: 2px 0 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-floatpop-close { flex: none; width: 24px; height: 24px; margin: -4px -4px 0 0; border: 0; border-radius: 6px;
     background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
-  .dshsc-policy-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
-  .dshsc-policy-options { display: flex; flex-direction: column; gap: 6px; }
-  .dshsc-policyopt { box-sizing: border-box; display: flex; align-items: flex-start; gap: 10px; width: 100%;
-    padding: 9px 10px; text-align: left; border: 1px solid var(--dsw-alias-border-l1); border-radius: 9px;
-    background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font-family: inherit; cursor: pointer; }
-  .dshsc-policyopt:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l2); }
-  .dshsc-policyopt.active { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, var(--dsw-alias-border-l1));
-    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 7%, transparent); }
+  .dshsc-floatpop-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+
+  /* 调用策略：标准居中弹窗（Overlay）里的单选列表；行距 / 圆点尺寸对齐共享设置的 .dshsc-check */
+  .dshsc-policy-options { max-height: none; overflow: visible; }
+  .dshsc-policyopt { box-sizing: border-box; display: flex; align-items: flex-start; gap: 9px; width: 100%;
+    padding: 5px 8px; text-align: left; border: 0; border-radius: 8px;
+    background: transparent; color: var(--dsw-alias-label-primary); font-family: inherit; cursor: pointer; }
+  .dshsc-policyopt:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2); }
+  .dshsc-policyopt:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: -2px; }
   .dshsc-policyopt:disabled { cursor: not-allowed; opacity: .55; }
   .dshsc-policyopt.static { cursor: default; }
-  .dshsc-policyopt-dot { flex: none; width: 14px; height: 14px; margin-top: 1px; border-radius: 50%;
-    border: 1.5px solid var(--dsw-alias-border-l3); }
-  .dshsc-policyopt.active .dshsc-policyopt-dot { border-color: var(--dsw-alias-brand-primary);
-    background: radial-gradient(circle, var(--dsw-alias-brand-primary) 0 40%, transparent 47%); }
+  .dshsc-policyopt.static:hover { background: transparent; }
+  .dshsc-policyopt-dot { box-sizing: border-box; flex: none; width: 15px; height: 15px; margin-top: 2px;
+    border-radius: 50%; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-policyopt.active .dshsc-policyopt-dot { border: 5px solid var(--dsw-alias-brand-primary); }
   .dshsc-policyopt-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .dshsc-policyopt-body b { font-size: 12px; font-weight: 600; }
+  .dshsc-policyopt-body b { font-size: 13px; font-weight: 600; }
   .dshsc-policyopt-body small { font-size: 11px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-note { padding: 7px 9px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2);
     color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 15px; }
   .dshsc-policy-note.warn, .dshsc-policy-note.author { color: var(--dsw-alias-state-warn-primary);
     background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 9%, transparent); }
   .dshsc-policy-hidden { display: flex; flex-direction: column; gap: 8px; }
-  .dshsc-policy-restore { align-self: flex-start; }
-  .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; flex: none; }
   .dshsc-policy-confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 9px;
     border: 1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 34%, var(--dsw-alias-border-l1));
     background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 7%, transparent); }
@@ -618,7 +613,7 @@ export const CSS = `
   .dshsc-intro-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
   .dshsc-intro-btn .dshsc-spark { font-size: 10px; color: var(--dsw-alias-brand-primary); }
 
-  /* 介绍浮层：复用 policy 浮层的外壳（fixed + portal），只调内容排版 */
+  /* 介绍浮层：复用通用 floatpop 外壳（fixed + portal），只调内容排版 */
   .dshsc-intro-pop { width: min(360px, calc(100vw - 16px)); gap: 7px; }
   .dshsc-intro-text { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--dsw-alias-label-primary);
     white-space: pre-wrap; overflow-wrap: anywhere; }
