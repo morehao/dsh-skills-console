@@ -2,6 +2,12 @@
 import { h } from '../host.js';
 import { CaretIcon, RefreshIcon } from '../icons.js';
 
+/** 仓库标识归一化：订阅的 source 与账本里的 source 都可能是 owner/repo。 */
+function repoOf(source) {
+  const value = String(source || '').trim().toLowerCase().replace(/\.git$/, '');
+  return value || null;
+}
+
 export function SubscriptionsTab({
   t, subscriptions, rows, expanded, busy, writable,
   onToggle, onRefresh, onDelete, onInstall, onAdd,
@@ -28,7 +34,17 @@ export function SubscriptionsTab({
         h('div', { className: 'dshsc-hact' }, t('column.actions'))),
       subscriptions.map((subscription) => {
     const entries = subscription.snapshot?.entries || [];
-    const installedNames = new Set(rows.filter((row) => row.subscriptionId === subscription.id).map((row) => row.name));
+    const repo = repoOf(subscription.source);
+    const rowsByName = new Map(rows.map((row) => [row.name, row]));
+    // 已装判定不能只看 subscriptionId：从同一仓库直接安装、或旧版本接管进来的技能，
+    // 账本里可能没有订阅关联；物理上已经在了再给「安装」只会覆盖重装。
+    const installedRow = (name) => {
+      const row = rowsByName.get(name);
+      if (!row) return null;
+      if (row.subscriptionId === subscription.id) return row;
+      return repo && repoOf(row.source) === repo ? row : null;
+    };
+    const installedCount = entries.filter((entry) => installedRow(entry.name)).length;
     const open = Boolean(expanded[subscription.id]);
     return h(
       'div',
@@ -46,7 +62,7 @@ export function SubscriptionsTab({
         h('div', { className: 'dshsc-sub-meta' },
           h('span', { className: 'dshsc-tag dshsc-subref' }, subscription.ref || t('subscription.defaultRef')),
           h('span', { className: 'dshsc-substat' },
-            `${entries.length} ${t('skillCount')} · ${t('installed')} ${installedNames.size}`)),
+            `${entries.length} ${t('skillCount')} · ${t('installed')} ${installedCount}`)),
         h('div', { className: 'dshsc-actions' },
           h('button', {
             className: 'dshsc-btn sq',
@@ -63,14 +79,15 @@ export function SubscriptionsTab({
               h('div', null, t('column.status')),
               h('div', { className: 'right' }, t('column.actions'))),
             entries.map((entry) => {
-              const installedAlready = installedNames.has(entry.name);
+              const installedAlready = Boolean(installedRow(entry.name));
               return h('div', { className: 'dshsc-sub-entry', key: entry.name },
                 h('span', { className: 'dshsc-name' }, entry.name),
                 h('span', { className: `dshsc-state${installedAlready ? ' ok' : ''}` },
                   installedAlready ? '✓ ' : '', installedAlready ? t('installed') : t('notInstalled')),
                 h('div', { className: 'dshsc-actions' },
                   installedAlready
-                    ? null
+                    // 没有可做的操作也用破折号占位，避免操作列看起来像漏渲染
+                    ? h('span', { className: 'dshsc-noop' }, '-')
                     : h('button', {
                         className: 'dshsc-btn',
                         disabled: !writable || busy !== null,

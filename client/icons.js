@@ -176,15 +176,22 @@ export function DownloadIcon({ size = 14 }) {
   h('path', { d: 'M4 20h16' }));
 }
 
-export function PlugIcon({ size = 14 }) {
+/**
+ * 共享：一个方框向下分出两条支线，接到两个方框——「一份技能 → 多个 Agent」。
+ * 行内「共享设置」用：方框代表 Agent / 目录，不用圆形节点，避免被读成“分享给好友”。
+ * 不用箭头出框（那是导出/上传），也不用插头（插头只读得出「接入」，读不出「共享给谁」）。
+ */
+export function ShareIcon({ size = 14 }) {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
     style: { display: 'block' },
   },
-  h('path', { d: 'M9 6V3M15 6V3' }),
-  h('path', { d: 'M6 6h12v5a6 6 0 0 1-12 0V6Z' }),
-  h('path', { d: 'M12 17v4' }));
+  h('rect', { x: 9.2, y: 2.8, width: 5.6, height: 5.6, rx: 1.2 }),
+  h('rect', { x: 2.4, y: 15.4, width: 5.6, height: 5.6, rx: 1.2 }),
+  h('rect', { x: 16, y: 15.4, width: 5.6, height: 5.6, rx: 1.2 }),
+  h('path', { d: 'M10.4 8.8 6.2 15.4' }),
+  h('path', { d: 'M13.6 8.8 17.8 15.4' }));
 }
 
 export function InfoIcon({ size = 13 }) {

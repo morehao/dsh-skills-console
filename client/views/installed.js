@@ -6,7 +6,7 @@ import React from 'react';
 
 import { h } from '../host.js';
 import { short } from '../api.js';
-import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, PlugIcon } from '../icons.js';
+import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, ShareIcon } from '../icons.js';
 import { PolicyPopover } from './policy-popover.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
@@ -323,7 +323,7 @@ export function InstalledTab({
                 title: t('action.exports'),
                 'aria-label': `${t('action.exports')} ${row.name}`,
                 onClick: () => actions.onExports(row),
-              }, h(PlugIcon, { size: 13 })),
+              }, h(ShareIcon, { size: 13 })),
               h('button', {
                 key: 'delete',
                 className: 'dshsc-btn ghost danger sq',

@@ -396,7 +396,7 @@ test('已安装表头：四列与窄屏两列并存，列宽与行共用一套�
   const heads = collectByClass(tree, 'dshsc-listhead');
   assert.equal(heads.length, 1, '平铺视图只有一个表头');
   const head = textOf(heads[0]);
-  for (const expected of ['技能', '共享给', '调用策略', '操作']) {
+  for (const expected of ['技能', '共享 Agent', '调用策略', '操作']) {
     assert.ok(head.includes(expected), `表头缺少：${expected}`);
   }
 
@@ -1023,7 +1023,7 @@ test('自动导出：只列本机已装的 Agent，默认不勾任何目标', as
   header.props.onClick();
   const modal = stub.render(Component, {}, first.hooks).tree;
   const text = textOf(modal);
-  assert.ok(text.includes('装完后默认共享给'));
+  assert.ok(text.includes('装完后默认共享至以下 Agent'));
   assert.ok(text.includes('Claude Code'));
   assert.ok(!text.includes('CodeBuddy'), '未安装的 Agent 不展示');
   assert.ok(!text.includes('dsh（全局）'), 'DSH 读共享根，不参与导出');
@@ -1552,6 +1552,40 @@ test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给�
   tree = stub.render(Component, {}, first.hooks).tree;
   labels = collectButtons(tree).map((button) => textOf(button).trim());
   assert.ok(labels.filter((label) => label === '安装').length === 1, '只有未装条目给安装按钮');
+  const entryRows = collectByClass(tree, 'dshsc-sub-entry');
+  assert.equal(entryRows.length, 2);
+  assert.ok(textOf(entryRows[0]).includes('已安装'), '已装条目显示已安装');
+  assert.ok(!collectButtons(entryRows[0]).some((button) => textOf(button).trim() === '安装'), '已装条目不再给安装按钮');
+  assert.ok(textOf(entryRows[0]).includes('-'), '已装条目的操作列用破折号占位');
+});
+
+test('订阅：同仓库直接安装、账本没有订阅关联时也不再给安装入口', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    subscriptions: [{
+      id: 'sub-1',
+      source: 'tt-a1i/archify',
+      ref: 'main',
+      snapshot: { entries: [{ name: 'archify' }, { name: 'archify-review' }] },
+    }],
+    // 旧版本「添加技能」直接安装 / 接管进来的记录没有 subscriptionId，但物理上已经装了
+    installs: [ROW({ name: 'archify', source: 'TT-A1i/Archify', subscriptionId: null, status: 'no-upstream' })],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tabs = collectButtons(stub.render(Component, {}, first.hooks).tree)
+    .filter((button) => String(textOf(button)).startsWith('订阅'));
+  tabs[0].props.onClick();
+  let tree = stub.render(Component, {}, first.hooks).tree;
+  const caret = collectButtons(tree).find((button) => String(button.props.className || '').includes('dshsc-caret'));
+  caret.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const entries = collectByClass(tree, 'dshsc-sub-entry');
+  assert.ok(textOf(entries[0]).includes('已安装'), '按仓库 + 名称认出已安装');
+  assert.ok(!collectButtons(entries[0]).some((button) => textOf(button).trim() === '安装'), '同仓库已装条目不给安装');
+  assert.ok(collectButtons(entries[1]).some((button) => textOf(button).trim() === '安装'), '真正未装的同名仓库条目仍给安装');
+  assert.ok(collectByClass(tree, 'dshsc-substat').some((node) => textOf(node).includes('已安装 1')), '已装计数按条目算');
 });
 
 // ---------- 查看技能内容（抽屉 / 整页 / 文件 / 信息） ----------

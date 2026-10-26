@@ -306,6 +306,8 @@ export const CSS = `
   .dshsc-state.ok svg { color: var(--dsw-alias-state-success-primary); }
   .dshsc-sub-entry .dshsc-actions { justify-self: end; display: flex; justify-content: flex-end; }
   .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
+  /* 已装条目的操作列没有动作：破折号占位，保持右对齐与按钮基线一致 */
+  .dshsc-sub-entry .dshsc-noop { color: var(--dsw-alias-label-tertiary); font-size: 11.5px; line-height: 24px; padding-right: 9px; }
   /* 设置页的真实宽度常常远小于窗口（侧栏 + 页面缩放），视口 media query 不可靠；
      以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。
      断点取 860 而不是贴着面板常见的 ~900：四列网格需要 280 + 150 + 操作列 + 3×14 gap + 中间列，

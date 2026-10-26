@@ -78,7 +78,7 @@ var DICT = {
     "tab.installed": "已安装",
     "tab.subscriptions": "订阅",
     "column.skill": "技能",
-    "column.agents": "共享给",
+    "column.agents": "共享 Agent",
     "column.policy": "调用策略",
     "column.actions": "操作",
     "column.skillAgents": "技能（含 Agent）",
@@ -177,13 +177,13 @@ var DICT = {
     "visibility.manualOnlyHint": "技能作者自己设了「仅手动」：模型调用看不到它，手动 `/` 调用仍可用。",
     "visibility.scopeMismatch": "当前有另一份同名技能排在前面（项目或用户目录）；停用只影响这一份，不会隐藏它。",
     "visibility.foreignWinner": "模型看到的是另一份同名技能：{path}（它的扫描根 rank 更小，会遮住这一份）",
-    "exports.targets": "共享给哪些 Agent",
+    "exports.targets": "共享 Agent",
     "exports.detectedHint": "只列出本机已安装（目录存在）的 Agent。共享只影响它们；DSH 自己看不看得见由 DSH 决定，和共享无关。",
     "exports.canonical": "技能本体：{path}；勾选后只是让不直接读该目录的 Agent 也能用，不会复制文件。",
     "exports.none": "本机没有可共享的 Agent 目录",
     "exports.hint": "保存后按勾选建立或移除链接；技能本体留在原位置，不会移动。",
     "exports.sharedUnknown": "共享目录未验证",
-    "exportDefault.detected": "装完后默认共享给",
+    "exportDefault.detected": "装完后默认共享至以下 Agent",
     "exportDefault.none": "本机没有需要共享的 Agent",
     "exportDefault.hint": "默认一个都不勾：技能装进 ~/.agents/skills 后 DSH 本来就能看见。共享只用于仍只认私有目录的 Agent，且只影响之后的安装。",
     "empty.skills": "还没有安装任何技能",
@@ -209,7 +209,7 @@ var DICT = {
     "form.ref": "ref（分支 / tag，可空）",
     "form.refHint": "留空则自动跟随仓库默认分支",
     "form.subpath": "子目录（可空）",
-    "form.hint": "会立即下载并写入 ~/.agents/skills，并按「自动共享」设置共享给对应 Agent。",
+    "form.hint": "会立即下载并写入 ~/.agents/skills，并按「新安装时自动共享」的选择共享至对应 Agent。",
     "form.subHint": "只记录你关注这个仓库，不会安装任何技能。",
     "subscription.defaultRef": "默认分支",
     "confirm.deleteTitle": "删除技能",
@@ -812,7 +812,7 @@ function DownloadIcon({ size = 14 }) {
     h("path", { d: "M4 20h16" })
   );
 }
-function PlugIcon({ size = 14 }) {
+function ShareIcon({ size = 14 }) {
   return h(
     "svg",
     {
@@ -827,9 +827,11 @@ function PlugIcon({ size = 14 }) {
       "aria-hidden": true,
       style: { display: "block" }
     },
-    h("path", { d: "M9 6V3M15 6V3" }),
-    h("path", { d: "M6 6h12v5a6 6 0 0 1-12 0V6Z" }),
-    h("path", { d: "M12 17v4" })
+    h("rect", { x: 9.2, y: 2.8, width: 5.6, height: 5.6, rx: 1.2 }),
+    h("rect", { x: 2.4, y: 15.4, width: 5.6, height: 5.6, rx: 1.2 }),
+    h("rect", { x: 16, y: 15.4, width: 5.6, height: 5.6, rx: 1.2 }),
+    h("path", { d: "M10.4 8.8 6.2 15.4" }),
+    h("path", { d: "M13.6 8.8 17.8 15.4" })
   );
 }
 function InfoIcon({ size = 13 }) {
@@ -1309,6 +1311,8 @@ var CSS = `
   .dshsc-state.ok svg { color: var(--dsw-alias-state-success-primary); }
   .dshsc-sub-entry .dshsc-actions { justify-self: end; display: flex; justify-content: flex-end; }
   .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
+  /* 已装条目的操作列没有动作：破折号占位，保持右对齐与按钮基线一致 */
+  .dshsc-sub-entry .dshsc-noop { color: var(--dsw-alias-label-tertiary); font-size: 11.5px; line-height: 24px; padding-right: 9px; }
   /* 设置页的真实宽度常常远小于窗口（侧栏 + 页面缩放），视口 media query 不可靠；
      以 .dshsc-root 自身宽度为准，窄面板时切两列，避免固定列把 Agent 标签挤成竖排。
      断点取 860 而不是贴着面板常见的 ~900：四列网格需要 280 + 150 + 操作列 + 3×14 gap + 中间列，
@@ -2739,7 +2743,7 @@ function InstalledTab({
             title: t("action.exports"),
             "aria-label": `${t("action.exports")} ${row.name}`,
             onClick: () => actions.onExports(row)
-          }, h(PlugIcon, { size: 13 })),
+          }, h(ShareIcon, { size: 13 })),
           h("button", {
             key: "delete",
             className: "dshsc-btn ghost danger sq",
@@ -2970,6 +2974,10 @@ function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
 }
 
 // client/views/subscriptions.js
+function repoOf(source) {
+  const value = String(source || "").trim().toLowerCase().replace(/\.git$/, "");
+  return value || null;
+}
 function SubscriptionsTab({
   t,
   subscriptions,
@@ -3021,7 +3029,15 @@ function SubscriptionsTab({
       ),
       subscriptions.map((subscription) => {
         const entries = subscription.snapshot?.entries || [];
-        const installedNames = new Set(rows.filter((row) => row.subscriptionId === subscription.id).map((row) => row.name));
+        const repo = repoOf(subscription.source);
+        const rowsByName = new Map(rows.map((row) => [row.name, row]));
+        const installedRow = (name) => {
+          const row = rowsByName.get(name);
+          if (!row) return null;
+          if (row.subscriptionId === subscription.id) return row;
+          return repo && repoOf(row.source) === repo ? row : null;
+        };
+        const installedCount = entries.filter((entry) => installedRow(entry.name)).length;
         const open = Boolean(expanded[subscription.id]);
         return h(
           "div",
@@ -3048,7 +3064,7 @@ function SubscriptionsTab({
               h(
                 "span",
                 { className: "dshsc-substat" },
-                `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedNames.size}`
+                `${entries.length} ${t("skillCount")} · ${t("installed")} ${installedCount}`
               )
             ),
             h(
@@ -3075,7 +3091,7 @@ function SubscriptionsTab({
               h("div", { className: "right" }, t("column.actions"))
             ),
             entries.map((entry) => {
-              const installedAlready = installedNames.has(entry.name);
+              const installedAlready = Boolean(installedRow(entry.name));
               return h(
                 "div",
                 { className: "dshsc-sub-entry", key: entry.name },
@@ -3089,7 +3105,7 @@ function SubscriptionsTab({
                 h(
                   "div",
                   { className: "dshsc-actions" },
-                  installedAlready ? null : h("button", {
+                  installedAlready ? h("span", { className: "dshsc-noop" }, "-") : h("button", {
                     className: "dshsc-btn",
                     disabled: !writable || busy !== null,
                     onClick: () => void onInstall(subscription, entry)
