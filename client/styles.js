@@ -391,19 +391,7 @@ export const CSS = `
     background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 9%, transparent); }
   .dshsc-policy-hidden { display: flex; flex-direction: column; gap: 8px; }
   .dshsc-policy-restore { align-self: flex-start; }
-  .dshsc-policy-coverage { padding-top: 9px; border-top: 1px solid var(--dsw-alias-border-l1); }
-  .dshsc-policy-coverage-head, .dshsc-policy-coverage-row { display: grid;
-    grid-template-columns: minmax(0, 1fr) 88px 92px; gap: 6px; align-items: center; }
-  .dshsc-policy-coverage-head { padding-bottom: 4px; color: var(--dsw-alias-label-tertiary);
-    font-size: 10.5px; font-weight: 600; letter-spacing: .02em; }
-  .dshsc-policy-coverage-row { padding: 3px 0; color: var(--dsw-alias-label-secondary); font-size: 11px; }
-  .dshsc-policy-coverage-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cov { font-size: 10.5px; }
-  .cov.yes { color: var(--dsw-alias-state-success-primary); }
-  .cov.version { color: var(--dsw-alias-state-warn-primary); }
-  .cov.unverified, .cov.spec { color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; }
-  .dshsc-policy-risk { margin: 0; font-size: 10.5px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 9px;
     border: 1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 34%, var(--dsw-alias-border-l1));
     background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 7%, transparent); }

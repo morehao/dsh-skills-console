@@ -479,7 +479,6 @@ export function InstalledTab({
     ? h(PolicyPopover, {
         t,
         row: policy.row,
-        support: data?.invocation?.support || null,
         anchor: policy.anchor,
         anchorEl: policy.anchorEl,
         busy: busy !== null,

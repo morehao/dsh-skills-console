@@ -152,9 +152,6 @@ var DICT = {
     "policy.authorHint": "作者已把这份技能固定为「仅手动」；插件不会覆盖，改回自动需要编辑技能文件。",
     "policy.legacyHint": "旧版 DSH-only 停用：只隐藏 DSH 的模型调用；选择任一模式完成迁移。",
     "policy.driftHint": "记录与技能文件不一致，可能被外部改过；选择「仅手动」可重试。",
-    "policy.coverage": "客户端覆盖",
-    "policy.coverageHint": "这个标记不是所有客户端都支持；只承诺已确认的客户端。",
-    "policy.risk": "「完全停用」对所有客户端一致生效；恢复后回到原来的模式，不需要重新下载。",
     "policy.hiddenConfirmTitle": "完全停用这个技能？",
     "policy.hiddenConfirmBody": "所有 Agent 都看不到；不会删除内容，随时可恢复。",
     "policy.hiddenConfirm": "完全停用",
@@ -175,11 +172,6 @@ var DICT = {
     "policy.hiddenNote": "恢复后回到停用前的模式；停用期间不能更新或重装",
     "policy.unparkKept": "已恢复；冲突文件保留在 {path}",
     "policy.unparkDrift": "已恢复，但文件内容与停用时不一致；请检查或重新检查更新",
-    "coverage.yes": "支持",
-    "coverage.no": "不支持",
-    "coverage.version": "版本相关",
-    "coverage.unverified": "未验证",
-    "coverage.spec": "按规范不可见",
     "filter.manual": "仅手动",
     "visibility.hiddenHint": "已启用，但扫描目录里没有它：确认 ~/.agents/skills 下真有这个技能，或检查 DSH_AGENTS_HOME。",
     "visibility.manualOnlyHint": "技能作者自己设了「仅手动」：模型调用看不到它，手动 `/` 调用仍可用。",
@@ -392,9 +384,6 @@ var DICT = {
     "policy.authorHint": "The author fixed this skill to “Manual only”; the plugin will not override it — edit the skill file to restore auto.",
     "policy.legacyHint": "Legacy DSH-only disable: only hides DSH model calls; pick a mode to migrate.",
     "policy.driftHint": "The record and the skill file disagree; it may have been edited externally. Pick “Manual only” to retry.",
-    "policy.coverage": "Client coverage",
-    "policy.coverageHint": "This marker is not supported by every client; only verified clients are promised.",
-    "policy.risk": "“Fully disabled” applies consistently to every client; restoring returns to the previous mode, with no re-download.",
     "policy.hiddenConfirmTitle": "Fully disable this skill?",
     "policy.hiddenConfirmBody": "Every agent stops seeing it. Nothing is deleted, and you can restore at any time.",
     "policy.hiddenConfirm": "Disable fully",
@@ -415,11 +404,6 @@ var DICT = {
     "policy.hiddenNote": "Restores to the previous mode; updates and reinstalls are blocked while parked",
     "policy.unparkKept": "Restored; conflict copy kept at {path}",
     "policy.unparkDrift": "Restored, but the file differs from when it was parked; review or check for updates",
-    "coverage.yes": "Supported",
-    "coverage.no": "Not supported",
-    "coverage.version": "Version dependent",
-    "coverage.unverified": "Unverified",
-    "coverage.spec": "Hidden by spec discovery",
     "filter.manual": "Manual only",
     "visibility.hiddenHint": "Enabled, but no copy sits in a scan directory: check that the skill really exists under ~/.agents/skills, or inspect DSH_AGENTS_HOME.",
     "visibility.manualOnlyHint": "The skill author set it to “Manual only”: the model cannot invoke it, but manual `/` invocation still works.",
@@ -1410,19 +1394,7 @@ var CSS = `
     background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 9%, transparent); }
   .dshsc-policy-hidden { display: flex; flex-direction: column; gap: 8px; }
   .dshsc-policy-restore { align-self: flex-start; }
-  .dshsc-policy-coverage { padding-top: 9px; border-top: 1px solid var(--dsw-alias-border-l1); }
-  .dshsc-policy-coverage-head, .dshsc-policy-coverage-row { display: grid;
-    grid-template-columns: minmax(0, 1fr) 88px 92px; gap: 6px; align-items: center; }
-  .dshsc-policy-coverage-head { padding-bottom: 4px; color: var(--dsw-alias-label-tertiary);
-    font-size: 10.5px; font-weight: 600; letter-spacing: .02em; }
-  .dshsc-policy-coverage-row { padding: 3px 0; color: var(--dsw-alias-label-secondary); font-size: 11px; }
-  .dshsc-policy-coverage-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cov { font-size: 10.5px; }
-  .cov.yes { color: var(--dsw-alias-state-success-primary); }
-  .cov.version { color: var(--dsw-alias-state-warn-primary); }
-  .cov.unverified, .cov.spec { color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-foot { display: flex; justify-content: flex-end; gap: 6px; }
-  .dshsc-policy-risk { margin: 0; font-size: 10.5px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-policy-confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 9px;
     border: 1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 34%, var(--dsw-alias-border-l1));
     background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 7%, transparent); }
@@ -2322,14 +2294,7 @@ var import_react4 = __toESM(require("react"), 1);
 
 // client/views/policy-popover.js
 var import_react3 = __toESM(require("react"), 1);
-function coverageLabel(t, value) {
-  if (value === "yes") return t("coverage.yes");
-  if (value === "no") return t("coverage.no");
-  if (value === "version") return t("coverage.version");
-  if (value === "spec") return t("coverage.spec");
-  return t("coverage.unverified");
-}
-function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSave, onUnpark }) {
+function PolicyPopover({ t, row, anchor, anchorEl, busy, onClose, onSave, onUnpark }) {
   const initial = row.mode === "hidden" ? "auto" : row.mode;
   const [mode, setMode] = import_react3.default.useState(initial);
   const [confirming, setConfirming] = import_react3.default.useState(false);
@@ -2364,7 +2329,6 @@ function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSav
   const hidden = row.mode === "hidden";
   const author = row.origin === "author" && row.mode === "manual";
   const flat = row.kind === "file";
-  const clients = support?.clients || [];
   const dirty = mode !== initial || Boolean(row.legacy) || Boolean(row.drift);
   function choose(next) {
     setMode(next);
@@ -2451,25 +2415,6 @@ function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSav
       option("manual", t("policy.manual"), t("policy.manualDesc")),
       option("hidden", t("policy.hidden"), t("policy.hiddenDesc"))
     ),
-    clients.length > 0 ? h(
-      "div",
-      { className: "dshsc-policy-coverage" },
-      h(
-        "div",
-        { className: "dshsc-policy-coverage-head" },
-        h("span", null, t("policy.coverage")),
-        h("span", null, t("policy.manual")),
-        h("span", null, t("policy.hidden"))
-      ),
-      clients.map((client) => h(
-        "div",
-        { className: "dshsc-policy-coverage-row", key: client.id },
-        h("span", { title: client.source || "" }, client.label),
-        h("span", { className: `cov ${client.manual}` }, coverageLabel(t, client.manual)),
-        h("span", { className: `cov ${client.hidden}` }, coverageLabel(t, client.hidden))
-      )),
-      h("p", { className: "dshsc-policy-sub" }, t("policy.coverageHint"))
-    ) : null,
     confirming ? h(
       "div",
       { className: "dshsc-policy-confirm" },
@@ -2501,8 +2446,7 @@ function PolicyPopover({ t, row, support, anchor, anchorEl, busy, onClose, onSav
         disabled: busy || !dirty || flat,
         onClick: submit
       }, busy ? t("policy.saving") : t("action.save"))
-    ),
-    h("p", { className: "dshsc-policy-risk" }, t("policy.risk"))
+    )
   ), overlayHost());
 }
 
@@ -2976,7 +2920,6 @@ function InstalledTab({
   const popover = policy ? h(PolicyPopover, {
     t,
     row: policy.row,
-    support: data?.invocation?.support || null,
     anchor: policy.anchor,
     anchorEl: policy.anchorEl,
     busy: busy !== null,

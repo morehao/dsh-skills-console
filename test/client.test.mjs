@@ -324,12 +324,6 @@ const STATE = {
   },
   subscriptions: [],
   invocation: {
-    support: {
-      clients: [
-        { id: 'dsh', label: 'DSH', manual: 'yes', hidden: 'yes', source: 'test' },
-        { id: 'opencode', label: 'OpenCode', manual: 'version', hidden: 'yes', source: 'test' },
-      ],
-    },
     modes: ['auto', 'manual', 'hidden'],
   },
   workspaces: [
@@ -441,8 +435,8 @@ test('调用策略：仅手动行点 chip 打开三档弹层，保存发 invocat
 
   const text = textOf(out.tree);
   assert.ok(text.includes('调用策略'), '打开三档弹层');
-  assert.ok(text.includes('客户端覆盖'), '弹层带客户端覆盖表');
-  assert.ok(text.includes('OpenCode'), '覆盖表列出已确认的客户端');
+  assert.ok(!text.includes('客户端覆盖'), '不再展示客户端覆盖表');
+  assert.ok(!text.includes('OpenCode'), '弹层不再列各客户端');
 
   const autoOption = collectButtons(out.tree).find((button) => textOf(button).includes('模型与 / 都能调用'));
   assert.ok(autoOption, '三档里包含自动');
