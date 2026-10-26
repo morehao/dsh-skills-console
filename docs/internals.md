@@ -68,6 +68,6 @@ state v4 的形状、v3→v4 与 v1→v2→v3 迁移步骤、诊断字段见 [de
 
 - **哪些 Agent 不需要导出**：`lib/agent-table.json` 里 `universal: true` 的条目自己也读 `~/.agents/skills`——装好就看得见，导出是多余的。当前表里 11 个：Amp、Antigravity、Antigravity CLI、Cursor、Deep Agents、Droid、Firebender、Gemini CLI、GitHub Copilot、Kilo Code、OpenCode。判定来自上游 `skills` CLI 的 `skillsDir === '.agents/skills'`。
 - **表不要手改**：由 `npm run sync:agents` 从上游 [skills](https://github.com/vercel-labs/skills) 生成，输入可以是仓库里的 `src/agents.ts`，也可以是发布包里的 `node_modules/skills/dist/cli.mjs`（两者解析结果一致）。表头 `upstream: {name, version, from}` 记录出处，据此判断落后了几版。
-- **导出与可见性解耦**：`exports` 只给不读共享根的其他 Agent 建链，默认空；没有任何导出的技能照样应该对 DSH 可见。
+- **导出与可见性解耦**：`exports` 只给不读共享根的其他 Agent 建链，默认空；没有任何导出的技能照样应该对 DSH 可见。界面把这套能力叫「共享」（列名「共享给」，行内「共享设置」），Host 与 API 内部仍用 `exports`。
 - **软链四态**：`managed` / `managed-external` / `foreign-link` / `real`。只动自己建的 `managed` 与已记账的 `managed-external`；`real` 与 `foreign-link` 永不改写，删除前体检即中止。导出清单只认真实指向 canonical 的链，`foreign-link` 指向别的副本、`real` 是本地实体目录，都不会被冒充成导出。
-- **行内 Agent 列只列显式导出**：只有「不支持共享根、且真的建了导出链」的 Agent 才出现（最多 3 个，其余折成 `+n`）；直读共享根的 Agent（OpenCode / Cursor 等）装好即见，不逐行展示，没有导出时显示「未导出」（悬停说明共享根 Agent 装好即见）。按 Agent 视图只给有导出的 Agent 分组；抽屉的信息 tab 只列「已导出」。
+- **行内 Agent 列只列显式导出**：只有「不支持共享根、且真的建了导出链」的 Agent 才出现（最多 3 个，其余折成 `+n`）；直读共享根的 Agent（OpenCode / Cursor 等）装好即见，不逐行展示，没有导出时显示「未共享」（悬停说明共享根 Agent 装好即见）。按 Agent 视图只给有导出的 Agent 分组；抽屉的信息 tab 只列「已共享」。

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Skills Console",
-    "description": "Install, update, remove, link and manage invocation policies for local agent skills. Bodies stay owned by the skills CLI; only Manual-only edits one frontmatter line."
+    "description": "Install, update, remove and manage invocation policies for local agent skills. Skill bodies stay untouched; only Manual-only adds one marker line."
   }
 }

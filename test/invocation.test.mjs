@@ -56,7 +56,7 @@ test('仅手动：description 是块标量时插到块后面，不插进块里',
   assert.match(plan.nextText, /  line two\ndisable-model-invocation: true\n---/);
 });
 
-test('仅手动：重复 key / 无 frontmatter / 无闭合 → unsupported', () => {
+test('仅手动：重复 key / 无设置区 / 未闭合 → unsupported', () => {
   assert.throws(
     () => planManualWrite('---\ndisable-model-invocation: true\ndisable-model-invocation: true\n---\n'),
     (error) => error.code === 'error.skills.unsupported' && /重复/.test(error.message),
@@ -67,7 +67,7 @@ test('仅手动：重复 key / 无 frontmatter / 无闭合 → unsupported', () 
   );
   assert.throws(
     () => planManualWrite('---\nname: demo\n'),
-    (error) => error.code === 'error.skills.unsupported' && /闭合/.test(error.message),
+    (error) => error.code === 'error.skills.unsupported' && /不完整/.test(error.message),
   );
 });
 

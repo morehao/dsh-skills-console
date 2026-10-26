@@ -69,7 +69,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     setToast({ kind: 'err', text: t('viewer.gone') });
   }, [data, rows, t, viewer]);
 
-  // 默认导出的目标：v2 起默认空（导出是逐 agent 的显式动作）
+  // 默认共享的目标：v2 起默认空（共享是逐 agent 的显式动作）
   // `exportable` 由 Host 注册表算好：读共享根的、DSH 自己扫描根的都不参与导出
   const exportTargetOptions = (data?.agents?.detected || [])
     .filter((agent) => agent.kind === 'agent' && agent.exportable);

@@ -150,7 +150,7 @@ export const CSS = `
     transition: background .12s ease; }
   .dshsc-list > .dshsc-row:first-child, .dshsc-listhead + .dshsc-row { border-top: 0; }
   /* 表头与行共用同一套列宽/间距，只有列语义；不参与排序或筛选。
-     操作列暂按 4 个图标按钮（查看/更新/导出设置/删除）取 104px，三档 chip 落地、行内
+     操作列暂按 4 个图标按钮（查看/更新/共享设置/删除）取 104px，三档 chip 落地、行内
      去掉重复的「查看」后收窄到设计稿的 92px。 */
   .dshsc-listhead { display: grid; grid-template-columns: 280px minmax(0, 1fr) 150px 104px;
     gap: 14px; align-items: center; padding: 7px 12px 7px 14px;
