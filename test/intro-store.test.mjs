@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import { createPaths } from '../lib/core/paths.js';
 import { createIntroStore } from '../lib/core/intro-store.js';
+import { INTRO_STORE_VERSION } from '../lib/core/intro.js';
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-intro-store-'));
@@ -55,7 +56,7 @@ test('介绍缓存：坏 JSON / 未知版本当成空表，不抛错', () => {
   // 坏缓存可以重建：写一条后文件恢复成当前版本
   next.put('git-kit', 'zh', ENTRY);
   const raw = JSON.parse(fs.readFileSync(paths.introFile, 'utf8'));
-  assert.equal(raw.version, 2);
+  assert.equal(raw.version, INTRO_STORE_VERSION);
   assert.equal(raw.items['git-kit'].zh.text, ENTRY.text);
 });
 
@@ -63,7 +64,7 @@ test('介绍缓存：缺 hash / 缺 text 的条目直接丢弃', () => {
   const { paths } = setup();
   fs.mkdirSync(path.dirname(paths.introFile), { recursive: true });
   fs.writeFileSync(paths.introFile, JSON.stringify({
-    version: 2,
+    version: INTRO_STORE_VERSION,
     items: {
       good: { zh: ENTRY },
       noHash: { zh: { ...ENTRY, hash: undefined } },

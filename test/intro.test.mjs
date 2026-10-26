@@ -98,8 +98,10 @@ test('buildIntroPrompt：中文 / 英文提示词、截断标注、文件清单�
     maxInputBytes: 1024,
     lang: 'zh',
   });
-  assert.ok(zh.system.includes('能力介绍'));
-  assert.ok(zh.system.includes('150 字'));
+  assert.ok(zh.system.includes('能力简介'));
+  assert.ok(zh.system.includes('怎么触发'), '必须要求写清触发方式');
+  assert.ok(zh.system.includes('触发词'), '必须要求给出触发关键词');
+  assert.ok(zh.system.includes('160 字'));
   assert.ok(zh.input.includes('技能名：demo'));
   assert.ok(zh.input.includes('a.md, b/c.md'));
   assert.ok(zh.input.includes('<skill_md>'));
@@ -109,7 +111,9 @@ test('buildIntroPrompt：中文 / 英文提示词、截断标注、文件清单�
 
   const en = buildIntroPrompt({ name: 'demo', files: [], content: 'body', lang: 'en' });
   assert.ok(en.system.includes('capability intro'));
-  assert.ok(en.system.includes('under 90 words'));
+  assert.ok(en.system.includes('how to trigger'), 'must require trigger guidance');
+  assert.ok(en.system.includes('trigger words'), 'must require trigger keywords');
+  assert.ok(en.system.includes('under 100 words'));
   assert.ok(en.input.includes('Skill name: demo'));
   assert.ok(en.input.includes('(none)'));
   assert.equal(en.truncated, false);

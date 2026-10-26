@@ -82,7 +82,7 @@ While managing skills you may want to know "what does this skill say, and is it 
 Some skills only have an English description, and some titles alone don't tell you what they do. Every installed row has a `✨ Intro` next to the skill name:
 
 - **Open and read**: generated intros load from the local cache and open instantly; only when there is none does a "Generate intro" button appear, and only clicking it calls the model.
-- **What it writes**: a 2–3 sentence capability summary — what it does, when to use it / typical triggers, plus key limitations when needed; in the model's own words, not a word-for-word translation.
+- **What it writes**: a 2–3 sentence capability summary — what it does, when to use it, and **how to trigger it**: trigger words / example requests copied from the `SKILL.md` when present, otherwise 2–4 keywords (or one example request) users can literally say, or the invocation itself (skill name / slash command); key limitations when needed; in the model's own words, not a word-for-word translation.
 - **What it sends**: the `SKILL.md` body (truncated beyond `maxInputBytes`) and the list of file names in the skill directory (up to 30); **no other file contents are read**; the language follows the UI (Chinese / English).
 - **Cached locally**: `$DSH_HOME/skills-console/intros.json`, keyed by skill name + language; when the `SKILL.md` content hash changes it warns "may be out of date" and only regenerating overwrites it. Failures are not cached.
 - **Default model**: `config.intro.provider/model` when configured, otherwise DSH's current default model; only one generation runs at a time, and repeated clicks return "already generating".
