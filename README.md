@@ -2,6 +2,8 @@
 
 # 技能控制台 · dsh-skills-console
 
+**简体中文** · [English](README.en.md)
+
 [![npm version](https://img.shields.io/npm/v/@morehao/dsh-skills-console.svg)](https://www.npmjs.com/package/@morehao/dsh-skills-console) [![check](https://github.com/morehao/dsh-skills-console/actions/workflows/check.yml/badge.svg)](https://github.com/morehao/dsh-skills-console/actions/workflows/check.yml) [![license](https://img.shields.io/npm/l/@morehao/dsh-skills-console.svg)](LICENSE)
 
 DSH（DeepSeek Harness）的技能控制台：**装、更新、删除、启停、共享至其他 Agent，外加一份订阅清单**。

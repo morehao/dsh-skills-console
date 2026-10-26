@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> 给在本仓工作的 AI agent。人类向说明见 [README](README.md) 与 [docs/](docs/)；本文件只放**每次都必须遵守**的硬约束与任务路由。命中具体任务时再读 `docs/agents/` 对应篇，不要一次全读。
+> 给在本仓工作的 AI agent。人类向说明见 [README](README.md)（中文，默认）/ [README.en.md](README.en.md)（English）与 [docs/](docs/)；本文件只放**每次都必须遵守**的硬约束与任务路由。命中具体任务时再读 `docs/agents/` 对应篇，不要一次全读。
 
 ## 1. 项目速览
 
@@ -86,7 +86,7 @@
 ### 包与发布
 
 - 三处命名一致：`package.json.name` = `cordis.patch.yml` 的 `insert[0].name`；`lib/index.js` 的 `export const name` = `insert[0].id`；且 `publishConfig.access = "public"`。
-- 打包只含白名单：`client.js`、`lib/`、`locale/`、`package.json`、`README.md`、`LICENSE`、`cordis.patch.yml`、`icon.svg`。`.dsh/`、`docs/`、`scripts/`、`test/`、`client/`、`node_modules`、`*.tgz` 一律不入包——`client/` 是源码目录，npm 只发根 `client.js`。
+- 打包只含白名单：`client.js`、`lib/`、`locale/`、`package.json`、`README.md`、`README.en.md`、`LICENSE`、`cordis.patch.yml`、`icon.svg`。`.dsh/`、`docs/`、`scripts/`、`test/`、`client/`、`node_modules`、`*.tgz` 一律不入包——`client/` 是源码目录，npm 只发根 `client.js`。
 - `main` 不直推；**升版本也走分支 + PR**。tag 打在合并后的 `main`，去掉 `v` 必须等于 `package.json.version`。
 - GitHub Release 由 CI 在 npm 发布成功后创建，正文取自**注记** tag；`gh release create` 必须留在 [.github/workflows/release.yml](.github/workflows/release.yml)（git-kit 的 `/git-release` 预检靠它判定后效），不要挪进 `scripts/`。
 - `release.yml` 的 `name:` 必须等于文件名 `release.yml`（与 npm Trusted Publisher 的 Workflow 字段精确匹配）；发布 job 需 `id-token: write`，且**不要**设 `NODE_AUTH_TOKEN`（会覆盖 OIDC）。
@@ -96,6 +96,7 @@
 
 - `.dsh/` 里的 specs/plans/notes/原型是本地过程文档：可以读、可以写，但**不要把结论只留在那里**——确定的契约与约定要落回 `README.md` / `docs/`。
 - 子文档与代码/脚本冲突时以代码与脚本为准，并顺手修正文档。
+- README 双份：`README.md` 是默认的中文版（GitHub / npm 展示它），`README.en.md` 是英文版；改任一份都要同步另一份的结构与事实（标题、表格、截图、命令），并保留顶部语言切换行。
 
 ## 3. 常用命令
 
@@ -162,5 +163,5 @@
 |---|---|---|
 | Agent 常驻约束 | `AGENTS.md` | 每次会话 |
 | Agent 任务手册 | [docs/agents/](docs/agents/) | 命中任务时按需读 |
-| 人类文档 | [docs/](docs/) · [README.md](README.md) | 开发与测试、发布流程、能力说明 |
+| 人类文档 | [docs/](docs/) · [README.md](README.md) / [README.en.md](README.en.md) | 开发与测试、发布流程、能力说明 |
 | 本地过程 | `.dsh/docs/` | specs / plans / notes / 原型，gitignored |
