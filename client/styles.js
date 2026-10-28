@@ -58,6 +58,10 @@ export const CSS = `
   .dshsc-tool:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
   .dshsc-tool:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
   .dshsc-tool[aria-expanded="true"] { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+  /* 刷新按钮：检查到新版本时右上角点个品牌色圆点 */
+  .dshsc-tool-dot { position: relative; color: var(--dsw-alias-brand-primary); }
+  .dshsc-tool-dot::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--dsw-alias-state-warning-primary, #e8b15a); box-shadow: 0 0 0 1.5px var(--dsw-alias-bg-base); }
   .dshsc-settings { position: relative; display: inline-flex; }
   /* 设置面板留在 Host 对话框内（焦点陷阱 / 层级都跟着走）；开启时按左右余量选边和宽度 */
   .dshsc-pop { position: absolute; top: calc(100% + 8px); z-index: 30; box-sizing: border-box;
@@ -420,6 +424,10 @@ export const CSS = `
   /* 64ch 是主页面长文的舒适行长；弹窗说明只有一两句，用满弹窗宽度，避免没必要的折行 */
   .dshsc-modal .dshsc-sub { max-width: none; }
   .dshsc-modal h3 { margin: 0; font-size: 15px; font-weight: 600; padding-right: 26px; }
+  /* 插件更新弹窗的「当前 / 最新」键值对 */
+  .dshsc-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: 12px; align-items: baseline; }
+  .dshsc-kv dt { color: var(--dsw-alias-label-secondary); }
+  .dshsc-kv dd { margin: 0; }
   .dshsc-modal-close { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0; border-radius: 7px;
     background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
   .dshsc-modal-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
@@ -469,6 +477,14 @@ export const CSS = `
   .dshsc-panel .dshsc-check.locked:hover { background: transparent; }
 
   .dshsc-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
+  /* 弹窗页脚按钮可能是「图标 + 文字」：统一成水平排列，避免 svg(display:block) 把文字挤到下一行 */
+  .dshsc-modal-foot .dshsc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  .dshsc-modal-foot .dshsc-btn svg { display: block; }
+  /* 插件更新弹窗里的「更新内容」（GitHub Release 正文）：限高滚动，长说明不撑爆弹窗 */
+  .dshsc-release-head { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-primary); margin-bottom: 6px; }
+  .dshsc-release-body { max-height: 260px; overflow: auto; padding: 10px 12px; border-radius: 10px;
+    background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-release-body .dshsc-md { font-size: 12.5px; }
   /* ---------- 查看器：抽屉（B1）/ 整页（A1）共用 ---------- */
   .dshsc-drawer-wrap { position: fixed; inset: 0; z-index: 55; }
   .dshsc-drawer-scrim { position: absolute; inset: 0; background: rgba(4,6,9,.55); }

@@ -24,7 +24,7 @@ It gathers the skills on your machine into one list: what you have, where it cam
 | --- | --- |
 | Inventory | Collects the skills on this machine — source, version, visibility and shared agents in one view; skills already in the shared directory are adopted automatically the first time you open it |
 | Install | Enter `owner/repo` or a GitHub URL; first detects which skills the repo has and what each does; install everything or pick a few |
-| Update | Checks upstream commits, lists the commit range and affected skills, updates in one click after you confirm; locally modified skills ask for confirmation first |
+| Update | Checks upstream commits, lists the commit range and affected skills, updates in one click after you confirm; skills with local edits ask for confirmation first |
 | Remove | Pre-flight check (never touches what others created), then a snapshot into the trash (kept 7 days) |
 | Toggle | One-click on/off; once disabled, neither DSH's model invocations nor `/` manual invocations see it; other agents and files on disk are unaffected |
 | Share | Links only agents that read their own directory; nothing is shared by default; agents that read the shared directory directly are not listed |
@@ -61,7 +61,7 @@ Screenshots are from a real DSH Web session on v0.5.2 (dark theme). All assets l
 
 - **Two entry points**: by default it lives in the "Skills Console" section of DSH settings; turn on "Sidebar entry" in the header ⚙ and a standalone panel appears in the left sidebar, effective immediately.
 - **One page, two tabs**: Installed / Subscriptions. The header holds "Auto-share on install" and "Add skill / Add subscription" on the right.
-- **Five actions per row**: toggle, view, update, share settings, delete; the ✨ next to a skill name opens the AI intro; "View" is hidden on narrow panels, and the skill name itself remains the entry point. Status labels cover up to date / update available / locally modified / removed upstream / broken link / no upstream.
+- **Five actions per row**: toggle, view, update, share settings, delete; the ✨ next to a skill name opens the AI intro; "View" is hidden on narrow panels, and the skill name itself remains the entry point. Status labels cover up to date / update available / changed since install / removed upstream / broken link / no upstream.
 - **No layout jumps on narrow panels**: the action group wraps naturally with panel width and the plugin name always stays whole; the list switches to two columns by width; scrolling happens only in the list area, so switching tabs or resizing never flips the whole page.
 - **Many agents don't crowd**: at most 3 are shown per row and the rest fold into `+n`; hover or focus reveals all.
 - **Findable**: search by name / source / agent, filter by "updates / not checked / disabled", view flat or grouped by agent.
@@ -73,7 +73,7 @@ While managing skills you may want to know "what does this skill say, and is it 
 
 - **Drawer quick look**: the list stays put and a read-only drawer slides in from the right; close it with Esc / the overlay / ×, and you return to the previous filter and scroll position.
 - **Full page for a deep read**: "Open as page" at the bottom of the drawer switches to a full page (body + contents on the left), with a top bar to go back to the list.
-- **Three tabs**: Content (rendered / raw toggle; raw keeps the frontmatter), Files (directory tree + single-file preview; `.md` renders by default and can switch to raw, other text shows its source directly), Info (source, ref, commit, skillPath, content hash, install / update time, shared agents, enabled state, local changes).
+- **Three tabs**: Content (rendered / raw toggle; raw keeps the frontmatter), Files (directory tree + single-file preview; `.md` renders by default and can switch to raw, other text shows its source directly), Info (source, ref, commit, skillPath, content hash, install / update time, shared agents, enabled state, changes since install).
 - **Read-only**: no inputs and no save button. Update / share settings are enabled depending on writability; when the state file is corrupt you can still view, but management actions are disabled.
 - **What can be previewed**: text files that decode as UTF-8 (`.md` / `.html` / `.jsx` / `.css` / `.sh` / extension-less scripts…) show their source directly; the per-file cap is 256 KB (longer content is truncated with a notice); images, audio/video, archives and other binaries show "Preview not supported" with the file name / size.
 
@@ -88,6 +88,16 @@ Some skills only have an English description, and some titles alone don't tell y
 - **Default model**: `config.intro.provider/model` when configured, otherwise DSH's current default model; only one generation runs at a time, and repeated clicks return "already generating".
 - **Subscription candidates too**: expanded subscriptions have `✨ Intro` on each entry; it fetches the remote `SKILL.md` at the snapshot `commit` and generates from that, with the commit in the cache key, and it never blocks "Install". Expanding also shows the author's own frontmatter description for free.
 - **How to turn it off**: `config.intro.enabled = false` (hides the ✨ entry). Other knobs are under "Data and configuration".
+
+## Check and update the plugin itself
+
+The **refresh button** next to the identity capsule in the page header checks whether *Skills Console itself* has a new release. This is a different axis from skill updates — it checks this plugin's own npm releases:
+
+- **How it checks**: follows the registry plan from the host's `pluginManager.registries()` (inheriting the profile's mirror / private source / token config) and asks `<registry>/<package>/latest` in turn (8s timeout, version only; falls back to the official `registry.npmjs.org` only if none answer), then compares with the installed version; the host caches for 5 minutes so repeated opens don't hit the network. About 20 seconds after startup it warms the cache once, silently.
+- **One-click update**: when the desktop host exposes `pluginManager`, clicking "Update to x.y.z" reinstalls this plugin to the latest version (installed from the registry that reported it); **restart DSH to apply** (no auto-reload).
+- **Manual fallback**: if one-click update is unavailable, the dialog shows a copyable command (`dsh plugin --profile <profile> add <package>@latest`).
+- **When a new version exists**: a small dot lights up on the refresh button; open it to see current / latest version and the update button, plus the release's **GitHub Release notes** body pulled for that version (if unavailable, a "view release notes on GitHub" link instead).
+- **Boundaries**: it only queries registries and only (re)installs this plugin itself, touching no other plugin's state directory; failures degrade silently to "could not reach the registry" and never affect any skill-management feature.
 
 ## Installation
 
@@ -113,7 +123,7 @@ The panel shows up in DSH Web's settings page / sidebar.
 
 1. **Add skill**: click "Add skill" in the top right, enter `owner/repo` or a GitHub URL, then click "Detect"; when the repo has several skills, tick the ones to install (multi-select, all selected by default, each with its description), and a single skill is selected automatically. If nothing is detected you can type skill names by hand; leaving them empty installs everything in the repo.
 2. **Share with other agents**: only needed for agents that read their own directory (for example Claude Code). Click "Share settings" on a row and tick the target agents; agents that already read the shared directory are not listed. To choose which agents new installs are shared with by default, use "Auto-share on install" in the header (nothing is ticked by default).
-3. **Check for updates**: manual checks and the background auto-check are **complementary** paths sharing the same verdict — both land in the installed view's update status. Click the refresh icon in the list header to check now, light up "Update", or "Update all"; the background also runs a check every 6 hours (reusing DSH's timer service, which is silently skipped when unavailable — manual checks are unaffected), so the panel is usually already current when you open it. Locally modified skills ask for confirmation before updating.
+3. **Check for updates**: manual checks and the background auto-check are **complementary** paths sharing the same verdict — both land in the installed view's update status. Click the refresh icon in the list header to check now, light up "Update", or "Update all"; the background also runs a check every 6 hours (reusing DSH's timer service, which is silently skipped when unavailable — manual checks are unaffected), so the panel is usually already current when you open it. Skills with local edits ask for confirmation before updating.
 4. **Invocation policy**: click the "Auto / Manual only / Fully disabled" status button on a row and switch in the centered invocation-policy dialog. Auto = both the model and `/` can invoke it; Manual only = only the `disable-model-invocation` frontmatter key in `SKILL.md` changes and `/` still works; Fully disabled = `SKILL.md` is renamed to `SKILL.md.disabled` with a marker left behind, and restoring returns to the mode from before. When the author already declared manual-only in `SKILL.md`, the chip is read-only and is never overridden. While parked, install and update are rejected so the file cannot be silently written back.
 
 ## Safety and reliability

@@ -128,14 +128,17 @@ export function InstalledTab({
     const map = {
       current: ['status.current', 'ok', true],
       'update-available': ['status.update', 'warn'],
-      'locally-modified': ['status.local', 'warn'],
-      conflict: ['status.conflict', 'warn'],
+      'locally-modified': ['status.local', 'warn', false, 'status.localHint'],
+      conflict: ['status.conflict', 'warn', false, 'status.conflictHint'],
       'upstream-deleted': ['status.deleted', 'warn'],
       'broken-link': ['status.broken', 'err'],
       unmanaged: ['status.unmanaged', ''],
     };
-    const [key, cls, check] = map[row.status] || ['status.unknown', ''];
-    return h('span', { className: `dshsc-tag ${cls}` }, check ? `✓ ${t(key)}` : t(key));
+    const [key, cls, check, hint] = map[row.status] || ['status.unknown', ''];
+    return h('span', {
+      className: `dshsc-tag ${cls}`,
+      title: hint ? t(hint) : undefined,
+    }, check ? `✓ ${t(key)}` : t(key));
   }
 
   function sourceLine(row) {

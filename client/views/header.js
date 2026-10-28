@@ -1,7 +1,7 @@
-/** 页头：标题 / 身份胶囊 / 插件工具（GitHub + 设置浮层）/ 业务动作。 */
+/** 页头：标题 / 身份胶囊 / 插件工具（刷新检查更新 → GitHub + 设置浮层）/ 业务动作。 */
 import { h } from '../host.js';
 import { GITHUB_URL } from '../api.js';
-import { Logo, GitHubIcon, GearIcon } from '../icons.js';
+import { Logo, GitHubIcon, GearIcon, RefreshIcon } from '../icons.js';
 
 /** 安装标识：跟页面外安装插件时输入的一模一样（`@scope/name@version`），不带 `v`。 */
 function installSpec(plugin) {
@@ -14,13 +14,23 @@ export function Header({
   t, page, plugin, writable,
   autoLinkLabel, autoLinkCount, tab,
   settingsOpen, settingsRef, settingsPlacement, placement, placementBusy, readOnly,
+  pluginUpdate, onCheckUpdate,
   onToggleSettings, onChangePlacement,
   onOpenAutoLink, onAddSkill, onAddSubscription,
 }) {
   const spec = installSpec(plugin);
+  const updateAvailable = Boolean(pluginUpdate?.status?.updateAvailable);
 
-  // 插件级工具跟身份胶囊同组：设置开面板、GitHub 开仓库；业务动作留在右侧
+  // 插件级工具跟身份胶囊同组：刷新检查更新、GitHub 开仓库、齿轮开设置；业务动作留在右侧
   const headTools = h('div', { className: 'dshsc-tools' },
+    // 刷新按钮放在 GitHub 前面：点一下检查插件自身版本，有新版本时高亮提示
+    h('button', {
+      className: `dshsc-tool${updateAvailable ? ' dshsc-tool-dot' : ''}`,
+      type: 'button',
+      title: t('pluginUpdate.check'),
+      'aria-label': t('pluginUpdate.check'),
+      onClick: onCheckUpdate,
+    }, h(RefreshIcon, { size: 15 })),
     // 先源码、后设置：GitHub 紧挨包名，齿轮留在工具组最外侧
     h('a', {
       className: 'dshsc-tool',
