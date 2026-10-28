@@ -51,6 +51,12 @@ const STATUS_KEY = {
   unmanaged: 'status.unmanaged',
 };
 
+/** 只有「文件被改过」这类需要解释的标签才带 tooltip。 */
+const STATUS_HINT = {
+  'locally-modified': 'status.localHint',
+  conflict: 'status.conflictHint',
+};
+
 function TabButton({ id, label, count, active, onSelect }) {
   return h('button', {
     type: 'button',
@@ -271,7 +277,10 @@ export function SkillReader({  t,
     h('div', { className: 'dshsc-reader-title' },
       h('h2', { id: 'dshsc-reader-name', tabIndex: -1 }, name || t('viewer.title')),
       row?.status && STATUS_KEY[row.status]
-        ? h('span', { className: `dshsc-tag ${row.status === 'current' ? 'ok' : 'warn'}` }, t(STATUS_KEY[row.status]))
+        ? h('span', {
+            className: `dshsc-tag ${row.status === 'current' ? 'ok' : 'warn'}`,
+            title: STATUS_HINT[row.status] ? t(STATUS_HINT[row.status]) : undefined,
+          }, t(STATUS_KEY[row.status]))
         : null,
       row?.enabled === false ? h('span', { className: 'dshsc-tag off' }, t('status.off')) : null,
       variant === 'drawer'

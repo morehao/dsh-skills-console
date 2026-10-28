@@ -6,7 +6,7 @@ import test from 'node:test';
 import { createPaths } from '../lib/core/paths.js';
 import { createRegistry } from '../lib/core/agents.js';
 import { createService, ServiceError } from '../lib/core/service.js';
-import { contentHash } from '../lib/core/hash.js';
+import { contentHash, contentHashWith, localeComparator } from '../lib/core/hash.js';
 import { hashWithoutInvocation } from '../lib/core/invocation.js';
 import { gitTreeSha } from '../lib/core/git-tree.js';
 import { StateStore } from '../lib/core/state.js';
@@ -1443,6 +1443,71 @@ test('调用策略：仅手动写 frontmatter，自动恢复，归一化哈希�
     () => service.setInvocation({ name: 'alpha', mode: 'on' }),
     (error) => error.code === 'error.skills.bad-mode',
   );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('旧 locale 哈希基线：升级后自动重基线，不再误报「安装后有改动」', async () => {
+  const { root, paths, store, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const dir = path.join(paths.canonical, 'alpha');
+  // 让目录里同时有 ASCII 与 CJK 文件名：两种 collation 的排序才会不同
+  fs.writeFileSync(path.join(dir, 'script.md'), 'script');
+  fs.writeFileSync(path.join(dir, '什么是token.html'), 'html');
+  // 模拟旧版在 en collation 下记的基线：内容没动，只是排序口径不同
+  const legacy = contentHashWith(dir, null, localeComparator('en'));
+  store.update((draft) => {
+    draft.installs.find((row) => row.name === 'alpha').installedHash = legacy;
+  });
+
+  let row = (await service.getState({})).installs.find((item) => item.name === 'alpha');
+  assert.equal(row.status, 'locally-modified', '升级前旧口径就是误报');
+
+  service.ensureMigrated(); // 等价于宿主启动时那次 reloadState → ensureHashBaseline
+
+  row = (await service.getState({})).installs.find((item) => item.name === 'alpha');
+  assert.notEqual(row.status, 'locally-modified');
+  assert.equal(store.findInstall('alpha').installedHash, contentHash(dir));
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('旧 locale 哈希基线：内容真的改过时保留基线，继续提示「安装后有改动」', async () => {
+  const { root, paths, store, service } = setup();
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const dir = path.join(paths.canonical, 'alpha');
+  fs.writeFileSync(path.join(dir, 'script.md'), 'script');
+  fs.writeFileSync(path.join(dir, '什么是token.html'), 'html');
+  const legacy = contentHashWith(dir, null, localeComparator('zh'));
+  store.update((draft) => {
+    draft.installs.find((row) => row.name === 'alpha').installedHash = legacy;
+  });
+  fs.appendFileSync(path.join(dir, 'SKILL.md'), '\n本地改动\n');
+
+  const result = service.rebaselineHashes();
+  assert.deepEqual(result.rebaselined.map((item) => item.name), []);
+  assert.ok(result.unresolved.includes('alpha'), '改过的技能进 unresolved，不能悄悄洗白');
+  assert.equal(store.findInstall('alpha').installedHash, legacy, '基线必须原样保留');
+
+  const row = (await service.getState({})).installs.find((item) => item.name === 'alpha');
+  assert.equal(row.status, 'locally-modified');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('旧 locale 的停用哈希：恢复时不算内容漂移', async () => {
+  const { root, paths, service } = setup({ visibleProvider: async () => ({ skills: [], complete: true }) });
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'] });
+  const dir = path.join(paths.canonical, 'alpha');
+  fs.writeFileSync(path.join(dir, 'script.md'), 'script');
+  fs.writeFileSync(path.join(dir, '什么是token.html'), 'html');
+  // 旧版 park 时记录的哈希（zh collation）；内容此后一直没动
+  const legacy = contentHashWith(dir, null, localeComparator('zh'));
+
+  await service.setInvocation({ name: 'alpha', mode: 'hidden' });
+  const markerFile = path.join(dir, '.dsh-skills-console.park.json');
+  const marker = JSON.parse(fs.readFileSync(markerFile, 'utf8'));
+  fs.writeFileSync(markerFile, `${JSON.stringify({ ...marker, canonicalHash: legacy }, null, 2)}\n`);
+
+  const restored = await service.unpark({ name: 'alpha' });
+  assert.equal(restored.hashMismatch, false, '只是 locale 排序变了，不算内容漂移');
   fs.rmSync(root, { recursive: true, force: true });
 });
 

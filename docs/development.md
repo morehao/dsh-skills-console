@@ -42,7 +42,7 @@ npm run check       # 机械校验：语法 + 循环依赖 + 生成物一致性�
 
 | 用例文件 | 覆盖什么 |
 |---|---|
-| `hash.test.mjs` | 内容哈希稳定（与文件顺序、路径大小写无关）、跳过 `.git` / `node_modules` |
+| `hash.test.mjs` | 内容哈希稳定（与文件顺序、路径大小写无关）、跳过 `.git` / `node_modules`、排序与进程 locale 无关（子进程换 LANG 对拍）、旧口径基线可被 `matchesLegacyHash` 识别 |
 | `state.test.mjs` | 原子写、坏 JSON → 只读、未来版本 → 只读、缺字段补默认、v2→v3（退休 `shadows[]`、保留 `legacyShadows[]`）、旧版本读 v3 只读、`autoLinkAgents` → `autoLinkTargets` 旧字段升级、`placement` 回退 |
 | `agents.test.mjs` | 注册表探测、排除 universal 伪路径、OpenCode / XDG config、Agent 目录被删 |
 | `links.test.mjs` | 软链四态判定、幂等建链、不覆盖 `real` / `foreign-link` |
@@ -56,7 +56,7 @@ npm run check       # 机械校验：语法 + 循环依赖 + 生成物一致性�
 | `remote.test.mjs` | codeload 限额/超时/重定向/token；Atom 解析与错误；tarball 快照扫描与 tree SHA |
 | `native-only.test.mjs` | 0.3 守卫：runtime 依赖只有 tar，`lib/` 不 spawn、不引用 CLI/git 模块、不读旧 CLI/git 环境变量 |
 | `updates.test.mjs` | 快照解析、subpath 过滤、L0–L3 判定、哈希形态（40 位 tree / 64 位内容哈希）与安装基线回退、默认分支失败分流（限流 reset 时间 / 404 / 403 / 网络）、计划 token 稳定性、Trees 200/304/401/404 |
-| `service.test.mjs` | 编排：安装（lock 断言 + 记账 + 默认不建链）、64 位 lock 不误报并按 `treeSha` 判定、导出目标设置、停用只写 `enabled=false` / 不写 `~/.dsh/skills`、启用只改状态、legacy 桩删除失败 409、删除体检只拦记账导出目标（别人的同名链不拦）、删除（回收站）并清 legacy、Agent 目录删掉后导出降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘、探测 REST 优先 / Atom+codeload 兜底 / 双通道失败、刷新按 Atom commit 短路、codeload 更新计划；`setInvocation` 三档 + 作者只读 + 归一化哈希 + park 期间拒绝更新/安装 + `reconcileInvocations` 重放；安装/更新/删除改用 fake installer / 真实 installer |
+| `service.test.mjs` | 编排：安装（lock 断言 + 记账 + 默认不建链）、64 位 lock 不误报并按 `treeSha` 判定、导出目标设置、停用只写 `enabled=false` / 不写 `~/.dsh/skills`、启用只改状态、legacy 桩删除失败 409、删除体检只拦记账导出目标（别人的同名链不拦）、删除（回收站）并清 legacy、Agent 目录删掉后导出降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘、探测 REST 优先 / Atom+codeload 兜底 / 双通道失败、刷新按 Atom commit 短路、codeload 更新计划；`setInvocation` 三档 + 作者只读 + 归一化哈希 + park 期间拒绝更新/安装 + `reconcileInvocations` 重放；旧 locale 哈希基线一次性重基线（没改过的自动改写、改过的保留）、旧停用哈希不算内容漂移；安装/更新/删除改用 fake installer / 真实 installer |
 | `invocation.test.mjs` | 文件侧：frontmatter 插入/替换/删除、BOM/CRLF/注释/块标量保留、重复 key/无 frontmatter/无闭合拒绝、原子写权限、归一化哈希、park/unpark 内容字节与 hash 校验、park 冲突 `keep=current`、marker 半状态收敛 |
 | `client.test.mjs` | 读**已提交的** `client.js` 产物，在 React 存根里渲染正常 / 空态 / 只读 / 未追踪 / 可见性差异 / 共享根 Agent（行内不显示、未导出时给中性占位、按 Agent 不分组、抽屉不列共享根）/ 自动导出多选（DSH 不进导出列表，且不再显示“读共享根”说明）/ 导出设置弹窗 / 入口位置切换（先开「插件设置」面板）/ 页头安装标识（`@scope/name@version`，只读展示）与 ⚙·GitHub 工具组 / Agent `+n` 悬浮列表 / 设置导航图标认领与卸载还原 / 调用策略 chip + 三档弹窗 + 作者只读 + 停用恢复确认，并检查主按钮反色、chip 语义色、弹窗表面色、方形复选框圆点 |
 | `client-copy.test.mjs` | 直接 import `client/copy.js`：zh / en 键集合一致、`{n}` / `{path}` 占位符一致、文案非空 |
@@ -145,5 +145,6 @@ dsh plugin --profile desktop install --frozen-lockfile
 | `npm pack` 报 `EPERM ~/.npm/_cacache` | 本机 `~/.npm` 有 root 属主文件；`check-pack.mjs` 用临时 cache 规避，手动跑可 `sudo chown -R 501:20 ~/.npm` |
 | 技能装了但 DSH 里没有 | 看是不是只建了项目级链（`scopeProjects`）或 `mode: off`；再跑 `GET /state` 看 `visible` 与 `ledger` 对账 |
 | 装好的技能仍显示「未纳入追踪」 | 只读模式下不会对账；否则刷新一次 `GET /state` 即可自动补账。仍不行就看日志里的 `skills.reconcile` |
-| 更新提示「本地已改」 | 内容哈希与 lock 不一致（`locally-modified`）；确认后再带 `overwrite` 应用，或先在终端看 `git diff` |
+| 更新提示「安装后有改动」 | 内容哈希与安装基线不一致（`locally-modified`）；确认后再带 `overwrite` 应用，或先在终端看 `git diff` |
+| 没改过却提示「安装后有改动」 | v0.6.x 之前的内容哈希按进程 locale 的 collation 排序：目录里同时有 ASCII 与中日文文件名时（如 `script.md` 与 `什么是token.html`），换启动环境（LANG / ICU 版本）就会算出不同的 digest 而误报。现在排序固定为与 locale 无关的 code unit 序，启动时会做一次重基线：**只有旧口径能精确复现记录值**时才改写 `installedHash`（日志 `state.hash-order.rebaseline`），内容真动过的不碰。升级后仍提示的，就是真改动 |
 | 设置里的「技能控制台」图标和「通用设置」一样是齿轮 | dsh 的 `settings.section` 只投影 `id` / `order` / `label`，导航图标由 `dsh-client-ui-settings-general` 按 id 从固定映射里取，未知 id 一律回落到齿轮。`client.js` 的 `installSettingsNavIcon` 会在对话框挂载后按本插件分区标题认领那一行、换成自有标记；dsh 支持 `icon` 字段后可删掉这段 |
