@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.5.4] - 2026-10-28
+
+### Features
+
+- **updates**: add periodic auto update check via host timer (#74)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.5.3...v0.5.4
+
 ## [v0.5.3] - 2026-10-26
 
 ### Features
