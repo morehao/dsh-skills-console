@@ -6,7 +6,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@morehao/dsh-skills-console.svg)](https://www.npmjs.com/package/@morehao/dsh-skills-console) [![check](https://github.com/morehao/dsh-skills-console/actions/workflows/check.yml/badge.svg)](https://github.com/morehao/dsh-skills-console/actions/workflows/check.yml) [![license](https://img.shields.io/npm/l/@morehao/dsh-skills-console.svg)](LICENSE)
 
-DSH（DeepSeek Harness）的技能控制台：**装、更新、删除、启停、共享至其他 Agent，外加一份订阅清单**。
+DSH（DeepSeek Harness）的技能控制台：**安装、更新、删除、启停、共享至其他 Agent，外加一份订阅清单**。
 
 它把本机技能收进一张清单：有哪些、从哪来、谁能用、是不是最新。要用的打开，不用的关掉；别的 Agent 需要，一键建链过去——技能本体始终只有一份。
 
@@ -113,7 +113,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 1. **添加技能**：点右上角「添加技能」，填 `owner/repo` 或 GitHub URL，点「检测技能」；仓库里有多个技能时勾选要装的（支持多选，默认全选，列表带每个技能的说明），只有一个会默认勾上。检测不到时可以手填技能名，留空则装仓库内全部。
 2. **共享至其他 Agent**：只有「只读自己目录」的 Agent 才需要这一步（例如 Claude Code）。点行内「共享设置」勾选目标 Agent；本来就读共享目录的 Agent 不在列表里。之后新装技能默认共享至哪些 Agent，用页头「新安装时自动共享」设定（默认一个都不勾）。
-3. **检查更新**：点列表头上的刷新图标；有更新的行会亮起「更新」，也可以一次「全部更新」。本地改过的技能会先要求确认。
+3. **检查更新**：手动检查与后台自动检测是**互补**的两条路径，共用同一套判定、结论都落在已安装页的更新状态里。手动点列表头上的刷新图标即可检查、点亮「更新」或「全部更新」；后台另每 6 小时自动跑一次（复用 DSH 的 timer 服务，未装 timer 时这项静默跳过，手动检查不受影响），所以打开面板时往往已是最新。本地改过的技能更新前会先要求确认。
 4. **调用策略**：点行内「自动 / 仅手动 / 完全停用」状态按钮，在居中的调用策略弹窗里切换。自动＝模型与 `/` 都能调用；仅手动＝只改 `SKILL.md` 的 `disable-model-invocation`，`/` 仍可用；完全停用＝把 `SKILL.md` 改名为 `SKILL.md.disabled` 并留 marker，恢复时回到停用前的模式。作者已在 `SKILL.md` 里声明仅手动时，chip 只读展示，不会被覆盖。停用期间更新 / 安装会被拒绝，避免文件被悄悄写回。
 
 ## 安全与可靠性
