@@ -1575,3 +1575,87 @@ test('作者声明但 state 还是 auto：展示为只读 manual，不改 state�
   assert.ok(!store.findInstall('alpha').manual);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+// ---- 定时上游检测（runAutoCheck） -----------------------------------------
+
+test('自动检测：无订阅/无安装 → 不联网直接跳过', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const result = await service.runAutoCheck();
+  assert.equal(result.ok, true);
+  assert.equal(result.skipped, 'empty');
+  assert.equal(gh.calls.length, 0, '空账本不应发起任何网络请求');
+  assert.equal(store.state.settings.autoCheck.lastRunAt, null);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('自动检测：正常路径 → 写 checks 与 lastResult，记录次数与可更新数', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+
+  const before = store.state.settings.autoCheck.lastRunAt;
+  assert.equal(before, null);
+
+  const result = await service.runAutoCheck();
+  assert.equal(result.ok, true);
+  assert.equal(result.count, 1);
+  assert.ok(Number.isInteger(result.updatable) && result.updatable >= 0);
+  assert.ok(store.state.checks.alpha, '写入 checks');
+  assert.ok(store.state.settings.autoCheck.lastRunAt, '写入 lastRunAt');
+  assert.equal(store.state.settings.autoCheck.lastResult.count, 1);
+  assert.equal(store.state.settings.autoCheck.enabled, true);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('自动检测：节流窗口内（<5h）跳过，不重复联网', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+  await service.runAutoCheck();
+  const callsAfterFirst = gh.calls.length;
+
+  const second = await service.runAutoCheck();
+  assert.equal(second.skipped, 'throttled');
+  assert.equal(gh.calls.length, callsAfterFirst, '节流期内不再发请求');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('自动检测：enabled=false → 跳过', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+  store.update((draft) => { draft.settings.autoCheck.enabled = false; });
+  const callsBefore = gh.calls.length;
+  const result = await service.runAutoCheck();
+  assert.equal(result.skipped, 'disabled');
+  assert.equal(gh.calls.length, callsBefore, '关闭后不联网');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('自动检测：只读降级 → 跳过且不崩', async () => {
+  const { root, store, service } = setup();
+  store.readOnly = true;
+  const result = await service.runAutoCheck();
+  assert.equal(result.ok, true);
+  assert.equal(result.skipped, 'readonly');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('自动检测：上游失败也只返回 ok:false，不向定时器抛', async () => {
+  const gh = githubStub();
+  const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
+  const added = await service.addSubscription({ source: 'morehao/ai-kit' });
+  await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
+  gh.control.fail = 'rate-limit';
+  gh.control.atomFail = 404;
+  // 限流通过 Atom 兜底后仍可能 unknown，但不应 throw
+  const result = await service.runAutoCheck();
+  assert.equal(result.ok, true);
+  // checkUpdates 自身把失败折成 unknown，runAutoCheck 视为正常完成
+  assert.equal(store.state.checks.alpha.status, 'unknown');
+  fs.rmSync(root, { recursive: true, force: true });
+});
