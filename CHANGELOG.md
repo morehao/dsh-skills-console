@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.5.5] - 2026-10-28
+
+### Features
+
+- **plugin-update**: 检查并更新插件自身——页头新增刷新按钮，检查 npm 上的最新版本；有新版本时弹窗展示版本对比与 GitHub Release 发布说明正文，支持一键重装（走宿主 `pluginManager.installBundle`，未提供时给可复制的手动命令）；检查按宿主 `pluginManager.registries()` 的 registry 计划（继承镜像/私有源配置），启动后静默热身一次。
+
+### Fixes
+
+- **hash**: 内容哈希的路径排序改为与进程 locale 无关的 code unit 序（此前用 `localeCompare`，同一目录在不同 LANG / ICU 版本下会排出不同顺序、算出两个 digest；目录里同时有 ASCII 与中日文文件名时，换启动环境会被误报成「安装后有改动」）。升级后启动时做一次性重基线：只有旧口径能精确复现记录值时才改写 `installedHash`（日志 `state.hash-order.rebaseline`），内容真动过的不碰。
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.5.4...v0.5.5
+
 ## [v0.5.4] - 2026-10-28
 
 ### Features

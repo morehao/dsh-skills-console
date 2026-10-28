@@ -65,10 +65,13 @@ test('apply：有 timer 服务时注册 interval + 延迟首检，并随 effect 
     apply(ctx, {});
     assert.equal(timer.intervalCalls.length, 1, '注册一次周期检测');
     assert.equal(timer.intervalCalls[0].delay, 6 * 60 * 60 * 1000, '周期 6 小时');
-    assert.equal(timer.timeoutCalls.length, 1, '注册一次延迟首检');
-    assert.ok(timer.timeoutCalls[0].delay <= 60 * 1000, '首检延迟不超过 1 分钟');
+    // 两个延迟任务：技能上游首检（30 秒）+ 插件自更新缓存热身（20 秒）
+    assert.equal(timer.timeoutCalls.length, 2, '注册技能首检 + 插件自更新热身');
+    const skillFirst = timer.timeoutCalls.find((call) => call.delay === 30 * 1000);
+    assert.ok(skillFirst, '技能首检 30 秒');
+    assert.ok(timer.timeoutCalls.some((call) => call.delay === 20 * 1000), '插件自更新热身 20 秒');
     // 触发首检回调不应抛（无订阅/安装 → service 内部直接跳过）
-    assert.doesNotThrow(() => timer.timeoutCalls[0].cb());
+    assert.doesNotThrow(() => skillFirst.cb());
   } finally {
     env.restore();
   }

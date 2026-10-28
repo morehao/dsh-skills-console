@@ -5,11 +5,11 @@
 import React from 'react';
 
 import { h, overlayHost, portalize } from './host.js';
-import { apiCall } from './api.js';
+import { apiCall, GITHUB_URL } from './api.js';
 import { isScroller, nearestScroller } from './scroll.js';
 import { CSS } from './styles.js';
 import { useSkillActions } from './actions.js';
-import { useAgentTip, useSettingsPopover, useSkillsData } from './hooks.js';
+import { useAgentTip, usePluginUpdate, useSettingsPopover, useSkillsData } from './hooks.js';
 import { Header } from './views/header.js';
 import { Toolbar } from './views/toolbar.js';
 import { InstalledTab } from './views/installed.js';
@@ -17,6 +17,7 @@ import { AgentTip } from './views/agent-tip.js';
 import { SubscriptionsTab } from './views/subscriptions.js';
 import { Modals } from './views/modals.js';
 import { SkillReader } from './views/skill-reader.js';
+import { PluginUpdateModal } from './views/plugin-update-modal.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
@@ -38,6 +39,9 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
   const { agentTip, agentTipPos, agentTipRef, openAgentTip, closeAgentTip } = useAgentTip();
+  // 插件自更新：打开刷新弹窗时才查询；启动后 Host 已热身一次缓存
+  const pluginUpdate = usePluginUpdate();
+  const [updateOpen, setUpdateOpen] = React.useState(false);
 
   const rows = data?.installs || [];
   const actions = useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal });
@@ -202,6 +206,8 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       placement,
       placementBusy,
       readOnly: Boolean(data?.readOnly),
+      pluginUpdate,
+      onCheckUpdate: () => setUpdateOpen(true),
       onToggleSettings: toggleSettings,
       onChangePlacement: (next) => void changePlacement(next),
       onOpenAutoLink: () => setModal({ type: 'autolink' }),
@@ -279,6 +285,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       onSaveAutoLink: saveAutoLink,
     }) : null,
     agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null,
+    updateOpen ? h(PluginUpdateModal, { t, update: pluginUpdate, repoUrl: GITHUB_URL, onClose: () => setUpdateOpen(false) }) : null,
   );
   return page ? h('div', { className: 'dshsc-page' }, root) : root;
 }

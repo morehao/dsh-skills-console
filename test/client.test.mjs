@@ -890,8 +890,12 @@ test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧',
   const tools = collectByType(tree, 'div').find((node) => node.props.className === 'dshsc-tools');
   assert.ok(tools, '页头有插件工具组');
   assert.ok(collectByType(tools, 'a').includes(link), 'GitHub 要收进工具组');
-  assert.equal(tools.children[0]?.props?.href, 'https://github.com/morehao/dsh-skills-console', 'GitHub 紧挨身份胶囊');
-  assert.equal(tools.children[1]?.props?.className, 'dshsc-settings', '设置留在工具组外侧');
+  // 顺序：刷新检查更新 → GitHub → 设置
+  const refresh = collectButtons(tools).find((button) => button.props['aria-label'] === '检查插件更新');
+  assert.ok(refresh, '有检查插件更新的刷新按钮');
+  assert.equal(tools.children[0], refresh, '刷新按钮在最前（GitHub 前面）');
+  assert.equal(tools.children[1]?.props?.href, 'https://github.com/morehao/dsh-skills-console', 'GitHub 紧随刷新按钮');
+  assert.equal(tools.children[2]?.props?.className, 'dshsc-settings', '设置留在工具组外侧');
   const gear = collectButtons(tools).find((button) => button.props['aria-label'] === '插件设置');
   assert.ok(gear, '设置也要收进工具组');
   assert.match(String(gear.props.className), /dshsc-tool/);

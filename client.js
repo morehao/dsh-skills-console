@@ -69,6 +69,15 @@ async function apiCall(method, path, body, options = {}) {
   return json;
 }
 var GITHUB_URL = "https://github.com/morehao/dsh-skills-console";
+function checkPluginUpdate({ fresh = false } = {}) {
+  return apiCall("GET", `/plugin-update${fresh ? "?fresh=1" : ""}`);
+}
+function applyPluginUpdate() {
+  return apiCall("POST", "/plugin-update/apply", {});
+}
+function fetchPluginRelease(version) {
+  return apiCall("GET", `/plugin-update/release?version=${encodeURIComponent(version || "")}`);
+}
 
 // client/copy.js
 var DICT = {
@@ -117,10 +126,33 @@ var DICT = {
     "placement.off": "已关闭",
     "placement.hint": "开启后侧栏出现「技能控制台」入口；关闭则只在「设置 → 技能」显示。",
     "github.open": "打开 GitHub 仓库",
+    "pluginUpdate.check": "检查插件更新",
+    "pluginUpdate.title": "检查插件更新",
+    "pluginUpdate.current": "当前版本",
+    "pluginUpdate.latest": "最新版本",
+    "pluginUpdate.checking": "正在检查…",
+    "pluginUpdate.upToDate": "已是最新版本",
+    "pluginUpdate.available": "有新版本可用",
+    "pluginUpdate.checkFailed": "暂时无法获取最新版本，请稍后再试",
+    "pluginUpdate.recheck": "重新检查",
+    "pluginUpdate.update": "更新到 {version}",
+    "pluginUpdate.applying": "正在更新…",
+    "pluginUpdate.updated": "已更新到 {version}，重启 DSH 后生效",
+    "pluginUpdate.restartHint": "更新已安装，请重启 DSH 使新版本生效。",
+    "pluginUpdate.manual": "当前环境不支持一键更新，请手动执行：",
+    "pluginUpdate.copy": "复制命令",
+    "pluginUpdate.copied": "已复制",
+    "pluginUpdate.close": "关闭",
+    "pluginUpdate.whatsNew": "v{version} 更新内容",
+    "pluginUpdate.releaseLoading": "正在加载更新内容…",
+    "pluginUpdate.viewReleaseNotes": "在 GitHub 查看发布说明",
+    "pluginUpdate.releaseUnavailable": "暂无该版本的发布说明。",
     "status.current": "最新",
     "status.update": "可更新",
-    "status.local": "本地已改",
-    "status.conflict": "本地已改 + 上游已变",
+    "status.local": "安装后有改动",
+    "status.localHint": "安装或更新后，这个技能的文件被改过；再次更新会覆盖这些改动，会先请你确认。可在「查看 → 信息」里核对",
+    "status.conflict": "有改动 · 可更新",
+    "status.conflictHint": "本地文件有改动，上游也有新提交；更新会覆盖你的改动（旧内容有备份，可回滚）",
     "status.deleted": "上游已移除",
     "status.broken": "异常：软链断裂",
     "status.unmanaged": "未纳入追踪",
@@ -295,9 +327,9 @@ var DICT = {
     "viewer.info.updatedAt": "更新",
     "viewer.info.size": "大小",
     "viewer.info.local": "本地",
-    "viewer.info.localChange": "本地改动",
+    "viewer.info.localChange": "安装后改动",
     "viewer.info.localChangeNone": "无（与安装时一致）",
-    "viewer.info.localChangeYes": "有本地改动",
+    "viewer.info.localChangeYes": "有改动",
     "viewer.info.links": "共享",
     "viewer.info.exported": "已共享",
     "viewer.info.visibility": "可见性",
@@ -376,10 +408,33 @@ var DICT = {
     "placement.off": "off",
     "placement.hint": "On: a Skills Console entry appears in the sidebar. Off: it only shows under Settings → Skills.",
     "github.open": "Open GitHub repository",
+    "pluginUpdate.check": "Check for plugin updates",
+    "pluginUpdate.title": "Check for plugin updates",
+    "pluginUpdate.current": "Current version",
+    "pluginUpdate.latest": "Latest version",
+    "pluginUpdate.checking": "Checking…",
+    "pluginUpdate.upToDate": "You are on the latest version",
+    "pluginUpdate.available": "A new version is available",
+    "pluginUpdate.checkFailed": "Could not reach the registry; please try again later",
+    "pluginUpdate.recheck": "Check again",
+    "pluginUpdate.update": "Update to {version}",
+    "pluginUpdate.applying": "Updating…",
+    "pluginUpdate.updated": "Updated to {version}; restart DSH to apply",
+    "pluginUpdate.restartHint": "The update is installed. Restart DSH to use the new version.",
+    "pluginUpdate.manual": "One-click update is unavailable here; run this manually:",
+    "pluginUpdate.copy": "Copy command",
+    "pluginUpdate.copied": "Copied",
+    "pluginUpdate.close": "Close",
+    "pluginUpdate.whatsNew": "What's new in v{version}",
+    "pluginUpdate.releaseLoading": "Loading release notes…",
+    "pluginUpdate.viewReleaseNotes": "View release notes on GitHub",
+    "pluginUpdate.releaseUnavailable": "No release notes for this version.",
     "status.current": "Up to date",
     "status.update": "Update available",
-    "status.local": "Locally modified",
-    "status.conflict": "Local + upstream changed",
+    "status.local": "Changed since install",
+    "status.localHint": "Files were changed after install or update. Updating overwrites them and asks for confirmation first. Check “View → Info” to compare",
+    "status.conflict": "Changed · update available",
+    "status.conflictHint": "Local files changed and upstream has new commits; updating overwrites your edits (old content is backed up and can be rolled back)",
     "status.deleted": "Removed upstream",
     "status.broken": "Broken link",
     "status.unmanaged": "Untracked",
@@ -554,9 +609,9 @@ var DICT = {
     "viewer.info.updatedAt": "Updated",
     "viewer.info.size": "Size",
     "viewer.info.local": "Local",
-    "viewer.info.localChange": "Local changes",
+    "viewer.info.localChange": "Changes since install",
     "viewer.info.localChangeNone": "None (matches install)",
-    "viewer.info.localChangeYes": "Modified locally",
+    "viewer.info.localChangeYes": "Changed",
     "viewer.info.links": "Shared",
     "viewer.info.exported": "Shared",
     "viewer.info.visibility": "Visibility",
@@ -1040,7 +1095,7 @@ function FolderIcon({ size = 12 }) {
 }
 
 // client/section.js
-var import_react9 = __toESM(require("react"), 1);
+var import_react10 = __toESM(require("react"), 1);
 
 // client/scroll.js
 function isScroller(node, tolerance = 4) {
@@ -1121,6 +1176,10 @@ var CSS = `
   .dshsc-tool:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
   .dshsc-tool:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
   .dshsc-tool[aria-expanded="true"] { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+  /* 刷新按钮：检查到新版本时右上角点个品牌色圆点 */
+  .dshsc-tool-dot { position: relative; color: var(--dsw-alias-brand-primary); }
+  .dshsc-tool-dot::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--dsw-alias-state-warning-primary, #e8b15a); box-shadow: 0 0 0 1.5px var(--dsw-alias-bg-base); }
   .dshsc-settings { position: relative; display: inline-flex; }
   /* 设置面板留在 Host 对话框内（焦点陷阱 / 层级都跟着走）；开启时按左右余量选边和宽度 */
   .dshsc-pop { position: absolute; top: calc(100% + 8px); z-index: 30; box-sizing: border-box;
@@ -1483,6 +1542,10 @@ var CSS = `
   /* 64ch 是主页面长文的舒适行长；弹窗说明只有一两句，用满弹窗宽度，避免没必要的折行 */
   .dshsc-modal .dshsc-sub { max-width: none; }
   .dshsc-modal h3 { margin: 0; font-size: 15px; font-weight: 600; padding-right: 26px; }
+  /* 插件更新弹窗的「当前 / 最新」键值对 */
+  .dshsc-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: 12px; align-items: baseline; }
+  .dshsc-kv dt { color: var(--dsw-alias-label-secondary); }
+  .dshsc-kv dd { margin: 0; }
   .dshsc-modal-close { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0; border-radius: 7px;
     background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
   .dshsc-modal-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
@@ -1532,6 +1595,14 @@ var CSS = `
   .dshsc-panel .dshsc-check.locked:hover { background: transparent; }
 
   .dshsc-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
+  /* 弹窗页脚按钮可能是「图标 + 文字」：统一成水平排列，避免 svg(display:block) 把文字挤到下一行 */
+  .dshsc-modal-foot .dshsc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  .dshsc-modal-foot .dshsc-btn svg { display: block; }
+  /* 插件更新弹窗里的「更新内容」（GitHub Release 正文）：限高滚动，长说明不撑爆弹窗 */
+  .dshsc-release-head { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-primary); margin-bottom: 6px; }
+  .dshsc-release-body { max-height: 260px; overflow: auto; padding: 10px 12px; border-radius: 10px;
+    background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-release-body .dshsc-md { font-size: 12.5px; }
   /* ---------- 查看器：抽屉（B1）/ 整页（A1）共用 ---------- */
   .dshsc-drawer-wrap { position: fixed; inset: 0; z-index: 55; }
   .dshsc-drawer-scrim { position: absolute; inset: 0; background: rgba(4,6,9,.55); }
@@ -2254,6 +2325,64 @@ function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = null }) {
   }, [name, lang, base]);
   return { ...state, generating, genError, generate };
 }
+function usePluginUpdate() {
+  const [status, setStatus] = import_react2.default.useState(null);
+  const [checking, setChecking] = import_react2.default.useState(false);
+  const [applying, setApplying] = import_react2.default.useState(false);
+  const [checkError, setCheckError] = import_react2.default.useState(null);
+  const [applyError, setApplyError] = import_react2.default.useState(null);
+  const [release, setRelease] = import_react2.default.useState({ loading: false, data: null, version: null });
+  const inFlight = import_react2.default.useRef(false);
+  const check = import_react2.default.useCallback(async (fresh = false) => {
+    if (inFlight.current) return null;
+    inFlight.current = true;
+    setChecking(true);
+    setCheckError(null);
+    try {
+      const next = await checkPluginUpdate({ fresh });
+      setStatus(next);
+      return next;
+    } catch (error) {
+      setCheckError({ code: error?.code || null, message: error?.message || "检查失败" });
+      return null;
+    } finally {
+      inFlight.current = false;
+      setChecking(false);
+    }
+  }, []);
+  const apply2 = import_react2.default.useCallback(async () => {
+    setApplying(true);
+    setApplyError(null);
+    try {
+      const next = await applyPluginUpdate();
+      setStatus(next);
+      return next;
+    } catch (error) {
+      setApplyError({
+        code: error?.code || null,
+        message: error?.message || "更新失败",
+        detail: error?.detail || null
+      });
+      return null;
+    } finally {
+      setApplying(false);
+    }
+  }, []);
+  const loadRelease = import_react2.default.useCallback(async (version) => {
+    const target = String(version || "").trim();
+    if (!target) return null;
+    setRelease({ loading: true, data: null, version: target });
+    try {
+      const data = await fetchPluginRelease(target);
+      setRelease({ loading: false, data: data || null, version: target });
+      return data;
+    } catch {
+      setRelease({ loading: false, data: null, version: target });
+      return null;
+    }
+  }, []);
+  return { status, checking, applying, checkError, applyError, check, apply: apply2, release, loadRelease };
+}
 
 // client/views/header.js
 function installSpec(plugin) {
@@ -2275,6 +2404,8 @@ function Header({
   placement,
   placementBusy,
   readOnly,
+  pluginUpdate,
+  onCheckUpdate,
   onToggleSettings,
   onChangePlacement,
   onOpenAutoLink,
@@ -2282,9 +2413,18 @@ function Header({
   onAddSubscription
 }) {
   const spec = installSpec(plugin);
+  const updateAvailable = Boolean(pluginUpdate?.status?.updateAvailable);
   const headTools = h(
     "div",
     { className: "dshsc-tools" },
+    // 刷新按钮放在 GitHub 前面：点一下检查插件自身版本，有新版本时高亮提示
+    h("button", {
+      className: `dshsc-tool${updateAvailable ? " dshsc-tool-dot" : ""}`,
+      type: "button",
+      title: t("pluginUpdate.check"),
+      "aria-label": t("pluginUpdate.check"),
+      onClick: onCheckUpdate
+    }, h(RefreshIcon, { size: 15 })),
     // 先源码、后设置：GitHub 紧挨包名，齿轮留在工具组最外侧
     h("a", {
       className: "dshsc-tool",
@@ -2805,14 +2945,17 @@ function InstalledTab({
     const map = {
       current: ["status.current", "ok", true],
       "update-available": ["status.update", "warn"],
-      "locally-modified": ["status.local", "warn"],
-      conflict: ["status.conflict", "warn"],
+      "locally-modified": ["status.local", "warn", false, "status.localHint"],
+      conflict: ["status.conflict", "warn", false, "status.conflictHint"],
       "upstream-deleted": ["status.deleted", "warn"],
       "broken-link": ["status.broken", "err"],
       unmanaged: ["status.unmanaged", ""]
     };
-    const [key, cls, check] = map[row.status] || ["status.unknown", ""];
-    return h("span", { className: `dshsc-tag ${cls}` }, check ? `✓ ${t(key)}` : t(key));
+    const [key, cls, check, hint] = map[row.status] || ["status.unknown", ""];
+    return h("span", {
+      className: `dshsc-tag ${cls}`,
+      title: hint ? t(hint) : void 0
+    }, check ? `✓ ${t(key)}` : t(key));
   }
   function sourceLine(row) {
     if (!row.source) {
@@ -4281,6 +4424,10 @@ var STATUS_KEY = {
   "broken-link": "status.broken",
   unmanaged: "status.unmanaged"
 };
+var STATUS_HINT = {
+  "locally-modified": "status.localHint",
+  conflict: "status.conflictHint"
+};
 function TabButton({ id, label, count, active, onSelect }) {
   return h("button", {
     type: "button",
@@ -4474,7 +4621,10 @@ function SkillReader({
       "div",
       { className: "dshsc-reader-title" },
       h("h2", { id: "dshsc-reader-name", tabIndex: -1 }, name || t("viewer.title")),
-      row?.status && STATUS_KEY[row.status] ? h("span", { className: `dshsc-tag ${row.status === "current" ? "ok" : "warn"}` }, t(STATUS_KEY[row.status])) : null,
+      row?.status && STATUS_KEY[row.status] ? h("span", {
+        className: `dshsc-tag ${row.status === "current" ? "ok" : "warn"}`,
+        title: STATUS_HINT[row.status] ? t(STATUS_HINT[row.status]) : void 0
+      }, t(STATUS_KEY[row.status])) : null,
       row?.enabled === false ? h("span", { className: "dshsc-tag off" }, t("status.off")) : null,
       variant === "drawer" ? h("button", {
         type: "button",
@@ -4848,25 +4998,122 @@ function SkillReader({
   ), overlayHost());
 }
 
+// client/views/plugin-update-modal.js
+var import_react9 = __toESM(require("react"), 1);
+function PluginUpdateModal({ t, update, onClose, repoUrl }) {
+  const { status, checking, applying, checkError, applyError, check, apply: apply2, release, loadRelease } = update;
+  const [copied, setCopied] = import_react9.default.useState(false);
+  import_react9.default.useEffect(() => {
+    void check();
+  }, [check]);
+  const latest = status?.latestVersion || null;
+  const current = status?.currentVersion || "—";
+  const available = Boolean(status?.updateAvailable);
+  const canAuto = status?.canAutoUpdate !== false;
+  const manual = status?.manualCommand || "";
+  const restartRequired = status?.restartRequired === true;
+  const updatedVersion = status?.updatedVersion || null;
+  import_react9.default.useEffect(() => {
+    if (available && latest) void loadRelease(latest);
+  }, [available, latest, loadRelease]);
+  const releaseData = release?.version === latest ? release.data : null;
+  const releaseLoading = release?.version === latest && release.loading;
+  const releaseBody = typeof releaseData?.body === "string" ? releaseData.body.trim() : "";
+  const releaseUrl = releaseData?.htmlUrl || (repoUrl ? `${repoUrl}/releases` : null);
+  const copy = () => {
+    if (!manual || typeof navigator === "undefined" || !navigator.clipboard?.writeText) return;
+    Promise.resolve(navigator.clipboard.writeText(manual)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {
+    });
+  };
+  let stateLine;
+  if (checking && !status) stateLine = t("pluginUpdate.checking");
+  else if (checkError || status?.checkFailed) stateLine = t("pluginUpdate.checkFailed");
+  else if (restartRequired) stateLine = t("pluginUpdate.updated", { version: updatedVersion || latest });
+  else if (available) stateLine = t("pluginUpdate.available");
+  else if (status) stateLine = t("pluginUpdate.upToDate");
+  else stateLine = t("pluginUpdate.checking");
+  const stateTone = checkError || status?.checkFailed ? "err" : available ? "update" : "ok";
+  const footer = [
+    h("button", {
+      key: "check",
+      className: "dshsc-btn ghost",
+      disabled: checking || applying,
+      onClick: () => void check(true)
+    }, h(RefreshIcon, { size: 13 }), t("pluginUpdate.recheck"))
+  ];
+  if (available && canAuto) {
+    footer.push(h("button", {
+      key: "apply",
+      className: "dshsc-btn primary",
+      disabled: applying,
+      onClick: () => void apply2()
+    }, applying ? t("pluginUpdate.applying") : t("pluginUpdate.update", { version: latest })));
+  }
+  footer.push(h("button", { key: "close", className: "dshsc-btn ghost", onClick: onClose }, t("pluginUpdate.close")));
+  return h(
+    Overlay,
+    { t, title: t("pluginUpdate.title"), onCancel: onClose, footer },
+    h(
+      "dl",
+      { className: "dshsc-kv" },
+      h("dt", null, t("pluginUpdate.current")),
+      h("dd", null, h("span", { className: "dshsc-code" }, current)),
+      h("dt", null, t("pluginUpdate.latest")),
+      h("dd", null, h("span", { className: "dshsc-code" }, latest || "—"))
+    ),
+    h("p", { className: "dshsc-sub", "data-kind": stateTone, role: "status", style: stateTone === "err" ? { color: "var(--dsw-alias-state-error-primary)" } : null }, stateLine),
+    // 有新版本：展示该版本的发布说明（拉了 GitHub Release 正文就渲染，拉不到给外链）
+    available ? h(
+      "div",
+      { className: "dshsc-release" },
+      h("div", { className: "dshsc-release-head" }, t("pluginUpdate.whatsNew", { version: latest })),
+      releaseLoading ? h("p", { className: "dshsc-sub" }, t("pluginUpdate.releaseLoading")) : releaseBody ? h("div", { className: "dshsc-release-body" }, h(Markdown, { text: releaseBody })) : h(
+        "p",
+        { className: "dshsc-sub" },
+        releaseUrl ? h("a", { className: "dshsc-md-link", href: releaseUrl, target: "_blank", rel: "noopener noreferrer" }, t("pluginUpdate.viewReleaseNotes")) : t("pluginUpdate.releaseUnavailable")
+      )
+    ) : null,
+    applyError ? h("p", { className: "dshsc-sub", role: "alert", style: { color: "var(--dsw-alias-state-error-primary)" } }, applyError.message) : null,
+    restartRequired ? h("p", { className: "dshsc-sub" }, t("pluginUpdate.restartHint")) : null,
+    // 一键更新不可用（或本次安装失败后想手动兜底）：给命令 + 复制
+    !canAuto && manual ? h(
+      "div",
+      { className: "dshsc-field" },
+      h("span", null, t("pluginUpdate.manual")),
+      h(
+        "div",
+        { className: "dshsc-inline", style: { display: "flex", gap: 8, alignItems: "center" } },
+        h("code", { className: "dshsc-code", style: { flex: 1, wordBreak: "break-all" } }, manual),
+        h("button", { className: "dshsc-btn ghost", onClick: copy }, copied ? t("pluginUpdate.copied") : t("pluginUpdate.copy"))
+      )
+    ) : null
+  );
+}
+
 // client/section.js
 var UPDATABLE2 = /* @__PURE__ */ new Set(["update-available", "locally-modified", "conflict"]);
 function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();
-  const [tab, setTab] = import_react9.default.useState("installed");
-  const [view, setView] = import_react9.default.useState("flat");
-  const [modal, setModal] = import_react9.default.useState(null);
-  const [expanded, setExpanded] = import_react9.default.useState({});
-  const [placementBusy, setPlacementBusy] = import_react9.default.useState(null);
-  const [placementOverride, setPlacementOverride] = import_react9.default.useState(null);
-  const [query, setQuery] = import_react9.default.useState("");
-  const [viewer, setViewer] = import_react9.default.useState(null);
-  const rootRef = import_react9.default.useRef(null);
-  const scrollPos = import_react9.default.useRef(null);
-  const restoreScroll = import_react9.default.useRef(null);
-  const [filter, setFilter] = import_react9.default.useState("all");
-  const [builtinOpen, setBuiltinOpen] = import_react9.default.useState(false);
+  const [tab, setTab] = import_react10.default.useState("installed");
+  const [view, setView] = import_react10.default.useState("flat");
+  const [modal, setModal] = import_react10.default.useState(null);
+  const [expanded, setExpanded] = import_react10.default.useState({});
+  const [placementBusy, setPlacementBusy] = import_react10.default.useState(null);
+  const [placementOverride, setPlacementOverride] = import_react10.default.useState(null);
+  const [query, setQuery] = import_react10.default.useState("");
+  const [viewer, setViewer] = import_react10.default.useState(null);
+  const rootRef = import_react10.default.useRef(null);
+  const scrollPos = import_react10.default.useRef(null);
+  const restoreScroll = import_react10.default.useRef(null);
+  const [filter, setFilter] = import_react10.default.useState("all");
+  const [builtinOpen, setBuiltinOpen] = import_react10.default.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
   const { agentTip, agentTipPos, agentTipRef, openAgentTip, closeAgentTip } = useAgentTip();
+  const pluginUpdate = usePluginUpdate();
+  const [updateOpen, setUpdateOpen] = import_react10.default.useState(false);
   const rows = data?.installs || [];
   const actions = useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal });
   const writable = Boolean(data) && !data?.readOnly && data?.cli?.usable;
@@ -4887,7 +5134,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     const agentLabels = row.exports.map((item) => item.label);
     return [row.name, row.source || "", ...agentLabels].join(" ").toLowerCase().includes(queryText);
   });
-  import_react9.default.useEffect(() => {
+  import_react10.default.useEffect(() => {
     if (!viewer || !data) return;
     if (rows.some((row) => row.name === viewer.name)) return;
     setViewer(null);
@@ -4921,7 +5168,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     if (viewer?.mode === "page") restoreScroll.current = scrollPos.current;
     setViewer(null);
   }
-  import_react9.default.useLayoutEffect(() => {
+  import_react10.default.useLayoutEffect(() => {
     if (restoreScroll.current === null) return;
     const target = restoreScroll.current;
     restoreScroll.current = null;
@@ -4990,7 +5237,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
     onToast: (next) => setToast(next)
   }) : null;
   const listNode = h(
-    import_react9.default.Fragment,
+    import_react10.default.Fragment,
     null,
     h(Header, {
       t,
@@ -5006,6 +5253,8 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       placement,
       placementBusy,
       readOnly: Boolean(data?.readOnly),
+      pluginUpdate,
+      onCheckUpdate: () => setUpdateOpen(true),
       onToggleSettings: toggleSettings,
       onChangePlacement: (next) => void changePlacement(next),
       onOpenAutoLink: () => setModal({ type: "autolink" }),
@@ -5075,7 +5324,8 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
       onClose: () => setModal(null),
       onSaveAutoLink: saveAutoLink
     }) : null,
-    agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null
+    agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null,
+    updateOpen ? h(PluginUpdateModal, { t, update: pluginUpdate, repoUrl: GITHUB_URL, onClose: () => setUpdateOpen(false) }) : null
   );
   return page ? h("div", { className: "dshsc-page" }, root) : root;
 }

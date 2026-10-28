@@ -4,7 +4,7 @@
  */
 import React from 'react';
 
-import { apiCall } from './api.js';
+import { apiCall, checkPluginUpdate, applyPluginUpdate, fetchPluginRelease } from './api.js';
 
 const TOAST_MS = 4200;
 
@@ -336,4 +336,75 @@ export function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = nu
   }, [name, lang, base]);
 
   return { ...state, generating, genError, generate };
+}
+
+/**
+ * 插件自身版本检查 / 更新。
+ * - `status` 是 Host 返回的视图（currentVersion / latestVersion / updateAvailable / manualCommand ...）；
+ * - `check(fresh)` 主动查询；`apply()` 一键重装并刷新状态；
+ * - `checkError` 区分「查不到最新版」与「网络错误」，供弹窗给不同提示。
+ */
+export function usePluginUpdate() {
+  const [status, setStatus] = React.useState(null);
+  const [checking, setChecking] = React.useState(false);
+  const [applying, setApplying] = React.useState(false);
+  const [checkError, setCheckError] = React.useState(null);
+  const [applyError, setApplyError] = React.useState(null);
+  // 某版本的发布说明：{ loading, data: {version, body, htmlUrl, name} | null }
+  const [release, setRelease] = React.useState({ loading: false, data: null, version: null });
+  const inFlight = React.useRef(false);
+
+  const check = React.useCallback(async (fresh = false) => {
+    if (inFlight.current) return null;
+    inFlight.current = true;
+    setChecking(true);
+    setCheckError(null);
+    try {
+      const next = await checkPluginUpdate({ fresh });
+      setStatus(next);
+      return next;
+    } catch (error) {
+      setCheckError({ code: error?.code || null, message: error?.message || '检查失败' });
+      return null;
+    } finally {
+      inFlight.current = false;
+      setChecking(false);
+    }
+  }, []);
+
+  const apply = React.useCallback(async () => {
+    setApplying(true);
+    setApplyError(null);
+    try {
+      const next = await applyPluginUpdate();
+      setStatus(next);
+      return next;
+    } catch (error) {
+      setApplyError({
+        code: error?.code || null,
+        message: error?.message || '更新失败',
+        detail: error?.detail || null,
+      });
+      return null;
+    } finally {
+      setApplying(false);
+    }
+  }, []);
+
+  const loadRelease = React.useCallback(async (version) => {
+    const target = String(version || '').trim();
+    if (!target) return null;
+    setRelease({ loading: true, data: null, version: target });
+    try {
+      const data = await fetchPluginRelease(target);
+      setRelease({ loading: false, data: data || null, version: target });
+      return data;
+    } catch {
+      // 发布说明拉不到（无 Release / 离线）不算错误：前端退回「查看发布说明」链接
+      setRelease({ loading: false, data: null, version: target });
+      return null;
+    }
+  }, []);
+
+  return { status, checking, applying, checkError, applyError, check, apply, release, loadRelease };
 }
