@@ -2314,3 +2314,45 @@ test('添加订阅：提交失败时不关窗、保留输入并显示错误，�
   const posts = calls.filter((call) => call.method === 'POST' && call.url.endsWith('/subscriptions'));
   assert.equal(posts.length, 2, '重试会再发一次订阅请求');
 });
+
+test('插件更新弹窗：版本占位符替换成真实版本号', async () => {
+  const pluginView = {
+    packageName: '@morehao/dsh-skills-console',
+    currentVersion: '0.5.5',
+    latestVersion: '0.5.6',
+    updateAvailable: true,
+    checkFailed: false,
+    canAutoUpdate: true,
+    manualCommand: 'dsh plugin add @morehao/dsh-skills-console@latest',
+    applying: false,
+  };
+  const fetchStub = async (url) => {
+    const href = String(url);
+    if (href.includes('/plugin-update/release')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          version: '0.5.6',
+          body: '## 本次发布\n- 修复简介被截断的问题\n\n<details><summary>原始变更记录（自动生成，未改写）</summary>\n\n### Fixes\n- 修复推理模型简介\n\n</details>',
+          htmlUrl: 'https://github.com/morehao/dsh-skills-console/releases/tag/v0.5.6',
+        }),
+      };
+    }
+    if (href.includes('/plugin-update')) return { ok: true, status: 200, json: async () => pluginView };
+    return { ok: true, status: 200, json: async () => STATE };
+  };
+  const { Component, stub } = loadModule(STATE, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+  const refresh = collectButtons(out.tree).find((button) => button.props['aria-label'] === '检查插件更新');
+  assert.ok(refresh, '页头有检查插件更新的刷新按钮');
+  refresh.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+
+  const text = textOf(out.tree);
+  assert.ok(text.includes('v0.5.6 更新内容'), `更新内容标题要用真实版本号，实际：${text.slice(0, 300)}`);
+  assert.ok(text.includes('更新到 0.5.6'), `更新按钮要用真实版本号，实际：${text.slice(0, 300)}`);
+  assert.ok(!text.includes('{version}'), '弹窗里不能残留 {version} 占位符');
+  assert.ok(!text.includes('<details>') && !text.includes('<summary>'), 'details 折叠块要降级，不能露出原始标签');
+  assert.ok(text.includes('原始变更记录（自动生成，未改写）'), 'details 的摘要文本仍要展示');
+});
