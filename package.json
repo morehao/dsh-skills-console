@@ -19,6 +19,10 @@
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js",
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "default": "./dist/api.js"
+    },
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg",

@@ -162,6 +162,24 @@ AI intro settings (in the plugin `config` of the profile / `cordis.patch.yml`):
 
 The intro length is controlled by the 160-character prompt target. Do not treat `maxOutputTokens` as a length target; lowering it does not save cost, it only leaves a reasoning model no room for visible text.
 
+## For other plugins (public API)
+
+Skill install / update is exposed as a stable package API that other dsh plugins or scripts can
+`import` and reuse — **without enabling the Skills Console plugin**, and without HTTP:
+
+```js
+import { createSkillsConsole } from '@morehao/dsh-skills-console/api';
+
+const api = createSkillsConsole(); // reuses the plugin instance when enabled; otherwise a headless writer
+const installed = await api.list({ names: ['git-kit', 'handoff', 'disk-cleanup'] });
+const missing = ['git-kit', 'handoff', 'disk-cleanup'].filter((n) => !installed.some((i) => i.name === n));
+if (missing.length > 0) await api.install({ source: 'morehao/agent-skills', skills: missing });
+```
+
+`@morehao/dsh-commands` 1.0 uses this entry for `/skill-init`. See [docs/api.md](docs/api.md) for
+methods and error codes, the single-writer registry, the optional `skillsConsole` cordis service, and
+versioning boundaries.
+
 ## Development and publishing
 
 Source layout, test strategy and local `link:` verification are in [docs/development.md](docs/development.md); visibility, data placement and implementation boundaries in [docs/internals.md](docs/internals.md); the release process and troubleshooting checklist in [docs/publishing.md](docs/publishing.md). AI agents working in this repo should read [AGENTS.md](AGENTS.md) first.

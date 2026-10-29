@@ -38,11 +38,20 @@ if (pkg.publishConfig?.access !== "public") {
 
 // exports：dsh 加载 client half 与设置页资源都走这里，缺一项就是「桌面上能装、页面里白屏」。
 const exportsMap = pkg.exports ?? {};
-const requiredExports = [".", "./client", "./locale/*.json", "./icon", "./package.json"];
+const requiredExports = [".", "./api", "./client", "./locale/*.json", "./icon", "./package.json"];
 const missingExports = requiredExports.filter((key) => !(key in exportsMap));
 if (missingExports.length) fail(`package.json exports 缺少：${missingExports.join("、")}`);
 if (exportsMap["."] && exportsMap["."] !== "./dist/index.js") {
   fail(`exports["."] 应指向 ./dist/index.js，实际为 ${exportsMap["."]}`);
+}
+const apiExport = exportsMap["./api"];
+if (apiExport !== undefined) {
+  if (!apiExport || typeof apiExport !== "object") {
+    fail('exports["./api"] 应为 { types, default } 对象');
+  } else {
+    if (apiExport.types !== "./dist/api.d.ts") fail(`exports["./api"].types 应为 ./dist/api.d.ts，实际为 ${apiExport.types}`);
+    if (apiExport.default !== "./dist/api.js") fail(`exports["./api"].default 应为 ./dist/api.js，实际为 ${apiExport.default}`);
+  }
 }
 if (exportsMap["./client"] && exportsMap["./client"] !== "./client.js") {
 	fail(`exports["./client"] 应指向 ./client.js，实际为 ${exportsMap["./client"]}`);

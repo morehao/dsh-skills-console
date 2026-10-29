@@ -162,6 +162,23 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 
 简介长度由提示词里的 160 字控制，不要把 `maxOutputTokens` 当成目标长度；调小它不会省钱，只会让推理模型没有输出正文的空间。
 
+## 给其他插件用（公共 API）
+
+本插件把技能安装 / 更新能力做成稳定的包 API，其他 dsh 插件或脚本可以 `import` 复用，
+**不要求启用「技能控制台」插件**，也不走 HTTP：
+
+```js
+import { createSkillsConsole } from '@morehao/dsh-skills-console/api';
+
+const api = createSkillsConsole(); // 插件启用时复用插件实例；未启用时 headless 单写
+const installed = await api.list({ names: ['git-kit', 'handoff', 'disk-cleanup'] });
+const missing = ['git-kit', 'handoff', 'disk-cleanup'].filter((n) => !installed.some((i) => i.name === n));
+if (missing.length > 0) await api.install({ source: 'morehao/agent-skills', skills: missing });
+```
+
+`@morehao/dsh-commands` 1.0 起就用这条入口 `/skill-init`。可用方法与错误码、单写者
+registry 机制、cordis 服务 `skillsConsole`、版本兼容边界见 [docs/api.md](docs/api.md)。
+
 ## 开发与发布
 
 源码结构、测试策略与本地 `link:` 验证见 [docs/development.md](docs/development.md)；可见性、数据落点与实现边界见 [docs/internals.md](docs/internals.md)；发布流程与排障清单见 [docs/publishing.md](docs/publishing.md)。在本仓工作的 AI agent 请先读 [AGENTS.md](AGENTS.md)。

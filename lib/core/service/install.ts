@@ -131,8 +131,10 @@ export async function install(ctx: ServiceCtx, { source, subscriptionId, skills 
       });
     }
 
-    // 导出是显式动作：默认一个都不建；请求里点名了才建
-    const exportTargets = Array.isArray(targets) && targets.length > 0 ? targets : exportTargetList(ctx, state(ctx));
+    // 导出是显式动作：显式传入数组即权威（空数组 = 一个都不建）；只有 undefined（未传）
+    // 才回退 settings.exportTargets。不能用 `targets.length > 0` 判断——那会让显式 `[]`
+    // 被当成"没传"，从而意外回退到用户配置的默认导出目标（设计 §3.3 / §5.3）。
+    const exportTargets = Array.isArray(targets) ? targets : exportTargetList(ctx, state(ctx));
     const linkResult: any = { created: [], skipped: [], failed: [] };
     for (const item of installed) {
       const one = exportSkill(ctx, item.name, exportTargets);

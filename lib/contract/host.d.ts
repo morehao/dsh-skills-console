@@ -8,6 +8,8 @@ export interface HostContext {
   /** 按名取宿主服务；调用点各自断言成下面的窄接口。 */
   get(name: string): any;
   effect(fn: () => void | (() => void), label?: string): void;
+  /** 注册一个 cordis 服务（可选能力；旧宿主可能没有）。 */
+  provide?(name: string, value: unknown): void;
   webServer: {
     register(options: { kind: 'prefix'; path: string; handler: unknown }): unknown;
   };

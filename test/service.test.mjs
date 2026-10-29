@@ -1858,3 +1858,25 @@ test('自动检测：上游失败也只返回 ok:false，不向定时器抛', as
   assert.equal(store.state.checks.alpha.status, 'unknown');
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('安装 targets 语义：显式 [] 即一个都不建（不回退 settings），undefined 才回退', async () => {
+  const { root, home, store, service } = setup();
+  await service.setSettings({ exportTargets: ['agent:claude-code'] });
+
+  // 显式空数组：即使 settings 里有默认导出目标，也不建任何链
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: [] });
+  assert.equal(
+    fs.existsSync(path.join(home, '.claude', 'skills', 'alpha')),
+    false,
+    '显式 targets: [] 不应建链（不能回退 settings）',
+  );
+  assert.equal(store.state.exports.filter((row) => row.skill === 'alpha').length, 0);
+
+  // 未传 targets（undefined）：回退 settings.exportTargets → 建链
+  await service.install({ source: 'morehao/ai-kit', skills: ['beta'] });
+  assert.ok(
+    fs.lstatSync(path.join(home, '.claude', 'skills', 'beta')).isSymbolicLink(),
+    '未传 targets 时应回退 settings.exportTargets',
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});

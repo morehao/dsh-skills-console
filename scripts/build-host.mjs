@@ -12,7 +12,7 @@
  * 错误位置，所以必须保结构 emit。详见 .dsh/docs/plans 里的 TS 迁移计划 D1/D3。
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,8 +22,21 @@ const tscJs = path.join(root, 'node_modules', 'typescript', 'bin', 'tsc');
 const config = path.join(root, 'tsconfig.host.json');
 const outDir = path.join(root, 'dist');
 const ASSETS = ['agent-table.json', 'invocation-support.json'];
+// `lib/contract/*.d.ts` 是纯类型输入，tsc 不会把它们复制到 dist/；但 dist/api.d.ts 会
+// `import type` 它们，消费方（TS）要能解析，所以显式复制到 dist/contract/。
+const CONTRACT_DIR = path.join(root, 'lib', 'contract');
 
 const argv = new Set(process.argv.slice(2));
+
+function copyContracts(target) {
+  if (!existsSync(CONTRACT_DIR)) return;
+  const to = path.join(target, 'contract');
+  mkdirSync(to, { recursive: true });
+  for (const name of readdirSync(CONTRACT_DIR)) {
+    if (!name.endsWith('.d.ts')) continue;
+    cpSync(path.join(CONTRACT_DIR, name), path.join(to, name));
+  }
+}
 
 function compile(target) {
   execFileSync(process.execPath, [tscJs, '-p', config, '--outDir', target], { cwd: root, stdio: 'inherit' });
@@ -31,6 +44,7 @@ function compile(target) {
     const from = path.join(root, 'lib', name);
     if (existsSync(from)) cpSync(from, path.join(target, name));
   }
+  copyContracts(target);
 }
 
 function walk(rootDir) {
@@ -67,6 +81,7 @@ if (argv.has('--watch')) {
     const from = path.join(root, 'lib', name);
     if (existsSync(from)) cpSync(from, path.join(outDir, name));
   }
+  copyContracts(outDir);
   execFileSync(process.execPath, [tscJs, '-p', config, '--watch'], { cwd: root, stdio: 'inherit' });
 } else if (argv.has('--check')) {
   const temp = mkdtempSync(path.join(tmpdir(), 'dshsc-dist-'));

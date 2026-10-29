@@ -10,7 +10,7 @@
     "outDir": "dist",
     "newLine": "lf",
     "sourceMap": false,
-    "declaration": false,
+    "declaration": true,
     "removeComments": false,
     "allowJs": false,
     "strict": true,

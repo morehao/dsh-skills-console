@@ -1,4 +1,6 @@
 import z from '@deepseek-ai/schemastery';
+import { API_VERSION, createPublicApi } from './api.js';
+import { registerRuntime } from './runtime-registry.js';
 import { createInstaller } from './core/installer.js';
 import { createLogger } from './core/log.js';
 import { createPaths } from './core/paths.js';
@@ -134,6 +136,22 @@ export function apply(ctx: any, config: any = {}) {
   } catch (error) {
     logger('plugin.migrate.failed', { message: error?.message, code: error?.code });
   }
+
+  /**
+   * 跨插件公共 API（设计 §2 / §5.1）：消费方（dsh-commands）只 import
+   * `@morehao/dsh-skills-console/api`。插件启用时把同一套 PublicApi 登记进进程级
+   * runtime registry，并作为可选 cordis 服务提供，使 `createSkillsConsole()` 命中这里、
+   * 不创建第二个 StateStore（单写者）。服务名冲突时保留已有服务、只记日志。
+   */
+  const publicApi = createPublicApi(service);
+  if (typeof ctx.provide === 'function') {
+    if (ctx.get('skillsConsole')) logger('plugin.service.collision', { name: 'skillsConsole' });
+    else ctx.provide('skillsConsole', publicApi);
+  }
+  ctx.effect(
+    () => registerRuntime({ apiVersion: API_VERSION, stateFile: paths.stateFile, api: publicApi }),
+    'dsh-skills-console:runtime',
+  );
 
   /**
    * 插件自更新：检查 npm 最新版 / 一键重装自身。
