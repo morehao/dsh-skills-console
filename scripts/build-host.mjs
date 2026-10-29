@@ -33,13 +33,17 @@ function compile(target) {
   }
 }
 
-function walk(dir, out = []) {
-  if (!existsSync(dir)) return out;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, out);
-    else if (entry.isFile()) out.push(path.relative(dir, full));
-  }
+function walk(rootDir) {
+  const out = [];
+  const visit = (dir) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) visit(full);
+      else if (entry.isFile()) out.push(path.relative(rootDir, full));
+    }
+  };
+  visit(rootDir);
   return out.sort();
 }
 
