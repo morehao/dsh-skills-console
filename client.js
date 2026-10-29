@@ -33,7 +33,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// client/index.js
+// client/index.ts
 var index_exports = {};
 __export(index_exports, {
   apply: () => apply,
@@ -674,7 +674,7 @@ function buildTranslate(locale) {
   return translate;
 }
 
-// client/host.js
+// client/host.ts
 var import_react = __toESM(require("react"), 1);
 var h = import_react.default.createElement;
 var ReactDOM = null;
@@ -724,7 +724,7 @@ function useOverlayLayer(active, close) {
   }, [active]);
 }
 
-// client/icons.js
+// client/icons.ts
 function Logo({ size = 30 }) {
   return h(
     "svg",
@@ -5418,7 +5418,7 @@ function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   return page ? h("div", { className: "dshsc-page" }, root) : root;
 }
 
-// client/surface.js
+// client/surface.ts
 var PANEL_ID = "dsh-skills-console";
 function createSurface({ slots, layout, t, pickDirectory }) {
   let surface = null;
@@ -5441,6 +5441,7 @@ function createSurface({ slots, layout, t, pickDirectory }) {
   function clearSurface() {
     while (surfaceDisposers.length > 0) {
       const dispose2 = surfaceDisposers.pop();
+      if (!dispose2) break;
       try {
         dispose2();
       } catch {
@@ -5492,7 +5493,7 @@ function createSurface({ slots, layout, t, pickDirectory }) {
   return { mount, changeSurface, clearSurface, dispose, hasUserSelected: () => userSelected };
 }
 
-// client/app.js
+// client/app.ts
 var inject = ["slots"];
 function apply(ctx) {
   const locale = ctx.get("locale");

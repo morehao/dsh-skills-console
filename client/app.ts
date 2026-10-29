@@ -6,7 +6,7 @@ import { createSurface } from './surface.js';
 
 export const inject = ['slots'];
 
-export function apply(ctx) {
+export function apply(ctx: any): void {
   const locale = ctx.get('locale');
   const t = buildTranslate(locale);
   const slots = ctx.get('slots');

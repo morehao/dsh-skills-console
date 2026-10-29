@@ -5,31 +5,32 @@ import { Section } from './section.js';
 
 export const PANEL_ID = 'dsh-skills-console';
 
-export function createSurface({ slots, layout, t, pickDirectory }) {
-  let surface = null;
+export function createSurface({ slots, layout, t, pickDirectory }: any): any {
+  let surface: 'settings' | 'sidebar' | null = null;
   let userSelected = false;
-  const surfaceDisposers = [];
+  const surfaceDisposers: Array<() => void> = [];
 
-  function SettingsSurface(props) {
+  function SettingsSurface(props: any) {
     return h(Section, {
       t,
       page: false,
       pickDirectory,
-      onPlacementChange: (next) => changeSurface(next, props?.close),
+      onPlacementChange: (next: string) => changeSurface(next, props?.close),
     });
   }
 
   function PageSurface() {
-    return h(Section, { t, page: true, pickDirectory, onPlacementChange: (next) => changeSurface(next) });
+    return h(Section, { t, page: true, pickDirectory, onPlacementChange: (next: string) => changeSurface(next) });
   }
 
-  function SurfaceIcon(props) {
+  function SurfaceIcon(props: any) {
     return h(PanelIcon, { size: props?.size || 16 });
   }
 
   function clearSurface() {
     while (surfaceDisposers.length > 0) {
       const dispose = surfaceDisposers.pop();
+      if (!dispose) break;
       try {
         dispose();
       } catch {
@@ -38,7 +39,7 @@ export function createSurface({ slots, layout, t, pickDirectory }) {
     }
   }
 
-  function mount(next) {
+  function mount(next: string) {
     const target = next === 'sidebar' ? 'sidebar' : 'settings';
     if (surface === target) return;
     clearSurface();
@@ -60,7 +61,7 @@ export function createSurface({ slots, layout, t, pickDirectory }) {
     }
   }
 
-  function changeSurface(next, close) {
+  function changeSurface(next: string, close?: () => void) {
     userSelected = true;
     mount(next);
     try {

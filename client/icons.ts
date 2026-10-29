@@ -1,7 +1,7 @@
 /** 图标与设置导航图标认领：纯 SVG / DOM 操作，不依赖业务状态。 */
 import { h } from './host.js';
 
-export function Logo({ size = 30 }) {
+export function Logo({ size = 30 }: { size?: number }): any {
   return h('svg', {
     className: 'dshsc-logo', width: size, height: size, viewBox: '0 0 64 64', 'aria-hidden': true,
   },
@@ -24,7 +24,7 @@ export function Logo({ size = 30 }) {
   }));
 }
 
-export function PanelIcon({ size = 16 }) {
+export function PanelIcon({ size = 16 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
@@ -47,7 +47,7 @@ const NAV_ICON_MARKER = 'data-dsh-skills-console-nav-icon';
 const NAV_ROW_SELECTOR = '[role="dialog"] nav button';
 
 /** 导航行里用的标记：与 PanelIcon 同一套几何，画成 CSS mask 的 alpha 形状。 */
-function navIconMaskSvg() {
+function navIconMaskSvg(): string {
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">'
     + '<rect x="7.5" y="7.5" width="9" height="9" rx="3" stroke="#000" stroke-width="1.8"/>'
     + '<path d="M9.8 12.1l1.5 1.5 3.1-3.3" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
@@ -57,12 +57,12 @@ function navIconMaskSvg() {
 }
 
 /** mask 的 URL：运行时编码，避免手写转义。 */
-function navIconMaskUrl() {
+function navIconMaskUrl(): string {
   return `data:image/svg+xml,${encodeURIComponent(navIconMaskSvg())}`;
 }
 
 /** 隐藏 Host 画的齿轮，改用本插件标记（颜色跟随 currentColor，适配深浅主题）。 */
-function navIconCss(maskUrl) {
+function navIconCss(maskUrl: string): string {
   return [
     `[${NAV_ICON_MARKER}] > svg { display: none; }`,
     `[${NAV_ICON_MARKER}]::before {`,
@@ -84,7 +84,7 @@ function navIconCss(maskUrl) {
 }
 
 /** 只有可见文案等于本插件分区标题的那一行才算自己的；空标题不认领任何行。 */
-function isOwnNavRow(rowText, wantedLabel) {
+function isOwnNavRow(rowText: string, wantedLabel: string): boolean {
   const wanted = String(wantedLabel ?? '').trim();
   if (wanted.length === 0) return false;
   return String(rowText ?? '').trim() === wanted;
@@ -95,7 +95,7 @@ function isOwnNavRow(rowText, wantedLabel) {
  * @param ctx 客户端 context，用于 effect 生命周期（卸载时移除标记与样式）。
  * @param resolveLabel 当前分区标题（与 settings.section 用同一个 thunk，语言切换后可重认领）。
  */
-export function installSettingsNavIcon(ctx, resolveLabel) {
+export function installSettingsNavIcon(ctx: any, resolveLabel: () => string): void {
   if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
   ctx.effect(() => {
     const tag = document.createElement('style');
@@ -132,7 +132,7 @@ export function installSettingsNavIcon(ctx, resolveLabel) {
   }, 'dsh-skills-console: settings nav icon');
 }
 
-export function GitHubIcon({ size = 16 }) {
+export function GitHubIcon({ size = 16 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': true,
     style: { display: 'block' },
@@ -141,7 +141,7 @@ export function GitHubIcon({ size = 16 }) {
   }));
 }
 
-export function GearIcon({ size = 13 }) {
+export function GearIcon({ size = 13 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
@@ -153,7 +153,7 @@ export function GearIcon({ size = 13 }) {
   }));
 }
 
-export function TrashIcon({ size = 14 }) {
+export function TrashIcon({ size = 14 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
@@ -165,7 +165,7 @@ export function TrashIcon({ size = 14 }) {
   h('path', { d: 'M10 11v5.5M14 11v5.5' }));
 }
 
-export function DownloadIcon({ size = 14 }) {
+export function DownloadIcon({ size = 14 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
@@ -181,7 +181,7 @@ export function DownloadIcon({ size = 14 }) {
  * 行内「共享设置」用：方框代表 Agent / 目录，不用圆形节点，避免被读成“分享给好友”。
  * 不用箭头出框（那是导出/上传），也不用插头（插头只读得出「接入」，读不出「共享给谁」）。
  */
-export function ShareIcon({ size = 14 }) {
+export function ShareIcon({ size = 14 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
@@ -194,7 +194,7 @@ export function ShareIcon({ size = 14 }) {
   h('path', { d: 'M13.6 8.8 17.8 15.4' }));
 }
 
-export function InfoIcon({ size = 13 }) {
+export function InfoIcon({ size = 13 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 1.8, strokeLinecap: 'round', 'aria-hidden': true, style: { display: 'block' },
@@ -204,7 +204,7 @@ export function InfoIcon({ size = 13 }) {
   h('path', { d: 'M12 8h.01' }));
 }
 
-export function RefreshIcon({ size = 14 }) {
+export function RefreshIcon({ size = 14 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
@@ -214,14 +214,14 @@ export function RefreshIcon({ size = 14 }) {
   h('path', { d: 'M20 4v5h-5' }));
 }
 
-export function CaretIcon({ open }) {
+export function CaretIcon({ open }: { open?: boolean }): any {
   return h('svg', {
     width: 10, height: 10, viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': true,
     style: { display: 'block', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .12s ease' },
   }, h('path', { d: 'M8 5l11 7-11 7z' }));
 }
 
-export function SearchIcon({ size = 13 }) {
+export function SearchIcon({ size = 13 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 2, strokeLinecap: 'round', 'aria-hidden': true,
@@ -240,7 +240,7 @@ const STROKE_ICON = {
 };
 
 /** 查看：眼睛。行内「查看」按钮用。 */
-export function EyeIcon({ size = 13 }) {
+export function EyeIcon({ size = 13 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
     style: { display: 'block' },
@@ -253,7 +253,7 @@ export function EyeIcon({ size = 13 }) {
  * 复制。几何取自 lucide 的 copy（14×14 方块 + 左上回字），
  * 包围盒严格对称于 (12,12)，小尺寸下不会看起来偏左上。
  */
-export function CopyIcon({ size = 13 }) {
+export function CopyIcon({ size = 13 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
     style: { display: 'block' },
@@ -263,7 +263,7 @@ export function CopyIcon({ size = 13 }) {
 }
 
 /** 返回 / 上一级。 */
-export function ChevronLeftIcon({ size = 14 }) {
+export function ChevronLeftIcon({ size = 14 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
     style: { display: 'block' },
@@ -272,7 +272,7 @@ export function ChevronLeftIcon({ size = 14 }) {
 }
 
 /** 文件。 */
-export function FileIcon({ size = 12 }) {
+export function FileIcon({ size = 12 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
     style: { display: 'block', flex: 'none' },
@@ -282,7 +282,7 @@ export function FileIcon({ size = 12 }) {
 }
 
 /** 目录。 */
-export function FolderIcon({ size = 12 }) {
+export function FolderIcon({ size = 12 }: { size?: number }): any {
   return h('svg', {
     width: size, height: size, viewBox: '0 0 24 24', ...STROKE_ICON, 'aria-hidden': true,
     style: { display: 'block', flex: 'none' },

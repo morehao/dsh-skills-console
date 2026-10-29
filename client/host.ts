@@ -6,7 +6,7 @@ import React from 'react';
 
 export const h = React.createElement;
 
-let ReactDOM = null;
+let ReactDOM: any = null;
 try {
   ReactDOM = require('react-dom');
 } catch {
@@ -18,7 +18,7 @@ try {
  * 抽屉 / 弹窗也要 portal 进同一个弹窗——否则宿主的 z-index:1000 模态层会把 body 上的浮层压住。
  * 侧栏主面板里没有祖先弹窗，回落到 body。
  */
-export function overlayHost() {
+export function overlayHost(): Element | null {
   if (typeof document === 'undefined') return null;
   const root = document.querySelector?.('.dshsc-root');
   const dialog = root?.closest?.('[role="dialog"]');
@@ -26,16 +26,16 @@ export function overlayHost() {
 }
 
 // 浮层（抽屉 / 设置弹窗 / toast / Agent 气泡）统一走 portal：列表和页面的 overflow 都裁不到
-export function portalize(node, target) {
+export function portalize(node: any, target?: any): any {
   const host = target || (typeof document !== 'undefined' ? document.body : null);
   return ReactDOM?.createPortal && host ? ReactDOM.createPortal(node, host) : node;
 }
 
 // 插件自己的浮层栈：Esc 只关最上面这层，并拦住宿主设置弹窗的 document 级 Esc
-const overlayLayers = [];
+const overlayLayers: Array<{ close: () => void }> = [];
 let escapeGuarded = false;
 
-function onOverlayEscape(event) {
+function onOverlayEscape(event: KeyboardEvent) {
   if (event.key !== 'Escape' || overlayLayers.length === 0) return;
   // 宿主的 Esc 挂在 document 冒泡阶段；这里在捕获阶段截住，避免抽屉/弹窗和设置页一起关
   event.preventDefault?.();
@@ -45,7 +45,7 @@ function onOverlayEscape(event) {
 }
 
 /** 注册一层浮层：active 时入栈，Esc 关最上层；关闭时出栈。 */
-export function useOverlayLayer(active, close) {
+export function useOverlayLayer(active: boolean, close: () => void): void {
   const closeRef = React.useRef(close);
   closeRef.current = close;
   React.useEffect(() => {

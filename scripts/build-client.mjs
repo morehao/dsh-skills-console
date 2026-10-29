@@ -17,7 +17,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const entry = path.join(root, "client", "index.js");
+const entry = path.join(root, "client", "index.ts");
 const outfile = path.join(root, "client.js");
 const mapfile = `${outfile}.map`;
 const pkg = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
