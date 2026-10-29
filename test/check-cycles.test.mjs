@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { buildGraph, collectModules, findCycles, parseImports } from '../scripts/check-cycles.mjs';
+import { buildGraph, collectModules, findCycles, parseImports, resolveSpecifier } from '../scripts/check-cycles.mjs';
 
 /** 在临时目录里铺一棵模块树，跑完即删；用例不碰真实仓库。 */
 function analyze(files) {
@@ -86,4 +86,19 @@ test('buildGraph：外部模块忽略，相对路径写错会进 unresolved', ()
   });
   assert.equal(unresolved.length, 1);
   assert.equal(unresolved[0].specifier, './missing.js');
+});
+
+test('resolveSpecifier：TS 源码里 `./x.js` 回退到同名 .ts，`.d.ts` 也能解析', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-cycles-ts-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'x.ts'), 'export const a = 1;\n');
+    fs.writeFileSync(path.join(dir, 'y.d.ts'), 'export interface Y {}\n');
+    fs.writeFileSync(path.join(dir, 'm.ts'), "import { a } from './x.js';\nimport type { Y } from './y.js';\n");
+    const modules = collectModules(dir).map((file) => path.relative(dir, file));
+    assert.deepEqual(modules, ['m.ts', 'x.ts']);
+    assert.equal(path.basename(resolveSpecifier(path.join(dir, 'm.ts'), './x.js')), 'x.ts');
+    assert.equal(path.basename(resolveSpecifier(path.join(dir, 'm.ts'), './y.js')), 'y.d.ts');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
