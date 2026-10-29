@@ -23,7 +23,9 @@ const MODE_EXEC = '100755';
 const MODE_DIR = '40000';
 
 export class GitTreeError extends Error {
-  constructor(code, message, extra = {}) {
+  code: string;
+  [key: string]: any;
+  constructor(code: string, message: string, extra: Record<string, any> = {}) {
     super(message);
     this.name = 'GitTreeError';
     this.code = code;
@@ -64,7 +66,7 @@ function hashDir(dir) {
     throw new GitTreeError('read-failed', `无法读取目录 ${dir}: ${error.message}`, { cause: error });
   }
 
-  const items = [];
+  const items: any[] = [];
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     let stat;
@@ -100,7 +102,7 @@ function hashDir(dir) {
 
   items.sort(compareEntries);
 
-  const chunks = [];
+  const chunks: any[] = [];
   for (const item of items) {
     chunks.push(Buffer.from(`${item.mode || MODE_DIR} ${item.name}\0`, 'utf8'), item.sha);
   }
@@ -139,8 +141,8 @@ export function treeShaFromEntries(entries) {
     throw new GitTreeError('invalid-entries', 'treeShaFromEntries 需要条目数组');
   }
   // dir → 直接子条目（dir 为空串代表仓库根）
-  const childrenOf = new Map();
-  const allDirs = new Set();
+  const childrenOf = new Map<string, any[]>();
+  const allDirs = new Set<string>();
   for (const entry of entries) {
     if (!entry || typeof entry.path !== 'string' || entry.path.length === 0) continue;
     if (entry.type === 'tree') allDirs.add(entry.path);
@@ -151,7 +153,7 @@ export function treeShaFromEntries(entries) {
     const name = slash < 0 ? entry.path : entry.path.slice(slash + 1);
     if (!name) continue;
     if (!childrenOf.has(dir)) childrenOf.set(dir, []);
-    childrenOf.get(dir).push({ name, entry });
+    childrenOf.get(dir)!.push({ name, entry });
   }
   // 递归树正常会给每个目录条目，但不能依赖它：缺失时按路径把目录补回去，
   // 否则父 tree 会漏掉整个子目录，根 SHA 就错了。
@@ -161,15 +163,15 @@ export function treeShaFromEntries(entries) {
     const parent = slash < 0 ? '' : dir.slice(0, slash);
     const name = slash < 0 ? dir : dir.slice(slash + 1);
     if (!childrenOf.has(parent)) childrenOf.set(parent, []);
-    if (!childrenOf.get(parent).some((child) => child.name === name)) {
-      childrenOf.get(parent).push({ name, entry: { path: dir, type: 'tree' } });
+    if (!childrenOf.get(parent)!.some((child) => child.name === name)) {
+      childrenOf.get(parent)!.push({ name, entry: { path: dir, type: 'tree' } });
     }
   }
 
-  const cache = new Map();
-  const dirSha = (dir) => {
-    if (cache.has(dir)) return cache.get(dir);
-    const items = [];
+  const cache = new Map<string, string>();
+  const dirSha = (dir: string): string => {
+    if (cache.has(dir)) return cache.get(dir)!;
+    const items: any[] = [];
     for (const { name, entry } of childrenOf.get(dir) || []) {
       if (entry.type === 'tree') {
         items.push({ name, dir: true, mode: MODE_DIR, sha: Buffer.from(dirSha(entry.path), 'hex') });
@@ -184,7 +186,7 @@ export function treeShaFromEntries(entries) {
       items.push({ name, dir: false, mode: normalizeEntryMode(entry), sha: Buffer.from(sha, 'hex') });
     }
     items.sort(compareEntries);
-    const chunks = [];
+    const chunks: any[] = [];
     for (const item of items) {
       chunks.push(Buffer.from(`${item.mode} ${item.name}\0`, 'utf8'), item.sha);
     }

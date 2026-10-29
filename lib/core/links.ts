@@ -38,7 +38,7 @@ export function inspectTarget({ linkPath, canonicalPath }) {
 
   if (!st.isSymbolicLink()) return { state: 'real', linkPath };
 
-  let rawTarget = null;
+  let rawTarget: any = null;
   try {
     rawTarget = fs.readlinkSync(linkPath);
   } catch {

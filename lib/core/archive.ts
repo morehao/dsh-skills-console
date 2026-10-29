@@ -20,7 +20,9 @@ export const DEFAULT_MAX_FILES = 10_000;
 export const DEFAULT_MAX_EXTRACTED_BYTES = 200 * 1024 * 1024;
 
 export class ArchiveError extends Error {
-  constructor(code, message, extra = {}) {
+  code: string;
+  [key: string]: any;
+  constructor(code: string, message: string, extra: Record<string, any> = {}) {
     super(message);
     this.name = 'ArchiveError';
     this.code = code;
@@ -73,12 +75,12 @@ function parseEntryPath(raw) {
 
 /** 扫一遍 tar 头，全部合法才允许进入解压。 */
 async function scanArchive({ tarball, gzip, maxFiles, maxBytes }) {
-  let root = null;
+  let root: any = null;
   let files = 0;
   let dirs = 0;
   let bytes = 0;
-  let failure = null;
-  const warnings = [];
+  let failure: any = null;
+  const warnings: any[] = [];
 
   // 注意：tar 把 onReadEntry 里的异常当同步异常抛到事件循环，不会 reject list 的 Promise。
   // 所以这里先记下第一个校验错误，扫完再抛；有错误时后续条目直接跳过。
@@ -187,13 +189,21 @@ function verifyExtracted(dest) {
  * 解压 tarball 到 `dest`。`dest` 必须是空目录或不存在（不存在会自动创建）。
  * 成功返回 `{ dir, root, files, dirs, bytes }`；失败抛 ArchiveError，由调用方清理。
  */
+export interface ExtractTarballOptions {
+  tarball?: string;
+  dest?: string;
+  maxFiles?: number;
+  maxBytes?: number;
+  gzip?: boolean;
+}
+
 export async function extractTarball({
   tarball,
   dest,
   maxFiles = DEFAULT_MAX_FILES,
   maxBytes = DEFAULT_MAX_EXTRACTED_BYTES,
   gzip,
-} = {}) {
+}: ExtractTarballOptions = {}) {
   if (typeof tarball !== 'string' || typeof dest !== 'string') {
     throw new ArchiveError('invalid-argument', 'extractTarball 需要 tarball 与 dest 路径');
   }
