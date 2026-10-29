@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { apply } from '../lib/index.js';
+import { apply } from '../dist/index.js';
 
 /** 最小 cordis ctx 替身：只实现 apply 用到的能力，并记录 effect / timer 交互。 */
 function fakeCtx() {

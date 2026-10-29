@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { resolveVisibility } from '../lib/core/visibility.js';
-import { scanSkillRoot } from '../lib/core/roots.js';
+import { resolveVisibility } from '../dist/core/visibility.js';
+import { scanSkillRoot } from '../dist/core/roots.js';
 
 function sandbox() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-visibility-'));

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { gitTreeSha } from '../lib/core/git-tree.js';
+import { gitTreeSha } from '../dist/core/git-tree.js';
 import {
   RemoteError,
   codeloadUrl,
@@ -12,7 +12,7 @@ import {
   fetchRemoteSkillMd,
   parseAtomCommit,
   snapshotFromTarball,
-} from '../lib/core/remote.js';
+} from '../dist/core/remote.js';
 import { writeTarFixture } from './helpers/tar-fixture.mjs';
 
 function tempDir() {

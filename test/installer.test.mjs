@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createInstaller } from '../lib/core/installer.js';
-import { createPaths } from '../lib/core/paths.js';
-import { readLockFile, updateLock } from '../lib/core/lock.js';
-import { gitTreeSha } from '../lib/core/git-tree.js';
+import { createInstaller } from '../dist/core/installer.js';
+import { createPaths } from '../dist/core/paths.js';
+import { readLockFile, updateLock } from '../dist/core/lock.js';
+import { gitTreeSha } from '../dist/core/git-tree.js';
 import { writeTarFixture } from './helpers/tar-fixture.mjs';
 
 const COMMIT = 'a'.repeat(40);

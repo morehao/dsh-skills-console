@@ -4,10 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { CLI_AGENT_DIRS, SHARED_HOME_VERIFIED, createRegistry, sharedHomeOf } from '../lib/core/agents.js';
-import { createPaths } from '../lib/core/paths.js';
-import { dshScanRootPaths, listRoots } from '../lib/core/roots.js';
-import { emptyState } from '../lib/core/state.js';
+import { CLI_AGENT_DIRS, SHARED_HOME_VERIFIED, createRegistry, sharedHomeOf } from '../dist/core/agents.js';
+import { createPaths } from '../dist/core/paths.js';
+import { dshScanRootPaths, listRoots } from '../dist/core/roots.js';
+import { emptyState } from '../dist/core/state.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { DiscoveryError, discoverSkills } from '../lib/core/discovery.js';
+import { DiscoveryError, discoverSkills } from '../dist/core/discovery.js';
 
 function repo(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-discovery-'));

@@ -4,9 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { createPaths } from '../lib/core/paths.js';
-import { createIntroStore } from '../lib/core/intro-store.js';
-import { INTRO_STORE_VERSION } from '../lib/core/intro.js';
+import { createPaths } from '../dist/core/paths.js';
+import { createIntroStore } from '../dist/core/intro-store.js';
+import { INTRO_STORE_VERSION } from '../dist/core/intro.js';
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-intro-store-'));

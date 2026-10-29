@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { FileSystemSkillProvider } from '@deepseek-ai/dsh-skill-filesystem';
-import { scanSkillRoot } from '../lib/core/roots.js';
+import { scanSkillRoot } from '../dist/core/roots.js';
 
 /**
  * 契约测试：插件自己的扫描（`scanSkillRoot`）与 DSH 宿主的

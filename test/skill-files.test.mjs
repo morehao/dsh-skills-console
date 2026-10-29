@@ -12,7 +12,7 @@ import {
   readSkillTree,
   resolveSkillRoot,
   SkillFileError,
-} from '../lib/core/skill-files.js';
+} from '../dist/core/skill-files.js';
 
 /** 每个用例一份临时 canonical；结束时删掉。真目录、真 HOME 一律不碰。 */
 function setup(t) {

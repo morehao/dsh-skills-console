@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { contentHash, contentHashWith, localeComparator } from '../lib/core/hash.js';
-import { matchesLegacyHash } from '../lib/core/invocation.js';
+import { contentHash, contentHashWith, localeComparator } from '../dist/core/hash.js';
+import { matchesLegacyHash } from '../dist/core/invocation.js';
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-hash-'));
@@ -66,7 +66,7 @@ test('contentHash 的排序与进程 locale 无关', (t) => {
     t.skip('当前 ICU 的 en / zh collation 排这几个文件名结果相同，无法构造 locale 差异');
     return;
   }
-  const moduleUrl = new URL('../lib/core/hash.js', import.meta.url).href;
+  const moduleUrl = new URL('../dist/core/hash.js', import.meta.url).href;
   const script = `import { contentHash } from ${JSON.stringify(moduleUrl)};
 console.log(contentHash(${JSON.stringify(dir)}));`;
   const under = (lang) => execFileSync(process.execPath, ['--input-type=module', '-e', script], {

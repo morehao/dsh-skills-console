@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { findProjectRoot, listRoots, ROOT_RANKS, scanSkillRoot } from '../lib/core/roots.js';
-import { createPaths } from '../lib/core/paths.js';
+import { findProjectRoot, listRoots, ROOT_RANKS, scanSkillRoot } from '../dist/core/roots.js';
+import { createPaths } from '../dist/core/paths.js';
 
 test('findProjectRoot：向上找最近的 .git，没有则 null', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-roots-'));

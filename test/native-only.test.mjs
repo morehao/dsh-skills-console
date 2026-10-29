@@ -16,7 +16,7 @@ test('native-only：runtime 只依赖 tar，lib 不 spawn 外部进程或引用 
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   assert.deepEqual(pkg.dependencies, { tar: '7.5.22' });
 
-  const files = walk(path.join(ROOT, 'lib')).filter((file) => file.endsWith('.js'));
+  const files = walk(path.join(ROOT, 'lib')).filter((file) => /\.(js|ts)$/.test(file));
   for (const file of files) {
     const text = fs.readFileSync(file, 'utf8');
     const label = path.relative(ROOT, file);

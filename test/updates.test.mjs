@@ -11,8 +11,8 @@ import {
   resolveCommitTree,
   skillDir,
   skillTreeSha,
-} from '../lib/core/updates.js';
-import { treeShaFromEntries } from '../lib/core/git-tree.js';
+} from '../dist/core/updates.js';
+import { treeShaFromEntries } from '../dist/core/git-tree.js';
 
 const ROOT_SHA = 'a'.repeat(40);
 const DIR_SHA_1 = 'b'.repeat(40);

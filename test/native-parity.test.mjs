@@ -3,9 +3,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { extractTarball } from '../lib/core/archive.js';
-import { gitTreeSha } from '../lib/core/git-tree.js';
-import { downloadTarball } from '../lib/core/remote.js';
+import { extractTarball } from '../dist/core/archive.js';
+import { gitTreeSha } from '../dist/core/git-tree.js';
+import { downloadTarball } from '../dist/core/remote.js';
 
 /**
  * P0 真网络对拍（默认跳过，CI 不联网）：

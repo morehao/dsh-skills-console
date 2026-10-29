@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createPaths } from '../lib/core/paths.js';
-import { StateStore, StateReadOnlyError, emptyState, STATE_VERSION, upgradeStateV1, upgradeStateV2, upgradeStateV3 } from '../lib/core/state.js';
+import { createPaths } from '../dist/core/paths.js';
+import { StateStore, StateReadOnlyError, emptyState, STATE_VERSION, upgradeStateV1, upgradeStateV2, upgradeStateV3 } from '../dist/core/state.js';
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-state-'));

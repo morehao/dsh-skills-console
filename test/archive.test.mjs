@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { ArchiveError, extractTarball } from '../lib/core/archive.js';
+import { ArchiveError, extractTarball } from '../dist/core/archive.js';
 import { writeTarFixture } from './helpers/tar-fixture.mjs';
 
 function tempDir() {

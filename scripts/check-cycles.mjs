@@ -42,7 +42,7 @@ export function parseImports(source) {
   return [...new Set(found)];
 }
 
-/** 目录内所有 `.js` 文件（绝对路径，递归）。 */
+/** 目录内所有 `.js` / `.ts` 源文件（绝对路径，递归；`.d.ts` 是声明、不参与）。 */
 export function collectModules(dir) {
   const files = [];
   if (!fs.existsSync(dir)) return files;
@@ -52,7 +52,7 @@ export function collectModules(dir) {
       if (entry.isDirectory()) {
         if (entry.name === 'node_modules') continue;
         walk(full);
-      } else if (entry.isFile() && entry.name.endsWith('.js')) {
+      } else if (entry.isFile() && /\.(js|ts)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
         files.push(full);
       }
     }
@@ -65,7 +65,14 @@ export function collectModules(dir) {
 export function resolveSpecifier(fromFile, specifier) {
   if (!specifier.startsWith('.')) return null;
   const base = path.resolve(path.dirname(fromFile), specifier);
-  const candidates = path.extname(base) ? [base] : [base, `${base}.js`, path.join(base, 'index.js')];
+  const candidates = [];
+  if (path.extname(base)) {
+    candidates.push(base);
+    // TS 源码里写 `./x.js`、实际文件是 `x.ts`：按 NodeNext 的解析口径回退到同名 .ts。
+    if (base.endsWith('.js')) candidates.push(`${base.slice(0, -3)}.ts`);
+  } else {
+    candidates.push(base, `${base}.js`, `${base}.ts`, path.join(base, 'index.js'), path.join(base, 'index.ts'));
+  }
   return candidates.find((candidate) => fs.existsSync(candidate)) || null;
 }
 

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { ensureLink, inspectTarget, removeLink } from '../lib/core/links.js';
+import { ensureLink, inspectTarget, removeLink } from '../dist/core/links.js';
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-links-'));
