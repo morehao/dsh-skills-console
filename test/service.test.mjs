@@ -8,7 +8,7 @@ import { createRegistry } from '../lib/core/agents.js';
 import { createService, ServiceError } from '../lib/core/service.js';
 import { contentHash, contentHashWith, localeComparator } from '../lib/core/hash.js';
 import { hashWithoutInvocation } from '../lib/core/invocation.js';
-import { gitTreeSha } from '../lib/core/git-tree.js';
+import { gitTreeSha, treeShaFromEntries } from '../lib/core/git-tree.js';
 import { StateStore } from '../lib/core/state.js';
 import { createShadow } from '../lib/core/shadow.js';
 import { snapshotId } from '../lib/core/updates.js';
@@ -692,7 +692,8 @@ function githubStub({
       if (control.etag304 && ifNoneMatch) return new Response(null, { status: 304, headers: { etag: ifNoneMatch } });
       // 只让「无视 ETag 的完整读」失败：用来测 304 后重读失败仍要留原因
       if (control.failWithoutEtag && !ifNoneMatch) return new Response('{"message":"Not Found"}', { status: 404 });
-      return jsonBody({ sha: TREE_SHA, tree: control.tree, truncated: false });
+      // 真实 API 在 ref 查询下返回的顶层 sha 是 commit SHA，不是根 tree SHA。
+      return jsonBody({ sha: control.commit, tree: control.tree, truncated: false });
     }
     if (pathname.includes('/commits/')) return jsonBody({ sha: control.commit });
     return new Response('{"message":"Not Found"}', { status: 404 });
@@ -758,10 +759,143 @@ test('添加订阅：ref 缺省时跟随仓库默认分支（master + 根级 SKI
   assert.equal(row.ref, 'master', '缺省 ref 要落成仓库默认分支');
   assert.deepEqual(row.snapshot.entries.map((item) => item.name), ['huashu-design']);
   assert.equal(row.snapshot.entries[0].skillPath, 'SKILL.md');
-  assert.equal(row.snapshot.entries[0].treeSha, TREE_SHA);
+  // 根级技能的 tree 基线必须是真实的根 tree SHA（由条目重建），不能是 API 回给 ref 的 commit SHA。
+  const expectedRootSha = treeShaFromEntries([{ path: 'SKILL.md', type: 'blob', mode: '100644', sha: '4'.repeat(40) }]);
+  assert.equal(row.snapshot.entries[0].treeSha, expectedRootSha);
+  assert.equal(row.snapshot.rootSha, expectedRootSha);
+  assert.notEqual(row.snapshot.entries[0].treeSha, COMMIT, '不能把 commit SHA 记成 tree 基线');
   assert.equal(row.snapshot.commit, COMMIT);
   assert.ok(gh.calls.some((url) => url.includes('/git/trees/master')), '必须按默认分支拉树');
   assert.ok(!gh.calls.some((url) => url.includes('/git/trees/main')), '不能硬套 main');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+/**
+ * 造一个「CLI 已装好」的根级技能：canonical 有内容、lock 记真实根 tree 基线、state 有记账行。
+ * 根级技能专指仓库根部就是 `SKILL.md`（skillPath 无 `/`），是本次 bug 的触发场景。
+ */
+function seedRootLevelInstall({ paths, store, subscriptionId, rootTreeSha }) {
+  const canonicalDir = path.join(paths.canonical, 'huashu-design');
+  fs.mkdirSync(canonicalDir, { recursive: true });
+  fs.writeFileSync(path.join(canonicalDir, 'SKILL.md'), '---\nname: huashu-design\n---\nbody\n');
+  const installedHash = contentHash(canonicalDir);
+  const at = new Date().toISOString();
+  fs.mkdirSync(path.dirname(paths.lockFile), { recursive: true });
+  fs.writeFileSync(
+    paths.lockFile,
+    JSON.stringify(
+      {
+        version: 3,
+        skills: {
+          'huashu-design': {
+            source: 'alchaincyf/huashu-design',
+            sourceType: 'github',
+            sourceUrl: 'https://github.com/alchaincyf/huashu-design.git',
+            ref: COMMIT,
+            skillPath: 'SKILL.md',
+            skillFolderHash: rootTreeSha,
+            installedAt: at,
+            updatedAt: at,
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  store.update((draft) => {
+    draft.installs.push({
+      name: 'huashu-design',
+      subscriptionId,
+      skillPath: 'SKILL.md',
+      ref: COMMIT,
+      commit: COMMIT,
+      treeSha: rootTreeSha,
+      installedHash,
+      installedAt: at,
+      updatedAt: at,
+      enabled: true,
+      mode: 'auto',
+      manual: null,
+      hidden: null,
+      backup: null,
+    });
+  });
+  return { installedHash, at };
+}
+
+test('根级 SKILL.md：API 顶层 sha 是 commit SHA 时，检测与更新计划仍按真实根 tree SHA（回归）', async () => {
+  const blobSha = '4'.repeat(40);
+  const rootTreeSha = treeShaFromEntries([{ path: 'SKILL.md', type: 'blob', mode: '100644', sha: blobSha }]);
+  assert.notEqual(rootTreeSha, COMMIT);
+  const gh = githubStub({ defaultBranch: 'master', tree: [{ path: 'SKILL.md', type: 'blob', sha: blobSha }], commit: COMMIT });
+  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const added = await service.addSubscription({ source: 'alchaincyf/huashu-design' });
+  seedRootLevelInstall({ paths, store, subscriptionId: added.subscription.id, rootTreeSha });
+
+  const checked = await service.checkUpdates({});
+  const verdict = checked.checks.find((item) => item.name === 'huashu-design');
+  assert.equal(verdict.status, 'current', '与安装基线一致时不能误报有更新');
+  assert.equal(verdict.baseline, 'lock');
+
+  const plan = await service.planUpdate({ name: 'huashu-design' });
+  assert.equal(plan.targetTreeSha, rootTreeSha, '计划的目标必须是真实根 tree SHA');
+  assert.notEqual(plan.targetTreeSha, COMMIT, '绝不能把 commit SHA 当目标 tree');
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('根级坏快照（rootSha=commit）：忽略 ETag 完整重读，刷新后快照被修回真实根 tree SHA', async () => {
+  const blobSha = '5'.repeat(40);
+  const rootTreeSha = treeShaFromEntries([{ path: 'SKILL.md', type: 'blob', mode: '100644', sha: blobSha }]);
+  const gh = githubStub({ defaultBranch: 'master', tree: [{ path: 'SKILL.md', type: 'blob', sha: blobSha }], commit: COMMIT });
+  // 若仍带着旧 ETag 请求，服务端会回 304 —— 用它证明坏快照没走 304 快路。
+  gh.control.etag304 = true;
+  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  const added = await service.addSubscription({ source: 'alchaincyf/huashu-design' });
+  const subscriptionId = added.subscription.id;
+  seedRootLevelInstall({ paths, store, subscriptionId, rootTreeSha });
+
+  const at = new Date().toISOString();
+  store.update((draft) => {
+    const row = draft.subscriptions.find((item) => item.id === subscriptionId);
+    // 旧 bug 的形态：根级技能的 rootSha / entry.treeSha 都被写成了 commit SHA。
+    row.snapshot = {
+      commit: COMMIT,
+      rootSha: COMMIT,
+      etag: 'W/"stale"',
+      fetchedAt: at,
+      entries: [{ name: 'huashu-design', skillPath: 'SKILL.md', treeSha: COMMIT }],
+    };
+    draft.checks['huashu-design'] = {
+      name: 'huashu-design',
+      status: 'update-available',
+      detail: 'phantom',
+      wouldCommit: null,
+      checkedAt: at,
+      installCommit: COMMIT,
+    };
+  });
+
+  gh.control.treeRequests.length = 0;
+  const checked = await service.checkUpdates({});
+  const verdict = checked.checks.find((item) => item.name === 'huashu-design');
+  assert.equal(verdict.status, 'current', '坏快照不能把 phantom 更新粘住');
+  assert.ok(
+    gh.control.treeRequests.every((request) => !request.ifNoneMatch),
+    '坏快照必须无视 ETag 完整重读',
+  );
+
+  const refreshed = await service.refreshSubscription({ id: subscriptionId });
+  assert.equal(refreshed.ok, true);
+  assert.notEqual(refreshed.notModified, true, '坏快照不能被 Atom 短路');
+  const snapshot = store.state.subscriptions.find((item) => item.id === subscriptionId).snapshot;
+  assert.equal(snapshot.rootSha, rootTreeSha, '快照 rootSha 要修回真实根 tree SHA');
+  assert.equal(snapshot.entries[0].treeSha, rootTreeSha);
+  assert.notEqual(snapshot.rootSha, COMMIT);
+
   fs.rmSync(root, { recursive: true, force: true });
 });
 

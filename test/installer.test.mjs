@@ -118,6 +118,39 @@ test('install：根级 SKILL.md 用 frontmatter 名字；lock skillPath 为根�
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('install：strict 校验根级技能接受真实根 tree SHA；传 commit SHA 会 tree-mismatch 且不落盘', async () => {
+  const files = { 'SKILL.md': '---\nname: root-skill\ndescription: root\n---\n', 'README.md': 'readme\n' };
+  const { root, paths, installer } = setup({ files });
+  const first = await installer.install({ source: 'morehao/root-kit', commit: COMMIT });
+  const treeSha = first.installed[0].treeSha;
+  assert.match(treeSha, /^[0-9a-f]{40}$/);
+
+  const ok = await installer.install({
+    source: 'morehao/root-kit',
+    commit: COMMIT,
+    names: ['root-skill'],
+    expectedEntries: [{ name: 'root-skill', treeSha }],
+    strict: true,
+  });
+  assert.equal(ok.installed[0].treeSha, treeSha);
+
+  // 旧 bug 会把 commit SHA 当目标 tree：strict 必须拒绝，且不能动已装的 canonical。
+  await assert.rejects(
+    () =>
+      installer.install({
+        source: 'morehao/root-kit',
+        commit: COMMIT,
+        names: ['root-skill'],
+        expectedEntries: [{ name: 'root-skill', treeSha: COMMIT }],
+        strict: true,
+      }),
+    (error) => error.code === 'tree-mismatch',
+  );
+  assert.ok(fs.existsSync(path.join(paths.canonical, 'root-skill', 'SKILL.md')), '回滚后技能仍在');
+  assert.equal(gitTreeSha(path.join(paths.canonical, 'root-skill')), treeSha);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('install：subpath 过滤；请求不存在的技能不动 canonical/lock', async () => {
   const { root, paths, installer } = setup({
     files: {
