@@ -69,7 +69,10 @@ export function resolveSpecifier(fromFile, specifier) {
   if (path.extname(base)) {
     candidates.push(base);
     // TS 源码里写 `./x.js`、实际文件是 `x.ts`：按 NodeNext 的解析口径回退到同名 .ts。
-    if (base.endsWith('.js')) candidates.push(`${base.slice(0, -3)}.ts`);
+    if (base.endsWith('.js')) {
+      candidates.push(`${base.slice(0, -3)}.ts`);
+      candidates.push(`${base.slice(0, -3)}.d.ts`);
+    }
   } else {
     candidates.push(base, `${base}.js`, `${base}.ts`, path.join(base, 'index.js'), path.join(base, 'index.ts'));
   }

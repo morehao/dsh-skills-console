@@ -17,7 +17,7 @@ const fail = (msg) => {
 
 const pkg = JSON.parse(await read("package.json"));
 const patch = await read("cordis.patch.yml");
-const { name: pluginName } = await import("../lib/index.js");
+const { name: pluginName } = await import("../dist/index.js");
 
 // 极简读取：本仓 patch 只有一条 insert，取第一个 id / name 即可，不引入 YAML 依赖。
 const insertId = patch.match(/^\s*-\s+id:\s*(\S+)\s*$/m)?.[1];
