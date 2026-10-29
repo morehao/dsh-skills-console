@@ -6,6 +6,7 @@
 import React from 'react';
 
 import { h } from '../host.js';
+import type { Translate } from '../copy.js';
 import { RefreshIcon } from '../icons.js';
 import { Overlay } from './overlay.js';
 import { Markdown } from './markdown-view.js';
@@ -16,13 +17,41 @@ import { Markdown } from './markdown-view.js';
  * 直接渲染会露出标签；这里只做展示层降级：summary 折成加粗小标题、去掉 details 外壳，
  * 里面的 markdown 正文照常渲染（不执行任何 HTML）。
  */
-function flattenDetails(text) {
+function flattenDetails(text: string | null | undefined): string {
   return String(text ?? '')
     .replace(/<details[^>]*>\s*<summary>([\s\S]*?)<\/summary>/gi, (_, summary) => `**${String(summary).trim()}**\n\n`)
     .replace(/<\/details>/gi, '');
 }
 
-export function PluginUpdateModal({ t, update, onClose, repoUrl }: any) {  const { status, checking, applying, checkError, applyError, check, apply, release, loadRelease } = update;
+interface PluginUpdateController {
+  status?: {
+    currentVersion?: string;
+    latestVersion?: string | null;
+    updateAvailable?: boolean;
+    canAutoUpdate?: boolean;
+    manualCommand?: string | null;
+    restartRequired?: boolean;
+    updatedVersion?: string | null;
+    checkFailed?: boolean;
+  } | null;
+  checking: boolean;
+  applying: boolean;
+  checkError?: { code?: string | null; message?: string } | null;
+  applyError?: { code?: string | null; message?: string; detail?: unknown } | null;
+  check: (fresh?: boolean) => Promise<unknown>;
+  apply: () => Promise<unknown>;
+  release: { loading: boolean; data: { version?: string; body?: string; htmlUrl?: string | null } | null; version: string | null };
+  loadRelease: (version: string | null | undefined) => Promise<unknown>;
+}
+
+interface PluginUpdateModalProps {
+  t: Translate;
+  update: PluginUpdateController;
+  onClose: () => void;
+  repoUrl: string;
+}
+
+export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateModalProps) {  const { status, checking, applying, checkError, applyError, check, apply, release, loadRelease } = update;
   const [copied, setCopied] = React.useState(false);
 
   // 打开即查一次（Host 有 5 分钟缓存，连续打开不会重复打网络）

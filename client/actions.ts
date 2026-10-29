@@ -3,9 +3,30 @@
  * 纯工厂（内部不用 React hook），只依赖 api。
  */
 import { apiCall, short } from './api.js';
+import type {
+  ExportRow,
+  ModalState,
+  RunFn,
+  SkillForm,
+  SkillRow,
+  Subscription,
+  SubscriptionEntry,
+  Toast,
+} from './api.js';
+import type { Translate } from './copy.js';
 
-export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }: any) {
-  async function adopt(row) {
+export interface SkillActionsDeps {
+  t: Translate;
+  rows: SkillRow[];
+  reload: () => Promise<void>;
+  run: RunFn;
+  setBusy: (label: string | null) => void;
+  setToast: (toast: Toast | null) => void;
+  setModal: (modal: ModalState | null) => void;
+}
+
+export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }: SkillActionsDeps) {
+  async function adopt(row: SkillRow) {
     await run(`adopt:${row.name}`, async () => {
       const result = await apiCall('POST', `/skills/${encodeURIComponent(row.name)}/adopt`, {});
       setToast({ kind: 'ok', text: `${row.name} · ${result.tracked ? t('adopt.done') : t('adopt.noUpstream')}` });
@@ -13,13 +34,13 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     });
   }
 
-  async function toggleMode(row) {
+  async function toggleMode(row: SkillRow) {
     const mode = row.enabled === false ? 'on' : 'off';
     await run(`mode:${row.name}`, () => apiCall('POST', `/skills/${encodeURIComponent(row.name)}/mode`, { mode }));
   }
 
   /** 三档调用策略：auto / manual / hidden；失败由 run 统一 toast。 */
-  async function setInvocation(row, mode) {
+  async function setInvocation(row: SkillRow, mode: string) {
     await run(`invocation:${row.name}`, async () => {
       const result = await apiCall('POST', `/skills/${encodeURIComponent(row.name)}/invocation`, { mode });
       const saved = mode === 'hidden'
@@ -32,7 +53,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     });
   }
 
-  async function unpark(row) {
+  async function unpark(row: SkillRow) {
     await run(`unpark:${row.name}`, async () => {
       const result = await apiCall('POST', `/skills/${encodeURIComponent(row.name)}/unpark`, {});
       setToast({
@@ -47,7 +68,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     });
   }
 
-  function requestUnpark(row) {
+  function requestUnpark(row: SkillRow) {
     setModal({
       type: 'confirm-unpark',
       row,
@@ -58,7 +79,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     });
   }
 
-  async function updateOne(row, overwrite) {
+  async function updateOne(row: SkillRow, overwrite: boolean) {
     await run(`update:${row.name}`, async () => {
       const result = await apiCall('POST', '/updates/apply', { name: row.name, overwrite });
       setToast({ kind: 'ok', text: `${row.name} → ${short(result.toCommit) || 'latest'}` });
@@ -66,7 +87,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     });
   }
 
-  function requestUpdate(row) {
+  function requestUpdate(row: SkillRow) {
     if (row.status === 'locally-modified' || row.status === 'conflict') {
       setModal({
         type: 'confirm-update',
@@ -100,7 +121,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     });
   }
 
-  function requestDelete(row) {
+  function requestDelete(row: SkillRow) {
     setModal({
       type: 'confirm-delete',
       row,
@@ -129,7 +150,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
    * 保存共享选择：增量发给 `/exports`。
    * 共享只影响「其他 agent 看不看得见」，与 DSH 可见性无关，所以这里不再有作用范围。
    */
-  async function saveExports(row, targets) {
+  async function saveExports(row: SkillRow, targets: string[]) {
     const current = new Set(row.exports.map((item) => item.target));
     const desired = new Set(targets);
     const toRemove = [...current].filter((target) => !desired.has(target));
@@ -154,7 +175,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
   }
 
   /** 只读探测：列出仓库里的技能，供弹窗多选；失败由弹窗自己展示。 */
-  async function probeSkills(source) {
+  async function probeSkills(source: string) {
     return apiCall('POST', '/probe', { source: String(source || '').trim() });
   }
 
@@ -162,7 +183,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
    * 提交安装：成功才关窗；失败返回 {ok:false,error} 交给弹窗内联展示并保留用户输入。
    * 错误 toast 由弹窗接管，这里对 run 传 toastError:false。
    */
-  async function installSkills({ source, skills }) {
+  async function installSkills({ source, skills }: { source: string; skills: string[] }) {
     try {
       await run('install', async () => {
         const result = await apiCall('POST', '/install', { source: String(source || '').trim(), skills });
@@ -181,7 +202,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
   }
 
   /** 添加订阅：同 installSkills，成功才关窗、失败把错误交回弹窗。 */
-  async function addSubscription(form) {
+  async function addSubscription(form: SkillForm) {
     try {
       const result = await run('subscribe', async () => {
         const res = await apiCall('POST', '/subscriptions', {
@@ -199,21 +220,21 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     }
   }
 
-  async function refreshSubscription(row) {
+  async function refreshSubscription(row: Subscription) {
     await run(`refresh:${row.id}`, async () => {
       const result = await apiCall('POST', `/subscriptions/${encodeURIComponent(row.id)}/refresh`, {});
       setToast({ kind: 'ok', text: `${row.source} · ${result.changed ? 'snapshot updated' : 'unchanged'}` });
     });
   }
 
-  async function deleteSubscription(row) {
+  async function deleteSubscription(row: Subscription) {
     await run(`unsubscribe:${row.id}`, async () => {
       await apiCall('DELETE', `/subscriptions/${encodeURIComponent(row.id)}`, { keepInstalled: true });
       setToast({ kind: 'ok', text: `${row.source} · ${t('action.delete')} ✓` });
     });
   }
 
-  async function installFromSubscription(subscription, entry) {
+  async function installFromSubscription(subscription: Subscription, entry: SubscriptionEntry) {
     await run(`install:${entry.name}`, async () => {
       await apiCall('POST', '/install', { subscriptionId: subscription.id, skills: [entry.name] });
       setToast({ kind: 'ok', text: `${entry.name} ✓` });

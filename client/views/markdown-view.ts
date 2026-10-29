@@ -5,27 +5,36 @@
  *
  * 用 h 建节点，不用 dangerouslySetInnerHTML；链接按 markdown.js 的协议分类决定可点性。
  */
+import type { ReactNode, SyntheticEvent } from 'react';
+
 import { h } from '../host.js';
 import { parseMarkdown, stripFrontmatter } from '../markdown.js';
+import type { MdNode } from '../markdown.js';
 
 /** 解析结果按正文缓存：切 tab / 切渲染不重复解析，最多留 8 份。 */
-const PARSE_CACHE = new Map();
+const PARSE_CACHE = new Map<string, ReturnType<typeof parseMarkdown>>();
 
 /** 解析并缓存：frontmatter 先剥掉；查看器用它取标题列表。 */
-export function parseCached(text) {
+export function parseCached(text: string): ReturnType<typeof parseMarkdown> {
   const key = String(text ?? '');
-  if (PARSE_CACHE.has(key)) return PARSE_CACHE.get(key);
+  if (PARSE_CACHE.has(key)) return PARSE_CACHE.get(key)!;
   const parsed = parseMarkdown(stripFrontmatter(key).body);
   PARSE_CACHE.set(key, parsed);
   if (PARSE_CACHE.size > 8) {
     const oldest = PARSE_CACHE.keys().next().value;
-    PARSE_CACHE.delete(oldest);
+    PARSE_CACHE.delete(oldest!);
   }
   return parsed;
 }
 
 /** 行内 AST → React 节点。 */
-function inlineNodes(nodes, { onOpenFile, onOpenAnchor, keyPrefix = 'i' }) {
+interface InlineOptions {
+  onOpenFile?: (href: string) => void;
+  onOpenAnchor?: (id: string) => void;
+  keyPrefix?: string;
+}
+
+function inlineNodes(nodes: MdNode[], { onOpenFile, onOpenAnchor, keyPrefix = 'i' }: InlineOptions): ReactNode {
   if (!Array.isArray(nodes)) return null;
   return nodes.map((node, index) => {
     const key = `${keyPrefix}-${index}`;
@@ -54,7 +63,7 @@ function inlineNodes(nodes, { onOpenFile, onOpenAnchor, keyPrefix = 'i' }) {
             className: 'dshsc-md-link',
             key,
             href: `#${node.href}`,
-            onClick: (event) => {
+            onClick: (event: SyntheticEvent) => {
               event?.preventDefault?.();
               onOpenAnchor?.(node.href);
             },
@@ -66,7 +75,7 @@ function inlineNodes(nodes, { onOpenFile, onOpenAnchor, keyPrefix = 'i' }) {
             key,
             href: '#',
             title: node.href,
-            onClick: (event) => {
+            onClick: (event: SyntheticEvent) => {
               event?.preventDefault?.();
               onOpenFile?.(node.href);
             },
@@ -86,7 +95,7 @@ function inlineNodes(nodes, { onOpenFile, onOpenAnchor, keyPrefix = 'i' }) {
   });
 }
 
-function blockNodes(blocks, options) {
+function blockNodes(blocks: MdNode[], options: InlineOptions): ReactNode {
   return blocks.map((block, index) => {
     const key = `b-${index}`;
     switch (block.type) {
@@ -107,7 +116,7 @@ function blockNodes(blocks, options) {
         return h('blockquote', { className: 'dshsc-md-quote', key }, blockNodes(block.blocks, options));
       case 'list': {
         const tag = block.ordered ? 'ol' : 'ul';
-        return h(tag, { className: 'dshsc-md-list', key }, block.items.map((item, itemIndex) => h('li', {
+        return h(tag, { className: 'dshsc-md-list', key }, block.items.map((item: any, itemIndex: number) => h('li', {
           key: `${key}-${itemIndex}`,
           className: item.checked === null || item.checked === undefined ? undefined : 'dshsc-md-task',
         },
@@ -120,12 +129,12 @@ function blockNodes(blocks, options) {
       case 'table':
         return h('div', { className: 'dshsc-md-table', key },
           h('table', null,
-            h('thead', null, h('tr', null, block.header.map((cell, cellIndex) => h('th', {
+            h('thead', null, h('tr', null, block.header.map((cell: any, cellIndex: number) => h('th', {
               key: `h-${cellIndex}`,
               style: { textAlign: block.align?.[cellIndex] || 'left' },
             }, inlineNodes(cell, { ...options, keyPrefix: `${key}-h-${cellIndex}` }))))),
-            h('tbody', null, block.rows.map((row, rowIndex) => h('tr', { key: `r-${rowIndex}` },
-              row.map((cell, cellIndex) => h('td', {
+            h('tbody', null, block.rows.map((row: any, rowIndex: number) => h('tr', { key: `r-${rowIndex}` },
+              row.map((cell: any, cellIndex: number) => h('td', {
                 key: `c-${cellIndex}`,
                 style: { textAlign: block.align?.[cellIndex] || 'left' },
               }, inlineNodes(cell, { ...options, keyPrefix: `${key}-${rowIndex}-${cellIndex}` }))))))));
@@ -136,7 +145,13 @@ function blockNodes(blocks, options) {
 }
 
 /** 正文渲染：`text` 可以是完整 SKILL.md（frontmatter 会自动剥掉）。 */
-export function Markdown({ text, onOpenFile, onOpenAnchor }: any) {
+export interface MarkdownProps {
+  text: string;
+  onOpenFile?: (href: string) => void;
+  onOpenAnchor?: (id: string) => void;
+}
+
+export function Markdown({ text, onOpenFile, onOpenAnchor }: MarkdownProps) {
   const { blocks } = parseCached(text);
   return h('div', { className: 'dshsc-md' }, blockNodes(blocks, { onOpenFile, onOpenAnchor }));
 }

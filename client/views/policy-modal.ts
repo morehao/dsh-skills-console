@@ -8,9 +8,20 @@
 import React from 'react';
 
 import { h } from '../host.js';
+import type { SkillRow } from '../api.js';
+import type { Translate } from '../copy.js';
 import { Overlay } from './overlay.js';
 
-export function PolicyModal({ t, row, busy, onClose, onSave, onUnpark }: any) {
+export interface PolicyModalProps {
+  t: Translate;
+  row: SkillRow;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (mode: string) => void;
+  onUnpark: () => void;
+}
+
+export function PolicyModal({ t, row, busy, onClose, onSave, onUnpark }: PolicyModalProps) {
   const initial = row.mode === 'hidden' ? 'auto' : row.mode;
   const [mode, setMode] = React.useState(initial);
   const [confirming, setConfirming] = React.useState(false);
@@ -20,7 +31,7 @@ export function PolicyModal({ t, row, busy, onClose, onSave, onUnpark }: any) {
   const flat = row.kind === 'file';
   const dirty = mode !== initial || Boolean(row.legacy) || Boolean(row.drift);
 
-  function choose(next) {
+  function choose(next: string) {
     setMode(next);
     setConfirming(false);
   }
@@ -33,7 +44,7 @@ export function PolicyModal({ t, row, busy, onClose, onSave, onUnpark }: any) {
     onSave(mode);
   }
 
-  const option = (id, label, desc) => h('button', {
+  const option = (id: string, label: string, desc: string) => h('button', {
     type: 'button',
     key: `policy-${id}`,
     className: `dshsc-policyopt${mode === id ? ' active' : ''}`,

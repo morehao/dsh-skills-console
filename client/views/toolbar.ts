@@ -1,13 +1,26 @@
 /** 工具栏：tab 切换、搜索框、平铺 / 按 Agent 视图切换。 */
 import { h } from '../host.js';
+import type { Translate } from '../copy.js';
 import { SearchIcon } from '../icons.js';
+
+export interface ToolbarProps {
+  t: Translate;
+  tab: string;
+  onTabChange: (tab: string) => void;
+  installedCount: number;
+  subscriptionCount: number;
+  query: string;
+  onQueryChange: (value: string) => void;
+  view: string;
+  onViewChange: (view: string) => void;
+}
 
 export function Toolbar({
   t, tab, onTabChange,
   installedCount, subscriptionCount,
   query, onQueryChange,
   view, onViewChange,
-}: any) {
+}: ToolbarProps) {
   return h('div', { className: 'dshsc-toolbar' },
     h('div', { className: 'dshsc-tabs' },
       h('button', { className: `dshsc-tab${tab === 'installed' ? ' active' : ''}`, onClick: () => onTabChange('installed') },

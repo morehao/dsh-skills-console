@@ -17,7 +17,7 @@
       "react"
     ],
     "allowJs": false,
-    "noImplicitAny": false
+    "noImplicitAny": true
   },
   "include": [
     "client",

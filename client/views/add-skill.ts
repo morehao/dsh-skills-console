@@ -8,22 +8,46 @@
 import React from 'react';
 
 import { h } from '../host.js';
+import type { Translate } from '../copy.js';
 import { Overlay } from './overlay.js';
 
-export function AddSkillModal({ t, onCancel, onProbe, onInstall }: any) {
+interface SkillOption {
+  name: string;
+  description?: string | null;
+  skillPath?: string | null;
+}
+
+interface ProbeResult {
+  skills?: SkillOption[];
+  skipped?: number;
+}
+
+interface InstallResult {
+  ok: boolean;
+  error?: string;
+}
+
+interface AddSkillModalProps {
+  t: Translate;
+  onCancel: () => void;
+  onProbe: (source: string) => Promise<ProbeResult>;
+  onInstall: (payload: { source: string; skills: string[] }) => Promise<InstallResult>;
+}
+
+export function AddSkillModal({ t, onCancel, onProbe, onInstall }: AddSkillModalProps) {
   const [source, setSource] = React.useState('');
   // idle | probing | picked | empty | failed
   const [phase, setPhase] = React.useState('idle');
-  const [options, setOptions] = React.useState<any[]>([]);
-  const [selected, setSelected] = React.useState(() => new Set());
+  const [options, setOptions] = React.useState<SkillOption[]>([]);
+  const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
   const [manual, setManual] = React.useState('');
   const [skipped, setSkipped] = React.useState(0);
-  const [error, setError] = React.useState<any>(null);
+  const [error, setError] = React.useState<string | null>(null);
   // 提交安装的进行中 / 失败态：失败时不关窗，就地提示并保留探测结果与勾选
   const [pending, setPending] = React.useState(false);
-  const [submitError, setSubmitError] = React.useState<any>(null);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
-  const reset = (value) => {
+  const reset = (value: string) => {
     setSource(value);
     setPhase('idle');
     setOptions([]);
@@ -52,7 +76,7 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }: any) {
     }
   };
 
-  const toggle = (name) => {
+  const toggle = (name: string) => {
     setSubmitError(null);
     setSelected((prev) => {
       const next = new Set(prev);
@@ -107,8 +131,8 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }: any) {
         value: source,
         placeholder: t('form.sourceHint'),
         disabled: pending,
-        onChange: (event) => reset(event.target.value),
-        onKeyDown: (event) => { if (event.key === 'Enter' && !pending) void probe(); },
+        onChange: (event: React.ChangeEvent<HTMLInputElement>) => reset(event.target.value),
+        onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === 'Enter' && !pending) void probe(); },
       }),
       h('button', {
         className: 'dshsc-btn',
@@ -160,7 +184,7 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }: any) {
             value: manual,
             placeholder: 'git-kit, handoff',
             disabled: pending,
-            onChange: (event) => { setManual(event.target.value); if (submitError) setSubmitError(null); },
+            onChange: (event: React.ChangeEvent<HTMLInputElement>) => { setManual(event.target.value); if (submitError) setSubmitError(null); },
           })))
     : null,
   h('p', { className: 'dshsc-sub' }, t('form.hint')));

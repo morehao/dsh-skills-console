@@ -1,13 +1,40 @@
 /** 页头：标题 / 身份胶囊 / 插件工具（刷新检查更新 → GitHub + 设置浮层）/ 业务动作。 */
+import type { RefObject } from 'react';
+
 import { h } from '../host.js';
 import { GITHUB_URL } from '../api.js';
+import type { PluginInfo, SettingsPlacement } from '../api.js';
+import type { Translate } from '../copy.js';
 import { Logo, GitHubIcon, GearIcon, RefreshIcon } from '../icons.js';
 
 /** 安装标识：跟页面外安装插件时输入的一模一样（`@scope/name@version`），不带 `v`。 */
-function installSpec(plugin) {
+function installSpec(plugin: PluginInfo | null | undefined): string | null {
   const name = plugin?.fullName || plugin?.name;
   if (!name) return null;
   return plugin.version ? `${name}@${plugin.version}` : name;
+}
+
+export interface HeaderProps {
+  t: Translate;
+  page: boolean;
+  plugin?: PluginInfo | null;
+  writable: boolean;
+  autoLinkLabel: string;
+  autoLinkCount: number;
+  tab: string;
+  settingsOpen: boolean;
+  settingsRef: RefObject<Element | null>;
+  settingsPlacement: SettingsPlacement;
+  placement: string;
+  placementBusy: string | null;
+  readOnly: boolean;
+  pluginUpdate?: { status?: { updateAvailable?: boolean } | null } | null;
+  onCheckUpdate: () => void;
+  onToggleSettings: () => void;
+  onChangePlacement: (next: string) => void;
+  onOpenAutoLink: () => void;
+  onAddSkill: () => void;
+  onAddSubscription: () => void;
 }
 
 export function Header({
@@ -17,7 +44,7 @@ export function Header({
   pluginUpdate, onCheckUpdate,
   onToggleSettings, onChangePlacement,
   onOpenAutoLink, onAddSkill, onAddSubscription,
-}: any) {
+}: HeaderProps) {
   const spec = installSpec(plugin);
   const updateAvailable = Boolean(pluginUpdate?.status?.updateAvailable);
 

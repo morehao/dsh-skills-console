@@ -6,20 +6,59 @@ import React from 'react';
 
 import { h } from '../host.js';
 import { short } from '../api.js';
+import type { AgentTipState, SkillRow, SkillsState } from '../api.js';
+import type { Translate } from '../copy.js';
 import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, ShareIcon } from '../icons.js';
 import { IntroModal } from './intro-modal.js';
 import { PolicyModal } from './policy-modal.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
+interface InstalledActions {
+  onView: (row: SkillRow) => void;
+  onAdopt: (row: SkillRow) => void;
+  onToggleMode: (row: SkillRow) => void;
+  onSetInvocation: (row: SkillRow, mode: string) => void;
+  onRequestUnpark: (row: SkillRow) => void;
+  onUpdate: (row: SkillRow) => void;
+  onDelete: (row: SkillRow) => void;
+  onExports: (row: SkillRow) => void;
+  onCheckUpdates: () => void;
+  onUpdateAll: () => void;
+  onAddSkill: () => void;
+  onFilterChange: (id: string) => void;
+  onQueryChange: (value: string) => void;
+  onOpenAgentTip: (event: React.SyntheticEvent, rowName: string, labels: string[]) => void;
+  onCloseAgentTip: () => void;
+  onToggleBuiltin: () => void;
+  onClearFilters: () => void;
+}
+
+export interface InstalledTabProps {
+  t: Translate;
+  data: SkillsState | null;
+  rows: SkillRow[];
+  visibleRows: SkillRow[];
+  counts: Record<string, number>;
+  bulkCount: number;
+  filter: string;
+  query: string;
+  view: string;
+  busy: string | null;
+  writable: boolean;
+  agentTip: AgentTipState | null;
+  builtinOpen: boolean;
+  actions: InstalledActions;
+}
+
 export function InstalledTab({
   t, data, rows, visibleRows, counts, bulkCount,
   filter, query, view, busy, writable, agentTip, builtinOpen,
   actions,
-}: any) {
-  const updatable = (row) => UPDATABLE.has(row.status);
-  const [policy, setPolicy] = React.useState<any>(null);
-  const [intro, setIntro] = React.useState<any>(null);
+}: InstalledTabProps) {
+  const updatable = (row: SkillRow) => UPDATABLE.has(row.status);
+  const [policy, setPolicy] = React.useState<{ row: SkillRow } | null>(null);
+  const [intro, setIntro] = React.useState<{ row: SkillRow } | null>(null);
   // 直读共享根的 Agent 不需要导出；旧 Host 若还把它们的链塞进 row.exports，这里也不显示
   const sharedTargets = new Set((data?.agents?.detected || [])
     .filter((agent) => agent.kind === 'agent' && agent.sharedHome === 'yes')
@@ -39,19 +78,19 @@ export function InstalledTab({
   }, [intro, rows]);
 
   /** 行内 ✨：只记住行，取数与生成都在居中的简介弹窗里。 */
-  function openIntro(row) {
+  function openIntro(row: SkillRow) {
     setIntro({ row });
   }
 
   /** 行内策略 chip：和共享设置 / 删除一样，打开居中的标准弹窗。 */
-  function openPolicy(row) {
+  function openPolicy(row: SkillRow) {
     if (busy !== null || row.kind === 'file') return;
     if (row.mode === 'manual' && row.origin === 'author') return;
     setPolicy({ row });
   }
 
   /** 行内唯一的状态入口：自动 / 仅手动 / 完全停用 / 旧版 DSH-only / 作者声明 / 需修复。 */
-  function policyChip(row) {
+  function policyChip(row: SkillRow) {
     if (row.status === 'unmanaged') {
       return h('span', { className: 'dshsc-chip muted', title: t('adopt.switchHint') }, t('policy.unmanaged'));
     }
@@ -115,7 +154,7 @@ export function InstalledTab({
     }, t('policy.auto'));
   }
 
-  function statusTag(row) {
+  function statusTag(row: SkillRow) {
     // 「待检查」不逐行刷：由列表头的计数与底部提示承接
     if (row.status === 'unknown') return null;
     // 「无上游」不是待检查：没有可用订阅就永远无法检查更新。
@@ -125,7 +164,7 @@ export function InstalledTab({
         ? h('span', { className: 'dshsc-tag', title: t('status.noUpstreamHint') }, t('status.noUpstream'))
         : null;
     }
-    const map = {
+    const map: Record<string, [string, string, (boolean | undefined)?, (string | undefined)?]> = {
       current: ['status.current', 'ok', true],
       'update-available': ['status.update', 'warn'],
       'locally-modified': ['status.local', 'warn', false, 'status.localHint'],
@@ -141,7 +180,7 @@ export function InstalledTab({
     }, check ? `✓ ${t(key)}` : t(key));
   }
 
-  function sourceLine(row) {
+  function sourceLine(row: SkillRow) {
     if (!row.source) {
       return h('div', { className: 'dshsc-src', title: t('meta.noUpstream') }, t('meta.noUpstream'));
     }
@@ -156,7 +195,7 @@ export function InstalledTab({
    * Agent 列只列「显式共享」：不支持共享根、且真的建了共享链的 Agent。
    * 直读 `~/.agents/skills` 的 Agent 装好即可用，不在这里重复出现。
    */
-  function agentChips(row) {
+  function agentChips(row: SkillRow) {
     const exported = (row.exports || []).filter(
       (item) => !item.broken && !sharedTargets.has(item.target),
     );
@@ -167,7 +206,7 @@ export function InstalledTab({
         title: t('meta.noExportHint'),
       }, t('meta.noExport'))];
     }
-    const chips: any[] = [];
+    const chips: React.ReactNode[] = [];
     const labels = exported.map((item) => item.label);
     const shown = exported.slice(0, 3);
     shown.forEach((item, index) => chips.push(h('span', {
@@ -184,9 +223,9 @@ export function InstalledTab({
         'aria-label': `${t('meta.agentsAll')}：${labels.join('、')}`,
         'aria-describedby': open ? 'dshsc-agenttip' : undefined,
         'aria-expanded': String(open),
-        onClick: (event) => actions.onOpenAgentTip(event, row.name, labels),
-        onMouseEnter: (event) => actions.onOpenAgentTip(event, row.name, labels),
-        onFocus: (event) => actions.onOpenAgentTip(event, row.name, labels),
+        onClick: (event: React.SyntheticEvent) => actions.onOpenAgentTip(event, row.name, labels),
+        onMouseEnter: (event: React.SyntheticEvent) => actions.onOpenAgentTip(event, row.name, labels),
+        onFocus: (event: React.SyntheticEvent) => actions.onOpenAgentTip(event, row.name, labels),
         onMouseLeave: actions.onCloseAgentTip,
         onBlur: actions.onCloseAgentTip,
       }, `+${exported.length - shown.length}`));
@@ -210,11 +249,11 @@ export function InstalledTab({
         h('span', { className: 'dshsc-col-narrow' }, t('column.policyActions'))));
   }
 
-  function listView(listRows) {
+  function listView(listRows: React.ReactNode) {
     return h('div', { className: 'dshsc-list' }, headView(), listRows);
   }
 
-  function rowView(row) {
+  function rowView(row: SkillRow) {
     const parked = row.mode === 'hidden';
     const off = parked || row.enabled === false;
     const canUpdate = writable && updatable(row);
@@ -359,8 +398,9 @@ export function InstalledTab({
     );
   }
 
+  interface RowGroup { key: string; title: string; rows: SkillRow[]; dot?: boolean }
   function groupedRows() {
-    const groups: any[] = [];
+    const groups: RowGroup[] = [];
     const visibleGroup = visibleRows.filter((row) => row.mode === 'auto' && row.enabled !== false && row.visible);
     const manualRows = visibleRows.filter((row) => row.mode === 'manual');
     const offRows = visibleRows.filter((row) => row.mode === 'hidden' || row.enabled === false);
@@ -380,7 +420,7 @@ export function InstalledTab({
     return groups.filter((group) => group.rows.length > 0);
   }
 
-  function filterChip(id: any, label: any, dot: any = null) {
+  function filterChip(id: string, label: string, dot: React.ReactNode = null) {
     return h('button', {
       key: id,
       type: 'button',

@@ -7,11 +7,13 @@
  * 订阅候选传 `endpoint` 指向 `/subscriptions/:id/entries/:name/intro`，按钮换成「安装」。
  */
 import { h } from '../host.js';
+import type { IntroCapability } from '../api.js';
+import type { Translate } from '../copy.js';
 import { useSkillIntro } from '../hooks.js';
 import { Overlay } from './overlay.js';
 
 /** 错误码 → 文案键：服务端 message 只有中文，英文界面必须自己映射。 */
-const ERROR_KEY = {
+const ERROR_KEY: Record<string, string> = {
   'error.skills.intro-no-model': 'intro.error.noModel',
   'error.skills.intro-rate-limit': 'intro.error.rateLimit',
   'error.skills.intro-quota': 'intro.error.rateLimit',
@@ -29,17 +31,30 @@ const ERROR_KEY = {
   'error.skills.intro-no-source': 'intro.error.noSource',
 };
 
-function formatWhen(iso) {
+function formatWhen(iso: string | null | undefined) {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
-  const pad = (value) => String(value).padStart(2, '0');
+  const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function modelLabel(intro) {
+function modelLabel(intro: { model?: string | null; provider?: string | null } | null | undefined): string {
   if (!intro?.model) return '—';
   return intro.provider ? `${intro.provider}/${intro.model}` : intro.model;
+}
+
+export interface IntroModalProps {
+  t: Translate;
+  name: string;
+  stamp?: string;
+  subtitle?: string | null;
+  endpoint?: string | null;
+  capability?: IntroCapability | null;
+  hint?: string | null;
+  viewLabel?: string | null;
+  onClose: () => void;
+  onView?: (() => void) | null;
 }
 
 export function IntroModal({
@@ -53,7 +68,7 @@ export function IntroModal({
   viewLabel = null,
   onClose,
   onView = null,
-}: any) {
+}: IntroModalProps) {
   const enabled = capability?.enabled !== false;
   const available = capability?.available !== false;
   const intro: any = useSkillIntro({

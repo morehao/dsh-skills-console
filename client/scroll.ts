@@ -8,7 +8,7 @@
  * 元素自己是不是滚动容器：overflow-y 可滚，且内容确实超出。
  * 4px 容差避开亚像素 / 边框噪声——1~3px 的伪溢出不该被当成「内容超长」。
  */
-export function isScroller(node: Element | null, tolerance = 4): boolean {
+export function isScroller(node: Element | null | undefined, tolerance = 4): boolean {
   if (!node || typeof getComputedStyle !== 'function') return false;
   const style = getComputedStyle(node);
   return Boolean(style && /(auto|scroll)/.test(style.overflowY || '') && node.scrollHeight > node.clientHeight + tolerance);

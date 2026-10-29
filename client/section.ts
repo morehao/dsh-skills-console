@@ -6,6 +6,8 @@ import React from 'react';
 
 import { h, overlayHost, portalize } from './host.js';
 import { apiCall, GITHUB_URL } from './api.js';
+import type { ModalState, SkillRow, SkillsState, Toast } from './api.js';
+import type { Translate } from './copy.js';
 import { isScroller, nearestScroller } from './scroll.js';
 import { CSS } from './styles.js';
 import { useSkillActions } from './actions.js';
@@ -21,20 +23,34 @@ import { PluginUpdateModal } from './views/plugin-update-modal.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
-export function Section({ t, page = false, pickDirectory, onPlacementChange }: any) {
+export interface SectionProps {
+  t: Translate;
+  page?: boolean;
+  pickDirectory?: () => Promise<unknown> | unknown;
+  onPlacementChange?: (next: string) => void;
+}
+
+type ViewerMode = 'drawer' | 'page';
+
+interface ViewerState {
+  name: string;
+  mode: ViewerMode;
+}
+
+export function Section({ t, page = false, pickDirectory, onPlacementChange }: SectionProps) {
   const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();
   const [tab, setTab] = React.useState('installed');
   const [view, setView] = React.useState('flat');
-  const [modal, setModal] = React.useState<any>(null);
-  const [expanded, setExpanded] = React.useState<any>({});
-  const [placementBusy, setPlacementBusy] = React.useState<any>(null);
+  const [modal, setModal] = React.useState<ModalState | null>(null);
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
+  const [placementBusy, setPlacementBusy] = React.useState<string | null>(null);
   // POST /settings 成功后 data 还是旧的；用本地覆盖值，避免开关弹回旧状态（重开面板时尤其明显）
-  const [placementOverride, setPlacementOverride] = React.useState<any>(null);
+  const [placementOverride, setPlacementOverride] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState('');
-  const [viewer, setViewer] = React.useState<any>(null);
-  const rootRef = React.useRef<any>(null);
-  const scrollPos = React.useRef<any>(null);
-  const restoreScroll = React.useRef<any>(null);
+  const [viewer, setViewer] = React.useState<ViewerState | null>(null);
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const scrollPos = React.useRef<number | null>(null);
+  const restoreScroll = React.useRef<number | null>(null);
   const [filter, setFilter] = React.useState('all');
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();
@@ -46,8 +62,8 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: a
   const rows = data?.installs || [];
   const actions = useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal });
 
-  const writable = Boolean(data) && !data?.readOnly && data?.cli?.usable;
-  const updatable = (row) => UPDATABLE.has(row.status);
+  const writable = Boolean(data) && !data?.readOnly && Boolean(data?.cli?.usable);
+  const updatable = (row: SkillRow) => UPDATABLE.has(row.status);
   const updateCount = rows.filter(updatable).length;
   // 批量更新只处理无本地改动、可直接 fast-forward 的行；有本地改动仍需逐个确认
   const bulkCount = rows.filter((row) => row.status === 'update-available').length;
@@ -93,7 +109,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: a
     return nearestScroller(rootRef.current);
   }
 
-  function openViewer(row, mode = 'drawer') {
+  function openViewer(row: SkillRow, mode: ViewerMode = 'drawer') {
     if (!row) return;
     if (mode === 'page') {
       scrollPos.current = listScroller()?.scrollTop ?? 0;
@@ -123,7 +139,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: a
     if (scroller) scroller.scrollTop = target;
   }, [viewer]);
 
-  async function changePlacement(next) {
+  async function changePlacement(next: string) {
     if (next === placement || placementBusy) return;
     setPlacementBusy(next);
     try {
@@ -138,20 +154,20 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: a
     }
   }
 
-  async function saveAutoLink(targets) {
+  async function saveAutoLink(targets: string[]) {
     setModal(null);
     await run('settings', () => apiCall('POST', '/settings', { exportTargets: targets }));
   }
 
   const installedActions = {
-    onView: (row) => openViewer(row),
+    onView: (row: SkillRow) => openViewer(row),
     onAdopt: actions.adopt,
     onToggleMode: actions.toggleMode,
     onSetInvocation: actions.setInvocation,
     onRequestUnpark: actions.requestUnpark,
     onUpdate: actions.requestUpdate,
     onDelete: actions.requestDelete,
-    onExports: (row) => setModal({ type: 'exports', row }),
+    onExports: (row: SkillRow) => setModal({ type: 'exports', row }),
     onCheckUpdates: actions.checkUpdates,
     onUpdateAll: actions.updateAll,
     onAddSkill: actions.requestAddSkill,
@@ -164,7 +180,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: a
   };
 
   const subscriptionActions = {
-    onToggle: (id) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] })),
+    onToggle: (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] })),
     onRefresh: actions.refreshSubscription,
     onDelete: actions.deleteSubscription,
     onInstall: actions.installFromSubscription,
@@ -176,16 +192,16 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: a
   const readerNode = viewerRow
     ? h(SkillReader, {
         t,
-        variant: viewer.mode,
+        variant: viewer!.mode,
         row: viewerRow,
         writable,
         busy,
         readOnly: Boolean(data?.readOnly),
         onClose: closeViewer,
-        onOpenPage: viewer.mode === 'drawer' ? openPage : null,
+        onOpenPage: viewer!.mode === 'drawer' ? openPage : null,
         onUpdate: actions.requestUpdate,
-        onExports: (row) => setModal({ type: 'exports', row }),
-        onToast: (next) => setToast(next),
+        onExports: (row: SkillRow) => setModal({ type: 'exports', row }),
+        onToast: (next: Toast) => setToast(next),
       })
     : null;
 
@@ -209,7 +225,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: a
       pluginUpdate,
       onCheckUpdate: () => setUpdateOpen(true),
       onToggleSettings: toggleSettings,
-      onChangePlacement: (next) => void changePlacement(next),
+      onChangePlacement: (next: string) => void changePlacement(next),
       onOpenAutoLink: () => setModal({ type: 'autolink' }),
       onAddSkill: actions.requestAddSkill,
       onAddSubscription: actions.requestAddSubscription,

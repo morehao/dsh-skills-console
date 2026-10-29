@@ -5,15 +5,24 @@
 import React from 'react';
 
 import { apiCall, checkPluginUpdate, applyPluginUpdate, fetchPluginRelease } from './api.js';
+import type {
+  AgentTipPosition,
+  AgentTipState,
+  RunFn,
+  SettingsPlacement,
+  SkillRow,
+  SkillsState,
+  Toast,
+} from './api.js';
 
 const TOAST_MS = 4200;
 
 /** 清单 / 错误 / 忙碌 / toast：挂载即拉一次 /state，变更动作统一走 run。 */
 export function useSkillsData() {
-  const [data, setData] = React.useState<any>(null);
-  const [error, setError] = React.useState<any>(null);
-  const [busy, setBusy] = React.useState<any>(null);
-  const [toast, setToast] = React.useState<any>(null);
+  const [data, setData] = React.useState<SkillsState | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState<string | null>(null);
+  const [toast, setToast] = React.useState<Toast | null>(null);
 
   const reload = React.useCallback(async () => {
     try {
@@ -37,7 +46,7 @@ export function useSkillsData() {
 
   // `toastError: false` 用于「错误由调用方在弹窗内联展示」的动作：仍统一走 busy / reload，
   // 但不弹全局错误 toast，避免和弹窗内提示重复。默认 true，其余调用点不用改。
-  const run = React.useCallback(
+  const run = React.useCallback<RunFn>(
     async (label, task, { toastError = true } = {}) => {
       setBusy(label);
       try {
@@ -60,21 +69,21 @@ export function useSkillsData() {
 /** 页头设置浮层：开关、锚点、按左右余量选边与宽度。 */
 export function useSettingsPopover() {
   const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const settingsRef = React.useRef<any>(null);
+  const settingsRef = React.useRef<Element | null>(null);
   // 面板朝哪边展开、多宽：齿轮不在标题行右端，固定 left/right 在窄面板里会出界
-  const [settingsPlacement, setSettingsPlacement] = React.useState<any>({ side: 'left', width: 286 });
+  const [settingsPlacement, setSettingsPlacement] = React.useState<SettingsPlacement>({ side: 'left', width: 286 });
 
   // 点外面或按 Esc 关掉；用 closest 判断，避免按钮自己把自己关掉
   React.useEffect(() => {
     if (!settingsOpen || typeof document === 'undefined') return undefined;
     const close = () => setSettingsOpen(false);
-    const onPointerDown = (event) => {
-      const target = event?.target;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event?.target as Element | null;
       if (target && typeof target.closest === 'function'
         && (target.closest('.dshsc-settings') || target.closest('.dshsc-pop'))) return;
       close();
     };
-    const onKeyDown = (event) => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event?.key === 'Escape') close();
     };
     document.addEventListener('pointerdown', onPointerDown);
@@ -112,9 +121,9 @@ export function useSettingsPopover() {
 
 /** “+n” 的悬浮列表：labels + 锚点矩形；位置在 layout effect 里量出来再落。 */
 export function useAgentTip() {
-  const [agentTip, setAgentTip] = React.useState<any>(null);
-  const [agentTipPos, setAgentTipPos] = React.useState<any>(null);
-  const agentTipRef = React.useRef<any>(null);
+  const [agentTip, setAgentTip] = React.useState<AgentTipState | null>(null);
+  const [agentTipPos, setAgentTipPos] = React.useState<AgentTipPosition | null>(null);
+  const agentTipRef = React.useRef<HTMLElement | null>(null);
 
   // 滚动 / 改窗口 / 点别处 / Esc 都关掉，避免它停在旧位置
   React.useEffect(() => {
@@ -123,11 +132,11 @@ export function useAgentTip() {
       setAgentTip(null);
       setAgentTipPos(null);
     };
-    const onPointerDown = (event) => {
+    const onPointerDown = (event: PointerEvent) => {
       if (agentTip.anchor && event?.target === agentTip.anchor) return;
       close();
     };
-    const onKeyDown = (event) => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event?.key === 'Escape') close();
     };
     window.addEventListener('scroll', close, true);
@@ -160,7 +169,7 @@ export function useAgentTip() {
     setAgentTipPos({ left: nextLeft, top: nextTop });
   }, [agentTip]);
 
-  function openAgentTip(event, rowName, labels) {
+  function openAgentTip(event: React.SyntheticEvent, rowName: string, labels: string[]) {
     if (agentTip?.rowName === rowName) return;
     const anchor = event?.currentTarget;
     if (!anchor || typeof anchor.getBoundingClientRect !== 'function') return;
@@ -186,7 +195,7 @@ export function useAgentTip() {
  * 查看器数据：并行拉正文与文件树，`loadFile` 按需拉单个文件。
  * 只读接口，绝不触发写动作；请求带序号，晚到的响应直接丢弃（切技能 / 关闭时不会串数据）。
  */
-export function useSkillReader(row: any): any {
+export function useSkillReader(row: SkillRow | null) {
   const name = row?.name || null;
   // 同一技能的 commit / 哈希 / 更新时间变了（更新过、启停过）就重拉，避免显示旧正文
   const stamp = row
@@ -228,7 +237,7 @@ export function useSkillReader(row: any): any {
     })();
   }, [name, stamp, tick]);
 
-  const loadFile = React.useCallback(async (relPath) => {
+  const loadFile = React.useCallback(async (relPath: string) => {
     if (!name || !relPath) return;
     const ticket = fileSeq.current + 1;
     fileSeq.current = ticket;
@@ -270,7 +279,15 @@ export function useSkillReader(row: any): any {
  * - 换技能 / 换语言 / 技能内容变了 → 重新读缓存；
  * - 浮层关闭或换技能 → abort 在跑的生成（Host 侧会因此取消模型调用）。
  */
-export function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = null }: any) {
+export interface SkillIntroOptions {
+  name: string;
+  lang: string;
+  stamp: string;
+  enabled?: boolean;
+  endpoint?: string | null;
+}
+
+export function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = null }: SkillIntroOptions) {
   const base = endpoint || `/skills/${encodeURIComponent(name)}/intro`;
   const [state, setState] = React.useState<any>({ loading: true, intro: null, capability: null, error: null });
   const [generating, setGenerating] = React.useState(false);
@@ -393,7 +410,7 @@ export function usePluginUpdate() {
     }
   }, []);
 
-  const loadRelease = React.useCallback(async (version) => {
+  const loadRelease = React.useCallback(async (version: string | null | undefined) => {
     const target = String(version || '').trim();
     if (!target) return null;
     setRelease({ loading: true, data: null, version: target });

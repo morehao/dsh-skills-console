@@ -9,39 +9,41 @@ import React from 'react';
 
 import { h, overlayHost, portalize, useOverlayLayer } from '../host.js';
 import { short } from '../api.js';
+import type { SkillRow, Toast } from '../api.js';
+import type { Translate } from '../copy.js';
 import { useSkillReader } from '../hooks.js';
 import { ChevronLeftIcon, CopyIcon, FileIcon, FolderIcon } from '../icons.js';
 import { resolveRelativeHref } from '../markdown.js';
 import { scrollHost } from '../scroll.js';
 import { Markdown, parseCached } from './markdown-view.js';
 
-function formatBytes(bytes) {
+function formatBytes(bytes: number | string | null | undefined) {
   const value = Number(bytes) || 0;
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatWhen(iso) {
+function formatWhen(iso: string | null | undefined) {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
-  const pad = (value) => String(value).padStart(2, '0');
+  const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 const MARKDOWN = /\.(md|markdown)$/i;
 
-function isMarkdownPath(relPath) {
+function isMarkdownPath(relPath: string | null | undefined) {
   return MARKDOWN.test(String(relPath || ''));
 }
 
-function extOf(relPath) {
+function extOf(relPath: string | null | undefined) {
   const match = /\.([a-z0-9]+)$/i.exec(String(relPath || ''));
   return match ? match[1].toUpperCase() : 'FILE';
 }
 
-const STATUS_KEY = {
+const STATUS_KEY: Record<string, string> = {
   current: 'status.current',
   'update-available': 'status.update',
   'locally-modified': 'status.local',
@@ -52,12 +54,20 @@ const STATUS_KEY = {
 };
 
 /** 只有「文件被改过」这类需要解释的标签才带 tooltip。 */
-const STATUS_HINT = {
+const STATUS_HINT: Record<string, string> = {
   'locally-modified': 'status.localHint',
   conflict: 'status.conflictHint',
 };
 
-function TabButton({ id, label, count = null, active, onSelect }: any) {
+interface TabButtonProps {
+  id: string;
+  label: string;
+  count?: number | null;
+  active: boolean;
+  onSelect: (id: string) => void;
+}
+
+function TabButton({ id, label, count = null, active, onSelect }: TabButtonProps) {
   return h('button', {
     type: 'button',
     role: 'tab',
@@ -70,7 +80,13 @@ function TabButton({ id, label, count = null, active, onSelect }: any) {
   }, label, count === null || count === undefined ? null : h('i', { className: 'n' }, count));
 }
 
-function InfoSection({ t, title, rows }) {
+interface InfoSectionProps {
+  t: Translate;
+  title: string;
+  rows: Array<[string, React.ReactNode, string?]>;
+}
+
+function InfoSection({ t, title, rows }: InfoSectionProps) {
   return h('section', { className: 'dshsc-info-sec' },
     h('h3', null, title),
     h('dl', null, rows.map((row, index) => [
@@ -83,6 +99,29 @@ function InfoSection({ t, title, rows }) {
  * 查看器。`variant` 只决定外壳（抽屉 / 整页），正文、tab、数据都在同一个组件实例里，
  * 所以「在整页打开」不会重新拉数据。
  */
+export interface SkillReaderProps {
+  t: Translate;
+  variant?: 'drawer' | 'page';
+  row: SkillRow;
+  writable: boolean;
+  busy: string | null;
+  readOnly: boolean;
+  version?: string;
+  initialTab?: string;
+  initialFile?: string | null;
+  onClose?: () => void;
+  onOpenPage?: (() => void) | null;
+  onUpdate?: ((row: SkillRow) => void) | null;
+  onExports?: ((row: SkillRow) => void) | null;
+  onToast?: ((toast: Toast) => void) | null;
+}
+
+interface TreeFileEntry {
+  kind: string;
+  path: string;
+  size: number;
+}
+
 export function SkillReader({  t,
   variant = 'drawer',
   row,
@@ -97,7 +136,7 @@ export function SkillReader({  t,
   onUpdate,
   onExports,
   onToast,
-}: any) {
+}: SkillReaderProps) {
   const { state, file, loadFile, retry } = useSkillReader(row);
   const name = row?.name || '';
   const [tab, setTab] = React.useState(initialTab);
@@ -113,10 +152,10 @@ export function SkillReader({  t,
   const scrollRef = React.useRef(0);
 
   // 抽屉 / 整页阅读都注册成一层：Esc 只退回列表，不连带关掉背后的宿主设置弹窗
-  useOverlayLayer(variant === 'drawer' || variant === 'page', onClose);
+  useOverlayLayer(variant === 'drawer' || variant === 'page', onClose!);
 
   const tree = state.tree;
-  const files = tree?.files || [];
+  const files: TreeFileEntry[] = tree?.files || [];
   const fileCount = files.filter((entry) => entry.kind === 'file').length;
   const bodyText = docOverride ? docOverride.content : (state.body?.content || '');
   const description = row?.description || state.body?.meta?.description || '';
@@ -181,7 +220,7 @@ export function SkillReader({  t,
     const previous: any = document.activeElement;
     const node = dialogRef.current;
     node?.focus?.();
-    const onKeyDown = (event) => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event?.key !== 'Tab' || !node?.querySelectorAll) return;
       const focusables: any[] = Array.from<any>(
         node.querySelectorAll('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])'),
@@ -232,7 +271,7 @@ export function SkillReader({  t,
     return () => scroller?.removeEventListener?.('scroll', sync);
   }, [variant, headings.length, tab, bodyText]);
 
-  function scrollToAnchor(id) {
+  function scrollToAnchor(id: string) {
     const node = bodyRef.current;
     if (!node?.querySelectorAll) return;
     const target = Array.from<any>(node.querySelectorAll('[data-md-id]'))
@@ -244,7 +283,7 @@ export function SkillReader({  t,
     setTocActive(id);
   }
 
-  function openLinkedFile(href, fromPath) {
+  function openLinkedFile(href: string, fromPath?: string) {
     // 相对链接按「当前正在读的文件」所在目录解析；解析结果为空说明只是锚点
     const source = fromPath || docOverride?.relPath || '';
     const base = source.split('/').slice(0, -1).join('/');
@@ -254,7 +293,7 @@ export function SkillReader({  t,
     void loadFile(resolved.relPath);
   }
 
-  async function copyTextWithToast(text, okKey) {
+  async function copyTextWithToast(text: string, okKey: string) {
     let ok = false;
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -267,7 +306,7 @@ export function SkillReader({  t,
     onToast?.(ok ? { kind: 'ok', text: t(okKey) } : { kind: 'err', text: t('viewer.copyFailed') });
   }
 
-  function selectTab(next) {
+  function selectTab(next: string) {
     if (next === tab) return;
     if (bodyRef.current) scrollRef.current = 0;
     setTab(next);
@@ -401,7 +440,7 @@ export function SkillReader({  t,
           ? h('div', { className: 'dshsc-reader-preview-doc' },
               h(Markdown, {
                 text: file.content,
-                onOpenFile: (href) => openLinkedFile(href, file.relPath || active),
+                onOpenFile: (href: string) => openLinkedFile(href, file.relPath || active),
                 onOpenAnchor: scrollToAnchor,
               }))
           : h('pre', { className: 'dshsc-reader-raw' },
@@ -476,19 +515,19 @@ export function SkillReader({  t,
       .filter((item) => !item.broken)
       .map((item) => item.label);
     const hash = row?.lockHash || row?.currentHash || null;
-    const rows: any[] = [];
+    const rows: Array<[string, React.ReactNode, string?]> = [];
     rows.push(['viewer.info.name', h('span', { className: 'mono' }, name), 'mono']);
     if (description) rows.push(['viewer.info.desc', description]);
     rows.push(['viewer.info.path', h('span', { className: 'mono' }, row?.path || (tree?.root ?? t('viewer.info.none'))), 'mono']);
 
-    const sourceRows = [
+    const sourceRows: Array<[string, React.ReactNode, string?]> = [
       ['viewer.info.repo', row?.source ? h('span', { className: 'mono' }, row.source) : t('viewer.info.none'), 'mono'],
       ['viewer.info.ref', row?.commit ? h('span', { className: 'mono' }, short(row.commit)) : (row?.ref || t('viewer.info.none')), 'mono'],
       ['viewer.info.skillPath', row?.skillPath ? h('span', { className: 'mono' }, row.skillPath) : t('viewer.info.none'), 'mono'],
       ['viewer.info.hash', hash ? h('span', { className: 'mono' }, hash) : t('viewer.info.none'), 'mono'],
     ];
 
-    const localRows = [
+    const localRows: Array<[string, React.ReactNode, string?]> = [
       ['viewer.info.installedAt', formatWhen(row?.installedAt) || t('viewer.info.none')],
       ['viewer.info.updatedAt', formatWhen(row?.updatedAt) || t('viewer.info.none')],
       ['viewer.info.size', tree
@@ -499,7 +538,7 @@ export function SkillReader({  t,
         : t('viewer.info.localChangeNone')],
     ];
 
-    const linkRows = [
+    const linkRows: Array<[string, React.ReactNode, string?]> = [
       ['viewer.info.visibility', row?.visible ? t('meta.modelVisible') : t('meta.modelHidden')],
       ['viewer.info.exported', exportLabels.length > 0
         ? exportLabels.join('、')

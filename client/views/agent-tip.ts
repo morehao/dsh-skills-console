@@ -1,7 +1,18 @@
 /** “+n” 气泡：fixed 定位 + portal 到 body，列表的 overflow:hidden 裁不到。 */
-import { h, portalize } from '../host.js';
+import type { RefObject } from 'react';
 
-export function AgentTip({ t, agentTip, agentTipPos, nodeRef }: any) {
+import { h, portalize } from '../host.js';
+import type { AgentTipPosition, AgentTipState } from '../api.js';
+import type { Translate } from '../copy.js';
+
+export interface AgentTipProps {
+  t: Translate;
+  agentTip: AgentTipState;
+  agentTipPos: AgentTipPosition | null;
+  nodeRef: RefObject<HTMLElement | null>;
+}
+
+export function AgentTip({ t, agentTip, agentTipPos, nodeRef }: AgentTipProps) {
   const labels = agentTip.labels || [];
   const node = h('div', {
     ref: nodeRef,

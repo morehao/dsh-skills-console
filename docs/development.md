@@ -69,6 +69,13 @@ npm run check       # 类型检查 + 循环 + 构建 + 命名 + 打包 + Release
 | `check-cycles.test.mjs` | import 图：静态 / 副作用 / export-from / 动态 import 提取、注释与字符串排除、环检测、自引用、链式非环、外部模块忽略、相对路径解析失败归类 |
 | `routes.test.mjs` | `/state` 下发插件身份（短名 + 带 scope 的 `fullName` + 版本，与 `package.json` 同源）、缺鉴权头 → 403、`/skills/:name/invocation` 与 `/unpark` 的透传与 409 |
 
+### 3.1 类型检查与约定
+
+- **`npm run check` 与 `check:host` / `check:client` 的分工**：`npm run check` 里的 `npm run build`（`tsc` 编译 host + `esbuild` 打包 client）遇到类型错误会直接失败，所以**不**再把 `check:host` / `check:client` 挂进 `npm run check`——它们只做「`dist/`、`client.js` 是否落后于源码」的产物漂移检查（本地 `link:` 前自检也会用）。不要为了「重复做一次类型检查」把两者塞回 `check`，那是重复构建。
+- **客户端类型已收窄**：`tsconfig.client.json` 开启 `noImplicitAny: true`——视图 props、API 数据行、`apiCall<T>` 调用点都有显式类型；共享形状定义在 `client/api.ts`，跨 half 契约复用 `lib/contract/*.d.ts` 的 `LedgerRow` / `ExportRow` 等。
+- **Host 侧仍是 `noImplicitAny: false`**：`lib/**` 的隐式 `any` 按模块逐块收窄，属后续独立轮次（先拿结构类型收益，避免一次性大 diff）。收窄时优先有明确契约的模块（`paths` / `state` / `lock` / `installer` / `routes`），再编排层。
+- **`useUnknownInCatchVariables` 两套 tsconfig 仍为 `false`**：Host 约 204 处 `catch (err)` 直接把 `err` 当 `any`（读 `.message` / `.code` / `.detail`）。开启要逐处补 `unknown` 收窄或断言，属独立一轮，不在本轮范围。
+
 ## 4. 调试
 
 - **事件日志**：`$DSH_HOME/skills-console/dsh-skills-console.log`（JSONL，1MB 滚动到 `.1`），每条带 `at` / `event` / 上下文。

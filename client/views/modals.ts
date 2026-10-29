@@ -2,10 +2,33 @@
 import React from 'react';
 
 import { h } from '../host.js';
+import type { AgentTarget, ModalState, SkillForm, SkillRow, SkillsState } from '../api.js';
+import type { Translate } from '../copy.js';
 import { AddSkillModal } from './add-skill.js';
 import { Overlay } from './overlay.js';
 
-export function FormModal({ t, title, hint, fields, onCancel, onSubmit }: any) {
+interface FormField {
+  key: string;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+}
+
+interface FormResult {
+  ok: boolean;
+  error?: string;
+}
+
+interface FormModalProps {
+  t: Translate;
+  title: string;
+  hint?: string | null;
+  fields: FormField[];
+  onCancel: () => void;
+  onSubmit: (form: Record<string, string>) => Promise<FormResult> | FormResult;
+}
+
+export function FormModal({ t, title, hint, fields, onCancel, onSubmit }: FormModalProps) {
   const [form, setForm] = React.useState(() => Object.fromEntries(fields.map((field) => [field.key, ''])));
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<any>(null);
@@ -52,7 +75,7 @@ export function FormModal({ t, title, hint, fields, onCancel, onSubmit }: any) {
         value: form[field.key],
         placeholder: field.placeholder,
         disabled: pending,
-        onChange: (event) => {
+        onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
           setForm((prev) => ({ ...prev, [field.key]: event.target.value }));
           if (error) setError(null);
         },
@@ -60,7 +83,18 @@ export function FormModal({ t, title, hint, fields, onCancel, onSubmit }: any) {
   error ? h('p', { className: 'dshsc-form-error', role: 'alert' }, error) : null);
 }
 
-export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel, hideCancel = false }: any) {
+interface ConfirmModalProps {
+  t: Translate;
+  title: string;
+  body: React.ReactNode;
+  onCancel: () => void;
+  onConfirm?: () => void | Promise<void>;
+  danger?: boolean;
+  confirmLabel?: string;
+  hideCancel?: boolean;
+}
+
+export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel, hideCancel = false }: ConfirmModalProps) {
   return h(Overlay, {
     t,
     title,
@@ -76,7 +110,15 @@ export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, conf
  * 共享设置：把技能暴露给**不读共享根**的其他 Agent。
  * 这里没有作用范围：DSH 的可见性由本地策略决定，共享只影响别的 agent。
  */
-export function ExportsModal({ t, row, agents, onCancel, onSave }: any) {
+interface ExportsModalProps {
+  t: Translate;
+  row: SkillRow;
+  agents: AgentTarget[];
+  onCancel: () => void;
+  onSave: (targets: string[]) => void;
+}
+
+export function ExportsModal({ t, row, agents, onCancel, onSave }: ExportsModalProps) {
   // 只列本机真有目录、且能当导出目标的 agent（`exportable` 由 Host 判断：
   // 读共享根的、DSH 自己扫描根的都不在里面）
   const candidates = agents.filter(
@@ -86,7 +128,7 @@ export function ExportsModal({ t, row, agents, onCancel, onSave }: any) {
     const available = new Set(candidates.map((agent) => agent.target));
     return new Set((row.exports || []).map((item) => item.target).filter((target) => available.has(target)));
   });
-  const toggle = (target) => setTargets((prev) => {
+  const toggle = (target: string) => setTargets((prev) => {
     const next = new Set(prev);
     if (next.has(target)) next.delete(target);
     else next.add(target);
@@ -119,11 +161,19 @@ export function ExportsModal({ t, row, agents, onCancel, onSave }: any) {
   h('p', { className: 'dshsc-sub' }, t('exports.hint')));
 }
 
-export function DefaultExportModal({ t, settings, agents, onCancel, onSave }: any) {
+interface DefaultExportModalProps {
+  t: Translate;
+  settings: { exportTargets?: string[] };
+  agents: AgentTarget[];
+  onCancel: () => void;
+  onSave: (targets: string[]) => void;
+}
+
+export function DefaultExportModal({ t, settings, agents, onCancel, onSave }: DefaultExportModalProps) {
   const [targets, setTargets] = React.useState(() => new Set(
     Array.isArray(settings.exportTargets) ? settings.exportTargets : [],
   ));
-  const toggle = (target) => setTargets((prev) => {
+  const toggle = (target: string) => setTargets((prev) => {
     const next = new Set(prev);
     if (next.has(target)) next.delete(target);
     else next.add(target);
@@ -154,7 +204,25 @@ export function DefaultExportModal({ t, settings, agents, onCancel, onSave }: an
 }
 
 /** 按 modal.type 分发；未识别的类型不渲染。 */
-export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }: any) {
+interface ModalsActions {
+  probeSkills: (source: string) => Promise<{ skills?: { name: string; description?: string | null; skillPath?: string | null }[]; skipped?: number }>;
+  installSkills: (payload: { source: string; skills: string[] }) => Promise<{ ok: boolean; error?: string }>;
+  addSubscription: (form: SkillForm) => Promise<FormResult> | FormResult;
+  saveExports: (row: SkillRow, targets: string[]) => Promise<unknown>;
+}
+
+interface ModalsProps {
+  t: Translate;
+  modal: ModalState;
+  data: SkillsState | null;
+  autoLinkAgents: AgentTarget[];
+  pickDirectory?: unknown;
+  actions: ModalsActions;
+  onClose: () => void;
+  onSaveAutoLink: (targets: string[]) => void;
+}
+
+export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }: ModalsProps) {
   if (modal.type === 'add-skill') {
     return h(AddSkillModal, {
       t,
@@ -174,18 +242,18 @@ export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSav
         { key: 'subpath', label: t('form.subpath'), placeholder: 'skills', required: false },
       ],
       onCancel: onClose,
-      onSubmit: (form) => actions.addSubscription(form),
+      onSubmit: (form: Record<string, string>) => actions.addSubscription(form as unknown as SkillForm),
     });
   }
   if (modal.type === 'exports') {
     return h(ExportsModal, {
       t,
-      row: modal.row,
+      row: modal.row as SkillRow,
       agents: data?.agents?.all || [],
       onCancel: onClose,
-      onSave: (targets) => {
+      onSave: (targets: string[]) => {
         onClose();
-        void actions.saveExports(modal.row, targets);
+        void actions.saveExports(modal.row as SkillRow, targets);
       },
     });
   }
@@ -195,7 +263,7 @@ export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSav
       settings: data?.settings || {},
       agents: autoLinkAgents,
       onCancel: onClose,
-      onSave: (targets) => void onSaveAutoLink(targets),
+      onSave: (targets: string[]) => void onSaveAutoLink(targets),
     });
   }
   if (modal.type === 'confirm-unpark') {

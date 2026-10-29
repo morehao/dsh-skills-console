@@ -2,24 +2,41 @@
 import React from 'react';
 
 import { h } from '../host.js';
+import type { IntroCapability, SkillRow, Subscription, SubscriptionEntry } from '../api.js';
+import type { Translate } from '../copy.js';
 import { CaretIcon, RefreshIcon } from '../icons.js';
 import { IntroModal } from './intro-modal.js';
 
 /** 仓库标识归一化：订阅的 source 与账本里的 source 都可能是 owner/repo。 */
-function repoOf(source) {
+function repoOf(source: string | null | undefined) {
   const value = String(source || '').trim().toLowerCase().replace(/\.git$/, '');
   return value || null;
 }
 
-function shortCommit(value) {
+function shortCommit(value: string | null | undefined) {
   return typeof value === 'string' ? value.slice(0, 7) : '';
+}
+
+export interface SubscriptionsTabProps {
+  t: Translate;
+  subscriptions: Subscription[];
+  rows: SkillRow[];
+  expanded: Record<string, boolean>;
+  busy: string | null;
+  writable: boolean;
+  capability?: IntroCapability | null;
+  onToggle: (id: string) => void;
+  onRefresh: (subscription: Subscription) => void;
+  onDelete: (subscription: Subscription) => void;
+  onInstall: (subscription: Subscription, entry: SubscriptionEntry) => void;
+  onAdd: () => void;
 }
 
 export function SubscriptionsTab({
   t, subscriptions, rows, expanded, busy, writable, capability = null,
   onToggle, onRefresh, onDelete, onInstall, onAdd,
-}: any) {
-  const [intro, setIntro] = React.useState<any>(null);
+}: SubscriptionsTabProps) {
+  const [intro, setIntro] = React.useState<{ subscriptionId: string; name: string } | null>(null);
 
   // 取消订阅 / 刷新后条目没了，弹窗不能留在原地
   React.useEffect(() => {
@@ -30,14 +47,14 @@ export function SubscriptionsTab({
     setIntro(null);
   }, [intro, subscriptions]);
 
-  function openIntro(subscription, entry) {
+  function openIntro(subscription: Subscription, entry: SubscriptionEntry) {
     setIntro({
       subscriptionId: subscription.id,
       name: entry.name,
     });
   }
 
-  function introButton(subscription, entry) {
+  function introButton(subscription: Subscription, entry: SubscriptionEntry) {
     return h('button', {
       type: 'button',
       className: 'dshsc-intro-btn',
@@ -54,32 +71,32 @@ export function SubscriptionsTab({
     ? subscriptions.find((item) => item.id === intro.subscriptionId) || null
     : null;
   const introEntry = introSubscription
-    ? (introSubscription.snapshot?.entries || []).find((entry) => entry.name === intro.name) || null
+    ? (introSubscription.snapshot?.entries || []).find((entry) => entry.name === intro!.name) || null
     : null;
   const introModal = intro && introEntry && capability
     ? (() => {
-        const commit = introSubscription.snapshot?.commit || '';
+        const commit = introSubscription!.snapshot?.commit || '';
         const installedAlready = rows.some((row) => {
           if (row.name !== introEntry.name) return false;
-          if (row.subscriptionId === introSubscription.id) return true;
-          return repoOf(row.source) === repoOf(introSubscription.source);
+          if (row.subscriptionId === introSubscription!.id) return true;
+          return repoOf(row.source) === repoOf(introSubscription!.source);
         });
         return h(IntroModal, {
           t,
           name: introEntry.name,
           stamp: commit,
-          subtitle: `${introSubscription.source}@${shortCommit(commit)}`,
-          endpoint: `/subscriptions/${encodeURIComponent(introSubscription.id)}/entries/${encodeURIComponent(introEntry.name)}/intro`,
+          subtitle: `${introSubscription!.source}@${shortCommit(commit)}`,
+          endpoint: `/subscriptions/${encodeURIComponent(introSubscription!.id)}/entries/${encodeURIComponent(introEntry.name)}/intro`,
           capability,
           hint: t('intro.hintRemote')
-            .replace('{source}', introSubscription.source)
+            .replace('{source}', introSubscription!.source)
             .replace('{commit}', shortCommit(commit) || '—'),
           viewLabel: t('action.install'),
           onView: installedAlready
             ? null
             : () => {
                 setIntro(null);
-                void onInstall(introSubscription, introEntry);
+                void onInstall(introSubscription!, introEntry);
               },
           onClose: () => setIntro(null),
         });
@@ -113,7 +130,7 @@ export function SubscriptionsTab({
       const rowsByName = new Map<string, any>(rows.map((row) => [row.name, row]));
       // 已装判定不能只看 subscriptionId：从同一仓库直接安装、或旧版本接管进来的技能，
       // 账本里可能没有订阅关联；物理上已经在了再给「安装」只会覆盖重装。
-      const installedRow = (name) => {
+      const installedRow = (name: string) => {
         const row = rowsByName.get(name);
         if (!row) return null;
         if (row.subscriptionId === subscription.id) return row;
