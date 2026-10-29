@@ -10,8 +10,19 @@ import { RefreshIcon } from '../icons.js';
 import { Overlay } from './overlay.js';
 import { Markdown } from './markdown-view.js';
 
-export function PluginUpdateModal({ t, update, onClose, repoUrl }) {
-  const { status, checking, applying, checkError, applyError, check, apply, release, loadRelease } = update;
+/**
+ * Release 正文里常有 `<details><summary>…</summary>…</details>`（本仓 CI 用它折叠
+ * 「原始变更记录」）。插件内的 Markdown 渲染器按安全策略把原始 HTML 当纯文本显示，
+ * 直接渲染会露出标签；这里只做展示层降级：summary 折成加粗小标题、去掉 details 外壳，
+ * 里面的 markdown 正文照常渲染（不执行任何 HTML）。
+ */
+function flattenDetails(text) {
+  return String(text ?? '')
+    .replace(/<details[^>]*>\s*<summary>([\s\S]*?)<\/summary>/gi, (_, summary) => `**${String(summary).trim()}**\n\n`)
+    .replace(/<\/details>/gi, '');
+}
+
+export function PluginUpdateModal({ t, update, onClose, repoUrl }) {  const { status, checking, applying, checkError, applyError, check, apply, release, loadRelease } = update;
   const [copied, setCopied] = React.useState(false);
 
   // 打开即查一次（Host 有 5 分钟缓存，连续打开不会重复打网络）
@@ -34,7 +45,7 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }) {
 
   const releaseData = release?.version === latest ? release.data : null;
   const releaseLoading = release?.version === latest && release.loading;
-  const releaseBody = typeof releaseData?.body === 'string' ? releaseData.body.trim() : '';
+  const releaseBody = typeof releaseData?.body === 'string' ? flattenDetails(releaseData.body.trim()).trim() : '';
   const releaseUrl = releaseData?.htmlUrl || (repoUrl ? `${repoUrl}/releases` : null);
 
   const copy = () => {
@@ -50,7 +61,7 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }) {
   let stateLine;
   if (checking && !status) stateLine = t('pluginUpdate.checking');
   else if (checkError || status?.checkFailed) stateLine = t('pluginUpdate.checkFailed');
-  else if (restartRequired) stateLine = t('pluginUpdate.updated', { version: updatedVersion || latest });
+  else if (restartRequired) stateLine = t('pluginUpdate.updated').replace('{version}', String(updatedVersion || latest || ''));
   else if (available) stateLine = t('pluginUpdate.available');
   else if (status) stateLine = t('pluginUpdate.upToDate');
   else stateLine = t('pluginUpdate.checking');
@@ -71,7 +82,7 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }) {
       className: 'dshsc-btn primary',
       disabled: applying,
       onClick: () => void apply(),
-    }, applying ? t('pluginUpdate.applying') : t('pluginUpdate.update', { version: latest })));
+    }, applying ? t('pluginUpdate.applying') : t('pluginUpdate.update').replace('{version}', String(latest || ''))));
   }
   footer.push(h('button', { key: 'close', className: 'dshsc-btn ghost', onClick: onClose }, t('pluginUpdate.close')));
 
@@ -85,7 +96,7 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }) {
     // 有新版本：展示该版本的发布说明（拉了 GitHub Release 正文就渲染，拉不到给外链）
     available
       ? h('div', { className: 'dshsc-release' },
-          h('div', { className: 'dshsc-release-head' }, t('pluginUpdate.whatsNew', { version: latest })),
+          h('div', { className: 'dshsc-release-head' }, t('pluginUpdate.whatsNew').replace('{version}', String(latest || ''))),
           releaseLoading
             ? h('p', { className: 'dshsc-sub' }, t('pluginUpdate.releaseLoading'))
             : releaseBody

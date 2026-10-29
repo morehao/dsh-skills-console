@@ -5083,6 +5083,11 @@ function SkillReader({
 
 // client/views/plugin-update-modal.js
 var import_react9 = __toESM(require("react"), 1);
+function flattenDetails(text) {
+  return String(text ?? "").replace(/<details[^>]*>\s*<summary>([\s\S]*?)<\/summary>/gi, (_, summary) => `**${String(summary).trim()}**
+
+`).replace(/<\/details>/gi, "");
+}
 function PluginUpdateModal({ t, update, onClose, repoUrl }) {
   const { status, checking, applying, checkError, applyError, check, apply: apply2, release, loadRelease } = update;
   const [copied, setCopied] = import_react9.default.useState(false);
@@ -5101,7 +5106,7 @@ function PluginUpdateModal({ t, update, onClose, repoUrl }) {
   }, [available, latest, loadRelease]);
   const releaseData = release?.version === latest ? release.data : null;
   const releaseLoading = release?.version === latest && release.loading;
-  const releaseBody = typeof releaseData?.body === "string" ? releaseData.body.trim() : "";
+  const releaseBody = typeof releaseData?.body === "string" ? flattenDetails(releaseData.body.trim()).trim() : "";
   const releaseUrl = releaseData?.htmlUrl || (repoUrl ? `${repoUrl}/releases` : null);
   const copy = () => {
     if (!manual || typeof navigator === "undefined" || !navigator.clipboard?.writeText) return;
@@ -5114,7 +5119,7 @@ function PluginUpdateModal({ t, update, onClose, repoUrl }) {
   let stateLine;
   if (checking && !status) stateLine = t("pluginUpdate.checking");
   else if (checkError || status?.checkFailed) stateLine = t("pluginUpdate.checkFailed");
-  else if (restartRequired) stateLine = t("pluginUpdate.updated", { version: updatedVersion || latest });
+  else if (restartRequired) stateLine = t("pluginUpdate.updated").replace("{version}", String(updatedVersion || latest || ""));
   else if (available) stateLine = t("pluginUpdate.available");
   else if (status) stateLine = t("pluginUpdate.upToDate");
   else stateLine = t("pluginUpdate.checking");
@@ -5133,7 +5138,7 @@ function PluginUpdateModal({ t, update, onClose, repoUrl }) {
       className: "dshsc-btn primary",
       disabled: applying,
       onClick: () => void apply2()
-    }, applying ? t("pluginUpdate.applying") : t("pluginUpdate.update", { version: latest })));
+    }, applying ? t("pluginUpdate.applying") : t("pluginUpdate.update").replace("{version}", String(latest || ""))));
   }
   footer.push(h("button", { key: "close", className: "dshsc-btn ghost", onClick: onClose }, t("pluginUpdate.close")));
   return h(
@@ -5152,7 +5157,7 @@ function PluginUpdateModal({ t, update, onClose, repoUrl }) {
     available ? h(
       "div",
       { className: "dshsc-release" },
-      h("div", { className: "dshsc-release-head" }, t("pluginUpdate.whatsNew", { version: latest })),
+      h("div", { className: "dshsc-release-head" }, t("pluginUpdate.whatsNew").replace("{version}", String(latest || ""))),
       releaseLoading ? h("p", { className: "dshsc-sub" }, t("pluginUpdate.releaseLoading")) : releaseBody ? h("div", { className: "dshsc-release-body" }, h(Markdown, { text: releaseBody })) : h(
         "p",
         { className: "dshsc-sub" },

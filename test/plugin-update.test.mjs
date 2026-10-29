@@ -242,6 +242,88 @@ test('apply：installBundle 失败时抛 install-failed', async () => {
   });
 });
 
+test('apply：HMR 下 already-installed 时先 removeBundle 再重装', async () => {
+  const calls = [];
+  let refused = false;
+  const update = createPluginUpdate({
+    meta: META,
+    getPluginManager: () => ({
+      installBundle: async (spec) => {
+        calls.push(['install', spec]);
+        if (!refused) {
+          refused = true;
+          return { application: 'failed', error: { code: 'already-installed' } };
+        }
+        return { application: 'applied' };
+      },
+      removeBundle: async (name) => {
+        calls.push(['remove', name]);
+        return { application: 'applied' };
+      },
+    }),
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+  const result = await update.apply();
+  assert.deepEqual(calls, [
+    ['install', '@demo/plugin@1.3.0'],
+    ['remove', '@demo/plugin'],
+    ['install', '@demo/plugin@1.3.0'],
+  ]);
+  assert.equal(result.updatedVersion, '1.3.0');
+});
+
+test('apply：already-installed 但 removeBundle 报 stop-profile 时给手动命令', async () => {
+  const calls = [];
+  const update = createPluginUpdate({
+    meta: META,
+    getProfileName: () => 'desktop',
+    getPluginManager: () => ({
+      installBundle: async (spec) => {
+        calls.push(['install', spec]);
+        return { application: 'failed', error: { code: 'already-installed' } };
+      },
+      removeBundle: async (name) => {
+        calls.push(['remove', name]);
+        return { application: 'failed', error: { code: 'stop-profile' } };
+      },
+    }),
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+  await assert.rejects(() => update.apply(), (error) => {
+    assert.equal(error.code, 'error.plugin-update.install-failed');
+    assert.match(String(error.message), /退出 DSH/);
+    assert.equal(error.detail, 'dsh plugin --profile desktop add @demo/plugin@latest');
+    return true;
+  });
+  assert.deepEqual(calls, [
+    ['install', '@demo/plugin@1.3.0'],
+    ['remove', '@demo/plugin'],
+  ], '卸载失败后不能再装第二遍');
+});
+
+test('apply：并发双击只安装一次（applying 进入即置位）', async () => {
+  let installs = 0;
+  let releaseInstall;
+  const gate = new Promise((resolve) => { releaseInstall = resolve; });
+  const update = createPluginUpdate({
+    meta: META,
+    getPluginManager: () => ({
+      installBundle: async () => {
+        installs += 1;
+        await gate;
+        return { application: 'restart-required' };
+      },
+    }),
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+  const first = update.apply();
+  const second = update.apply();
+  await assert.rejects(second, (error) => error.code === 'error.plugin-update.busy');
+  releaseInstall();
+  await first;
+  assert.equal(installs, 1);
+});
+
 test('releaseNotes：按 v<version> 拉 GitHub Release 正文', async () => {
   const asked = [];
   const update = createPluginUpdate({
