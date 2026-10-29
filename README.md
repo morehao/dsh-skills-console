@@ -157,8 +157,10 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 | `intro.enabled` | `true` | `false` 时界面隐藏 ✨ 入口，接口返回 501 |
 | `intro.provider` / `intro.model` | 空 | 留空用 DSH 当前默认模型；两个必须同时给 |
 | `intro.maxInputBytes` | `24576` | 发给模型的 `SKILL.md` 上限（8–48 KB），超出截断并在提示词里标注 |
-| `intro.maxOutputTokens` | `300` | 输出上限（96–1024） |
-| `intro.timeoutMs` | `30000` | 单次生成超时（5–60 秒），超时返回 504 |
+| `intro.maxOutputTokens` | `4096` | 输出上限（96–8192）。这是防跑飞的预算，不是长度目标；推理模型的思考 token 也计入，实际会按模型自动抬高保底 |
+| `intro.timeoutMs` | `60000` | 单次生成超时（5–60 秒），超时返回 504 |
+
+简介长度由提示词里的 160 字控制，不要把 `maxOutputTokens` 当成目标长度；调小它不会省钱，只会让推理模型没有输出正文的空间。
 
 ## 开发与发布
 

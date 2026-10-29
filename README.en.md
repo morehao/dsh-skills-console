@@ -157,8 +157,10 @@ AI intro settings (in the plugin `config` of the profile / `cordis.patch.yml`):
 | `intro.enabled` | `true` | `false` hides the ✨ entry and the API returns 501 |
 | `intro.provider` / `intro.model` | empty | empty uses DSH's current default model; both must be set together |
 | `intro.maxInputBytes` | `24576` | cap on the `SKILL.md` sent to the model (8–48 KB); longer input is truncated and marked in the prompt |
-| `intro.maxOutputTokens` | `300` | output cap (96–1024) |
-| `intro.timeoutMs` | `30000` | per-generation timeout (5–60 s); timeouts return 504 |
+| `intro.maxOutputTokens` | `4096` | output ceiling (96–8192). This is a runaway guard, not a length target; reasoning tokens count toward it, and the effective floor is raised per model |
+| `intro.timeoutMs` | `60000` | per-generation timeout (5–60 s); timeouts return 504 |
+
+The intro length is controlled by the 160-character prompt target. Do not treat `maxOutputTokens` as a length target; lowering it does not save cost, it only leaves a reasoning model no room for visible text.
 
 ## Development and publishing
 
