@@ -21,20 +21,20 @@ import { PluginUpdateModal } from './views/plugin-update-modal.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
-export function Section({ t, page = false, pickDirectory, onPlacementChange }) {
+export function Section({ t, page = false, pickDirectory, onPlacementChange }: any) {
   const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();
   const [tab, setTab] = React.useState('installed');
   const [view, setView] = React.useState('flat');
-  const [modal, setModal] = React.useState(null);
-  const [expanded, setExpanded] = React.useState({});
-  const [placementBusy, setPlacementBusy] = React.useState(null);
+  const [modal, setModal] = React.useState<any>(null);
+  const [expanded, setExpanded] = React.useState<any>({});
+  const [placementBusy, setPlacementBusy] = React.useState<any>(null);
   // POST /settings 成功后 data 还是旧的；用本地覆盖值，避免开关弹回旧状态（重开面板时尤其明显）
-  const [placementOverride, setPlacementOverride] = React.useState(null);
+  const [placementOverride, setPlacementOverride] = React.useState<any>(null);
   const [query, setQuery] = React.useState('');
-  const [viewer, setViewer] = React.useState(null);
-  const rootRef = React.useRef(null);
-  const scrollPos = React.useRef(null);
-  const restoreScroll = React.useRef(null);
+  const [viewer, setViewer] = React.useState<any>(null);
+  const rootRef = React.useRef<any>(null);
+  const scrollPos = React.useRef<any>(null);
+  const restoreScroll = React.useRef<any>(null);
   const [filter, setFilter] = React.useState('all');
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const { settingsOpen, settingsRef, settingsPlacement, closeSettings, toggleSettings } = useSettingsPopover();

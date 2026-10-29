@@ -57,7 +57,7 @@ const STATUS_HINT = {
   conflict: 'status.conflictHint',
 };
 
-function TabButton({ id, label, count, active, onSelect }) {
+function TabButton({ id, label, count = null, active, onSelect }: any) {
   return h('button', {
     type: 'button',
     role: 'tab',
@@ -97,19 +97,19 @@ export function SkillReader({  t,
   onUpdate,
   onExports,
   onToast,
-}) {
+}: any) {
   const { state, file, loadFile, retry } = useSkillReader(row);
   const name = row?.name || '';
   const [tab, setTab] = React.useState(initialTab);
   const [format, setFormat] = React.useState('rendered');
-  const [docOverride, setDocOverride] = React.useState(null);
+  const [docOverride, setDocOverride] = React.useState<any>(null);
   const [fileFormat, setFileFormat] = React.useState('rendered');
-  const [tocActive, setTocActive] = React.useState(null);
+  const [tocActive, setTocActive] = React.useState<any>(null);
   const [descOpen, setDescOpen] = React.useState(false);
   const [descClamped, setDescClamped] = React.useState(false);
-  const bodyRef = React.useRef(null);
-  const dialogRef = React.useRef(null);
-  const descRef = React.useRef(null);
+  const bodyRef = React.useRef<any>(null);
+  const dialogRef = React.useRef<any>(null);
+  const descRef = React.useRef<any>(null);
   const scrollRef = React.useRef(0);
 
   // 抽屉 / 整页阅读都注册成一层：Esc 只退回列表，不连带关掉背后的宿主设置弹窗
@@ -151,7 +151,7 @@ export function SkillReader({  t,
     measure();
     if (typeof window === 'undefined' || !window.addEventListener) return undefined;
     window.addEventListener('resize', measure);
-    let observer = null;
+    let observer: any = null;
     if (typeof ResizeObserver === 'function') {
       observer = new ResizeObserver(measure);
       observer.observe(node);
@@ -178,12 +178,12 @@ export function SkillReader({  t,
   // 抽屉：Tab 焦点陷阱、关闭后把焦点还给触发的按钮（Esc 由 useOverlayLayer 统一处理）
   React.useEffect(() => {
     if (variant !== 'drawer' || typeof document === 'undefined') return undefined;
-    const previous = document.activeElement;
+    const previous: any = document.activeElement;
     const node = dialogRef.current;
     node?.focus?.();
     const onKeyDown = (event) => {
       if (event?.key !== 'Tab' || !node?.querySelectorAll) return;
-      const focusables = Array.from(
+      const focusables: any[] = Array.from<any>(
         node.querySelectorAll('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])'),
       ).filter((item) => item.offsetParent !== null || item === document.activeElement);
       if (focusables.length === 0) return;
@@ -220,8 +220,8 @@ export function SkillReader({  t,
     const scroller = scrollHost(node);
     const sync = () => {
       const line = (scroller?.getBoundingClientRect?.().top ?? 0) + 96;
-      let current = null;
-      for (const element of Array.from(node.querySelectorAll('[data-md-id]'))) {
+      let current: any = null;
+      for (const element of Array.from<any>(node.querySelectorAll('[data-md-id]'))) {
         const top = element.getBoundingClientRect?.().top ?? 0;
         if (top <= line) current = element.getAttribute('data-md-id');
       }
@@ -235,7 +235,7 @@ export function SkillReader({  t,
   function scrollToAnchor(id) {
     const node = bodyRef.current;
     if (!node?.querySelectorAll) return;
-    const target = Array.from(node.querySelectorAll('[data-md-id]'))
+    const target = Array.from<any>(node.querySelectorAll('[data-md-id]'))
       .find((element) => element.getAttribute('data-md-id') === id);
     if (!target) return;
     const scroller = scrollHost(node);
@@ -476,7 +476,7 @@ export function SkillReader({  t,
       .filter((item) => !item.broken)
       .map((item) => item.label);
     const hash = row?.lockHash || row?.currentHash || null;
-    const rows = [];
+    const rows: any[] = [];
     rows.push(['viewer.info.name', h('span', { className: 'mono' }, name), 'mono']);
     if (description) rows.push(['viewer.info.desc', description]);
     rows.push(['viewer.info.path', h('span', { className: 'mono' }, row?.path || (tree?.root ?? t('viewer.info.none'))), 'mono']);

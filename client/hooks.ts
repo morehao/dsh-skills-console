@@ -10,10 +10,10 @@ const TOAST_MS = 4200;
 
 /** 清单 / 错误 / 忙碌 / toast：挂载即拉一次 /state，变更动作统一走 run。 */
 export function useSkillsData() {
-  const [data, setData] = React.useState(null);
-  const [error, setError] = React.useState(null);
-  const [busy, setBusy] = React.useState(null);
-  const [toast, setToast] = React.useState(null);
+  const [data, setData] = React.useState<any>(null);
+  const [error, setError] = React.useState<any>(null);
+  const [busy, setBusy] = React.useState<any>(null);
+  const [toast, setToast] = React.useState<any>(null);
 
   const reload = React.useCallback(async () => {
     try {
@@ -60,9 +60,9 @@ export function useSkillsData() {
 /** 页头设置浮层：开关、锚点、按左右余量选边与宽度。 */
 export function useSettingsPopover() {
   const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const settingsRef = React.useRef(null);
+  const settingsRef = React.useRef<any>(null);
   // 面板朝哪边展开、多宽：齿轮不在标题行右端，固定 left/right 在窄面板里会出界
-  const [settingsPlacement, setSettingsPlacement] = React.useState({ side: 'left', width: 286 });
+  const [settingsPlacement, setSettingsPlacement] = React.useState<any>({ side: 'left', width: 286 });
 
   // 点外面或按 Esc 关掉；用 closest 判断，避免按钮自己把自己关掉
   React.useEffect(() => {
@@ -112,9 +112,9 @@ export function useSettingsPopover() {
 
 /** “+n” 的悬浮列表：labels + 锚点矩形；位置在 layout effect 里量出来再落。 */
 export function useAgentTip() {
-  const [agentTip, setAgentTip] = React.useState(null);
-  const [agentTipPos, setAgentTipPos] = React.useState(null);
-  const agentTipRef = React.useRef(null);
+  const [agentTip, setAgentTip] = React.useState<any>(null);
+  const [agentTipPos, setAgentTipPos] = React.useState<any>(null);
+  const agentTipRef = React.useRef<any>(null);
 
   // 滚动 / 改窗口 / 点别处 / Esc 都关掉，避免它停在旧位置
   React.useEffect(() => {
@@ -186,14 +186,14 @@ export function useAgentTip() {
  * 查看器数据：并行拉正文与文件树，`loadFile` 按需拉单个文件。
  * 只读接口，绝不触发写动作；请求带序号，晚到的响应直接丢弃（切技能 / 关闭时不会串数据）。
  */
-export function useSkillReader(row) {
+export function useSkillReader(row: any): any {
   const name = row?.name || null;
   // 同一技能的 commit / 哈希 / 更新时间变了（更新过、启停过）就重拉，避免显示旧正文
   const stamp = row
     ? [row.commit || '', row.currentHash || '', row.updatedAt || '', row.status || ''].join('|')
     : '';
-  const [state, setState] = React.useState({ loading: true, body: null, tree: null, bodyError: null, treeError: null });
-  const [file, setFile] = React.useState({ relPath: null, content: '', size: 0, truncated: false, loading: false, error: null });
+  const [state, setState] = React.useState<any>({ loading: true, body: null, tree: null, bodyError: null, treeError: null });
+  const [file, setFile] = React.useState<any>({ relPath: null, content: '', size: 0, truncated: false, loading: false, error: null });
   const [tick, setTick] = React.useState(0);
   const seq = React.useRef(0);
   const fileSeq = React.useRef(0);
@@ -270,13 +270,13 @@ export function useSkillReader(row) {
  * - 换技能 / 换语言 / 技能内容变了 → 重新读缓存；
  * - 浮层关闭或换技能 → abort 在跑的生成（Host 侧会因此取消模型调用）。
  */
-export function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = null }) {
+export function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = null }: any) {
   const base = endpoint || `/skills/${encodeURIComponent(name)}/intro`;
-  const [state, setState] = React.useState({ loading: true, intro: null, capability: null, error: null });
+  const [state, setState] = React.useState<any>({ loading: true, intro: null, capability: null, error: null });
   const [generating, setGenerating] = React.useState(false);
-  const [genError, setGenError] = React.useState(null);
+  const [genError, setGenError] = React.useState<any>(null);
   const seq = React.useRef(0);
-  const controller = React.useRef(null);
+  const controller = React.useRef<any>(null);
 
   React.useEffect(() => {
     if (!name || !enabled) {
@@ -347,13 +347,13 @@ export function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = nu
  * - `checkError` 区分「查不到最新版」与「网络错误」，供弹窗给不同提示。
  */
 export function usePluginUpdate() {
-  const [status, setStatus] = React.useState(null);
+  const [status, setStatus] = React.useState<any>(null);
   const [checking, setChecking] = React.useState(false);
   const [applying, setApplying] = React.useState(false);
-  const [checkError, setCheckError] = React.useState(null);
-  const [applyError, setApplyError] = React.useState(null);
+  const [checkError, setCheckError] = React.useState<any>(null);
+  const [applyError, setApplyError] = React.useState<any>(null);
   // 某版本的发布说明：{ loading, data: {version, body, htmlUrl, name} | null }
-  const [release, setRelease] = React.useState({ loading: false, data: null, version: null });
+  const [release, setRelease] = React.useState<any>({ loading: false, data: null, version: null });
   const inFlight = React.useRef(false);
 
   const check = React.useCallback(async (fresh = false) => {

@@ -1102,7 +1102,7 @@ function FolderIcon({ size = 12 }) {
   );
 }
 
-// client/section.js
+// client/section.ts
 var import_react10 = __toESM(require("react"), 1);
 
 // client/scroll.ts
@@ -1867,7 +1867,7 @@ var CSS = `
   .dshsc-toast.ok { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 50%, var(--dsw-alias-border-l2)); }
 `;
 
-// client/actions.js
+// client/actions.ts
 function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) {
   async function adopt(row) {
     await run(`adopt:${row.name}`, async () => {
@@ -2065,7 +2065,7 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
   };
 }
 
-// client/hooks.js
+// client/hooks.ts
 var import_react2 = __toESM(require("react"), 1);
 var TOAST_MS = 4200;
 function useSkillsData() {
@@ -2607,7 +2607,7 @@ function Toolbar({
   );
 }
 
-// client/views/installed.js
+// client/views/installed.ts
 var import_react4 = __toESM(require("react"), 1);
 
 // client/views/overlay.ts
@@ -2860,7 +2860,7 @@ function PolicyModal({ t, row, busy, onClose, onSave, onUnpark }) {
   );
 }
 
-// client/views/installed.js
+// client/views/installed.ts
 var UPDATABLE = /* @__PURE__ */ new Set(["update-available", "locally-modified", "conflict"]);
 function InstalledTab({
   t,
@@ -3199,7 +3199,7 @@ function InstalledTab({
     }
     return groups.filter((group) => group.rows.length > 0);
   }
-  function filterChip(id, label, dot) {
+  function filterChip(id, label, dot = null) {
     return h("button", {
       key: id,
       type: "button",
@@ -4050,7 +4050,7 @@ ${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join("\n")}`,
   return null;
 }
 
-// client/views/skill-reader.js
+// client/views/skill-reader.ts
 var import_react8 = __toESM(require("react"), 1);
 
 // client/markdown.ts
@@ -4480,7 +4480,7 @@ function Markdown({ text, onOpenFile, onOpenAnchor }) {
   return h("div", { className: "dshsc-md" }, blockNodes(blocks, { onOpenFile, onOpenAnchor }));
 }
 
-// client/views/skill-reader.js
+// client/views/skill-reader.ts
 function formatBytes(bytes) {
   const value = Number(bytes) || 0;
   if (value < 1024) return `${value} B`;
@@ -4511,7 +4511,7 @@ var STATUS_HINT = {
   "locally-modified": "status.localHint",
   conflict: "status.conflictHint"
 };
-function TabButton({ id, label, count, active, onSelect }) {
+function TabButton({ id, label, count = null, active, onSelect }) {
   return h("button", {
     type: "button",
     role: "tab",
@@ -5181,7 +5181,7 @@ function PluginUpdateModal({ t, update, onClose, repoUrl }) {
   );
 }
 
-// client/section.js
+// client/section.ts
 var UPDATABLE2 = /* @__PURE__ */ new Set(["update-available", "locally-modified", "conflict"]);
 function Section({ t, page = false, pickDirectory, onPlacementChange }) {
   const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();

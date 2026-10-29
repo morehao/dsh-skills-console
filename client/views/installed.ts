@@ -16,10 +16,10 @@ export function InstalledTab({
   t, data, rows, visibleRows, counts, bulkCount,
   filter, query, view, busy, writable, agentTip, builtinOpen,
   actions,
-}) {
+}: any) {
   const updatable = (row) => UPDATABLE.has(row.status);
-  const [policy, setPolicy] = React.useState(null);
-  const [intro, setIntro] = React.useState(null);
+  const [policy, setPolicy] = React.useState<any>(null);
+  const [intro, setIntro] = React.useState<any>(null);
   // 直读共享根的 Agent 不需要导出；旧 Host 若还把它们的链塞进 row.exports，这里也不显示
   const sharedTargets = new Set((data?.agents?.detected || [])
     .filter((agent) => agent.kind === 'agent' && agent.sharedHome === 'yes')
@@ -167,7 +167,7 @@ export function InstalledTab({
         title: t('meta.noExportHint'),
       }, t('meta.noExport'))];
     }
-    const chips = [];
+    const chips: any[] = [];
     const labels = exported.map((item) => item.label);
     const shown = exported.slice(0, 3);
     shown.forEach((item, index) => chips.push(h('span', {
@@ -360,7 +360,7 @@ export function InstalledTab({
   }
 
   function groupedRows() {
-    const groups = [];
+    const groups: any[] = [];
     const visibleGroup = visibleRows.filter((row) => row.mode === 'auto' && row.enabled !== false && row.visible);
     const manualRows = visibleRows.filter((row) => row.mode === 'manual');
     const offRows = visibleRows.filter((row) => row.mode === 'hidden' || row.enabled === false);
@@ -380,7 +380,7 @@ export function InstalledTab({
     return groups.filter((group) => group.rows.length > 0);
   }
 
-  function filterChip(id, label, dot) {
+  function filterChip(id: any, label: any, dot: any = null) {
     return h('button', {
       key: id,
       type: 'button',

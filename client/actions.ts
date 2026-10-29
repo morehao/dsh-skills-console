@@ -4,7 +4,7 @@
  */
 import { apiCall, short } from './api.js';
 
-export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) {
+export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }: any) {
   async function adopt(row) {
     await run(`adopt:${row.name}`, async () => {
       const result = await apiCall('POST', `/skills/${encodeURIComponent(row.name)}/adopt`, {});
