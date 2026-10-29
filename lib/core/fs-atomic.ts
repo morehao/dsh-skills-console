@@ -15,12 +15,14 @@ import { randomBytes } from 'node:crypto';
  * @param {string} content 完整新内容
  * @param {{ mode?: number }} [options] 目标权限位；省略时沿用已有文件权限，新文件用 0o644
  */
-export function writeFileAtomicSync(file, content, options = {}) {
+export interface WriteFileAtomicOptions { mode?: number }
+
+export function writeFileAtomicSync(file: string, content: string, options: WriteFileAtomicOptions = {}): void {
   const dir = path.dirname(file);
   fs.mkdirSync(dir, { recursive: true });
   const mode = options.mode ?? existingMode(file);
   const tmp = path.join(dir, `.${path.basename(file)}.${process.pid}.${Date.now()}.${randomBytes(4).toString('hex')}.tmp`);
-  let fd = null;
+  let fd: number | null = null;
   try {
     fd = fs.openSync(tmp, 'wx', mode);
     fs.writeFileSync(fd, content, 'utf8');
@@ -38,7 +40,7 @@ export function writeFileAtomicSync(file, content, options = {}) {
   }
 }
 
-function existingMode(file) {
+function existingMode(file: string): number {
   try {
     return fs.statSync(file).mode & 0o777;
   } catch {
@@ -50,7 +52,7 @@ const WINDOWS_TRANSIENT_RENAME = new Set(['EACCES', 'EBUSY', 'EPERM']);
 const RENAME_RETRY_DELAYS_MS = [20, 40, 80, 160, 200, 200, 200, 200];
 
 /** Windows 上 rename 可能被占用进程短暂阻塞，做有界重试（POSIX 一次成功）。 */
-function renameWithRetrySync(from, to) {
+function renameWithRetrySync(from: string, to: string): void {
   if (process.platform !== 'win32') {
     fs.renameSync(from, to);
     return;
@@ -60,18 +62,19 @@ function renameWithRetrySync(from, to) {
       fs.renameSync(from, to);
       return;
     } catch (error) {
-      if (!WINDOWS_TRANSIENT_RENAME.has(error?.code) || attempt >= RENAME_RETRY_DELAYS_MS.length) throw error;
+      const code = (error as NodeJS.ErrnoException)?.code;
+      if (!code || !WINDOWS_TRANSIENT_RENAME.has(code) || attempt >= RENAME_RETRY_DELAYS_MS.length) throw error;
       sleepSync(RENAME_RETRY_DELAYS_MS[attempt]);
     }
   }
 }
 
-function sleepSync(ms) {
+function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 /** fsync 目录项（POSIX）；Windows 不支持打开目录句柄，跳过。 */
-function fsyncDirSync(dir) {
+function fsyncDirSync(dir: string): void {
   if (process.platform === 'win32') return;
   try {
     const dirFd = fs.openSync(dir, 'r');

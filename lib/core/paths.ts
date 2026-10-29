@@ -1,6 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import { resolveAgentsHome, resolveDshHome } from '@deepseek-ai/dsh-home-paths';
+import type { Paths } from '../contract/paths.js';
 
 /**
  * 所有路径集中在这里，任何模块都不许自己拼 `~`。
@@ -21,7 +22,7 @@ import { resolveAgentsHome, resolveDshHome } from '@deepseek-ai/dsh-home-paths';
  */
 
 /** 环境变量里空白值等于没设置（与 DSH 的 resolveRoot 一致）。 */
-function envValue(env, name) {
+function envValue(env: NodeJS.ProcessEnv, name: string): string | undefined {
   const raw = env[name];
   if (typeof raw !== 'string') return undefined;
   const trimmed = raw.trim();
@@ -29,19 +30,21 @@ function envValue(env, name) {
 }
 
 /** 只展开 DSH 支持的裸 `~` / `~/...` / `~\...`，其余原样返回。 */
-function expandHomePath(value, home) {
+function expandHomePath(value: string, home: string): string {
   if (value === '~') return home;
   if (value.startsWith('~/') || value.startsWith('~\\')) return path.join(home, value.slice(2));
   return value;
 }
 
 /** 解析一个用户数据根：显式覆盖 > 环境变量 > 默认值，再做展开与绝对化。 */
-function resolveRoot(configured, envName, env, fallback, home) {
+function resolveRoot(configured: string | undefined, envName: string, env: NodeJS.ProcessEnv, fallback: string, home: string): string {
   const chosen = configured ?? envValue(env, envName) ?? fallback;
   return path.resolve(expandHomePath(chosen, home));
 }
 
-export function createPaths(env = process.env, overrides = {}) {
+export interface PathOverrides { home?: string; configHome?: string; dshHome?: string; stateDir?: string; cacheDir?: string; agentsHome?: string }
+
+export function createPaths(env: NodeJS.ProcessEnv = process.env, overrides: PathOverrides = {}): Paths {
   const rawHome = overrides.home ?? envValue(env, 'HOME') ?? os.homedir();
   const home = path.resolve(expandHomePath(rawHome, os.homedir()));
   // 有些 agent 把全局技能放在 XDG config 下（opencode / amp / devin…）
@@ -75,8 +78,9 @@ export function createPaths(env = process.env, overrides = {}) {
     env,
   );
   // 与 skills CLI 的 getSkillLockPath 对齐：设了 XDG_STATE_HOME 时 lock 在 XDG 下
-  const lockFile = envValue(env, 'XDG_STATE_HOME')
-    ? path.resolve(expandHomePath(envValue(env, 'XDG_STATE_HOME'), home), 'skills', '.skill-lock.json')
+  const xdgStateHome = envValue(env, 'XDG_STATE_HOME');
+  const lockFile = xdgStateHome
+    ? path.resolve(expandHomePath(xdgStateHome, home), 'skills', '.skill-lock.json')
     : path.join(home, '.agents', '.skill-lock.json');
   const introFile = path.join(cacheDir, 'intros.json');
 
@@ -116,12 +120,12 @@ export function createPaths(env = process.env, overrides = {}) {
 }
 
 /** 原生 project-dsh 根（rank 100）：`<projectRoot>/.dsh/skills`。 */
-export function projectSkillsDir(projectRoot) {
+export function projectSkillsDir(projectRoot: string): string {
   return path.join(projectRoot, '.dsh', 'skills');
 }
 
 /** 项目根 = 最近含 `.git` 的祖先，无则返回 null（F28）。 */
-export function findProjectRoot(startDir, existsSync) {
+export function findProjectRoot(startDir: string, existsSync: (candidate: string) => boolean): string | null {
   let current = path.resolve(startDir || process.cwd());
   for (;;) {
     if (existsSync(path.join(current, '.git'))) return current;
@@ -132,7 +136,7 @@ export function findProjectRoot(startDir, existsSync) {
 }
 
 /** a 是否等于 b 或位于 b 之下（路径包含校验，防穿越）。 */
-export function isInside(parent, child) {
+export function isInside(parent: string, child: string): boolean {
   const rel = path.relative(path.resolve(parent), path.resolve(child));
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }

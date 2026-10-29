@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const SKIP_DIRS = new Set(['.git', 'node_modules']);
 
-function collectFiles(dir, out) {
+function collectFiles(dir: string, out: string[]): string[] {
   let entries;
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -29,7 +29,7 @@ function collectFiles(dir, out) {
  * `script.md` 与 `什么是token.html` 在 en 下 script 在前、在 zh 下汉字在前，
  * 于是「安装时 en、读时 zh」的技能被误报成「本地已改」。
  */
-export function comparePaths(a, b) {
+export function comparePaths(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
@@ -37,8 +37,8 @@ export function comparePaths(a, b) {
  * 旧口径（v0.6.x 之前）：进程 / 显式 locale 的 collation。
  * 只用于识别历史基线（`matchesLegacyHash`），不得用于写新基线。
  */
-export function localeComparator(locale) {
-  return (a, b) => a.localeCompare(b, locale);
+export function localeComparator(locale?: string): (a: string, b: string) => number {
+  return (a: string, b: string) => a.localeCompare(b, locale);
 }
 
 /**
@@ -48,8 +48,8 @@ export function localeComparator(locale) {
  *
  * 用途只有一个：进 L1「本地有没有被改过」的基线，绝不与上游 tree SHA 混用。
  */
-export function contentHash(dir) {
-  return contentHashWith(dir);
+export function contentHash(dir: string): string {
+  return contentHashWith(dir) as string;
 }
 
 /**
@@ -58,7 +58,10 @@ export function contentHash(dir) {
  * 用于「仅手动」：把插件写入的 frontmatter 行按 state 还原后再与基线比较。
  * `compare` 只给历史基线识别用，正常路径保持默认的 locale 无关排序。
  */
-export function contentHashWith(dir, transform = null, compare = comparePaths) {
+export type ContentTransform = (rel: string, buffer: Buffer) => Buffer | null;
+export type PathComparator = (a: string, b: string) => number;
+
+export function contentHashWith(dir: string, transform: ContentTransform | null = null, compare: PathComparator = comparePaths): string | null {
   const files = collectFiles(dir, []).map((file) =>
     path.relative(dir, file).split(path.sep).join('/'),
   );
@@ -74,6 +77,6 @@ export function contentHashWith(dir, transform = null, compare = comparePaths) {
   return hash.digest('hex');
 }
 
-export function sha256(text) {
+export function sha256(text: string): string {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
