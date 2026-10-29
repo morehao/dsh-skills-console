@@ -42,7 +42,7 @@ export function newKey(skill) {
  * 备份落 `skills-console/backups/<key>/`，**绝不进 `skills/`**：
  * 任何含 `SKILL.md` 的子目录都会被原生当成技能扫到（F13）。
  */
-export function createBackup({ paths, skill, fromDir, hash = null, prune = true }) {
+export function createBackup({ paths, skill, fromDir, hash = null, prune = true }: any = {}) {
   const key = newKey(skill);
   const target = path.join(paths.backupsDir, key);
   copyTree(fromDir, path.join(target, 'content'));
@@ -52,7 +52,7 @@ export function createBackup({ paths, skill, fromDir, hash = null, prune = true 
   return { ...meta, dir: target };
 }
 
-export function readBackup({ paths, key }) {
+export function readBackup({ paths, key }: any = {}) {
   const dir = path.join(paths.backupsDir, key);
   const metaPath = path.join(dir, 'meta.json');
   if (!fs.existsSync(metaPath)) return null;
@@ -60,7 +60,7 @@ export function readBackup({ paths, key }) {
   return { ...meta, dir, contentDir: path.join(dir, 'content') };
 }
 
-export function listBackups({ paths }) {
+export function listBackups({ paths }: any = {}) {
   let entries;
   try {
     entries = fs.readdirSync(paths.backupsDir, { withFileTypes: true });
@@ -75,7 +75,7 @@ export function listBackups({ paths }) {
 }
 
 /** 保留最近 N 代 + 总量上限，超出按最旧清理。 */
-export function pruneBackups({ paths, keep = KEEP_GENERATIONS, maxBytes = MAX_BYTES }) {
+export function pruneBackups({ paths, keep = KEEP_GENERATIONS, maxBytes = MAX_BYTES }: any = {}) {
   const backups = listBackups({ paths });
   let total = backups.reduce((sum, item) => sum + dirSize(item.dir), 0);
   backups.forEach((item, index) => {
@@ -89,7 +89,7 @@ export function pruneBackups({ paths, keep = KEEP_GENERATIONS, maxBytes = MAX_BY
 }
 
 /** 回收站：删除前的快照，保留 7 天。 */
-export function trashSkill({ paths, skill, fromDir, hash = null }) {
+export function trashSkill({ paths, skill, fromDir, hash = null }: any = {}) {
   const key = newKey(skill);
   const target = path.join(paths.trashDir, key);
   copyTree(fromDir, path.join(target, 'content'));
@@ -105,7 +105,7 @@ export function trashSkill({ paths, skill, fromDir, hash = null }) {
   return { ...meta, dir: target };
 }
 
-export function listTrash({ paths }) {
+export function listTrash({ paths }: any = {}) {
   let entries;
   try {
     entries = fs.readdirSync(paths.trashDir, { withFileTypes: true });
@@ -128,14 +128,14 @@ export function listTrash({ paths }) {
     .filter(Boolean);
 }
 
-export function pruneTrash({ paths }) {
+export function pruneTrash({ paths }: any = {}) {
   for (const item of listTrash({ paths })) {
     if (item.expired) fs.rmSync(item.dir, { recursive: true, force: true });
   }
 }
 
 /** 把备份内容换回 canonical（先删再拷，保持原子性由调用方的 add/校验兜底）。 */
-export function restoreBackup({ backup, toDir }) {
+export function restoreBackup({ backup, toDir }: any = {}) {
   fs.rmSync(toDir, { recursive: true, force: true });
   copyTree(backup.contentDir, toDir);
   return { restored: true, toDir };

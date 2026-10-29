@@ -26,6 +26,8 @@ import { downloadTarball } from './remote.js';
  */
 
 export class InstallerError extends Error {
+  code: string;
+  [key: string]: any;
   constructor(code, message, extra = {}) {
     super(message);
     this.name = 'InstallerError';
@@ -81,12 +83,12 @@ export function createInstaller({
   fetchImpl = fetch,
   token,
   logger = () => {},
-} = {}) {
+}: any = {}) {
   const authToken = token ?? env.GITHUB_TOKEN ?? env.GH_TOKEN ?? null;
 
   /** 与旧 `/state.cli` 兼容的就绪状态：只有 lock 与 canonical 都可写时 usable 才为 true。 */
   function readiness() {
-    let problem = null;
+    let problem: any = null;
     try {
       readLockFile(paths.lockFile);
     } catch (error) {
@@ -115,7 +117,7 @@ export function createInstaller({
    * @param {{source:string, ref?:string|null, commit?:string|null, subpath?:string|null,
    *          names?:string[], expectedEntries?:Array<{name:string, treeSha?:string|null}>}} options
    */
-  async function install({ source, ref = null, commit = null, subpath = null, names = [], expectedEntries = null, strict = false } = {}) {
+  async function install({ source, ref = null, commit = null, subpath = null, names = [], expectedEntries = null, strict = false }: any = {}) {
     const parsed = parseSource(source);
     if (!parsed) throw new InstallerError('bad-source', `只接受 owner/repo 或 GitHub URL: ${source}`);
     const canonicalSource = `${parsed.owner}/${parsed.repo}`;
@@ -135,8 +137,8 @@ export function createInstaller({
     const tarball = path.join(tempRoot, 'repo.tar.gz');
     const staging = path.join(tempRoot, 'stage');
     const backups = new Map();
-    const attempted = [];
-    let preparedRoot = null;
+    const attempted: any[] = [];
+    let preparedRoot: any = null;
 
     try {
       const downloaded = await downloadTarball({
@@ -173,9 +175,9 @@ export function createInstaller({
         contentHash: contentHash(skill.dirPath),
       }));
 
-      const warnings = [];
-      const expected = new Map((expectedEntries || []).map((entry) => [entry.name, entry]));
-      const mismatched = [];
+      const warnings: any[] = [];
+      const expected = new Map<string, any>((expectedEntries || []).map((entry: any) => [entry.name, entry]));
+      const mismatched: any[] = [];
       for (const item of planned) {
         const want = expected.get(item.name);
         if (want?.treeSha && want.treeSha !== item.treeSha) {
@@ -310,7 +312,7 @@ export function createInstaller({
   }
 
   /** 删除 canonical 目录与 lock 条目；lock 写失败时不删目录，避免半状态。 */
-  function remove({ name } = {}) {
+  function remove({ name }: any = {}) {
     assertSafeSkillName(name);
     const lockBefore = readLockFile(paths.lockFile);
     const entry = lockBefore.data?.skills?.[name] || null;

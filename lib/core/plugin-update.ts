@@ -140,7 +140,7 @@ function normalizeRegistry(value) {
  * `resolved`（pnpm 实际用的）→ `registry` → `fallbackRegistries`，去重；空则回退官方 registry。
  */
 function registryPlan(registries) {
-  const ordered = [];
+  const ordered: any[] = [];
   const push = (value) => {
     const normalized = normalizeRegistry(value);
     if (normalized && !ordered.includes(normalized)) ordered.push(normalized);
@@ -161,8 +161,8 @@ function registryPlan(registries) {
  * @param {typeof fetch} [deps.fetchImpl]  测试注入
  * @param {() => number} [deps.now]  测试注入
  */
-export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl = globalThis.fetch, now = Date.now, meta = PLUGIN_META } = {}) {
-  let cache = null; // { version, expiresAt }
+export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl = globalThis.fetch, now = Date.now, meta = PLUGIN_META }: any = {}) {
+  let cache: any = null; // { version, expiresAt }
   let applying = false; // 路由层单飞：同一时刻只允许一次安装
 
   /**
@@ -230,7 +230,7 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
   }
 
   /** 组一份给前端的视图；`canAutoUpdate=false` 时前端只展示手动命令。 */
-  function view({ latest, checkFailed = false } = {}) {
+  function view({ latest, checkFailed = false }: any = {}) {
     const current = meta.version;
     const updateAvailable = latest !== null && latest !== undefined && isNewerVersion(current, latest);
     return {
@@ -246,7 +246,7 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
   }
 
   /** GET：读最新版本并返回视图。网络失败不抛，用 checkFailed 标记。 */
-  async function check({ fresh = false } = {}) {
+  async function check({ fresh = false }: any = {}) {
     if (fresh) cache = null;
     const latest = await latestVersion();
     return view({ latest, checkFailed: latest === null });

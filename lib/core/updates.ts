@@ -14,7 +14,7 @@ export function parseSource(source) {
   return null;
 }
 
-export function snapshotId({ source, ref, subpath }) {
+export function snapshotId({ source, ref, subpath }: any = {}) {
   return crypto
     .createHash('sha256')
     .update(`${source}\n${ref || ''}\n${subpath || ''}`)
@@ -178,7 +178,7 @@ export function skillDir(skillPath) {
   return parts.join('/');
 }
 
-export function skillTreeSha({ tree, skillPath, rootSha }) {
+export function skillTreeSha({ tree, skillPath, rootSha }: any = {}) {
   const dir = skillDir(skillPath);
   if (!dir) return rootSha;
   const entry = tree.find((item) => item.type === 'tree' && item.path === dir);
@@ -189,7 +189,7 @@ export function skillTreeSha({ tree, skillPath, rootSha }) {
  * 快照 = 仓库里所有 `SKILL.md` 的目录条目。
  * 名字取目录名；根级 `SKILL.md` 用仓库名（读不到 frontmatter，名字只能是近似值，装完以 canonical 为准）。
  */
-export function listSkillsFromTree({ tree, rootSha, subpath, repoName }) {
+export function listSkillsFromTree({ tree, rootSha, subpath, repoName }: any = {}) {
   const prefix = subpath ? `${subpath.replace(/\/+$/, '')}/` : '';
   const byName = new Map();
   for (const entry of tree) {
@@ -216,7 +216,7 @@ export function listSkillsFromTree({ tree, rootSha, subpath, repoName }) {
  * 那玩意儿与上游 tree SHA 不同源，直接比必然不等 —— 既不能判 `current`，也不该判
  * `update-available`，此时改用手边记下的基线；两样都没有才给 `unknown`（老状态，行为与以前一致）。
  */
-export function checkSkill({ lockHash, recordedTreeSha, snapshotEntry, tree, rootSha }) {
+export function checkSkill({ lockHash, recordedTreeSha, snapshotEntry, tree, rootSha }: any = {}) {
   if (!snapshotEntry) return { status: 'upstream-deleted', detail: '上游整树里已找不到这个 skillPath' };
   const baseline = TREE_SHA_RE.test(String(lockHash || ''))
     ? { sha: lockHash, from: 'lock' }

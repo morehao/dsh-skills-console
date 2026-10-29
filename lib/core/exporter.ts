@@ -72,7 +72,7 @@ export function exportSkills({ paths, registry, name, targets = [], record = () 
  * 摘掉一条导出链。默认只摘「指向 canonical」的；`allowDangling` 用于 canonical
  * 已经不在时回收自家悬空链——此时用链名兜底，绝不按 `force` 整片删。
  */
-export function unexportSkill({ linkPath, canonicalPath, name, allowDangling = false }) {
+export function unexportSkill({ linkPath, canonicalPath, name, allowDangling = false }: any = {}) {
   if (!linkPath) return { removed: false, reason: 'no-path' };
   const direct = removeLink({ linkPath, canonicalPath, force: false });
   if (direct.removed) return { removed: true, linkPath };
@@ -111,7 +111,7 @@ export function isOurDanglingLink(linkPath, name) {
  * 都不代表这份技能被导出过去。读共享根的 Agent 也不需要导出链——它们装好即见，
  * 现场残留的链（历史版本或手工建的）同样不列。
  */
-export function agentPresence({ paths, registry, name }) {
+export function agentPresence({ paths, registry, name }: any = {}) {
   const canonicalPath = path.join(paths.canonical, name);
   const rows: any[] = [];
   for (const entry of registry.detected()) {

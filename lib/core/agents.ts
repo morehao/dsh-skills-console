@@ -5,7 +5,7 @@ import { projectSkillsDir } from './paths.js';
 import { dshScanRootPaths } from './roots.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const table = JSON.parse(fs.readFileSync(path.join(here, '..', 'agent-table.json'), 'utf8'));
+const table: any = JSON.parse(fs.readFileSync(path.join(here, '..', 'agent-table.json'), 'utf8'));
 
 /** CLI agent 表里拥有独立目录的条目（`.agents/skills` 型的 universal 条目已排除，见 F23）。 */
 export const CLI_AGENT_DIRS = table.entries;
@@ -24,9 +24,9 @@ export const SHARED_HOME_VERIFIED = Object.freeze({
   // 表里没有、或需要人工推翻上游判断的条目。加条目时写清依据与日期。
 });
 
-const TABLE_BY_KEY = new Map(CLI_AGENT_DIRS.map((entry) => [entry.key, entry]));
+const TABLE_BY_KEY = new Map<string, any>(CLI_AGENT_DIRS.map((entry: any) => [entry.key, entry]));
 
-export function sharedHomeOf(key, entry = {}) {
+export function sharedHomeOf(key: string, entry: any = {}) {
   if (entry.sharedHome === 'yes' || entry.sharedHome === 'no') return entry.sharedHome;
   // 上游把「自己也读 `.agents/skills`」的 agent 标成 universal：安装只进 canonical，
   // 不给它们建链。这一位就是「需不需要导出」的答案；调用方没带 entry 时回表里查。
@@ -37,6 +37,8 @@ export function sharedHomeOf(key, entry = {}) {
 }
 
 export class UnknownTargetError extends Error {
+  code: string;
+  [key: string]: any;
   constructor(target) {
     super(`unknown target: ${target}`);
     this.code = 'error.skills.unknown-target';
@@ -48,7 +50,7 @@ export class UnknownTargetError extends Error {
  * 目标注册表：`dsh-global` / `project:<abs>` / `agent:<key>` / `custom:<id>`。
  * 发现只做 `lstat` 探测根目录是否存在，不递归；不接受调用方传路径（防穿越）。
  */
-export function createRegistry({ paths, getState, existsSync = fs.existsSync }) {
+export function createRegistry({ paths, getState, existsSync = fs.existsSync }: any = {}) {
   // 用户级 DSH 扫描根（项目级按 projectRoot 现算）。导出资格的唯一判据从这里派生，
   // 不再靠 `kind === 'dsh'` 之类的身份判断。
   const userScanRoots = new Set(dshScanRootPaths(paths));
@@ -61,7 +63,7 @@ export function createRegistry({ paths, getState, existsSync = fs.existsSync }) 
    *   而扫描根里本来就有真身（direct 模式）；导出在这里没有意义；
    * - `shared-root`：该 Agent 自己也读 `~/.agents/skills`，装好就看得见。
    */
-  function exportBlockedFor(dir, { sharedHome = 'unknown', projectRoot = null } = {}) {
+  function exportBlockedFor(dir, { sharedHome = 'unknown', projectRoot = null }: any = {}) {
     const resolved = path.resolve(dir);
     if (resolved === path.resolve(paths.userAgentsSkills)) return 'shared-home';
     const scanRoots = projectRoot
@@ -73,7 +75,7 @@ export function createRegistry({ paths, getState, existsSync = fs.existsSync }) 
   }
 
   /** 给条目补上导出资格：`exportable` 给 UI/筛选直接用，`exportBlocked` 给导出器当原因。 */
-  function withExport(entry, { projectRoot = null } = {}) {
+  function withExport(entry, { projectRoot = null }: any = {}) {
     const exportBlocked = exportBlockedFor(entry.dir, {
       sharedHome: entry.sharedHome ?? 'unknown',
       projectRoot,

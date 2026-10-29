@@ -28,7 +28,9 @@ export const PARK_KEEP = 5;
 const TOP_KEY = /^([A-Za-z0-9_-]+)\s*:/;
 
 export class InvocationError extends Error {
-  constructor(code, message, detail = null, status = 400) {
+  code: string;
+  [key: string]: any;
+  constructor(code: string, message: string, detail: any = null, status = 400) {
     super(message);
     this.code = code;
     this.detail = detail;
@@ -36,15 +38,15 @@ export class InvocationError extends Error {
   }
 }
 
-function unsupported(message, detail = null) {
+function unsupported(message, detail: any = null) {
   return new InvocationError('error.skills.unsupported', message, detail, 400);
 }
 
-function notWritable(message, detail = null) {
+function notWritable(message, detail: any = null) {
   return new InvocationError('error.skills.not-writable', message, detail, 409);
 }
 
-function drift(message, detail = null) {
+function drift(message, detail: any = null) {
   return new InvocationError('error.skills.drift', message, detail, 409);
 }
 
@@ -57,7 +59,7 @@ function splitLines(text) {
 }
 
 function splitValue(raw) {
-  let quote = null;
+  let quote: any = null;
   let commentAt = -1;
   for (let index = 0; index < raw.length; index += 1) {
     const ch = raw[index];
@@ -128,7 +130,7 @@ function checkFrontmatter(lines) {
 export function parseInvocation(text) {
   const { bom, eol, lines } = splitLines(String(text ?? ''));
   const closing = checkFrontmatter(lines);
-  const hits = [];
+  const hits: any[] = [];
   for (let index = 1; index < closing; index += 1) {
     const line = lines[index];
     if (!line || /^\s/.test(line)) continue;
@@ -166,7 +168,7 @@ function descriptionBlockEnd(lines, start, closing) {
 
 function insertIndexFor(parsed) {
   const { lines, closing } = parsed;
-  const descriptions = [];
+  const descriptions: any[] = [];
   for (let index = 1; index < closing; index += 1) {
     const line = lines[index];
     if (!line || /^\s/.test(line)) continue;
@@ -277,7 +279,7 @@ function safeName(name) {
  * 写前备份到插件备份目录（与安装备份分开放，避免把更新备份挤出保留窗口）。
  * 每个技能最多留 PARK_KEEP 份。
  */
-export function backupInvocation({ backupDir, name, content }) {
+export function backupInvocation({ backupDir, name, content }: any = {}) {
   const dir = path.join(backupDir, 'invocation');
   fs.mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -395,7 +397,7 @@ export function inspectPark(skillDir) {
  * 崩在 rename 后：marker + disabled（正常 parked）。
  * 内容哈希在写 marker 之前算，恢复后用它核对内容没被改过。
  */
-export function parkSkill({ dir, name, previousMode = 'auto' }) {
+export function parkSkill({ dir, name, previousMode = 'auto' }: any = {}) {
   if (!isRealDir(dir)) throw notWritable('只有真实目录型技能可以完全停用', { reason: 'not-dir' });
   const skillFile = path.join(dir, 'SKILL.md');
   const disabledFile = path.join(dir, PARK_DISABLED);
@@ -448,7 +450,7 @@ export function parkSkill({ dir, name, previousMode = 'auto' }) {
  * - 两份都在且内容不同 → 默认 409；`keep='current'` 保留当前 SKILL.md，
  *   `keep='parked'` 把当前另存为 SKILL.md.conflict-* 后恢复 parked 版本。
  */
-export function unparkSkill({ dir, name, fallbackMode = 'auto', keep = null }) {
+export function unparkSkill({ dir, name, fallbackMode = 'auto', keep = null }: any = {}) {
   if (!isRealDir(dir)) throw notWritable('只有真实目录型技能可以恢复', { reason: 'not-dir' });
   const skillFile = path.join(dir, 'SKILL.md');
   const disabledFile = path.join(dir, PARK_DISABLED);
@@ -465,8 +467,8 @@ export function unparkSkill({ dir, name, fallbackMode = 'auto', keep = null }) {
     );
   }
 
-  let kept = null;
-  let removed = null;
+  let kept: any = null;
+  let removed: any = null;
   if (hasSkill && hasDisabled) {
     if (sameBytes(skillFile, disabledFile)) {
       fs.rmSync(disabledFile, { force: true });
@@ -529,7 +531,7 @@ export function unparkSkill({ dir, name, fallbackMode = 'auto', keep = null }) {
  *
  * `compare` 仅供 `matchesLegacyHash` 复核旧口径使用；新基线一律用默认的 locale 无关排序。
  */
-export function hashWithoutInvocation(dir, manual, compare) {
+export function hashWithoutInvocation(dir: string, manual: any, compare: any = undefined) {
   if (!manual || manual.origin !== 'plugin') return contentHashWith(dir, null, compare);
   const expected = manual.original;
   if (expected !== 'absent' && expected !== 'false') return null;

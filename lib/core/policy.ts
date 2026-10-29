@@ -77,7 +77,7 @@ function nativeWinners({ paths: pathSet, projectRoot, logger, purpose }) {
  * @param {Function} options.getState 返回当前 state（同步）
  * @param {Function} [options.logger]
  */
-export function createPolicyProvider({ paths, getState, logger = () => {} }) {
+export function createPolicyProvider({ paths, getState, logger = () => {} }: any) {
   const stateOf = () => {
     try {
       return getState() || null;
@@ -103,7 +103,7 @@ export function createPolicyProvider({ paths, getState, logger = () => {} }) {
   function disabledInstalls() {
     const state = stateOf();
     if (!state || !Array.isArray(state.installs)) return [];
-    const rows = [];
+    const rows: any[] = [];
     for (const install of state.installs) {
       if (!install || install.enabled !== false) continue;
       if (typeof install.name !== 'string' || !isSkillName(install.name)) continue;
@@ -116,14 +116,14 @@ export function createPolicyProvider({ paths, getState, logger = () => {} }) {
   const provider = {
     name: POLICY_PROVIDER,
 
-    async list(options = {}) {
+    async list(options: any = {}) {
       try {
         // canonical 不在扫描根里时，发候选等于「凭空造出一个本来不可见的技能」。
         if (!paths.canonicalScanned) return [];
         const installs = disabledInstalls();
         if (installs.length === 0) return [];
         const winners = scanNative(options.cwd, 'list');
-        const candidates = [];
+        const candidates: any[] = [];
         for (const install of installs) {
           const dir = canonicalDirOf(install.name);
           const docPath = path.join(dir, 'SKILL.md');
@@ -164,7 +164,7 @@ export function createPolicyProvider({ paths, getState, logger = () => {} }) {
       }
     },
 
-    async get(candidate, options = {}) {
+    async get(candidate: any, options: any = {}) {
       try {
         const name = candidate?.name;
         const installName = candidate?.locator?.installName;
@@ -221,12 +221,12 @@ export function createPolicyProvider({ paths, getState, logger = () => {} }) {
  * - `liveAgents` / `registered`：当前 live agent 数与成功注册数；
  * - `errors[]`：注册失败的摘要（只有 agent id / 错误码，不写技能正文）。
  */
-export function installPolicyProviders(ctx, { provider, logger = () => {} } = {}) {
-  const errors = [];
-  const registrations = new Map();
-  const invalidators = new Set();
-  const liveAgents = new Set();
-  const unsubscribes = [];
+export function installPolicyProviders(ctx, { provider, logger = () => {} }: any = {}) {
+  const errors: any[] = [];
+  const registrations = new Map<string, any>();
+  const invalidators = new Set<any>();
+  const liveAgents = new Set<string>();
+  const unsubscribes: any[] = [];
   let disposed = false;
 
   const skillsOf = () => {
@@ -283,7 +283,7 @@ export function installPolicyProviders(ctx, { provider, logger = () => {} } = {}
     const entry = { invalidators: new Set(), dispose: null };
     try {
       // factory 在 registerProvider 内同步调用；注册完就能拿到 control.invalidate。
-      entry.dispose = skills.registerProvider((control = {}) => {
+      entry.dispose = skills.registerProvider((control: any = {}) => {
         const invalidate = control.invalidate;
         if (typeof invalidate === 'function') {
           entry.invalidators.add(invalidate);
@@ -314,10 +314,10 @@ export function installPolicyProviders(ctx, { provider, logger = () => {} } = {}
     recordError(null, 'agents-list-failed', error);
   }
 
-  for (const [event, handler] of [
-    ['agent/created', ({ agent } = {}) => register(agent)],
-    ['agent/disposed', ({ agent } = {}) => unregister(agent)],
-  ]) {
+  for (const [event, handler] of ([
+    ['agent/created', ({ agent }: any = {}) => register(agent)],
+    ['agent/disposed', ({ agent }: any = {}) => unregister(agent)],
+  ] as Array<[string, any]>)) {
     try {
       const off = ctx?.on?.(event, handler);
       if (typeof off === 'function') unsubscribes.push(off);

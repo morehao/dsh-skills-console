@@ -60,7 +60,9 @@ export const DEFAULT_INTRO_CONFIG = Object.freeze({
 
 /** 调用/准备阶段的失败，由 Service 转成带 HTTP 状态的错误。 */
 export class IntroError extends Error {
-  constructor(code, message, detail = null, status = 502) {
+  code: string;
+  [key: string]: any;
+  constructor(code: string, message: string, detail: any = null, status = 502) {
     super(message);
     this.name = 'IntroError';
     this.code = code;
@@ -83,7 +85,7 @@ function optionalString(value) {
  * 归一化插件 config 里的 `intro` 段：非法值回退默认、数值夹到安全区间。
  * 配置错了不该让插件加载失败，最多让介绍能力退化。
  */
-export function normalizeIntroConfig(raw = {}) {
+export function normalizeIntroConfig(raw: any = {}) {
   const source = raw && typeof raw === 'object' ? raw : {};
   const provider = optionalString(source.provider);
   const model = optionalString(source.model);
@@ -190,7 +192,7 @@ export function buildIntroPrompt({
   content = '',
   maxInputBytes = DEFAULT_INTRO_CONFIG.maxInputBytes,
   lang = 'zh',
-}) {
+}: any = {}) {
   const language = introLang(lang);
   const body = String(content ?? '');
   const cut = truncateUtf8(body, maxInputBytes);
@@ -199,7 +201,7 @@ export function buildIntroPrompt({
     : [];
   const desc = optionalString(description);
 
-  const lines = [];
+  const lines: any[] = [];
   if (language === 'en') {
     lines.push(`Skill name: ${name}`);
     lines.push(`Original description: ${desc || '(none)'}`);
@@ -363,7 +365,7 @@ export async function runIntroCall({ llm, route, prompt, maxOutputTokens, signal
     INTRO_OUTPUT_FLOOR.plain,
   );
 
-  let call = null;
+  let call: any = null;
   try {
     if (typeof llm.prepareCall === 'function') {
       call = await llm.prepareCall(
@@ -402,8 +404,8 @@ export async function runIntroCall({ llm, route, prompt, maxOutputTokens, signal
   let sawTextDelta = false;
   const textBlocks = new Map();
   let reasoningChars = 0;
-  let usage = null;
-  let finish = null;
+  let usage: any = null;
+  let finish: any = null;
   try {
     const stream = call ? call.stream(options) : llm.stream(options);
     for await (const chunk of stream) {
@@ -508,7 +510,7 @@ export function introEntry({
   sourceBytes,
   maxTokens = null,
   finish = 'stop',
-}) {
+}: any = {}) {
   return {
     hash,
     text,

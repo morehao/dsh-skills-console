@@ -38,15 +38,18 @@ function sanitizeEntry(entry) {
   };
 }
 
-export function createIntroStore({ paths, logger = () => {} }) {
+/** Object.entries 的宽松版本：缓存条目是动态 JSON。 */
+const entriesOf = (value: any): Array<[string, any]> => Object.entries(value);
+
+export function createIntroStore({ paths, logger = () => {} }: any) {
   const file = paths.introFile;
   // v0.5.8 及更早版本的缓存在 stateDir 下；新版只把旧位置当只读回退（读旧、写新），
   // 下一次生成自然迁移到 `$DSH_HOME/cache/skills-console/intros.json`。
   const legacyFiles = (Array.isArray(paths.introLegacyFiles) ? paths.introLegacyFiles : []).filter(
     (item) => typeof item === 'string' && item && item !== file,
   );
-  let data = null;
-  let problem = null;
+  let data: any = null;
+  let problem: any = null;
 
   function empty() {
     return { version: INTRO_STORE_VERSION, items: {} };
@@ -58,9 +61,9 @@ export function createIntroStore({ paths, logger = () => {} }) {
       throw new Error(`unsupported intro cache version: ${parsed?.version ?? 'missing'}`);
     }
     const items = {};
-    for (const [name, langs] of Object.entries(isPlainObject(parsed.items) ? parsed.items : {})) {
+    for (const [name, langs] of entriesOf(isPlainObject(parsed.items) ? parsed.items : {})) {
       if (!isPlainObject(langs)) continue;
-      for (const [lang, entry] of Object.entries(langs)) {
+      for (const [lang, entry] of entriesOf(langs)) {
         const clean = sanitizeEntry(entry);
         if (!clean) continue;
         if (!items[name]) items[name] = {};
@@ -102,16 +105,16 @@ export function createIntroStore({ paths, logger = () => {} }) {
 
   function count(items) {
     let total = 0;
-    for (const langs of Object.values(items)) total += Object.keys(langs).length;
+    for (const langs of Object.values(items) as any[]) total += Object.keys(langs).length;
     return total;
   }
 
   /** 超出上限时按生成时间淘汰最旧的条目（缓存可以随时没有）。 */
   function prune(items) {
     if (count(items) <= MAX_ITEMS) return items;
-    const rows = [];
-    for (const [name, langs] of Object.entries(items)) {
-      for (const [lang, entry] of Object.entries(langs)) {
+    const rows: any[] = [];
+    for (const [name, langs] of entriesOf(items)) {
+      for (const [lang, entry] of entriesOf(langs)) {
         rows.push({ name, lang, at: Date.parse(entry.generatedAt) || 0 });
       }
     }

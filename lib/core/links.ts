@@ -28,7 +28,7 @@ function hasSkillFile(dir) {
   }
 }
 
-export function inspectTarget({ linkPath, canonicalPath }) {
+export function inspectTarget({ linkPath, canonicalPath }: any = {}) {
   let st;
   try {
     st = fs.lstatSync(linkPath);
@@ -58,7 +58,7 @@ export function inspectTarget({ linkPath, canonicalPath }) {
  * 建链：同层用相对路径（可跨机器复用），算不出相对就退回绝对路径并标记。
  * Windows 用 junction + 绝对路径（对齐 CLI 的 createSymlink，F2）。
  */
-export function createLink({ linkPath, targetPath, platform = process.platform, fsImpl = fs }) {
+export function createLink({ linkPath, targetPath, platform = process.platform, fsImpl = fs }: any = {}) {
   fsImpl.mkdirSync(path.dirname(linkPath), { recursive: true });
   if (platform === 'win32') {
     fsImpl.symlinkSync(fsImpl.realpathSync(targetPath), linkPath, 'junction');
@@ -71,7 +71,7 @@ export function createLink({ linkPath, targetPath, platform = process.platform, 
 }
 
 /** 删除链接：只删软链，且默认只删指向 canonical 的（`force` 仅用于回收悬空链）。 */
-export function removeLink({ linkPath, canonicalPath, force = false }) {
+export function removeLink({ linkPath, canonicalPath, force = false }: any = {}) {
   let st;
   try {
     st = fs.lstatSync(linkPath);
@@ -91,7 +91,7 @@ export function removeLink({ linkPath, canonicalPath, force = false }) {
 }
 
 /** 幂等建链：已存在同内容链接 → 跳过；其他任何占用 → 跳过并说明原因。 */
-export function ensureLink({ linkPath, canonicalPath }) {
+export function ensureLink({ linkPath, canonicalPath }: any = {}) {
   const current = inspectTarget({ linkPath, canonicalPath });
   if (current.state === 'managed' || current.state === 'managed-external') {
     return { created: false, state: current.state, linkPath };

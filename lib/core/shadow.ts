@@ -19,7 +19,7 @@ export const SHADOW_DESCRIPTION = '已停用（由 DSH 技能控制台生成，�
 const MARKER_VERSION = 1;
 
 /** 停用态 SKILL.md：三个字段缺一不可，见 design §5.2。 */
-export function shadowSkillMd({ name, description = SHADOW_DESCRIPTION }) {
+export function shadowSkillMd({ name, description = SHADOW_DESCRIPTION }: any = {}) {
   return [
     '---',
     `name: ${name}`,
@@ -150,7 +150,7 @@ export function createShadow({ stubPath, name, scope, canonicalHash = null, now 
  * v0.4.0 起只服务迁移与 legacy 清理：`foreign` / `link` 一律保留并报告，绝不替用户
  * 拆掉别人的软链或真实目录。
  */
-export function removeShadow({ stubPath, name }) {
+export function removeShadow({ stubPath, name }: any = {}) {
   const current = inspectShadow(stubPath, name);
   if (current.state === 'absent') return { removed: false, reason: 'absent', stubPath };
   if (current.state === 'foreign') return { removed: false, reason: 'not-managed', stubPath };

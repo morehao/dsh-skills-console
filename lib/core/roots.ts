@@ -39,7 +39,7 @@ function isDir(candidate) {
  * 当前环境下的扫描根。`projectRoot` 为空时只有两个 user 根。
  * `customDirs` 是 `Config.customSkillDirs`；本插件读不到宿主配置，默认空。
  */
-export function listRoots({ paths, projectRoot = null, customDirs = [] }) {
+export function listRoots({ paths, projectRoot = null, customDirs = [] }: any = {}) {
   const roots: any[] = [];
   if (projectRoot) {
     roots.push({

@@ -50,7 +50,7 @@ export function assertRef(ref) {
   return ref;
 }
 
-export function codeloadUrl({ source, ref }) {
+export function codeloadUrl({ source, ref }: any = {}) {
   const parsed = parseSource(source);
   if (!parsed) throw new RemoteError('invalid-source', `不是 GitHub 来源: ${source}`);
   assertRef(ref);
