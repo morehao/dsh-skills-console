@@ -2181,3 +2181,136 @@ test('订阅候选：展开显示作者描述，点 ✨ 打开简介弹窗，点
   );
   assert.ok(textOf(out.tree).includes('安装'), '订阅候选的弹窗给安装入口');
 });
+
+// ---------- 添加订阅 / 添加技能：失败不提前关窗（方案 A） ----------
+
+test('添加技能：安装失败时不关窗，保留探测结果与勾选，可重试', async () => {
+  const calls = [];
+  let installAttempts = 0;
+  const fetchStub = async (url, init) => {
+    const u = String(url);
+    const method = init?.method || 'GET';
+    calls.push({ url: u, method, body: init?.body ? JSON.parse(init.body) : null });
+    if (u.endsWith('/probe')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          source: 'morehao/agent-skills',
+          ref: 'main',
+          skipped: 0,
+          skills: [
+            { name: 'git-kit', description: 'G', skillPath: 'skills/git-kit/SKILL.md' },
+            { name: 'handoff', description: 'H', skillPath: 'skills/handoff/SKILL.md' },
+          ],
+        }),
+      };
+    }
+    if (u.endsWith('/install') && method === 'POST') {
+      installAttempts += 1;
+      if (installAttempts === 1) {
+        return {
+          ok: false,
+          status: 500,
+          json: async () => ({ ok: false, code: 'error.skills.install-failed', message: '安装失败：网络错误' }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({ ok: true, installed: [{ name: 'handoff' }], warnings: [] }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ ...STATE, ok: true }) };
+  };
+  const { Component, stub } = loadModule(STATE, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+  const add = buttonByText(out.tree, '添加技能');
+  assert.ok(add, '页头要有添加技能');
+  add.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  const input = collectByType(out.tree, 'input').find((node) => node.props.placeholder === '例如 morehao/ai-kit');
+  assert.ok(input, '来源输入框');
+  input.props.onChange({ target: { value: 'https://github.com/morehao/agent-skills' } });
+  out = await settle(stub, Component, out.hooks);
+  buttonByText(out.tree, '检测技能').props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.ok(textOf(out.tree).includes('检测到 2 个技能'), '探测到两个技能');
+
+  // 只保留 handoff
+  let checks = collectByType(out.tree, 'input').filter((node) => node.props.type === 'checkbox');
+  checks[0].props.onChange();
+  out = await settle(stub, Component, out.hooks);
+  buttonByText(out.tree, '保存').props.onClick();
+  out = await settle(stub, Component, out.hooks);
+
+  // 失败后：弹窗仍在、错误可见、探测结果与勾选保留
+  assert.ok(textOf(out.tree).includes('检测到 2 个技能'), '安装失败后弹窗不关闭');
+  const errs = collectByClass(out.tree, 'dshsc-form-error');
+  assert.equal(errs.length, 1, '弹窗内显示错误');
+  assert.ok(textOf(errs[0]).includes('安装失败：网络错误'));
+  checks = collectByType(out.tree, 'input').filter((node) => node.props.type === 'checkbox');
+  assert.equal(checks.length, 2, '探测结果仍在');
+  assert.equal(checks[0].props.checked, false, '取消勾选状态保留');
+  assert.equal(checks[1].props.checked, true, '勾选状态保留');
+
+  // 重试成功 → 关窗
+  buttonByText(out.tree, '保存').props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.ok(!textOf(out.tree).includes('检测到 2 个技能'), '成功后关闭弹窗');
+  const installs = calls.filter((call) => call.method === 'POST' && call.url.endsWith('/install'));
+  assert.equal(installs.length, 2, '重试会再发一次安装');
+  assert.deepEqual(installs[1].body.skills, ['handoff'], '第二次只装保留下来的那个');
+});
+
+test('添加订阅：提交失败时不关窗、保留输入并显示错误，成功后才关闭', async () => {
+  const calls = [];
+  let attempts = 0;
+  const fetchStub = async (url, init) => {
+    const u = String(url);
+    const method = init?.method || 'GET';
+    calls.push({ url: u, method, body: init?.body ? JSON.parse(init.body) : null });
+    if (u.endsWith('/subscriptions') && method === 'POST') {
+      attempts += 1;
+      if (attempts === 1) {
+        return {
+          ok: false,
+          status: 400,
+          json: async () => ({ ok: false, code: 'error.skills.bad-source', message: '订阅只接受 owner/repo 或 GitHub URL' }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({ ok: true, subscription: { id: 'sub-1', source: 'morehao/agent-skills' } }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ ...STATE, subscriptions: [] }) };
+  };
+  const { Component, stub } = loadModule({ ...STATE, subscriptions: [] }, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+  const tab = collectButtons(out.tree).find((button) => String(textOf(button)).startsWith('订阅'));
+  assert.ok(tab, '订阅 tab');
+  tab.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  const add = buttonByText(out.tree, '添加订阅');
+  assert.ok(add, '添加订阅入口');
+  add.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.ok(textOf(out.tree).includes('只记录你关注这个仓库'), '打开添加订阅表单');
+
+  const sourceInput = () => collectByType(out.tree, 'input').find((node) => node.props.placeholder === '例如 morehao/ai-kit');
+  sourceInput().props.onChange({ target: { value: 'not a repo' } });
+  out = await settle(stub, Component, out.hooks);
+  buttonByText(out.tree, '保存').props.onClick();
+  out = await settle(stub, Component, out.hooks);
+
+  // 失败后：弹窗仍在、错误可见、输入保留
+  assert.ok(textOf(out.tree).includes('只记录你关注这个仓库'), '提交失败后弹窗不关闭');
+  const errs = collectByClass(out.tree, 'dshsc-form-error');
+  assert.equal(errs.length, 1, '弹窗内显示错误');
+  assert.ok(textOf(errs[0]).includes('订阅只接受'));
+  assert.equal(sourceInput().props.value, 'not a repo', '失败后输入保留');
+
+  // 改成合法来源后重试成功 → 关窗
+  sourceInput().props.onChange({ target: { value: 'morehao/agent-skills' } });
+  out = await settle(stub, Component, out.hooks);
+  buttonByText(out.tree, '保存').props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.ok(!textOf(out.tree).includes('只记录你关注这个仓库'), '成功后关闭弹窗');
+  const posts = calls.filter((call) => call.method === 'POST' && call.url.endsWith('/subscriptions'));
+  assert.equal(posts.length, 2, '重试会再发一次订阅请求');
+});

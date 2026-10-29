@@ -19,6 +19,9 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
   const [manual, setManual] = React.useState('');
   const [skipped, setSkipped] = React.useState(0);
   const [error, setError] = React.useState(null);
+  // 提交安装的进行中 / 失败态：失败时不关窗，就地提示并保留探测结果与勾选
+  const [pending, setPending] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState(null);
 
   const reset = (value) => {
     setSource(value);
@@ -27,13 +30,15 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
     setSelected(new Set());
     setSkipped(0);
     setError(null);
+    setSubmitError(null);
   };
 
   const probe = async () => {
     const value = source.trim();
-    if (!value || phase === 'probing') return;
+    if (!value || phase === 'probing' || pending) return;
     setPhase('probing');
     setError(null);
+    setSubmitError(null);
     try {
       const result = await onProbe(value);
       const found = Array.isArray(result?.skills) ? result.skills : [];
@@ -47,35 +52,51 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
     }
   };
 
-  const toggle = (name) => setSelected((prev) => {
-    const next = new Set(prev);
-    if (next.has(name)) next.delete(name);
-    else next.add(name);
-    return next;
-  });
+  const toggle = (name) => {
+    setSubmitError(null);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
 
   const names = manual.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean);
   const skippedText = skipped > 0 ? t('form.skipped').replace('{n}', String(skipped)) : null;
   const manualMode = phase === 'empty' || phase === 'failed';
   const skills = phase === 'picked' ? [...selected] : names;
   const canSubmit = phase === 'picked' ? selected.size > 0 : manualMode ? names.length > 0 : false;
-  const submit = () => {
-    if (!canSubmit) return;
-    onInstall({ source: source.trim(), skills });
+  const submit = async () => {
+    if (!canSubmit || pending) return;
+    setPending(true);
+    setSubmitError(null);
+    let res;
+    try {
+      res = await onInstall({ source: source.trim(), skills });
+    } catch (err) {
+      res = { ok: false, error: err?.message || String(err) };
+    }
+    // 成功：父级已关窗，组件即将卸载，不再回写状态
+    if (res?.ok) return;
+    setPending(false);
+    setSubmitError(res?.error || t('form.submitFailed'));
   };
 
   return h(Overlay, {
     t,
     title: t('action.addSkill'),
     onCancel,
+    // 提交安装进行中禁止关闭：请求不可取消，允许关闭只是假装取消
+    dismissible: !pending,
     footer: [
-      h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
+      h('button', { key: 'c', className: 'dshsc-btn ghost', disabled: pending, onClick: onCancel }, t('action.cancel')),
       h('button', {
         key: 's',
         className: 'dshsc-btn primary',
-        disabled: !canSubmit,
-        onClick: submit,
-      }, t('action.save')),
+        disabled: !canSubmit || pending,
+        onClick: () => void submit(),
+      }, pending ? t('busy.working') : t('action.save')),
     ],
   },
   h('p', { className: 'dshsc-sub' }, t('form.pickHint')),
@@ -85,31 +106,36 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
       h('input', {
         value: source,
         placeholder: t('form.sourceHint'),
+        disabled: pending,
         onChange: (event) => reset(event.target.value),
-        onKeyDown: (event) => { if (event.key === 'Enter') void probe(); },
+        onKeyDown: (event) => { if (event.key === 'Enter' && !pending) void probe(); },
       }),
       h('button', {
         className: 'dshsc-btn',
-        disabled: !source.trim() || phase === 'probing',
+        disabled: !source.trim() || phase === 'probing' || pending,
         onClick: () => void probe(),
       }, phase === 'probing' ? t('form.probing') : t('form.probe')))),
+  submitError ? h('p', { className: 'dshsc-form-error', role: 'alert' }, submitError) : null,
   phase === 'picked'
     ? h('div', { key: 'picked' },
         h('div', { className: 'dshsc-group' }, t('form.detected').replace('{n}', String(options.length))),
         h('div', { style: { display: 'flex', gap: 6, marginBottom: 6 } },
           h('button', {
             className: 'dshsc-btn ghost',
-            onClick: () => setSelected(new Set(options.map((item) => item.name))),
+            disabled: pending,
+            onClick: () => { setSubmitError(null); setSelected(new Set(options.map((item) => item.name))); },
           }, t('form.selectAll')),
           h('button', {
             className: 'dshsc-btn ghost',
-            onClick: () => setSelected(new Set()),
+            disabled: pending,
+            onClick: () => { setSubmitError(null); setSelected(new Set()); },
           }, t('form.selectNone'))),
         h('div', { className: 'dshsc-panel' }, options.map((option) =>
           h('label', { className: 'dshsc-check dshsc-skill', key: option.name },
             h('input', {
               type: 'checkbox',
               checked: selected.has(option.name),
+              disabled: pending,
               onChange: () => toggle(option.name),
             }),
             h('span', { className: 'dshsc-skill-main' },
@@ -133,7 +159,8 @@ export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
           h('input', {
             value: manual,
             placeholder: 'git-kit, handoff',
-            onChange: (event) => setManual(event.target.value),
+            disabled: pending,
+            onChange: (event) => { setManual(event.target.value); if (submitError) setSubmitError(null); },
           })))
     : null,
   h('p', { className: 'dshsc-sub' }, t('form.hint')));

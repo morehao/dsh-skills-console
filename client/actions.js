@@ -158,28 +158,45 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
     return apiCall('POST', '/probe', { source: String(source || '').trim() });
   }
 
+  /**
+   * 提交安装：成功才关窗；失败返回 {ok:false,error} 交给弹窗内联展示并保留用户输入。
+   * 错误 toast 由弹窗接管，这里对 run 传 toastError:false。
+   */
   async function installSkills({ source, skills }) {
-    setModal(null);
-    await run('install', async () => {
-      const result = await apiCall('POST', '/install', { source: String(source || '').trim(), skills });
-      const warnings = result.warnings?.length || 0;
-      setToast({
-        kind: warnings ? 'err' : 'ok',
-        text: `${result.installed?.length || 0} ${t('skillCount')}${warnings ? ` · ${warnings} 条提示` : ''}`,
-      });
-    });
+    try {
+      await run('install', async () => {
+        const result = await apiCall('POST', '/install', { source: String(source || '').trim(), skills });
+        const warnings = result.warnings?.length || 0;
+        setToast({
+          kind: warnings ? 'err' : 'ok',
+          text: `${result.installed?.length || 0} ${t('skillCount')}${warnings ? ` · ${warnings} 条提示` : ''}`,
+        });
+        return result;
+      }, { toastError: false });
+      setModal(null);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
   }
 
+  /** 添加订阅：同 installSkills，成功才关窗、失败把错误交回弹窗。 */
   async function addSubscription(form) {
-    setModal(null);
-    await run('subscribe', async () => {
-      const result = await apiCall('POST', '/subscriptions', {
-        source: form.source.trim(),
-        ref: form.ref.trim() || undefined,
-        subpath: form.subpath.trim() || undefined,
-      });
-      setToast({ kind: 'ok', text: result.subscription?.source || form.source });
-    });
+    try {
+      const result = await run('subscribe', async () => {
+        const res = await apiCall('POST', '/subscriptions', {
+          source: form.source.trim(),
+          ref: form.ref.trim() || undefined,
+          subpath: form.subpath.trim() || undefined,
+        });
+        setToast({ kind: 'ok', text: res.subscription?.source || form.source });
+        return res;
+      }, { toastError: false });
+      setModal(null);
+      return { ok: true, result };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
   }
 
   async function refreshSubscription(row) {
