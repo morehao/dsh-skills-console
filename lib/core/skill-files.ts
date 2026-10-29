@@ -46,7 +46,9 @@ export const BINARY_EXTENSIONS = new Set([
 const SKIP_DIRS = new Set(['node_modules', '.git']);
 
 export class SkillFileError extends Error {
-  constructor(code, message, detail) {
+  code: string;
+  [key: string]: any;
+  constructor(code: string, message: string, detail: any = null) {
     super(message);
     this.name = 'SkillFileError';
     this.code = code;
@@ -54,7 +56,7 @@ export class SkillFileError extends Error {
   }
 }
 
-function badPath(message, detail) {
+function badPath(message: string, detail: any = null) {
   return new SkillFileError('error.skills.bad-path', message, detail);
 }
 
@@ -71,7 +73,7 @@ async function lstatOrNull(target) {
  * 相对路径归一化：只接受技能根内的 POSIX 相对路径。
  * `allowEmpty` 用于「默认读 SKILL.md」。
  */
-export function normalizeRelPath(relPath, { allowEmpty = false } = {}) {
+export function normalizeRelPath(relPath, { allowEmpty = false }: any = {}) {
   if (relPath === undefined || relPath === null) {
     if (allowEmpty) return '';
     throw badPath('缺少文件路径');
@@ -258,7 +260,7 @@ export async function readSkillTree({ root, kind = 'dir' }) {
     };
   }
 
-  const files = [];
+  const files: any[] = [];
   let totalBytes = 0;
   let truncated = false;
 
@@ -274,8 +276,8 @@ export async function readSkillTree({ root, kind = 'dir' }) {
     } catch {
       return;
     }
-    const dirs = [];
-    const plain = [];
+    const dirs: any[] = [];
+    const plain: any[] = [];
     for (const dirent of dirents) {
       const name = dirent.name;
       if (!name || name.startsWith('.')) continue;

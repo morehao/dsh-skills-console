@@ -47,8 +47,8 @@ export function isRateLimited(status, rateLimit) {
   return status === 403 && rateLimit?.remaining === '0';
 }
 
-async function callJson(url, { token, etag, fetchImpl = fetch } = {}) {
-  const headers = {
+async function callJson(url, { token, etag, fetchImpl = fetch }: any = {}) {
+  const headers: any = {
     accept: 'application/vnd.github+json',
     'user-agent': 'dsh-skills-console',
     'x-github-api-version': '2022-11-28',
@@ -74,7 +74,7 @@ async function callJson(url, { token, etag, fetchImpl = fetch } = {}) {
  * 不是根 tree SHA（只有直接传 tree SHA 才会回 tree SHA）。所以这里一律由扁平条目本地重建
  * 根 tree SHA；条目被截断时无法重建，置 null，交给调用方按需补一次 commits 请求。
  */
-export async function fetchTree({ source, ref = 'main', etag, token, fetchImpl } = {}) {
+export async function fetchTree({ source, ref = 'main', etag, token, fetchImpl }: any = {}) {
   const parsed = parseSource(source);
   if (!parsed) return { error: 'invalid-source' };
   const url = `${API}/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`;
@@ -91,7 +91,7 @@ export async function fetchTree({ source, ref = 'main', etag, token, fetchImpl }
   }
   const tree = Array.isArray(result.body?.tree) ? result.body.tree : [];
   const truncated = Boolean(result.body?.truncated);
-  let rootSha = null;
+  let rootSha: any = null;
   if (!truncated) {
     try {
       rootSha = treeShaFromEntries(tree);
@@ -118,7 +118,7 @@ export async function fetchTree({ source, ref = 'main', etag, token, fetchImpl }
  * 返回结构化结果而不是 `string | null`：调用方要靠 `status` / `rateLimited` / `resetAt`
  * 把「仓库不存在」「被限流」「网络不通」拆成三句不同的话（T1）。
  */
-export async function fetchDefaultBranch({ source, token, fetchImpl } = {}) {
+export async function fetchDefaultBranch({ source, token, fetchImpl }: any = {}) {
   const parsed = parseSource(source);
   if (!parsed) {
     return { branch: null, status: null, rateLimited: false, resetAt: null, error: 'invalid-source' };
@@ -139,7 +139,7 @@ export async function fetchDefaultBranch({ source, token, fetchImpl } = {}) {
 }
 
 /** 解析 ref 对应的 commit（只在安装/计划时需要，检测阶段不付这笔成本）。 */
-export async function resolveCommit({ source, ref = 'main', token, fetchImpl } = {}) {
+export async function resolveCommit({ source, ref = 'main', token, fetchImpl }: any = {}) {
   const resolved = await resolveCommitTree({ source, ref, token, fetchImpl });
   return resolved?.commit ?? null;
 }
@@ -148,7 +148,7 @@ export async function resolveCommit({ source, ref = 'main', token, fetchImpl } =
  * 解析 ref 对应的 commit 及其**提交树 SHA**（一次请求拿两样）。
  * 用于条目被截断、无法由扁平列表重建根 tree SHA 的兜底；`tree.sha` 才是真正的根 tree SHA。
  */
-export async function resolveCommitTree({ source, ref = 'main', token, fetchImpl } = {}) {
+export async function resolveCommitTree({ source, ref = 'main', token, fetchImpl }: any = {}) {
   const parsed = parseSource(source);
   if (!parsed) return null;
   const result = await callJson(`${API}/repos/${parsed.owner}/${parsed.repo}/commits/${encodeURIComponent(ref)}`, {

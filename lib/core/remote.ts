@@ -29,6 +29,8 @@ const ALLOWED_HOSTS = new Set([
 ]);
 
 export class RemoteError extends Error {
+  code: string;
+  [key: string]: any;
   constructor(code, message, extra = {}) {
     super(message);
     this.name = 'RemoteError';
@@ -101,7 +103,7 @@ export async function fetchAtomCommit({
   token = null,
   fetchImpl = fetch,
   timeoutMs = DEFAULT_TIMEOUT_MS,
-} = {}) {
+}: any = {}) {
   const parsed = parseSource(source);
   if (!parsed) throw new RemoteError('bad-source', `只接受 owner/repo 或 GitHub URL: ${source}`);
   if (ref !== null) assertRef(ref);
@@ -115,7 +117,7 @@ export async function fetchAtomCommit({
   }, timeoutMs);
   timer.unref?.();
   try {
-    const headers = { accept: 'application/atom+xml', 'user-agent': 'dsh-skills-console' };
+    const headers: any = { accept: 'application/atom+xml', 'user-agent': 'dsh-skills-console' };
     if (token) headers.authorization = `Bearer ${token}`;
     let response;
     try {
@@ -156,7 +158,7 @@ export async function snapshotFromTarball({
   fetchImpl = fetch,
   maxBytes = DEFAULT_MAX_BYTES,
   timeoutMs = DEFAULT_TIMEOUT_MS,
-} = {}) {
+}: any = {}) {
   const parsed = parseSource(source);
   if (!parsed) throw new RemoteError('bad-source', `只接受 owner/repo 或 GitHub URL: ${source}`);
   if (typeof commit !== 'string' || !/^[0-9a-f]{40}$/i.test(commit)) {
@@ -180,8 +182,8 @@ export async function snapshotFromTarball({
     } catch (error) {
       throw new RemoteError('scan-failed', `计算 root tree 失败: ${error.message}`, { cause: error });
     }
-    const entries = [];
-    const tree = [];
+    const entries: any[] = [];
+    const tree: any[] = [];
     const seenDirs = new Set();
     for (const skill of skills) {
       let treeSha;
@@ -237,7 +239,7 @@ export async function downloadTarball({
   maxBytes = DEFAULT_MAX_BYTES,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   signal: externalSignal,
-} = {}) {
+}: any = {}) {
   if (typeof dest !== 'string' || dest.length === 0) {
     throw new RemoteError('invalid-dest', 'downloadTarball 需要 dest 文件路径');
   }
@@ -260,11 +262,11 @@ export async function downloadTarball({
 
   let url = initialUrl;
   const authHost = new URL(initialUrl).hostname;
-  let handle = null;
-  let declared = null;
+  let handle: any = null;
+  let declared: any = null;
   try {
     for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
-      const headers = {
+      const headers: any = {
         accept: 'application/x-gzip',
         'user-agent': 'dsh-skills-console',
       };

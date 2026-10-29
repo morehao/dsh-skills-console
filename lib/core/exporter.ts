@@ -20,9 +20,9 @@ function failure(target, reason, extra = {}) {
  * 逐 agent 导出。`record` 只在本次真的存在一条指向 canonical 的链时被调用
  * （新建的、或此前已受管但没记账的「接管」场景），避免账本里出现不存在的链。
  */
-export function exportSkills({ paths, registry, name, targets = [], record = () => {} }) {
+export function exportSkills({ paths, registry, name, targets = [], record = () => {} }: any) {
   const canonicalPath = path.join(paths.canonical, name);
-  const result = { created: [], skipped: [], failed: [] };
+  const result: any = { created: [], skipped: [], failed: [] };
   if (!fs.existsSync(canonicalPath)) {
     result.failed.push(failure('*', 'not-installed'));
     return result;
@@ -52,7 +52,7 @@ export function exportSkills({ paths, registry, name, targets = [], record = () 
     }
 
     const linkPath = path.join(resolved.dir, name);
-    const outcome = ensureLink({ linkPath, canonicalPath });
+    const outcome: any = ensureLink({ linkPath, canonicalPath });
     if (outcome.created) {
       result.created.push({ target, linkPath, mode: outcome.mode || 'relative' });
       record({ target, agentDir: resolved.dir, linkPath, mode: outcome.mode || 'relative', created: true });
@@ -113,7 +113,7 @@ export function isOurDanglingLink(linkPath, name) {
  */
 export function agentPresence({ paths, registry, name }) {
   const canonicalPath = path.join(paths.canonical, name);
-  const rows = [];
+  const rows: any[] = [];
   for (const entry of registry.detected()) {
     // DSH 的扫描根没有「导出态」：那里要么是真身、要么是停用桩，不列进 Agent 现场
     if (entry.exportBlocked === 'dsh-native-root') continue;

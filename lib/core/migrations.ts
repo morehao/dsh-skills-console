@@ -48,7 +48,7 @@ export function pruneMigrationBackups({ paths, now = Date.now() }) {
   } catch {
     return [];
   }
-  const removed = [];
+  const removed: any[] = [];
   for (const name of entries) {
     if (!isMigrationManifest(name)) continue;
     const file = path.join(paths.migrationsDir, name);
@@ -77,13 +77,13 @@ function keepReason(outcome) {
  * 执行（或继续执行）迁移。返回 `{ ok, migrated, report }`。
  * 任何一步失败都不回滚已完成的步骤——每一步本身是幂等的，下次启动接着做。
  */
-export function ensureMigrated({ paths, store, logger = () => {} }) {
+export function ensureMigrated({ paths, store, logger = () => {} }: any) {
   const migration = store.state.migration;
   if (!migration || migration.status === 'done') return { ok: true, migrated: false };
   if (store.readOnly) return { ok: false, migrated: false, reason: 'state-readonly' };
 
   const now = new Date().toISOString();
-  const report = {
+  const report: any = {
     version: MANIFEST_VERSION,
     at: now,
     from: migration.from ?? 2,
@@ -110,7 +110,7 @@ export function ensureMigrated({ paths, store, logger = () => {} }) {
   }
 
   // ② 剪悬空导出记录：磁盘上没有这条链，就不要留在账上
-  const aliveExports = [];
+  const aliveExports: any[] = [];
   for (const row of store.state.exports || []) {
     if (row.linkPath && fs.existsSync(row.linkPath)) aliveExports.push(row);
     else report.exportsPruned.push(row.linkPath || `${row.target}:${row.skill}`);
@@ -127,7 +127,7 @@ export function ensureMigrated({ paths, store, logger = () => {} }) {
   });
 
   // ④ v2→v3：清理旧停用桩（成功就消失，失败/orphan 留在 legacyShadows）
-  const legacyShadows = [];
+  const legacyShadows: any[] = [];
   for (const row of store.state.legacyShadows || []) {
     if (row.reason === 'orphan') {
       legacyShadows.push(row);
@@ -145,7 +145,7 @@ export function ensureMigrated({ paths, store, logger = () => {} }) {
     logger('migration.legacy-shadow.kept', { skill: row.skill, stubPath: row.stubPath, reason: kept.reason });
   }
 
-  store.update((draft) => {
+  (store as any).update((draft: any) => {
     draft.installs = installs;
     draft.exports = aliveExports;
     draft.legacyShadows = legacyShadows;
