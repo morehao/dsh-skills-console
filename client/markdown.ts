@@ -8,8 +8,11 @@
  * 渲染交给 `views/markdown-view.js` 的 `Markdown` 组件（用 h 建节点，不用 innerHTML）。
  */
 
+/** Markdown AST 节点：手工解析器，节点是动态形状，内部按 any 处理（公开入参/出参仍标注类型）。 */
+export type MdNode = any;
+
 /** 链接分类：外部 / 文内锚点 / 技能内相对路径 / 不可点。 */
-export function classifyHref(href) {
+export function classifyHref(href: unknown): { kind: string; href: string } {
   const value = String(href ?? '').trim();
   if (!value) return { kind: 'unsafe', href: value };
   // eslint-disable-next-line no-control-regex
@@ -26,7 +29,7 @@ export function classifyHref(href) {
 }
 
 /** 标题文本 → 锚点 id：保留中日韩与字母数字，其余折成 `-`。 */
-export function slugify(text) {
+export function slugify(text: unknown): string {
   return String(text ?? '')
     .trim()
     .toLowerCase()
@@ -38,7 +41,7 @@ export function slugify(text) {
 }
 
 /** 剥离开头的 YAML frontmatter；没有或没闭合就当没有。 */
-export function stripFrontmatter(text) {
+export function stripFrontmatter(text: unknown): { frontmatter: string | null; body: string } {
   const source = String(text ?? '');
   const match = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(source);
   if (!match) return { frontmatter: null, body: source };
@@ -48,7 +51,7 @@ export function stripFrontmatter(text) {
 const ESCAPABLE = new Set(['\\', '`', '*', '_', '[', ']', '(', ')', '#', '+', '-', '.', '!', '|', '>', '~']);
 
 /** 从 `[` 开始找一整个 `[label](href)`（括号可嵌套一层，`javascript:alert(1)` 也能整段取到）。 */
-function matchBracketLink(text, start) {
+function matchBracketLink(text: string, start: number): { label: string; href: string; end: number } | null {
   const close = text.indexOf(']', start + 1);
   if (close < 0) return null;
   if (text[close + 1] !== '(') return null;
@@ -70,9 +73,9 @@ function matchBracketLink(text, start) {
 }
 
 /** 行内：转义、行内 code、图片、链接、粗体、斜体。 */
-export function parseInline(text) {
+export function parseInline(text: unknown): MdNode[] {
   const source = String(text ?? '');
-  const nodes = [];
+  const nodes: MdNode[] = [];
   let buffer = '';
   const flush = () => {
     if (buffer) {
@@ -152,9 +155,9 @@ export function parseInline(text) {
 }
 
 /** 行内 AST → 纯文本（标题锚点、目录、aria-label 用）。 */
-export function inlineToText(nodes) {
+export function inlineToText(nodes: unknown): string {
   if (!Array.isArray(nodes)) return String(nodes ?? '');
-  return nodes.map((node) => {
+  return (nodes as MdNode[]).map((node) => {
     if (node.type === 'text' || node.type === 'code') return node.value;
     if (node.type === 'image') return node.alt || '';
     return inlineToText(node.children);
@@ -168,12 +171,12 @@ const LIST_ITEM = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
 const TABLE_SEPARATOR = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/;
 
-function splitRow(line) {
+function splitRow(line: string): string[] {
   const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
   return trimmed.split('|').map((cell) => cell.trim());
 }
 
-function alignOf(cell) {
+function alignOf(cell: string): 'center' | 'left' | 'right' | null {
   const value = cell.trim();
   if (/^:-+:$/.test(value)) return 'center';
   if (/^:-+$/.test(value)) return 'left';
@@ -182,20 +185,20 @@ function alignOf(cell) {
 }
 
 /** Markdown → `{ blocks, headings }`。headings 给整页目录用。 */
-export function parseMarkdown(text) {
+export function parseMarkdown(text: unknown): { blocks: MdNode[]; headings: Array<{ id: string; level: number; text: string }> } {
   const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n');
-  const blocks = [];
-  const headings = [];
-  const usedIds = new Map();
+  const blocks: MdNode[] = [];
+  const headings: Array<{ id: string; level: number; text: string }> = [];
+  const usedIds = new Map<string, number>();
 
-  const headingId = (plain) => {
+  const headingId = (plain: string): string => {
     const base = slugify(plain) || 'section';
     const seen = usedIds.get(base) || 0;
     usedIds.set(base, seen + 1);
     return seen === 0 ? base : `${base}-${seen + 1}`;
   };
 
-  const isBlockStart = (line) => FENCE.test(line)
+  const isBlockStart = (line: string): boolean => FENCE.test(line)
     || HEADING.test(line)
     || HR.test(line)
     || LIST_ITEM.test(line)
@@ -214,7 +217,7 @@ export function parseMarkdown(text) {
     if (fence) {
       const marker = fence[2];
       const info = fence[3].trim();
-      const body = [];
+      const body: string[] = [];
       index += 1;
       while (index < lines.length) {
         const current = lines[index];
@@ -248,9 +251,9 @@ export function parseMarkdown(text) {
     }
 
     if (QUOTE.test(line)) {
-      const quoted = [];
+      const quoted: string[] = [];
       while (index < lines.length && QUOTE.test(lines[index])) {
-        quoted.push(QUOTE.exec(lines[index])[1]);
+        quoted.push(QUOTE.exec(lines[index])![1]);
         index += 1;
       }
       blocks.push({ type: 'quote', blocks: parseMarkdown(quoted.join('\n')).blocks });
@@ -261,7 +264,7 @@ export function parseMarkdown(text) {
       const header = splitRow(line).map((cell) => parseInline(cell));
       const align = splitRow(lines[index + 1]).map(alignOf);
       index += 2;
-      const rows = [];
+      const rows: MdNode[][] = [];
       while (index < lines.length && lines[index].includes('|') && lines[index].trim()) {
         rows.push(splitRow(lines[index]).map((cell) => parseInline(cell)));
         index += 1;
@@ -271,9 +274,9 @@ export function parseMarkdown(text) {
     }
 
     if (LIST_ITEM.test(line)) {
-      const first = LIST_ITEM.exec(line);
+      const first = LIST_ITEM.exec(line)!;
       const ordered = /\d/.test(first[2]);
-      const items = [];
+      const items: MdNode[] = [];
       while (index < lines.length) {
         const match = LIST_ITEM.exec(lines[index]);
         if (!match) break;
@@ -287,7 +290,7 @@ export function parseMarkdown(text) {
         index += 1;
 
         // 收集属于这一项的嵌套项（缩进 > 0 且未超过两层）
-        const nested = [];
+        const nested: string[] = [];
         while (index < lines.length) {
           const child = LIST_ITEM.exec(lines[index]);
           if (!child) break;
@@ -300,7 +303,7 @@ export function parseMarkdown(text) {
         while (index < lines.length && lines[index].trim() && !LIST_ITEM.test(lines[index]) && !isBlockStart(lines[index])) {
           index += 1;
         }
-        const item = { inlines: parseInline(text2), checked };
+        const item: MdNode = { inlines: parseInline(text2), checked };
         if (nested.length > 0) {
           const sub = parseMarkdown(nested.map((row) => row.replace(/^\s{1,4}/, '')).join('\n')).blocks;
           item.children = sub;
@@ -312,7 +315,7 @@ export function parseMarkdown(text) {
     }
 
     // 段落：吃到空行或下一个块起始
-    const paragraph = [line];
+    const paragraph: string[] = [line];
     index += 1;
     while (index < lines.length && lines[index].trim() && !isBlockStart(lines[index])) {
       paragraph.push(lines[index]);
@@ -328,14 +331,14 @@ export function parseMarkdown(text) {
  * 相对链接 → 查看器内部路径：按当前文件所在目录解析，`..` 折回上级，越界的那一段直接丢掉。
  * `#anchor`、`?query` 不参与路径；返回值交给 `onOpenFile`。
  */
-export function resolveRelativeHref(currentDir, href) {
+export function resolveRelativeHref(currentDir: string, href: unknown): { relPath: string; anchor: string } {
   const target = classifyHref(href);
   if (target.kind === 'anchor') return { relPath: '', anchor: target.href };
   const raw = String(target.href || '').split('#')[0].split('?')[0];
   const base = String(currentDir || '').replace(/^\/+|\/+$/g, '');
   if (!raw) return { relPath: '', anchor: target.kind === 'anchor' ? target.href : '' };
   const segments = `${base ? `${base}/` : ''}${raw}`.split('/');
-  const out = [];
+  const out: string[] = [];
   for (const segment of segments) {
     if (!segment || segment === '.') continue;
     if (segment === '..') {

@@ -9,7 +9,7 @@ import {
   resolveRelativeHref,
   slugify,
   stripFrontmatter,
-} from '../client/markdown.js';
+} from '../client/markdown.ts';
 
 const types = (blocks) => blocks.map((block) => block.type);
 

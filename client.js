@@ -41,7 +41,7 @@ __export(index_exports, {
 });
 module.exports = __toCommonJS(index_exports);
 
-// client/api.js
+// client/api.ts
 var API = "/api/morehao/skills-console";
 function short(sha) {
   return sha ? String(sha).slice(0, 7) : "";
@@ -79,7 +79,7 @@ function fetchPluginRelease(version) {
   return apiCall("GET", `/plugin-update/release?version=${encodeURIComponent(version || "")}`);
 }
 
-// client/copy.js
+// client/copy.ts
 var DICT = {
   zh: {
     "section.title": "技能控制台",
@@ -1105,7 +1105,7 @@ function FolderIcon({ size = 12 }) {
 // client/section.js
 var import_react10 = __toESM(require("react"), 1);
 
-// client/scroll.js
+// client/scroll.ts
 function isScroller(node, tolerance = 4) {
   if (!node || typeof getComputedStyle !== "function") return false;
   const style = getComputedStyle(node);
@@ -1124,7 +1124,7 @@ function scrollHost(node, tolerance = 4) {
   return node && nearestScroller(node, tolerance) || node;
 }
 
-// client/styles.js
+// client/styles.ts
 var CSS = `
   /* 主面板形态：页面本身固定不滚，滚动条只出现在列表区（.dshsc-listscroll）。
      页头 / 工具栏 / 筛选条是 flex:none 的固定行，行区域 flex:1 + overflow:auto。
@@ -4053,7 +4053,7 @@ ${conflicts.map((item) => `${item.label}: ${item.linkPath}`).join("\n")}`,
 // client/views/skill-reader.js
 var import_react8 = __toESM(require("react"), 1);
 
-// client/markdown.js
+// client/markdown.ts
 function classifyHref(href) {
   const value = String(href ?? "").trim();
   if (!value) return { kind: "unsafe", href: value };

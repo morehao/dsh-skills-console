@@ -1,8 +1,8 @@
 /**
  * 文案字典：zh / en 的键集合与 {n} / {path} 占位符必须一一对应。
- * 只做查表，不读 document / window。
+ * 只做查表，不读 document / window。键集合与 {n} / {path} 占位符由 client-copy.test.mjs 兜底。
  */
-export const DICT = {
+export const DICT: Record<string, Record<string, string>> = {
   zh: {
     'section.title': '技能控制台',
     'page.title': '技能控制台',
@@ -578,7 +578,7 @@ export const DICT = {
 };
 
 /** 复制文本：无 clipboard 权限时返回 false，由组件给 toast（不静默失败）。 */
-export async function copyText(text) {
+export async function copyText(text: unknown): Promise<boolean> {
   const value = String(text ?? '');
   if (!value) return false;
   try {
@@ -591,7 +591,13 @@ export async function copyText(text) {
 }
 
 /** 按 locale 取文案；缺键先回落中文，再回落键名。`t.lang` 给出当前语言（简介用它）。 */
-export function buildTranslate(locale) {
+export interface LocaleLike {
+  getLocale?(): { active?: string };
+}
+
+export type Translate = ((key: string) => string) & { readonly lang: 'zh' | 'en' };
+
+export function buildTranslate(locale?: LocaleLike | null): Translate {
   const active = () => {
     try {
       return locale?.getLocale?.().active || 'zh';
@@ -599,7 +605,7 @@ export function buildTranslate(locale) {
       return 'zh';
     }
   };
-  const translate = (key) => {
+  const translate = (key: string): string => {
     const id = active();
     const pack = DICT[id] || DICT.zh;
     return pack[key] ?? DICT.zh[key] ?? key;
@@ -609,5 +615,5 @@ export function buildTranslate(locale) {
     get: () => (active() === 'en' ? 'en' : 'zh'),
     enumerable: false,
   });
-  return translate;
+  return translate as Translate;
 }
