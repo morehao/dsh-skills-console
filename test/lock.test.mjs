@@ -10,7 +10,7 @@ import {
   removeSkill,
   updateLock,
   upsertSkill,
-} from '../lib/core/lock.js';
+} from '../dist/core/lock.js';
 
 const TREE_SHA = '0e96f95ca66e0d38a69f76d288d78198332aed8f';
 const NOW = new Date('2026-10-24T00:00:00.000Z');

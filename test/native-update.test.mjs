@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createRegistry } from '../lib/core/agents.js';
-import { gitTreeSha } from '../lib/core/git-tree.js';
-import { createInstaller } from '../lib/core/installer.js';
-import { createPaths } from '../lib/core/paths.js';
-import { createService } from '../lib/core/service.js';
-import { StateStore } from '../lib/core/state.js';
+import { createRegistry } from '../dist/core/agents.js';
+import { gitTreeSha } from '../dist/core/git-tree.js';
+import { createInstaller } from '../dist/core/installer.js';
+import { createPaths } from '../dist/core/paths.js';
+import { createService } from '../dist/core/service.js';
+import { StateStore } from '../dist/core/state.js';
 import { writeTarFixture } from './helpers/tar-fixture.mjs';
 
 const OLD_COMMIT = 'a'.repeat(40);
@@ -193,7 +193,7 @@ test('Service + 真实 installer：限流下更新 → lock/state/备份 → 回
   const stateRolled = store.findInstall('alpha');
   assert.equal(stateRolled.commit, null);
   assert.equal(stateRolled.treeSha, oldTree);
-  assert.equal(stateRolled.installedHash, (await import('../lib/core/hash.js')).contentHash(path.join(paths.canonical, 'alpha')));
+  assert.equal(stateRolled.installedHash, (await import('../dist/core/hash.js')).contentHash(path.join(paths.canonical, 'alpha')));
 
   assert.ok(gh.calls.some((url) => url.includes('.atom')));
   assert.ok(gh.calls.some((url) => url.includes(`/tar.gz/${NEW_COMMIT}`)));

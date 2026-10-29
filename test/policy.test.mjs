@@ -3,14 +3,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createPaths } from '../lib/core/paths.js';
+import { createPaths } from '../dist/core/paths.js';
 import {
   createPolicyProvider,
   installPolicyProviders,
   POLICY_PROVIDER,
   POLICY_RANK,
-} from '../lib/core/policy.js';
-import { findProjectRoot } from '../lib/core/roots.js';
+} from '../dist/core/policy.js';
+import { findProjectRoot } from '../dist/core/roots.js';
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-policy-'));

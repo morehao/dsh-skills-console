@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createPluginUpdate, isNewerVersion } from '../lib/core/plugin-update.js';
-import { createRoutes, ROUTE_PREFIX } from '../lib/routes.js';
+import { createPluginUpdate, isNewerVersion } from '../dist/core/plugin-update.js';
+import { createRoutes, ROUTE_PREFIX } from '../dist/routes.js';
 
 const META = { name: '@demo/plugin', version: '1.2.3' };
 
@@ -420,7 +420,7 @@ test('路由 POST /plugin-update/apply：分发到 apply；manual 错误按 409 
   assert.equal(JSON.parse(res.out.body).updatedVersion, '1.3.0');
 
   // manual 抛错 → 409 + detail
-  const { ServiceError } = await import('../lib/core/service.js');
+  const { ServiceError } = await import('../dist/core/service.js');
   const manualHandler = pluginRoutes({
     check: async () => ({}),
     apply: async () => { throw new ServiceError('error.plugin-update.manual', '用命令', 'dsh plugin add x', 409); },

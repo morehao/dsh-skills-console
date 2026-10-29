@@ -5,7 +5,7 @@
 // 复用 `npm pack --dry-run --json`（只打印清单、不生成 tgz），用临时 cache 目录避免本机
 // ~/.npm 属主问题（EPERM）。
 import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -21,10 +21,10 @@ const ALLOWED_EXACT = new Set([
 	"icon.svg",
 	"client.js",
 ]);
-const ALLOWED_PREFIX = ["lib/", "locale/"];
+const ALLOWED_PREFIX = ["dist/", "locale/"];
 
 // 源码与构建输入一律不进包：npm 只发根 client.js（生成物），client/ 是 esbuild 的输入。
-const FORBIDDEN_PREFIX = ["client/", "scripts/", "test/", ".dsh/", ".github/"];
+const FORBIDDEN_PREFIX = ["client/", "lib/", "scripts/", "test/", ".dsh/", ".github/"];
 
 const required = [
 	"package.json",
@@ -34,7 +34,9 @@ const required = [
 	"cordis.patch.yml",
 	"icon.svg",
 	"client.js",
-	"lib/index.js",
+	"dist/index.js",
+	"dist/api.js",
+	"dist/api.d.ts",
 	"locale/zh.json",
 	"locale/en.json",
 ];
@@ -60,12 +62,24 @@ const leakedSources = files.filter((p) => FORBIDDEN_PREFIX.some((prefix) => p.st
 // 反向检查：必备文件一个都不能少（少了就是空包 / 缺图标缺 locale 缺 client half）。
 const missing = required.filter((p) => !files.includes(p));
 
+// 公共 API：exports["./api"] 的 types / default 必须指向实际入包的文件。
+const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+const apiEntry = pkg.exports?.["./api"];
+const apiProblems = [];
+if (!apiEntry || typeof apiEntry !== "object") {
+	apiProblems.push('package.json 缺少 exports["./api"]（types/default 对象形态）');
+} else {
+	if (apiEntry.types !== "./dist/api.d.ts") apiProblems.push('exports["./api"].types 应为 "./dist/api.d.ts"');
+	if (apiEntry.default !== "./dist/api.js") apiProblems.push('exports["./api"].default 应为 "./dist/api.js"');
+}
+
 for (const p of unwanted) console.error(`✗ 包内出现非白名单文件：${p}`);
 for (const p of leakedSources) console.error(`✗ 源码目录不得入包：${p}`);
 for (const p of missing) console.error(`✗ 包内缺少必备文件：${p}`);
+for (const p of apiProblems) console.error(`✗ ${p}`);
 
 console.log(`包内共 ${files.length} 个文件：\n  ${files.sort().join("\n  ")}`);
-if (unwanted.length || missing.length) {
+if (unwanted.length || missing.length || apiProblems.length) {
 	console.error("打包内容校验失败");
 	process.exit(1);
 }

@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { createRoutes, PLUGIN_INFO, ROUTE_PREFIX } from '../lib/routes.js';
-import { ServiceError } from '../lib/core/service.js';
+import { createRoutes, PLUGIN_INFO, ROUTE_PREFIX } from '../dist/routes.js';
+import { ServiceError } from '../dist/core/service.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(path.join(here, '..', 'package.json'), 'utf8'));

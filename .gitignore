@@ -4,6 +4,8 @@
 # 依赖与构建产物
 node_modules/
 dist/
+# 客户端 bundle 也是构建产物（npm run build 生成），不入库
+client.js
 coverage/
 *.tsbuildinfo
 

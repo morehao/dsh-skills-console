@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { createPaths } from '../lib/core/paths.js';
+import { createPaths } from '../dist/core/paths.js';
 
 /** 锁定路径契约：默认目录、日志名、env 优先级。 */
 

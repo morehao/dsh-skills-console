@@ -1,6 +1,7 @@
 name: check
 
-# 最小 CI：按 lockfile 装依赖（esbuild + 运行时 skills），不跑发布构建——client.js 是提交进仓的生成物。
+# 最小 CI：按 lockfile 装依赖（typescript + esbuild），产物（dist/、client.js）不入库，
+# 由 `npm run check` 内的 `npm run build` 现场构建后再校验。
 # 单测与冒烟全部离线、用临时 HOME。目标是把「只有真正发版时才会暴露」的机械错误前移到 PR ——
 # 发布是 tag 触发、tag 推上去就不可改，失败只能事后发现。
 on:
@@ -30,9 +31,11 @@ jobs:
           # 依赖只从 lockfile 装一次（v5 起有 packageManager 字段就会自动开缓存）。
           package-manager-cache: false
 
-      # check:client 在内存里重建 client.js 并与提交的生成物逐字节比对。
+      # 只装依赖、不跑 prepare 构建：产物统一由下面的 `npm run check` 构建一次。
+      # 曾出现 `npm ci`(prepare→build) / `npm run check`(build) / `npm test`(pretest→build) 三次重复构建，
+      # 现用 `--ignore-scripts` 去掉 prepare 与 pretest 两次，只保留 check 里这一次。
       - name: 安装依赖
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # 发布脚本本身是 shell：`bash -n` 先过一遍语法，避免 tag 推上去才发现脚本跑不起来。
       - name: 发布脚本语法
@@ -43,6 +46,7 @@ jobs:
       - name: 机械校验（npm run check）
         run: npm run check
 
-      # 139 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
+      # 446 个 node:test 用例：临时 HOME / DSH_HOME + stub CLI，不联网、不碰真实技能目录。
+      # `--ignore-scripts` 跳过 pretest 的重复构建——`npm run check` 已构建好 dist/ 与 client.js。
       - name: 单元测试
-        run: npm test
+        run: npm test --ignore-scripts

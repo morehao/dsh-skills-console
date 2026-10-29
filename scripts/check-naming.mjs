@@ -17,7 +17,7 @@ const fail = (msg) => {
 
 const pkg = JSON.parse(await read("package.json"));
 const patch = await read("cordis.patch.yml");
-const { name: pluginName } = await import("../lib/index.js");
+const { name: pluginName } = await import("../dist/index.js");
 
 // 极简读取：本仓 patch 只有一条 insert，取第一个 id / name 即可，不引入 YAML 依赖。
 const insertId = patch.match(/^\s*-\s+id:\s*(\S+)\s*$/m)?.[1];
@@ -38,9 +38,21 @@ if (pkg.publishConfig?.access !== "public") {
 
 // exports：dsh 加载 client half 与设置页资源都走这里，缺一项就是「桌面上能装、页面里白屏」。
 const exportsMap = pkg.exports ?? {};
-const requiredExports = [".", "./client", "./locale/*.json", "./icon", "./package.json"];
+const requiredExports = [".", "./api", "./client", "./locale/*.json", "./icon", "./package.json"];
 const missingExports = requiredExports.filter((key) => !(key in exportsMap));
 if (missingExports.length) fail(`package.json exports 缺少：${missingExports.join("、")}`);
+if (exportsMap["."] && exportsMap["."] !== "./dist/index.js") {
+  fail(`exports["."] 应指向 ./dist/index.js，实际为 ${exportsMap["."]}`);
+}
+const apiExport = exportsMap["./api"];
+if (apiExport !== undefined) {
+  if (!apiExport || typeof apiExport !== "object") {
+    fail('exports["./api"] 应为 { types, default } 对象');
+  } else {
+    if (apiExport.types !== "./dist/api.d.ts") fail(`exports["./api"].types 应为 ./dist/api.d.ts，实际为 ${apiExport.types}`);
+    if (apiExport.default !== "./dist/api.js") fail(`exports["./api"].default 应为 ./dist/api.js，实际为 ${apiExport.default}`);
+  }
+}
 if (exportsMap["./client"] && exportsMap["./client"] !== "./client.js") {
 	fail(`exports["./client"] 应指向 ./client.js，实际为 ${exportsMap["./client"]}`);
 }
@@ -48,7 +60,7 @@ if (exportsMap["./client"] && exportsMap["./client"] !== "./client.js") {
 // files：npm 只发白名单里的文件；client.js 漏了 → 包里没有 web client half。
 const files = pkg.files ?? [];
 if (!files.includes("client.js")) fail("package.json files 白名单缺少 client.js");
-if (!files.some((p) => p.startsWith("lib"))) fail("package.json files 白名单缺少 lib");
+if (!files.some((p) => p.startsWith("dist"))) fail("package.json files 白名单缺少 dist");
 if (!(pkg.dsh?.client && pkg.dsh?.bundle?.patch)) {
 	fail("package.json 缺少 dsh.client 或 dsh.bundle.patch（dsh 靠它装配 Host/Client half）");
 }

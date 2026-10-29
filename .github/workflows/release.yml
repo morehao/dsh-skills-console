@@ -51,6 +51,11 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
+      # 源码是 TS，产物（dist/、client.js）不入库：发布前必须装构建期依赖，
+      # 构建由 `npm publish` 触发的 prepack 完成（不单独加 build 步骤）。
+      - name: Install dependencies
+        run: npm ci
+
       - name: Upgrade npm for trusted publishing
         run: npm install -g npm@latest
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.7.0] - 2026-10-29
+
+### Refactor
+
+- **build**: 全仓迁移到 TypeScript——Host（`lib/**`，37 个 `.ts`，含 6 份纯类型 `lib/contract/*.d.ts`）由 `tsc` 编译到 `dist/`；Web Client（`client/**`，27 个 `.ts`）由 esbuild 打包为根 `client.js`。仓库内已无 `.js` 源码。
+- **packaging**: `main` / `exports` 从 `lib/index.js` 切到 `dist/index.js`；打包白名单改发 `dist/` 与根 `client.js`，不再发 `lib/`、`client/` 源码目录。
+- **build**: `dist/` 与根 `client.js` 两个产物都不入库（`.gitignore`），改由 `npm run build` 生成（`prepare` / `prepack` 自动触发）；`release.yml` 发布 job 增加 `npm ci`，保证构建期依赖到位。
+- **deps**: 新增构建期 devDependency `typescript`（另有 `esbuild`、`@types/node`、`@types/react`）；`dependencies` 仍只有 `tar`。
+
+### 注意
+
+- 运行时行为、HTTP 契约（路由前缀、鉴权、错误码）、`state.json` 文件格式（v4）与 `dependencies`（仅 `tar`）均未改变；本轮为纯类型化迁移。
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.6.0...v0.7.0
+
 ## [v0.6.0] - 2026-10-29
 
 ### Refactor

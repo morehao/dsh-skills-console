@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createPaths } from '../lib/core/paths.js';
-import { createRegistry } from '../lib/core/agents.js';
-import { emptyState } from '../lib/core/state.js';
-import { exportSkills, agentPresence } from '../lib/core/exporter.js';
+import { createPaths } from '../dist/core/paths.js';
+import { createRegistry } from '../dist/core/agents.js';
+import { emptyState } from '../dist/core/state.js';
+import { exportSkills, agentPresence } from '../dist/core/exporter.js';
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-exporter-'));

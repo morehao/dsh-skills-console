@@ -3,15 +3,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createPaths } from '../lib/core/paths.js';
-import { createRegistry } from '../lib/core/agents.js';
-import { createService, ServiceError } from '../lib/core/service.js';
-import { contentHash, contentHashWith, localeComparator } from '../lib/core/hash.js';
-import { hashWithoutInvocation } from '../lib/core/invocation.js';
-import { gitTreeSha, treeShaFromEntries } from '../lib/core/git-tree.js';
-import { StateStore } from '../lib/core/state.js';
-import { createShadow } from '../lib/core/shadow.js';
-import { snapshotId } from '../lib/core/updates.js';
+import { createPaths } from '../dist/core/paths.js';
+import { createRegistry } from '../dist/core/agents.js';
+import { createService, ServiceError } from '../dist/core/service.js';
+import { contentHash, contentHashWith, localeComparator } from '../dist/core/hash.js';
+import { hashWithoutInvocation } from '../dist/core/invocation.js';
+import { gitTreeSha, treeShaFromEntries } from '../dist/core/git-tree.js';
+import { StateStore } from '../dist/core/state.js';
+import { createShadow } from '../dist/core/shadow.js';
+import { snapshotId } from '../dist/core/updates.js';
 import { writeTarFixture } from './helpers/tar-fixture.mjs';
 
 const TREE_SHA = 'e'.repeat(40);
@@ -1856,5 +1856,27 @@ test('自动检测：上游失败也只返回 ok:false，不向定时器抛', as
   assert.equal(result.ok, true);
   // checkUpdates 自身把失败折成 unknown，runAutoCheck 视为正常完成
   assert.equal(store.state.checks.alpha.status, 'unknown');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('安装 targets 语义：显式 [] 即一个都不建（不回退 settings），undefined 才回退', async () => {
+  const { root, home, store, service } = setup();
+  await service.setSettings({ exportTargets: ['agent:claude-code'] });
+
+  // 显式空数组：即使 settings 里有默认导出目标，也不建任何链
+  await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: [] });
+  assert.equal(
+    fs.existsSync(path.join(home, '.claude', 'skills', 'alpha')),
+    false,
+    '显式 targets: [] 不应建链（不能回退 settings）',
+  );
+  assert.equal(store.state.exports.filter((row) => row.skill === 'alpha').length, 0);
+
+  // 未传 targets（undefined）：回退 settings.exportTargets → 建链
+  await service.install({ source: 'morehao/ai-kit', skills: ['beta'] });
+  assert.ok(
+    fs.lstatSync(path.join(home, '.claude', 'skills', 'beta')).isSymbolicLink(),
+    '未传 targets 时应回退 settings.exportTargets',
+  );
   fs.rmSync(root, { recursive: true, force: true });
 });

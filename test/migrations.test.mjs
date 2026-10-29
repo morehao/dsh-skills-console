@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createPaths } from '../lib/core/paths.js';
-import { StateStore } from '../lib/core/state.js';
-import { ensureMigrated, pruneMigrationBackups } from '../lib/core/migrations.js';
-import { createShadow, inspectShadow } from '../lib/core/shadow.js';
+import { createPaths } from '../dist/core/paths.js';
+import { StateStore } from '../dist/core/state.js';
+import { ensureMigrated, pruneMigrationBackups } from '../dist/core/migrations.js';
+import { createShadow, inspectShadow } from '../dist/core/shadow.js';
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-migrate-'));

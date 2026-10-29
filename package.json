@@ -1,6 +1,6 @@
 {
   "name": "@morehao/dsh-skills-console",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "统一管理本地技能的安装、更新、删除与接入，让同一份技能在多个 Agent 间复用。A skill manager for DeepSeek Harness: install, update, remove, link and toggle agent skills.",
   "license": "MIT",
   "author": "morehao <morehao@qq.com>",
@@ -16,16 +16,20 @@
     "access": "public"
   },
   "type": "module",
-  "main": "lib/index.js",
+  "main": "dist/index.js",
   "exports": {
-    ".": "./lib/index.js",
+    ".": "./dist/index.js",
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "default": "./dist/api.js"
+    },
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
   "files": [
-    "lib",
+    "dist",
     "client.js",
     "cordis.patch.yml",
     "locale/*.json",
@@ -50,16 +54,24 @@
   },
   "scripts": {
     "test": "node --test \"test/*.test.mjs\"",
+    "pretest": "npm run build",
     "build:client": "node scripts/build-client.mjs",
     "dev:client": "node scripts/build-client.mjs --watch",
     "check:client": "node scripts/build-client.mjs --check",
+    "build:host": "node scripts/build-host.mjs",
+    "dev:host": "node scripts/build-host.mjs --watch",
+    "check:host": "node scripts/build-host.mjs --check",
+    "check:types": "tsc -p tsconfig.client.json",
     "check:cycles": "node scripts/check-cycles.mjs",
-    "check": "node scripts/check-syntax.mjs && node scripts/check-cycles.mjs && node scripts/build-client.mjs --check && node scripts/check-naming.mjs && node scripts/check-pack.mjs && node scripts/smoke-release-notes.mjs",
+    "check": "node scripts/check-syntax.mjs && node scripts/check-cycles.mjs && npm run build && npm run check:types && node scripts/check-naming.mjs && node scripts/check-pack.mjs && node scripts/smoke-release-notes.mjs",
     "check:syntax": "node scripts/check-syntax.mjs",
     "check:naming": "node scripts/check-naming.mjs",
     "check:pack": "node scripts/check-pack.mjs",
     "check:release-notes": "node scripts/smoke-release-notes.mjs",
-    "sync:agents": "node scripts/sync-agent-table.mjs"
+    "sync:agents": "node scripts/sync-agent-table.mjs",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
+    "build": "npm run build:host && npm run build:client"
   },
   "engines": {
     "node": "^22.20.0 || >=24.0.0"
@@ -85,7 +97,10 @@
     "@deepseek-ai/dsh-skill": "0.2.1-rc.3",
     "@deepseek-ai/dsh-skill-filesystem": "0.2.1-rc.3",
     "@deepseek-ai/schemastery": "3.18.5",
+    "@types/node": "22.20.5",
+    "@types/react": "18.3.31",
     "esbuild": "0.28.2",
+    "typescript": "5.9.3",
     "yaml": "2.9.1"
   }
 }

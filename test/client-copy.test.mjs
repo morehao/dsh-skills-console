@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { DICT } from '../client/copy.js';
+import { DICT } from '../client/copy.ts';
 
 const keysOf = (pack) => Object.keys(pack).sort();
 const placeholders = (text) => [...String(text).matchAll(/\{([a-zA-Z0-9_]+)\}/g)].map((m) => m[1]).sort();

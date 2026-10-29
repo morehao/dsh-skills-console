@@ -10,9 +10,9 @@ import {
   readShadowMarker,
   removeShadow,
   shadowSkillMd,
-} from '../lib/core/shadow.js';
-import { scanSkillRoot } from '../lib/core/roots.js';
-import { resolveVisibility } from '../lib/core/visibility.js';
+} from '../dist/core/shadow.js';
+import { scanSkillRoot } from '../dist/core/roots.js';
+import { resolveVisibility } from '../dist/core/visibility.js';
 
 function sandbox() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-shadow-'));

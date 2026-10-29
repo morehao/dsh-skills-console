@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { isScroller, nearestScroller, scrollHost } from '../client/scroll.js';
+import { isScroller, nearestScroller, scrollHost } from '../client/scroll.ts';
 
 /**
  * 滚动容器探测的纯函数用例。

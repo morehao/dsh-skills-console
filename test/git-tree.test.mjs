@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { EMPTY_TREE_SHA, GitTreeError, gitTreeSha, treeShaFromEntries } from '../lib/core/git-tree.js';
+import { EMPTY_TREE_SHA, GitTreeError, gitTreeSha, treeShaFromEntries } from '../dist/core/git-tree.js';
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-gittree-'));

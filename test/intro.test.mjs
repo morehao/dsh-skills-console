@@ -11,7 +11,7 @@ import {
   runIntroCall,
   introLang,
   truncateUtf8,
-} from '../lib/core/intro.js';
+} from '../dist/core/intro.js';
 
 function fakeLlm(chunks, { prepare = true, onStream = null, modelInfo = undefined } = {}) {
   const calls = [];

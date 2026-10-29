@@ -4,12 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { createPaths } from '../lib/core/paths.js';
-import { createRegistry } from '../lib/core/agents.js';
-import { createService } from '../lib/core/service.js';
-import { StateStore } from '../lib/core/state.js';
-import { normalizeIntroConfig } from '../lib/core/intro.js';
-import { createIntroStore } from '../lib/core/intro-store.js';
+import { createPaths } from '../dist/core/paths.js';
+import { createRegistry } from '../dist/core/agents.js';
+import { createService } from '../dist/core/service.js';
+import { StateStore } from '../dist/core/state.js';
+import { normalizeIntroConfig } from '../dist/core/intro.js';
+import { createIntroStore } from '../dist/core/intro-store.js';
 
 const SKILL_MD = '---\nname: demo\ndescription: demo skill\n---\n# Demo\n\n用来整理提交信息。\n';
 

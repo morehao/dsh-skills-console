@@ -7,10 +7,10 @@
 
 | 改动 | 必跑 | 说明 |
 |---|---|---|
-| `lib/core/*` | `npm run check` + `npm test` | 341 个离线用例覆盖 hash / state / policy / visibility / roots / agents / links / paths / updates / installer / discovery / remote / native-only / service / routes / client 渲染与滚动口径 / import 图 |
-| `lib/routes.js` | 同上 + 手工打一次接口 | `routes.test.mjs` 覆盖鉴权、身份版本与 409 映射；改 `matchRoute` 后按 §2 的 curl 自测 |
-| `client/**` | `npm run build:client` + `npm run check` + `npm test` | 源码是唯一事实来源；改完必须重建并一起提交。`test/client.test.mjs` 用 React 存根跑「渲染 → effect → 再渲染」，能抓未定义变量与字段名错，但**不替代真浏览器** |
-| 根 `client.js` | `npm run check:client` | 生成物：不要手改；改 `client/**` 后重建 |
+| `lib/core/*` | `npm run check` + `npm test` | 446 个离线用例覆盖 hash / state / policy / visibility / roots / agents / links / paths / updates / installer / discovery / remote / native-only / service / routes / client 渲染与滚动口径 / import 图 |
+| `lib/routes.ts` | 同上 + 手工打一次接口 | `routes.test.mjs` 覆盖鉴权、身份版本与 409 映射；改 `matchRoute` 后按 §2 的 curl 自测 |
+| `client/**` | `npm run build` + `npm run check` + `npm test` | 源码是唯一事实来源；产物不入库，改完重跑 `npm run build`。`test/client.test.mjs` 用 React 存根跑「渲染 → effect → 再渲染」，能抓未定义变量与字段名错，但**不替代真浏览器** |
+| `dist/`、根 `client.js` | `npm run check:host` / `npm run check:client` | 生成物：不要手改，也不入库；改源码后 `npm run build` |
 | `package.json` / `exports` / `files` / 命名 | `node scripts/check-naming.mjs` + `node scripts/check-pack.mjs` | CI 也跑；`exports` 缺 `./client`、`files` 缺 `client.js` 会导致「能装、页面白屏」 |
 | `scripts/*.mjs` | `node --check <file>` + 对应冒烟 | `release-notes` 有自己的冒烟 |
 | CI / release workflow | 本地跑对应脚本 + `bash -n scripts/ci-publish.sh` | 不要只改 YAML 不验证 |
@@ -30,12 +30,12 @@ curl -s -H 'x-dsh-skills-console: 1' -X POST 'http://127.0.0.1:<port>/api/moreha
 
 ## 3. CI 实际跑什么（`check.yml`）
 
-PR 与 push `main` 触发，**只按 lockfile 装依赖**（构建期 esbuild + 运行时 `tar`），不跑发布构建；测试本身仍不联网：
+PR 与 push `main` 触发，**只按 lockfile 装依赖**（构建期 typescript + esbuild + 运行时 `tar`），产物由 `check` 现场构建；测试本身仍不联网：
 
-1. `npm ci`（`check:client` 需要 esbuild；`tar` 是运行时依赖，同时被装上）
+1. `npm ci`（构建期需要 typescript + esbuild；`tar` 是运行时依赖，同时被装上；`prepare` 会先构建一次）
 2. `bash -n scripts/ci-publish.sh`
-3. `npm run check` → `check-syntax.mjs`（lib/、client/、scripts/、test/、client.js 逐文件 `node --check`）→ `check-cycles.mjs`（client/ 与 lib/ 的相对 import 无环、无解析不到的路径）→ `check:client`（按 `client/` 重建并与提交的 `client.js` 逐字节比对）→ `check-naming` → `check-pack` → `smoke-release-notes`
-4. `npm test` → 341 个 `node:test` 用例（临时 HOME / DSH_HOME + fake installer / Atom-codeload stub）
+3. `npm run check` → `check-syntax.mjs`（scripts/、test/ 逐文件 `node --check`）→ `check-cycles.mjs`（client/ 与 lib/ 的相对 import 无环、无解析不到的路径，支持 `.ts`）→ `npm run build`（tsc + esbuild）→ `check:types`（client 侧 `tsc --noEmit`）→ `check-naming` → `check-pack` → `smoke-release-notes`
+4. `npm test` → 446 个 `node:test` 用例（临时 HOME / DSH_HOME + fake installer / Atom-codeload stub）
 
 注意：
 
@@ -51,7 +51,7 @@ PR 与 push `main` 触发，**只按 lockfile 装依赖**（构建期 esbuild + 
 - `skills` 是 `package.json` 的 runtime dependency，由 npm/pnpm 在安装时拉取，**不进入 tarball 文件清单**；`check-pack` 不需要为它放行。
 - 命名与接线（[check-naming.mjs](../../scripts/check-naming.mjs)）：
   - `package.json.name` == `cordis.patch.yml` 的 `insert[0].name`
-  - `lib/index.js` 的 `export const name` == `insert[0].id`
+  - `lib/index.ts` 的 `export const name` == `insert[0].id`
   - `publishConfig.access === "public"`
   - `exports` 含 `.`、`./client`、`./locale/*.json`、`./icon`、`./package.json`，且 `./client` → `./client.js`
   - `files` 含 `client.js` 与 `lib`；`dsh.bundle.patch` + `dsh.client` 在位
@@ -77,8 +77,8 @@ PR 与 push `main` 触发，**只按 lockfile 装依赖**（构建期 esbuild + 
 | 症状 | 先查 |
 |---|---|
 | `check-pack` 多出文件 | 本地残留 `*.tgz`、`node_modules`，或新增目录未加白名单（`client/` 绝不能进包） |
-| `check:client` 报生成物不一致 | 改了 `client/**` 没重建：`npm run build:client` 后把两者一起提交 |
-| `npm ci` / `npm run check` 报找不到 `esbuild` | `package-lock.json` 与 `package.json` 不同步，或本地没装构建期依赖 |
+| `check:host` / `check:client` 报产物不一致 | 改了源码没重建：`npm run build` |
+| `npm ci` / `npm run check` 报找不到 `esbuild` / `typescript` | `package-lock.json` 与 `package.json` 不同步，或本地没装构建期依赖 |
 | `check-naming` 失败 | 三处命名不一致 / `exports` 缺 `./client` / `files` 缺 `client.js` |
 | `npm test` 碰到真实目录 | 用例忘了把 `HOME` / `DSH_HOME` 指到临时目录 |
 | OIDC `404` | workflow `name:` 是否等于 `release.yml`；npm registry 是否降级 |

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { contentHash } from '../lib/core/hash.js';
+import { contentHash } from '../dist/core/hash.js';
 import {
   hashWithoutInvocation,
   inspectPark,
@@ -15,7 +15,7 @@ import {
   readParkMarker,
   unparkSkill,
   writeFileAtomic,
-} from '../lib/core/invocation.js';
+} from '../dist/core/invocation.js';
 
 function sandbox(text) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-inv-'));
