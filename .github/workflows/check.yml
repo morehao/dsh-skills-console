@@ -1,6 +1,7 @@
 name: check
 
-# 最小 CI：按 lockfile 装依赖（esbuild + 运行时 skills），不跑发布构建——client.js 是提交进仓的生成物。
+# 最小 CI：按 lockfile 装依赖（typescript + esbuild），产物（dist/、client.js）不入库，
+# 由 `npm run check` 内的 `npm run build` 现场构建后再校验。
 # 单测与冒烟全部离线、用临时 HOME。目标是把「只有真正发版时才会暴露」的机械错误前移到 PR ——
 # 发布是 tag 触发、tag 推上去就不可改，失败只能事后发现。
 on:
