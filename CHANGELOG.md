@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.5.9] - 2026-10-29
+
+### Fixes
+
+- **paths**: 用户数据根解析对齐 DSH 的 `dsh-home-paths`——空白的 `DSH_HOME` / `DSH_AGENTS_HOME` 等覆盖值按未设置处理（不再解析成相对路径），支持 `~` 展开并统一绝对化。技能简介缓存从 `$DSH_HOME/skills-console/intros.json` 迁到 `$DSH_HOME/cache/skills-console/intros.json`，与权威状态分家；旧位置只读回退，下次生成写到新位置；新增 `DSH_SKILLS_CONSOLE_CACHE_HOME` 与 `config.cacheDir`。
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.5.8...v0.5.9
+
 ## [v0.5.8] - 2026-10-29
 
 ### Fixes

@@ -80,9 +80,9 @@ test('介绍缓存：缺 hash / 缺 text 的条目直接丢弃', () => {
 test('介绍缓存：写失败只记日志，不抛给调用方', () => {
   const { home, paths, logs } = setup();
   const store = createIntroStore({ paths, logger: (...args) => logs.push(args) });
-  // 用同名文件占住 stateDir，让 mkdir/写盘失败（home/.dsh 先建出来）
-  fs.mkdirSync(path.join(home, '.dsh'), { recursive: true });
-  fs.writeFileSync(paths.stateDir, 'not a directory', 'utf8');
+  // 用同名文件占住 cacheDir，让 mkdir/写盘失败（home/.dsh/cache 先建出来）
+  fs.mkdirSync(path.join(home, '.dsh', 'cache'), { recursive: true });
+  fs.writeFileSync(paths.cacheDir, 'not a directory', 'utf8');
   const saved = store.put('git-kit', 'zh', ENTRY);
   assert.equal(saved.text, ENTRY.text, '内存里仍可用');
   assert.ok(logs.some(([event]) => event === 'intro.cache.write.failed'));
@@ -135,3 +135,26 @@ test('介绍缓存：非 stop 的条目不当作可用简介返回', () => {
   assert.equal(store.get('demo', 'zh'), null);
 });
 
+
+test('介绍缓存：旧位置（stateDir）只读回退，新位置写入', () => {
+  const { paths } = setup();
+  const legacy = paths.introLegacyFiles[0];
+  assert.ok(legacy, '默认配置带旧位置回退');
+  assert.notEqual(legacy, paths.introFile);
+  assert.equal(legacy, path.join(paths.stateDir, 'intros.json'));
+
+  fs.mkdirSync(path.dirname(legacy), { recursive: true });
+  fs.writeFileSync(legacy, JSON.stringify({
+    version: INTRO_STORE_VERSION,
+    items: { 'git-kit': { zh: ENTRY } },
+  }), 'utf8');
+
+  const store = createIntroStore({ paths, logger: () => {} });
+  assert.equal(store.get('git-kit', 'zh').text, ENTRY.text, '旧缓存可读');
+
+  store.put('demo', 'zh', ENTRY);
+  assert.ok(fs.existsSync(paths.introFile), '写落到新位置');
+  const raw = JSON.parse(fs.readFileSync(paths.introFile, 'utf8'));
+  assert.ok(raw.items['git-kit'].zh, '旧条目随内存带到新文件');
+  assert.equal(JSON.parse(fs.readFileSync(legacy, 'utf8')).items['demo'], undefined, '旧文件不再被写');
+});

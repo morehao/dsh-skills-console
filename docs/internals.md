@@ -47,6 +47,7 @@ DSH 会把所有扫描根合并成一张技能表，**rank 小的先赢**；同�
 | DSH 用户局部根 | `~/.dsh/skills`（rank 400） | v0.4.0 起**不写**；只作为 legacy 停用桩的迁移清理对象 |
 | 插件状态 | `$DSH_HOME/skills-console/state.json` | 本插件（`DSH_SKILLS_CONSOLE_HOME` 可覆盖） |
 | 备份 / 回收站 | `$DSH_HOME/skills-console/{backups,trash}` | 本插件 |
+| 技能简介缓存 | `$DSH_HOME/cache/skills-console/intros.json` | 本插件（可丢缓存，`DSH_SKILLS_CONSOLE_CACHE_HOME` 可覆盖；v0.5.8 及更早的 `$DSH_HOME/skills-console/intros.json` 只读回退） |
 | 事件日志 | `$DSH_HOME/skills-console/dsh-skills-console.log` | 本插件（JSONL，1MB 滚动） |
 
 state v4 的形状、v3→v4 与 v1→v2→v3 迁移步骤、诊断字段见 [development.md §4](development.md#4-调试)。
@@ -56,6 +57,7 @@ state v4 的形状、v3→v4 与 v1→v2→v3 迁移步骤、诊断字段见 [de
 | 变量 | 默认 | 作用 |
 | --- | --- | --- |
 | `DSH_SKILLS_CONSOLE_HOME` | `$DSH_HOME/skills-console` | 状态、备份、回收站与事件日志的根 |
+| `DSH_SKILLS_CONSOLE_CACHE_HOME` | `$DSH_HOME/cache/skills-console` | 可丢缓存的根（目前是技能简介 `intros.json`）；按 DSH 的 `dshCachePath` 约定与状态目录分家 |
 | `GITHUB_TOKEN` / `GH_TOKEN` | 无 | 只读环境变量；带上后 REST 配额从匿名 60 次/小时提到 5000 次/小时，私有仓库安装也靠它 |
 | `XDG_STATE_HOME` | 未设置 | 设置后 lock 移到 `$XDG_STATE_HOME/skills/.skill-lock.json`，插件跟随读取 |
 | `DSH_AGENTS_HOME` | `~/.agents` | DSH 自己的设置：共享技能根（rank 500）与各 Agent 的默认目录都从这里派生。改到别处后 canonical 不在扫描根里，本插件不负责 DSH 可见性（`/diagnostics` 的 `canonical-not-scanned` 会提示） |

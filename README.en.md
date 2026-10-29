@@ -84,7 +84,7 @@ Some skills only have an English description, and some titles alone don't tell y
 - **Open and read**: generated intros load from the local cache and open instantly; only when there is none does a "Generate intro" button appear, and only clicking it calls the model.
 - **What it writes**: a 2–3 sentence capability summary — what it does, when to use it, and **how to trigger it**: trigger words / example requests copied from the `SKILL.md` when present, otherwise 2–4 keywords (or one example request) users can literally say, or the invocation itself (skill name / slash command); key limitations when needed; in the model's own words, not a word-for-word translation.
 - **What it sends**: the `SKILL.md` body (truncated beyond `maxInputBytes`) and the list of file names in the skill directory (up to 30); **no other file contents are read**; the language follows the UI (Chinese / English).
-- **Cached locally**: `$DSH_HOME/skills-console/intros.json`, keyed by skill name + language; when the `SKILL.md` content hash changes it warns "may be out of date" and only regenerating overwrites it. Failures are not cached.
+- **Cached locally**: `$DSH_HOME/cache/skills-console/intros.json`, keyed by skill name + language; when the `SKILL.md` content hash changes it warns "may be out of date" and only regenerating overwrites it. Failures are not cached. Cache written by older versions at `$DSH_HOME/skills-console/intros.json` is still read once; the next generation writes to the new location.
 - **Default model**: `config.intro.provider/model` when configured, otherwise DSH's current default model; only one generation runs at a time, and repeated clicks return "already generating".
 - **Subscription candidates too**: expanded subscriptions have `✨ Intro` on each entry; it fetches the remote `SKILL.md` at the snapshot `commit` and generates from that, with the commit in the cache key, and it never blocks "Install". Expanding also shows the author's own frontmatter description for free.
 - **How to turn it off**: `config.intro.enabled = false` (hides the ✨ entry). Other knobs are under "Data and configuration".
@@ -145,7 +145,7 @@ The panel shows up in DSH Web's settings page / sidebar.
 | Skill itself | `~/.agents/skills` (the skills directory shared by DSH and most agents) |
 | Plugin state | `$DSH_HOME/skills-console/state.json` (`DSH_SKILLS_CONSOLE_HOME` changes the root) |
 | Backups / trash | `$DSH_HOME/skills-console/{backups,trash}`; originals rewritten by Manual only are kept separately in `backups/invocation/` |
-| AI intro cache | `$DSH_HOME/skills-console/intros.json` (installed skills by name, subscription candidates by `source@commit:path`; only the generated text and metadata, never the `SKILL.md` body) |
+| AI intro cache | `$DSH_HOME/cache/skills-console/intros.json` (disposable cache; `DSH_SKILLS_CONSOLE_CACHE_HOME` changes the root; installed skills by name, subscription candidates by `source@commit:path`; only the generated text and metadata, never the `SKILL.md` body) |
 | Event log | `$DSH_HOME/skills-console/dsh-skills-console.log` (JSONL, rotates at 1 MB) |
 
 The skill itself stays in the shared directory; sharing only creates links and never moves files.

@@ -84,7 +84,7 @@ DSH（DeepSeek Harness）的技能控制台：**安装、更新、删除、启�
 - **点开即看**：生成过的直接显示本地缓存，秒开；没生成过才出现「生成简介」按钮，点它才调模型。
 - **写什么**：2–3 句能力简介——能做什么、什么时候用，并写清**怎么触发**：优先照抄 `SKILL.md` 里的触发词 / 示例请求，原文没写就按作者描述归纳成可以直接说的话（关键词或一句示例），也可以写技能名 / 斜杠命令；必要时点出关键限制；用模型自己的话概括，不是逐字翻译。
 - **发什么**：`SKILL.md` 正文（超出 `maxInputBytes` 截断）与技能目录的文件名清单（最多 30 个），**不读其他文件内容**；语言跟随界面（中文 / English）。
-- **缓存在本地**：`$DSH_HOME/skills-console/intros.json`，按技能名 + 语言分开存；`SKILL.md` 内容哈希变了会提示「可能过期」，重新生成才覆盖。失败不缓存。
+- **缓存在本地**：`$DSH_HOME/cache/skills-console/intros.json`，按技能名 + 语言分开存；`SKILL.md` 内容哈希变了会提示「可能过期」，重新生成才覆盖。失败不缓存。旧版本放在 `$DSH_HOME/skills-console/intros.json` 的缓存仍会被只读读到，下次生成时写到新位置。
 - **默认模型**：优先用 `config.intro.provider/model`，没配就用 DSH 当前默认模型；同一时间只跑一个生成，重复点击返回「正在生成」。
 - **订阅候选也能看**：展开订阅后，条目行同样有 `✨ 简介`；按快照 `commit` 拉远端 `SKILL.md` 再生成，缓存 key 带 commit，不挡「安装」。展开时还会显示作者自己的 frontmatter 描述，不花额度。
 - **关闭方式**：`config.intro.enabled = false`（界面隐藏 ✨ 入口）。其他可调项见「数据与配置」。
@@ -145,7 +145,7 @@ plugin_manager install_bundle(target = <本仓库绝对路径>)
 | 技能本体 | `~/.agents/skills`（DSH 与多数 Agent 共用的技能目录） |
 | 插件状态 | `$DSH_HOME/skills-console/state.json`（`DSH_SKILLS_CONSOLE_HOME` 可换根目录） |
 | 备份 / 回收站 | `$DSH_HOME/skills-console/{backups,trash}`；仅手动改写的原文另存 `backups/invocation/` |
-| 技能简介缓存 | `$DSH_HOME/skills-console/intros.json`（已安装技能按名字、订阅候选按 `source@commit:path`；只存生成的文本与元数据，不存 `SKILL.md` 原文） |
+| 技能简介缓存 | `$DSH_HOME/cache/skills-console/intros.json`（可丢缓存，`DSH_SKILLS_CONSOLE_CACHE_HOME` 可换根目录；已安装技能按名字、订阅候选按 `source@commit:path`，只存生成的文本与元数据，不存 `SKILL.md` 原文） |
 | 事件日志 | `$DSH_HOME/skills-console/dsh-skills-console.log`（JSONL，1MB 滚动） |
 
 技能本体留在共享目录，共享只是建链，不搬文件。
