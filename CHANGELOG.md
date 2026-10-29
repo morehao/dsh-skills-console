@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixes
+
+- **updates**: 修复根级 `SKILL.md` 技能（`skillPath` 无子目录，如 huashu-design）的更新永远失败。GitHub Trees API 在 `ref` 为分支/commit 时返回的顶层 `sha` 是 **commit SHA** 而非根 tree SHA，旧逻辑直接拿它当 `rootSha`，导致更新计划的目标 tree 与本地实际 tree 永远不等，安装器在 strict 校验时报 `tree-mismatch` 并回滚。现在 `fetchTree` 由扁平条目本地重建真实根 tree SHA（`treeShaFromEntries`），条目被截断时才补一次 commits 请求兜底；同时自动识别并修复旧版本写坏的快照（`rootSha == commit`），不再让 phantom 更新常驻。
+
 ## [v0.5.7] - 2026-10-29
 
 ### Fixes

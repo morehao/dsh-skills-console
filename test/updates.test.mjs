@@ -8,9 +8,11 @@ import {
   listSkillsFromTree,
   parseSource,
   planToken,
+  resolveCommitTree,
   skillDir,
   skillTreeSha,
 } from '../lib/core/updates.js';
+import { treeShaFromEntries } from '../lib/core/git-tree.js';
 
 const ROOT_SHA = 'a'.repeat(40);
 const DIR_SHA_1 = 'b'.repeat(40);
@@ -136,13 +138,17 @@ test('lock 与 recorded 同时存在时以 lock 为准（CLI 才是真身）', (
   assert.equal(verdict.baseline, 'lock');
 });
 
-test('fetchTree: 200 解析、304 只回 notModified', async () => {
-  const fetchImpl = async () => new Response(JSON.stringify({ sha: ROOT_SHA, tree: TREE, truncated: false }), {
+test('fetchTree: 200 解析、304 只回 notModified；rootSha 由条目重建而非 ref 的 commit SHA', async () => {
+  // 回归：GitHub 在 ref 为分支/commit 时，顶层 sha 是 commit SHA，不是根 tree SHA。
+  const refSha = 'f'.repeat(40);
+  const fetchImpl = async () => new Response(JSON.stringify({ sha: refSha, tree: TREE, truncated: false }), {
     status: 200,
     headers: { etag: 'W/"abc"' },
   });
   const result = await fetchTree({ source: 'o/r', ref: 'main', fetchImpl });
-  assert.equal(result.rootSha, ROOT_SHA);
+  assert.equal(result.refSha, refSha, '顶层 sha 只能当 ref SHA 留作诊断');
+  assert.equal(result.rootSha, treeShaFromEntries(TREE), '根 tree SHA 必须由扁平条目重建');
+  assert.notEqual(result.rootSha, refSha, '绝不能把 commit SHA 当根 tree SHA');
   assert.equal(result.tree.length, TREE.length);
   assert.equal(result.etag, 'W/"abc"');
 
@@ -154,6 +160,36 @@ test('fetchTree: 200 解析、304 只回 notModified', async () => {
   });
   assert.equal(notModified.notModified, true);
   assert.equal(notModified.tree, undefined);
+});
+
+test('fetchTree: 条目被截断时不猜 rootSha（置 null 交给调用方兜底）', async () => {
+  const result = await fetchTree({
+    source: 'o/r',
+    ref: 'main',
+    fetchImpl: async () =>
+      new Response(JSON.stringify({ sha: 'f'.repeat(40), tree: TREE, truncated: true }), {
+        status: 200,
+        headers: { etag: 'W/"abc"' },
+      }),
+  });
+  assert.equal(result.truncated, true);
+  assert.equal(result.rootSha, null);
+});
+
+test('resolveCommitTree: 一次请求拿 commit 与提交树 SHA', async () => {
+  const treeSha = 'd'.repeat(40);
+  let called = '';
+  const resolved = await resolveCommitTree({
+    source: 'o/r',
+    ref: 'master',
+    fetchImpl: async (url) => {
+      called = String(url);
+      return new Response(JSON.stringify({ sha: 'e'.repeat(40), tree: { sha: treeSha } }), { status: 200 });
+    },
+  });
+  assert.equal(resolved.commit, 'e'.repeat(40));
+  assert.equal(resolved.treeSha, treeSha);
+  assert.match(called, /\/commits\/master$/);
 });
 
 test('fetchTree: 401 / 404 都变成 error，不抛异常', async () => {

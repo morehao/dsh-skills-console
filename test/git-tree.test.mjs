@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { EMPTY_TREE_SHA, GitTreeError, gitTreeSha } from '../lib/core/git-tree.js';
+import { EMPTY_TREE_SHA, GitTreeError, gitTreeSha, treeShaFromEntries } from '../lib/core/git-tree.js';
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-gittree-'));
@@ -121,6 +122,53 @@ test('gitTreeSha 对不存在/非目录路径报错', () => {
   assert.throws(
     () => gitTreeSha(''),
     (error) => error instanceof GitTreeError && error.code === 'invalid-path',
+  );
+});
+
+/** 把磁盘 fixture 转成 GitHub Trees API 的扁平条目形态（mode/sha 都算出来）。 */
+function flatEntries(files, { includeTreeEntries = true } = {}) {
+  const entries = [];
+  const dirs = new Set();
+  for (const [rel, spec] of Object.entries(files)) {
+    const content = typeof spec === 'string' ? spec : spec.content;
+    const exec = typeof spec === 'object' && Boolean(spec.exec);
+    const buf = Buffer.from(content);
+    const sha = crypto
+      .createHash('sha1')
+      .update(Buffer.from(`blob ${buf.length}\0`, 'utf8'))
+      .update(buf)
+      .digest('hex');
+    entries.push({ path: rel, type: 'blob', mode: exec ? '100755' : '100644', sha });
+    const parts = rel.split('/');
+    for (let index = 1; index < parts.length; index += 1) dirs.add(parts.slice(0, index).join('/'));
+  }
+  if (includeTreeEntries) {
+    // 目录条目的 sha 不重要：重建时只按子条目重算，这个值不会被采信。
+    for (const dir of [...dirs].sort()) {
+      entries.push({ path: dir, type: 'tree', mode: '040000', sha: '0'.repeat(40) });
+    }
+  }
+  return entries;
+}
+
+test('treeShaFromEntries 与 gitTreeSha 一致（磁盘 vs GitHub 扁平条目）', () => {
+  assert.equal(treeShaFromEntries(flatEntries(MIXED_FIXTURE)), MIXED_TREE_SHA);
+  assert.equal(treeShaFromEntries(flatEntries({ 'SKILL.md': MIXED_FIXTURE['SKILL.md'] })), ROOT_ONLY_TREE_SHA);
+  // 即使 API 没给中间 tree 条目，也要能按路径重建。
+  assert.equal(
+    treeShaFromEntries(flatEntries(MIXED_FIXTURE, { includeTreeEntries: false })),
+    MIXED_TREE_SHA,
+  );
+  assert.equal(treeShaFromEntries([]), EMPTY_TREE_SHA);
+});
+
+test('treeShaFromEntries 认 GitHub 的 100755 / 120000 mode，且拒绝坏 sha', () => {
+  const regular = [{ path: 'SKILL.md', type: 'blob', mode: '100644', sha: '1'.repeat(40) }];
+  const exec = [{ path: 'SKILL.md', type: 'blob', mode: '100755', sha: '1'.repeat(40) }];
+  assert.notEqual(treeShaFromEntries(regular), treeShaFromEntries(exec));
+  assert.throws(
+    () => treeShaFromEntries([{ path: 'SKILL.md', type: 'blob', mode: '100644', sha: 'not-a-sha' }]),
+    (error) => error instanceof GitTreeError && error.code === 'invalid-entry',
   );
 });
 
