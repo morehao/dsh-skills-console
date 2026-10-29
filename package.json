@@ -1,6 +1,6 @@
 {
   "name": "@morehao/dsh-skills-console",
-  "version": "0.5.9",
+  "version": "0.6.0",
   "description": "统一管理本地技能的安装、更新、删除与接入，让同一份技能在多个 Agent 间复用。A skill manager for DeepSeek Harness: install, update, remove, link and toggle agent skills.",
   "license": "MIT",
   "author": "morehao <morehao@qq.com>",
@@ -73,7 +73,19 @@
   "dependencies": {
     "tar": "7.5.22"
   },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-home-paths": ">=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/dsh-skill": ">=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/dsh-skill-filesystem": ">=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/schemastery": "~3.18.5",
+    "yaml": "^2.4.2"
+  },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "@deepseek-ai/dsh-home-paths": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-skill": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-skill-filesystem": "0.2.1-rc.3",
+    "@deepseek-ai/schemastery": "3.18.5",
+    "esbuild": "0.28.2",
+    "yaml": "2.9.1"
   }
 }

@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.6.0] - 2026-10-29
+
+### Refactor
+
+- **dsh**: 全面复用 DSH 宿主能力、删除重复实现——路径解析改用 `@deepseek-ai/dsh-home-paths`；`SKILL.md` frontmatter 解析改用宿主同款 `yaml`；技能名规则改用 `@deepseek-ai/dsh-skill` 的 `isSkillName`（与 `dsh-skill-filesystem` 同口径，修掉非 kebab 名被宿主忽略/触发校验错误的隐患）；状态/缓存/lock/`SKILL.md` 的 4 份原子写收敛为一份（fsync 文件 + 目录）。新增 `test/skill-parity.test.mjs` 与宿主 `FileSystemSkillProvider` 对拍。
+- **deps**: `dependencies` 仍只有 `tar`；DSH 能力改用 `peerDependencies`（宿主 runtime resolution 提供、不打包），开发/测试用 `devDependencies` 锁版本。
+- **config**: 补齐 `export const Config`（schemastery），覆盖 `stateDir` / `cacheDir` / `intro`。
+- **ui**: 前端零改动（`client/**`、`client.js`、`locale/**`、`cordis.patch.yml` 字节级不变）。
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.5.9...v0.6.0
+
 ## [v0.5.9] - 2026-10-29
 
 ### Fixes
