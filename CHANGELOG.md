@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.5.7] - 2026-10-29
+
+### Fixes
+
+- **plugin-update**: 修复自身更新链路——弹窗里的版本号占位符 `{version}` 现在会正确替换；HMR 下 `installBundle` 会以 `already-installed` 拒绝覆盖已安装包，改为按官方更新路径先 `removeBundle` 再 `installBundle`，并在 `stop-profile` 等失败时给出手动命令；Release 正文里的 `<details>` 折叠块降级为加粗小标题，不再原样露出标签。
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.5.6...v0.5.7
+
 ## [v0.5.6] - 2026-10-29
 
 ### Fixes
