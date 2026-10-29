@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.5.6] - 2026-10-29
+
+### Fixes
+
+- **intro**: prevent empty or truncated intros on reasoning models (#78)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.5.5...v0.5.6
+
 ## [v0.5.5] - 2026-10-28
 
 ### Features
