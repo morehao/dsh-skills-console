@@ -56,7 +56,11 @@ import {
 const QUEUE_LIMIT = 8;
 
 export class ServiceError extends Error {
-  constructor(code, message, detail, status = 400) {
+  code: string;
+  detail: any;
+  status: number;
+  [key: string]: any;
+  constructor(code: string, message: string, detail: any = null, status = 400) {
     super(message);
     this.code = code;
     this.detail = detail;
@@ -292,11 +296,11 @@ export function createService({
   getLlm = () => null,
   /** 宿主 `agentDefaultModel.currentSelection()`；返回 `{ provider, model }` 或 null。 */
   getDefaultModel = () => null,
-}) {
+}: any) {
   const enqueue = createQueue(logger);
   const tokenOf = (env.GITHUB_TOKEN || env.GH_TOKEN) || null;
   // 探测缓存：同一来源短时间内重复检测直接复用；并发的相同请求合并成一次（不重复烧 API 配额）
-  const probeCache = new Map();
+  const probeCache = new Map<string, any>();
   const PROBE_TTL_MS = 60_000;
   const PROBE_MAX = 50;
 
@@ -337,7 +341,7 @@ export function createService({
   // ---- 技能介绍（模型生成） -------------------------------------------------
   // 全局只允许一个生成在跑：辅助调用不进 agent 的重试/限流体系，并发越高越容易撞 429。
   // 在第一个 await 之前占位，避免两个请求同时通过检查。
-  let introInFlight = null;
+  let introInFlight: any = null;
 
   /** `/state` 下发的介绍能力：前端据此决定按钮显隐与提示。 */
   function introCapability() {
@@ -354,7 +358,7 @@ export function createService({
     if (introOptions.provider && introOptions.model) {
       return { provider: introOptions.provider, model: introOptions.model };
     }
-    let selection = null;
+    let selection: any = null;
     try {
       selection = getDefaultModel();
     } catch (error) {
@@ -372,7 +376,7 @@ export function createService({
     assertSafeSkillName(name);
     try {
       const root = await resolveSkillRoot(paths, name);
-      const file = await readSkillFile({ root: root.root, kind: root.kind });
+      const file = await readSkillFile({ root: root.root, kind: root.kind, relPath: null });
       return { root, file };
     } catch (error) {
       throw skillFileFailure(error);
@@ -566,7 +570,7 @@ export function createService({
   }
 
   /** 导出（建链）：逐条幂等，冲突跳过不覆盖，失败收集原因继续。 */
-  function exportSkill(name, targets, { record = true } = {}) {
+  function exportSkill(name, targets, { record = true }: any = {}) {
     return exportSkills({
       paths,
       registry,
@@ -581,7 +585,7 @@ export function createService({
    * 返回 `{ branch, failure }`：`failure` 原样透出 `fetchDefaultBranch` 的结构化失败，
    * 由 `readSnapshot` 决定报哪种错误（T1）。
    */
-  async function branchOf(subscription, { persist = false } = {}) {
+  async function branchOf(subscription, { persist = false }: any = {}) {
     if (subscription.ref) return { branch: subscription.ref, failure: null };
     let resolved;
     try {
@@ -659,14 +663,14 @@ export function createService({
       // 条目被截断/形态异常（rootSha 为 null）且确有根级技能时，才补一次 commits 请求，
       // 因为此时「重建」拿不到可靠值而「跳过」会让根级技能永远比对不了。
       let rootSha = result.rootSha || null;
-      let resolved = null;
+      let resolved: any = null;
       const hasRootLevelSkill = entries.some((item) => !item.skillPath.includes('/'));
       if (!rootSha && hasRootLevelSkill) {
         resolved = await resolveCommitTree({ source, ref: branch, token: tokenOf, fetchImpl });
         rootSha = resolved?.treeSha || null;
       }
       // 探测只需要文件树，不付 resolveCommit 那一次请求
-      let commit = null;
+      let commit: any = null;
       if (withCommit) {
         if (resolved?.commit) commit = resolved.commit;
         else if (previousRoot && previousRoot === rootSha && subscription.snapshot?.commit) {
@@ -699,7 +703,7 @@ export function createService({
    * 限流兜底：Atom 取 commit，与上次一致就短路；否则 codeload tarball 解压扫描。
    * 失败统一翻成 T1 的四类错误（限流保留原始 reset 信息）。
    */
-  async function atomSnapshot(subscription, { ref = null, allowUnchanged = true, rateLimit = null } = {}) {
+  async function atomSnapshot(subscription, { ref = null, allowUnchanged = true, rateLimit = null }: any = {}) {
     const source = subscription.source;
     const startedAt = Date.now();
     let atom;
@@ -820,7 +824,7 @@ export function createService({
    * 与 provider 的条件发候选对齐——只有 canonical 是 native winner 时才会命中。
    */
   function policyHiddenPathsOf() {
-    const hidden = new Set();
+    const hidden = new Set<any>();
     if (!paths.canonicalScanned) return hidden;
     for (const install of state().installs || []) {
       if (!install || install.enabled !== false) continue;
@@ -835,7 +839,7 @@ export function createService({
   }
 
   /** 组装一次可见性视图：扫根 + 合并宿主 snapshot 的 global 层 + 本地策略。 */
-  async function visibilityFor(cwd, { withHost = true } = {}) {
+  async function visibilityFor(cwd, { withHost = true }: any = {}) {
     const projectRoot = projectRootOf(cwd);
     const roots = listRoots({ paths, projectRoot });
     const host = withHost ? await visibleSkills(cwd) : { skills: [], complete: true };
@@ -930,7 +934,7 @@ export function createService({
   function reconcileTracking(lock) {
     if (store.readOnly || enqueue.pending() > 0) return [];
     const known = new Set(state().installs.map((item) => item.name));
-    const records = [];
+    const records: any[] = [];
     for (const entry of scanCanonical(paths)) {
       // 只对目录型技能记账：平铺 .md / 悬空链接无法按目录建链与启停
       if (entry.kind !== 'dir' || known.has(entry.name)) continue;
@@ -952,8 +956,8 @@ export function createService({
    * 基线由 unpark 重放。
    */
   function rebaselineHashes() {
-    const rebaselined = [];
-    const unresolved = [];
+    const rebaselined: any[] = [];
+    const unresolved: any[] = [];
     if (store.readOnly) return { rebaselined, unresolved, skipped: 'read-only' };
     for (const install of state().installs) {
       if (typeof install.installedHash !== 'string' || !install.installedHash) continue;
@@ -1114,7 +1118,7 @@ export function createService({
    */
   function reconcileInvocations() {
     if (store.readOnly) return [];
-    const reports = [];
+    const reports: any[] = [];
     for (const install of state().installs) {
       if (install.mode !== 'manual' || install.hidden) continue;
       let parsed;
@@ -1238,14 +1242,14 @@ export function createService({
     /** 诊断/测试用：手动跑一次旧哈希口径的重基线（启动时已自动跑过一次）。 */
     rebaselineHashes,
 
-    async getState({ cwd, workspace } = {}) {
+    async getState({ cwd, workspace }: any = {}) {
       const lock = readLock(paths);
       reconcileTracking(lock);
       const visible = await visibilityFor(cwd);
       const ledger = buildLedger({ paths, state: state(), registry, lock, visibility: visible });
       const capabilities = nativeCapabilities();
       const rowByName = new Map(ledger.rows.map((row) => [row.name, row]));
-      const visibleList = [];
+      const visibleList: any[] = [];
       for (const [name, item] of visible.byName) {
         if (!item.visible) continue;
         const row = rowByName.get(name);
@@ -1405,7 +1409,7 @@ export function createService({
       return { ok: true, settings: state().settings };
     },
 
-    async setExports({ skill, targets = [], action = 'add' }) {
+    async setExports({ skill, targets = [], action = 'add' }: any) {
       assertSafeSkillName(skill);
       assertWritable();
       const canonicalPath = path.join(paths.canonical, skill);
@@ -1414,8 +1418,8 @@ export function createService({
         const rows = state().exports.filter(
           (item) => item.skill === skill && (targets.length === 0 || targets.includes(item.target)),
         );
-        const removed = [];
-        const failed = [];
+        const removed: any[] = [];
+        const failed: any[] = [];
         for (const row of rows) {
           const outcome = unexportSkill({ linkPath: row.linkPath, canonicalPath, name: skill, allowDangling: !exists });
           if (outcome.removed || outcome.reason === 'absent') removed.push(row.target);
@@ -1469,7 +1473,7 @@ export function createService({
      * 读缓存的技能介绍（只读，**不触发模型调用**）。
      * `stale` 表示 SKILL.md 已被改动过；文本仍然返回，让用户先看到东西。
      */
-    async getSkillIntro({ name, lang } = {}) {
+    async getSkillIntro({ name, lang }: any = {}) {
       assertSafeSkillName(name);
       const language = introLang(lang);
       const capability = introCapability();
@@ -1489,7 +1493,7 @@ export function createService({
      * 生成技能介绍：显式操作，一次一个模型调用。
      * 命中缓存且内容未变时直接返回（`cached: true`），不烧额度。
      */
-    async generateSkillIntro({ name, lang, force = false, signal = null } = {}) {
+    async generateSkillIntro({ name, lang, force = false, signal = null }: any = {}) {
       assertSafeSkillName(name);
       const language = introLang(lang);
       if (!introOptions.enabled) {
@@ -1589,7 +1593,7 @@ export function createService({
     },
 
     /** 读订阅候选的介绍缓存（只读，不联网、不调模型）。 */
-    async getRemoteIntro({ subscriptionId, name, lang } = {}) {
+    async getRemoteIntro({ subscriptionId, name, lang }: any = {}) {
       const language = introLang(lang);
       const capability = introCapability();
       const target = remoteIntroTarget(subscriptionId, name);
@@ -1612,7 +1616,7 @@ export function createService({
      * 生成订阅候选的介绍：先按快照 commit 拉远端 SKILL.md，再走同一套提示词与模型调用。
      * 拉不到 / 超限只影响这次介绍，不影响安装按钮。
      */
-    async generateRemoteIntro({ subscriptionId, name, lang, force = false, signal = null } = {}) {
+    async generateRemoteIntro({ subscriptionId, name, lang, force = false, signal = null }: any = {}) {
       const language = introLang(lang);
       if (!introOptions.enabled) {
         throw new ServiceError('error.skills.intro-disabled', '技能介绍已关闭（config.intro.enabled = false）', null, 501);
@@ -2071,7 +2075,7 @@ export function createService({
         let manual = install?.manual || null;
         if (mode === 'manual') {
           if (!manual) {
-            let parsed = null;
+            let parsed: any = null;
             try {
               parsed = parseInvocation(readSkillText(dir));
             } catch {
@@ -2224,8 +2228,8 @@ export function createService({
 
         // 启用：先清掉 旧版留下的旧桩（只认本插件 marker）；删不掉就不改 enabled
         const legacy = (state().legacyShadows || []).filter((row) => row.skill === name);
-        const removed = [];
-        const failed = [];
+        const removed: any[] = [];
+        const failed: any[] = [];
         for (const row of legacy) {
           const outcome = removeShadow({ stubPath: row.stubPath, name: row.skill });
           if (outcome.removed || outcome.reason === 'absent') removed.push(row.stubPath);
@@ -2311,7 +2315,7 @@ export function createService({
           throw installerFailure(error, resolvedSource, '安装');
         }
 
-        const installed = [];
+        const installed: any[] = [];
         const warnings = [...(result.warnings || [])];
         const recordedAt = nowIso();
         for (const item of result.installed) {
@@ -2370,7 +2374,7 @@ export function createService({
 
         // 导出是显式动作：默认一个都不建；请求里点名了才建
         const exportTargets = Array.isArray(targets) && targets.length > 0 ? targets : exportTargetList(state());
-        const linkResult = { created: [], skipped: [], failed: [] };
+        const linkResult: any = { created: [], skipped: [], failed: [] };
         for (const item of installed) {
           const one = exportSkill(item.name, exportTargets);
           linkResult.created.push(...one.created);
@@ -2401,8 +2405,8 @@ export function createService({
 
         // ① 体检：只动自己建的链接；真实目录/外来链接先拦下（前端弹窗依赖 detail.conflicts）。
         // 顺手记下「此刻确认指向 canonical 的自家链」——真身删掉之后就没法再验了。
-        const conflicts = [];
-        const ownLinks = [];
+        const conflicts: any[] = [];
+        const ownLinks: any[] = [];
         const legacyStubs = new Set((state().legacyShadows || []).map((item) => item.stubPath));
         // 只体检「记账里有导出」的目标：别的 Agent 自己放的同名目录/链与我无关，
         // 删除 canonical 也不会连带删掉它（例如 OpenCode 指向另一个仓库的 handoff）。
@@ -2463,7 +2467,7 @@ export function createService({
         }
 
         // ④ 清自家导出链：只删 ① 里验证过「指向 canonical」的那些，不按 force 乱扫
-        const cleaned = [];
+        const cleaned: any[] = [];
         for (const item of ownLinks) {
           const outcome = removeLink({ linkPath: item.linkPath, canonicalPath, force: true });
           if (outcome.removed) cleaned.push(item.linkPath);
@@ -2471,10 +2475,10 @@ export function createService({
 
         // ⑤ 清 legacy 停用桩：不带它走，删除后会留一个「看不见也不存在」的幽灵目录。
         // 失败只记报告，不阻塞删除（真身已经删了，强留桩没有意义）。
-        const legacyResults = [];
+        const legacyResults: any[] = [];
         for (const row of (state().legacyShadows || []).filter((item) => item.skill === name)) {
           const outcome = removeShadow({ stubPath: row.stubPath, name });
-          legacyResults.push({ stubPath: row.stubPath, ...outcome });
+          legacyResults.push({ ...outcome, stubPath: row.stubPath });
           if (!outcome.removed && outcome.reason !== 'absent') {
             logger('remove.legacy-shadow.kept', { name, stubPath: row.stubPath, reason: outcome.reason || null });
           }
@@ -2701,14 +2705,14 @@ export function createService({
       };
     },
 
-    async checkUpdates({ names, subscriptionId } = {}) {
+    async checkUpdates({ names, subscriptionId }: any = {}) {
       const installs = state().installs.filter((install) => {
         if (names && names.length > 0 && !names.includes(install.name)) return false;
         if (subscriptionId && install.subscriptionId !== subscriptionId) return false;
         return true;
       });
       const lock = readLock(paths);
-      const groups = new Map();
+      const groups = new Map<string, any>();
       for (const install of installs) {
         const subscription = state().subscriptions.find((item) => item.id === install.subscriptionId);
         if (!subscription) continue;
@@ -2717,7 +2721,7 @@ export function createService({
         groups.get(subscription.id).installs.push(install);
       }
 
-      const results = [];
+      const results: any[] = [];
       for (const { subscription, installs: groupInstalls } of groups.values()) {
         // 与 readSnapshot 同一套语义：限流时 Atom/codeload 兜底，失败才逐个标 unknown
         // withCommit: false：判定只需要树，别为 check 多付一次 /commits 请求
@@ -2812,7 +2816,7 @@ export function createService({
      * 只做判定，把结论写进 state.checks；绝不自动安装。
      * 全程 fail-open：任何异常只记日志，不向定时器抛。
      */
-    async runAutoCheck({ now = Date.now() } = {}) {
+    async runAutoCheck({ now = Date.now() }: any = {}) {
       const AUTO_CHECK_MIN_INTERVAL_MS = 5 * 60 * 60 * 1000; // 6h 周期，容 1h 抖动
       try {
         if (store.readOnly) return { ok: true, skipped: 'readonly' };

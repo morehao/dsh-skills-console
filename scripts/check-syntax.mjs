@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const roots = ['lib', 'client', 'scripts', 'test'];
+const roots = ['scripts', 'test'];
 const files = [];
 for (const root of roots) {
   const walk = (dir) => {
@@ -16,7 +16,7 @@ for (const root of roots) {
   };
   if (fs.existsSync(root)) walk(root);
 }
-files.push('client.js', 'lib/index.js');
+
 
 let failed = 0;
 for (const file of files) {

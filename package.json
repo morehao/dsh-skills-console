@@ -16,16 +16,16 @@
     "access": "public"
   },
   "type": "module",
-  "main": "lib/index.js",
+  "main": "dist/index.js",
   "exports": {
-    ".": "./lib/index.js",
+    ".": "./dist/index.js",
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
   "files": [
-    "lib",
+    "dist",
     "client.js",
     "cordis.patch.yml",
     "locale/*.json",
@@ -50,7 +50,7 @@
   },
   "scripts": {
     "test": "node --test \"test/*.test.mjs\"",
-    "pretest": "npm run build:host",
+    "pretest": "npm run build",
     "build:client": "node scripts/build-client.mjs",
     "dev:client": "node scripts/build-client.mjs --watch",
     "check:client": "node scripts/build-client.mjs --check",
@@ -59,12 +59,15 @@
     "check:host": "node scripts/build-host.mjs --check",
     "check:types": "tsc -p tsconfig.client.json",
     "check:cycles": "node scripts/check-cycles.mjs",
-    "check": "node scripts/check-syntax.mjs && node scripts/check-cycles.mjs && npm run build:host && node scripts/build-client.mjs --check && node scripts/check-naming.mjs && node scripts/check-pack.mjs && node scripts/smoke-release-notes.mjs",
+    "check": "node scripts/check-syntax.mjs && node scripts/check-cycles.mjs && npm run build && npm run check:types && node scripts/check-naming.mjs && node scripts/check-pack.mjs && node scripts/smoke-release-notes.mjs",
     "check:syntax": "node scripts/check-syntax.mjs",
     "check:naming": "node scripts/check-naming.mjs",
     "check:pack": "node scripts/check-pack.mjs",
     "check:release-notes": "node scripts/smoke-release-notes.mjs",
-    "sync:agents": "node scripts/sync-agent-table.mjs"
+    "sync:agents": "node scripts/sync-agent-table.mjs",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
+    "build": "npm run build:host && npm run build:client"
   },
   "engines": {
     "node": "^22.20.0 || >=24.0.0"

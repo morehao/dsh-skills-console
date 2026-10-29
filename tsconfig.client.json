@@ -16,8 +16,7 @@
     "types": [
       "react"
     ],
-    "allowJs": true,
-    "checkJs": false,
+    "allowJs": false,
     "noImplicitAny": false
   },
   "include": [

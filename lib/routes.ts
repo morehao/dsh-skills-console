@@ -26,7 +26,7 @@ export const PLUGIN_INFO = (() => {
   }
 })();
 
-function sendJson(res, status, payload) {
+function sendJson(res: any, status: number, payload: any): void {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
@@ -36,8 +36,8 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
-async function readBody(req) {
-  const chunks = [];
+async function readBody(req: any): Promise<any> {
+  const chunks: any[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
@@ -131,7 +131,7 @@ function matchRoute(method, pathname) {
   return null;
 }
 
-export function createRoutes({ service, pluginUpdate = null, logger }) {
+export function createRoutes({ service, pluginUpdate = null, logger }: any) {
   return async function handler(req, res) {
     const url = new URL(req.url || '/', 'http://127.0.0.1');
     const pathname = url.pathname.startsWith(ROUTE_PREFIX)
@@ -191,7 +191,7 @@ export function createRoutes({ service, pluginUpdate = null, logger }) {
   };
 }
 
-async function dispatch(route, { body, query, service, pluginUpdate = null, signal = null }) {
+async function dispatch(route: any, { body, query, service, pluginUpdate = null, signal = null }: any) {
   switch (route.name) {
     case 'state': {
       const state = await service.getState({ cwd: query.cwd || body.cwd, workspace: query.workspace });

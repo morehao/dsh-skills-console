@@ -34,9 +34,9 @@ export const Config = z.object({
 /** 硬依赖只有 HTTP 载体；skills 注册表按可选服务取（缺失时不影响清单与链接）。 */
 export const inject = ['webServer'];
 
-export function apply(ctx, config = {}) {
+export function apply(ctx: any, config: any = {}) {
   const env = process.env;
-  const pathOverrides = {};
+  const pathOverrides: any = {};
   if (config.stateDir) pathOverrides.stateDir = config.stateDir;
   if (config.cacheDir) pathOverrides.cacheDir = config.cacheDir;
   const paths = createPaths(env, pathOverrides);
@@ -87,7 +87,7 @@ export function apply(ctx, config = {}) {
   const workspacesProvider = async () => {
     const workspaces = ctx.get('workspaceRegistry');
     if (!workspaces?.list) return [];
-    const rows = [];
+    const rows: any[] = [];
     for (const workspace of workspaces.list()) {
       try {
         if ((await workspace.status()) !== 'ok') continue;

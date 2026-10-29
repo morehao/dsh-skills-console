@@ -21,10 +21,10 @@ const ALLOWED_EXACT = new Set([
 	"icon.svg",
 	"client.js",
 ]);
-const ALLOWED_PREFIX = ["lib/", "locale/"];
+const ALLOWED_PREFIX = ["dist/", "locale/"];
 
 // 源码与构建输入一律不进包：npm 只发根 client.js（生成物），client/ 是 esbuild 的输入。
-const FORBIDDEN_PREFIX = ["client/", "scripts/", "test/", ".dsh/", ".github/"];
+const FORBIDDEN_PREFIX = ["client/", "lib/", "scripts/", "test/", ".dsh/", ".github/"];
 
 const required = [
 	"package.json",
@@ -34,7 +34,7 @@ const required = [
 	"cordis.patch.yml",
 	"icon.svg",
 	"client.js",
-	"lib/index.js",
+	"dist/index.js",
 	"locale/zh.json",
 	"locale/en.json",
 ];
