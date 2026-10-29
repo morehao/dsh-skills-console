@@ -1,7 +1,7 @@
 /** “+n” 气泡：fixed 定位 + portal 到 body，列表的 overflow:hidden 裁不到。 */
 import { h, portalize } from '../host.js';
 
-export function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
+export function AgentTip({ t, agentTip, agentTipPos, nodeRef }: any) {
   const labels = agentTip.labels || [];
   const node = h('div', {
     ref: nodeRef,
@@ -16,7 +16,7 @@ export function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
       h('span', null, t('meta.agentsAll')),
       h('span', { className: 'dshsc-agenttip-n' }, labels.length)),
     h('div', { className: 'dshsc-agenttip-list' },
-      labels.map((label, index) => h('span', {
+      labels.map((label: any, index: number) => h('span', {
         className: 'dshsc-agent',
         key: `agenttip-${index}`,
         title: label,

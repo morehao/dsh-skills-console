@@ -7,7 +7,7 @@ export function Toolbar({
   installedCount, subscriptionCount,
   query, onQueryChange,
   view, onViewChange,
-}) {
+}: any) {
   return h('div', { className: 'dshsc-toolbar' },
     h('div', { className: 'dshsc-tabs' },
       h('button', { className: `dshsc-tab${tab === 'installed' ? ' active' : ''}`, onClick: () => onTabChange('installed') },
@@ -23,7 +23,7 @@ export function Toolbar({
           value: query,
           placeholder: t('search.placeholder'),
           'aria-label': t('search.placeholder'),
-          onChange: (event) => onQueryChange(event.target.value),
+          onChange: (event: any) => onQueryChange(event.target.value),
         }),
         query
           ? h('button', {

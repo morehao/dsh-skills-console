@@ -2546,7 +2546,7 @@ function Header({
   );
 }
 
-// client/views/toolbar.js
+// client/views/toolbar.ts
 function Toolbar({
   t,
   tab,
@@ -2610,7 +2610,7 @@ function Toolbar({
 // client/views/installed.js
 var import_react4 = __toESM(require("react"), 1);
 
-// client/views/overlay.js
+// client/views/overlay.ts
 function Overlay({ t, title, children, footer, onCancel, dismissible = true }) {
   useOverlayLayer(true, dismissible ? onCancel : () => {
   });
@@ -3377,7 +3377,7 @@ function InstalledTab({
   return h(import_react4.default.Fragment, null, content(), policyModal, introModal);
 }
 
-// client/views/agent-tip.js
+// client/views/agent-tip.ts
 function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
   const labels = agentTip.labels || [];
   const node = h(

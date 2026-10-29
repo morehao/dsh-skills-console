@@ -6,18 +6,18 @@
  */
 import { h, overlayHost, portalize, useOverlayLayer } from '../host.js';
 
-export function Overlay({ t, title, children, footer, onCancel, dismissible = true }) {
+export function Overlay({ t, title, children, footer, onCancel, dismissible = true }: any) {
   // Esc 交给插件浮层栈：只关最上面的弹窗，不连带关掉背后的设置弹窗 / 抽屉。
   // dismissible=false 时（提交进行中）仍占住最上层但 close 变成空操作：
   // 这样 Esc 被本层吃掉，既不会关掉自己、也不会穿透去关背后的抽屉 / 设置页。
   useOverlayLayer(true, dismissible ? onCancel : () => {});
-  return portalize(h('div', { className: 'dshsc-overlay', onClick: (event) => { if (dismissible && event.target === event.currentTarget) onCancel?.(); } },
+  return portalize(h('div', { className: 'dshsc-overlay', onClick: (event: any) => { if (dismissible && event.target === event.currentTarget) onCancel?.(); } },
     h('div', { className: 'dshsc-modal', role: 'dialog', 'aria-modal': 'true' },
       h('button', {
         className: 'dshsc-modal-close',
         'aria-label': t('action.cancel'),
         disabled: !dismissible,
-        onClick: (event) => { event.stopPropagation(); if (dismissible) onCancel?.(); },
+        onClick: (event: any) => { event.stopPropagation(); if (dismissible) onCancel?.(); },
       }, '×'),
       h('h3', null, title),
       children,
