@@ -34,6 +34,7 @@ export const CSS = `
   /* 标题不参与收窄：窄面板里让身份胶囊先省略，标题本身不折行 */
   .dshsc-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; flex: none; white-space: nowrap; }
   .dshsc-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
+  .dshsc-form-error { font-size: 12px; line-height: 1.55; margin: 8px 0 0; max-width: 64ch; color: var(--dsw-alias-state-error-primary); }
   .dshsc-spacer { flex: 1; }
   .dshsc-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; margin-left: auto; }
   /* 标题行恒为一行：身份胶囊只在面板极窄（连标题行都放不下）时才省略，工具组不被挤走。

@@ -7,22 +7,41 @@ import { Overlay } from './overlay.js';
 
 export function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
   const [form, setForm] = React.useState(() => Object.fromEntries(fields.map((field) => [field.key, ''])));
+  const [pending, setPending] = React.useState(false);
+  const [error, setError] = React.useState(null);
   // 默认每项都必填；标了 required: false 的字段（技能名 / ref / 子目录）可留空
   const incomplete = fields.some(
     (field) => field.required !== false && !String(form[field.key] || '').trim(),
   );
+  const submit = async () => {
+    if (incomplete || pending) return;
+    setPending(true);
+    setError(null);
+    let res;
+    try {
+      res = await onSubmit(form);
+    } catch (err) {
+      res = { ok: false, error: err?.message || String(err) };
+    }
+    // 成功：父级已关窗，组件即将卸载，不再回写状态
+    if (res?.ok) return;
+    setPending(false);
+    setError(res?.error || t('form.submitFailed'));
+  };
   return h(Overlay, {
     t,
     title,
     onCancel,
+    // 提交进行中禁止关闭：请求不可取消，允许关闭只是假装取消
+    dismissible: !pending,
     footer: [
-      h('button', { key: 'c', className: 'dshsc-btn ghost', onClick: onCancel }, t('action.cancel')),
+      h('button', { key: 'c', className: 'dshsc-btn ghost', disabled: pending, onClick: onCancel }, t('action.cancel')),
       h('button', {
         key: 's',
         className: 'dshsc-btn primary',
-        disabled: incomplete,
-        onClick: () => onSubmit(form),
-      }, t('action.save')),
+        disabled: incomplete || pending,
+        onClick: () => void submit(),
+      }, pending ? t('busy.working') : t('action.save')),
     ],
   },
   hint ? h('p', { className: 'dshsc-sub' }, hint) : null,
@@ -32,8 +51,13 @@ export function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
       h('input', {
         value: form[field.key],
         placeholder: field.placeholder,
-        onChange: (event) => setForm((prev) => ({ ...prev, [field.key]: event.target.value })),
-      }))));
+        disabled: pending,
+        onChange: (event) => {
+          setForm((prev) => ({ ...prev, [field.key]: event.target.value }));
+          if (error) setError(null);
+        },
+      }))),
+  error ? h('p', { className: 'dshsc-form-error', role: 'alert' }, error) : null);
 }
 
 export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel, hideCancel = false }) {
@@ -150,7 +174,7 @@ export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSav
         { key: 'subpath', label: t('form.subpath'), placeholder: 'skills', required: false },
       ],
       onCancel: onClose,
-      onSubmit: (form) => void actions.addSubscription(form),
+      onSubmit: (form) => actions.addSubscription(form),
     });
   }
   if (modal.type === 'exports') {

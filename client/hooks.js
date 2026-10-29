@@ -35,15 +35,17 @@ export function useSkillsData() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  // `toastError: false` 用于「错误由调用方在弹窗内联展示」的动作：仍统一走 busy / reload，
+  // 但不弹全局错误 toast，避免和弹窗内提示重复。默认 true，其余调用点不用改。
   const run = React.useCallback(
-    async (label, task) => {
+    async (label, task, { toastError = true } = {}) => {
       setBusy(label);
       try {
         const result = await task();
         await reload();
         return result;
       } catch (err) {
-        setToast({ kind: 'err', text: err.message });
+        if (toastError) setToast({ kind: 'err', text: err.message });
         throw err;
       } finally {
         setBusy(null);

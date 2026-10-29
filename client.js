@@ -244,6 +244,7 @@ var DICT = {
     "form.subpath": "子目录（可空）",
     "form.hint": "会立即下载并写入 ~/.agents/skills，并按「新安装时自动共享」的选择共享至对应 Agent。",
     "form.subHint": "只记录你关注这个仓库，不会安装任何技能。",
+    "form.submitFailed": "添加失败，请重试",
     "subscription.defaultRef": "默认分支",
     "confirm.deleteTitle": "删除技能",
     "confirm.deleteBody": "会从本机移除，断开本插件建立的其他 Agent 链接并清理记录；目录先备份到回收站（保留 7 天）。不会删除你的源仓库。",
@@ -525,6 +526,7 @@ var DICT = {
     "form.subpath": "Subdirectory (optional)",
     "form.hint": "Downloads into ~/.agents/skills and shares it with agents per the auto-share setting.",
     "form.subHint": "Only records the repository; installs nothing.",
+    "form.submitFailed": "Failed; please try again",
     "subscription.defaultRef": "default branch",
     "confirm.deleteTitle": "Delete skill",
     "confirm.deleteBody": "Removes it locally, disconnects the agent links this plugin created, and clears the record. A snapshot stays in trash for 7 days. Your source repo is untouched.",
@@ -1152,6 +1154,7 @@ var CSS = `
   /* 标题不参与收窄：窄面板里让身份胶囊先省略，标题本身不折行 */
   .dshsc-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; flex: none; white-space: nowrap; }
   .dshsc-sub { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); margin: 0; max-width: 64ch; }
+  .dshsc-form-error { font-size: 12px; line-height: 1.55; margin: 8px 0 0; max-width: 64ch; color: var(--dsw-alias-state-error-primary); }
   .dshsc-spacer { flex: 1; }
   .dshsc-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; margin-left: auto; }
   /* 标题行恒为一行：身份胶囊只在面板极窄（连标题行都放不下）时才省略，工具组不被挤走。
@@ -1984,26 +1987,38 @@ function useSkillActions({ t, rows, reload, run, setBusy, setToast, setModal }) 
     return apiCall("POST", "/probe", { source: String(source || "").trim() });
   }
   async function installSkills({ source, skills }) {
-    setModal(null);
-    await run("install", async () => {
-      const result = await apiCall("POST", "/install", { source: String(source || "").trim(), skills });
-      const warnings = result.warnings?.length || 0;
-      setToast({
-        kind: warnings ? "err" : "ok",
-        text: `${result.installed?.length || 0} ${t("skillCount")}${warnings ? ` · ${warnings} 条提示` : ""}`
-      });
-    });
+    try {
+      await run("install", async () => {
+        const result = await apiCall("POST", "/install", { source: String(source || "").trim(), skills });
+        const warnings = result.warnings?.length || 0;
+        setToast({
+          kind: warnings ? "err" : "ok",
+          text: `${result.installed?.length || 0} ${t("skillCount")}${warnings ? ` · ${warnings} 条提示` : ""}`
+        });
+        return result;
+      }, { toastError: false });
+      setModal(null);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
   }
   async function addSubscription(form) {
-    setModal(null);
-    await run("subscribe", async () => {
-      const result = await apiCall("POST", "/subscriptions", {
-        source: form.source.trim(),
-        ref: form.ref.trim() || void 0,
-        subpath: form.subpath.trim() || void 0
-      });
-      setToast({ kind: "ok", text: result.subscription?.source || form.source });
-    });
+    try {
+      const result = await run("subscribe", async () => {
+        const res = await apiCall("POST", "/subscriptions", {
+          source: form.source.trim(),
+          ref: form.ref.trim() || void 0,
+          subpath: form.subpath.trim() || void 0
+        });
+        setToast({ kind: "ok", text: res.subscription?.source || form.source });
+        return res;
+      }, { toastError: false });
+      setModal(null);
+      return { ok: true, result };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
   }
   async function refreshSubscription(row) {
     await run(`refresh:${row.id}`, async () => {
@@ -2070,14 +2085,14 @@ function useSkillsData() {
     return () => clearTimeout(timer);
   }, [toast]);
   const run = import_react2.default.useCallback(
-    async (label, task) => {
+    async (label, task, { toastError = true } = {}) => {
       setBusy(label);
       try {
         const result = await task();
         await reload();
         return result;
       } catch (err) {
-        setToast({ kind: "err", text: err.message });
+        if (toastError) setToast({ kind: "err", text: err.message });
         throw err;
       } finally {
         setBusy(null);
@@ -2590,12 +2605,13 @@ function Toolbar({
 var import_react4 = __toESM(require("react"), 1);
 
 // client/views/overlay.js
-function Overlay({ t, title, children, footer, onCancel }) {
-  useOverlayLayer(true, onCancel);
+function Overlay({ t, title, children, footer, onCancel, dismissible = true }) {
+  useOverlayLayer(true, dismissible ? onCancel : () => {
+  });
   return portalize(h(
     "div",
     { className: "dshsc-overlay", onClick: (event) => {
-      if (event.target === event.currentTarget) onCancel?.();
+      if (dismissible && event.target === event.currentTarget) onCancel?.();
     } },
     h(
       "div",
@@ -2603,9 +2619,10 @@ function Overlay({ t, title, children, footer, onCancel }) {
       h("button", {
         className: "dshsc-modal-close",
         "aria-label": t("action.cancel"),
+        disabled: !dismissible,
         onClick: (event) => {
           event.stopPropagation();
-          onCancel?.();
+          if (dismissible) onCancel?.();
         }
       }, "×"),
       h("h3", null, title),
@@ -3614,6 +3631,8 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
   const [manual, setManual] = import_react6.default.useState("");
   const [skipped, setSkipped] = import_react6.default.useState(0);
   const [error, setError] = import_react6.default.useState(null);
+  const [pending, setPending] = import_react6.default.useState(false);
+  const [submitError, setSubmitError] = import_react6.default.useState(null);
   const reset = (value) => {
     setSource(value);
     setPhase("idle");
@@ -3621,12 +3640,14 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
     setSelected(/* @__PURE__ */ new Set());
     setSkipped(0);
     setError(null);
+    setSubmitError(null);
   };
   const probe = async () => {
     const value = source.trim();
-    if (!value || phase === "probing") return;
+    if (!value || phase === "probing" || pending) return;
     setPhase("probing");
     setError(null);
+    setSubmitError(null);
     try {
       const result = await onProbe(value);
       const found = Array.isArray(result?.skills) ? result.skills : [];
@@ -3639,20 +3660,33 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
       setPhase("failed");
     }
   };
-  const toggle = (name) => setSelected((prev) => {
-    const next = new Set(prev);
-    if (next.has(name)) next.delete(name);
-    else next.add(name);
-    return next;
-  });
+  const toggle = (name) => {
+    setSubmitError(null);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
   const names = manual.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean);
   const skippedText = skipped > 0 ? t("form.skipped").replace("{n}", String(skipped)) : null;
   const manualMode = phase === "empty" || phase === "failed";
   const skills = phase === "picked" ? [...selected] : names;
   const canSubmit = phase === "picked" ? selected.size > 0 : manualMode ? names.length > 0 : false;
-  const submit = () => {
-    if (!canSubmit) return;
-    onInstall({ source: source.trim(), skills });
+  const submit = async () => {
+    if (!canSubmit || pending) return;
+    setPending(true);
+    setSubmitError(null);
+    let res;
+    try {
+      res = await onInstall({ source: source.trim(), skills });
+    } catch (err) {
+      res = { ok: false, error: err?.message || String(err) };
+    }
+    if (res?.ok) return;
+    setPending(false);
+    setSubmitError(res?.error || t("form.submitFailed"));
   };
   return h(
     Overlay,
@@ -3660,14 +3694,16 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
       t,
       title: t("action.addSkill"),
       onCancel,
+      // 提交安装进行中禁止关闭：请求不可取消，允许关闭只是假装取消
+      dismissible: !pending,
       footer: [
-        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
+        h("button", { key: "c", className: "dshsc-btn ghost", disabled: pending, onClick: onCancel }, t("action.cancel")),
         h("button", {
           key: "s",
           className: "dshsc-btn primary",
-          disabled: !canSubmit,
-          onClick: submit
-        }, t("action.save"))
+          disabled: !canSubmit || pending,
+          onClick: () => void submit()
+        }, pending ? t("busy.working") : t("action.save"))
       ]
     },
     h("p", { className: "dshsc-sub" }, t("form.pickHint")),
@@ -3681,18 +3717,20 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
         h("input", {
           value: source,
           placeholder: t("form.sourceHint"),
+          disabled: pending,
           onChange: (event) => reset(event.target.value),
           onKeyDown: (event) => {
-            if (event.key === "Enter") void probe();
+            if (event.key === "Enter" && !pending) void probe();
           }
         }),
         h("button", {
           className: "dshsc-btn",
-          disabled: !source.trim() || phase === "probing",
+          disabled: !source.trim() || phase === "probing" || pending,
           onClick: () => void probe()
         }, phase === "probing" ? t("form.probing") : t("form.probe"))
       )
     ),
+    submitError ? h("p", { className: "dshsc-form-error", role: "alert" }, submitError) : null,
     phase === "picked" ? h(
       "div",
       { key: "picked" },
@@ -3702,11 +3740,19 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
         { style: { display: "flex", gap: 6, marginBottom: 6 } },
         h("button", {
           className: "dshsc-btn ghost",
-          onClick: () => setSelected(new Set(options.map((item) => item.name)))
+          disabled: pending,
+          onClick: () => {
+            setSubmitError(null);
+            setSelected(new Set(options.map((item) => item.name)));
+          }
         }, t("form.selectAll")),
         h("button", {
           className: "dshsc-btn ghost",
-          onClick: () => setSelected(/* @__PURE__ */ new Set())
+          disabled: pending,
+          onClick: () => {
+            setSubmitError(null);
+            setSelected(/* @__PURE__ */ new Set());
+          }
         }, t("form.selectNone"))
       ),
       h("div", { className: "dshsc-panel" }, options.map((option) => h(
@@ -3715,6 +3761,7 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
         h("input", {
           type: "checkbox",
           checked: selected.has(option.name),
+          disabled: pending,
           onChange: () => toggle(option.name)
         }),
         h(
@@ -3739,7 +3786,11 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
         h("input", {
           value: manual,
           placeholder: "git-kit, handoff",
-          onChange: (event) => setManual(event.target.value)
+          disabled: pending,
+          onChange: (event) => {
+            setManual(event.target.value);
+            if (submitError) setSubmitError(null);
+          }
         })
       )
     ) : null,
@@ -3750,23 +3801,41 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
 // client/views/modals.js
 function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
   const [form, setForm] = import_react7.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
+  const [pending, setPending] = import_react7.default.useState(false);
+  const [error, setError] = import_react7.default.useState(null);
   const incomplete = fields.some(
     (field) => field.required !== false && !String(form[field.key] || "").trim()
   );
+  const submit = async () => {
+    if (incomplete || pending) return;
+    setPending(true);
+    setError(null);
+    let res;
+    try {
+      res = await onSubmit(form);
+    } catch (err) {
+      res = { ok: false, error: err?.message || String(err) };
+    }
+    if (res?.ok) return;
+    setPending(false);
+    setError(res?.error || t("form.submitFailed"));
+  };
   return h(
     Overlay,
     {
       t,
       title,
       onCancel,
+      // 提交进行中禁止关闭：请求不可取消，允许关闭只是假装取消
+      dismissible: !pending,
       footer: [
-        h("button", { key: "c", className: "dshsc-btn ghost", onClick: onCancel }, t("action.cancel")),
+        h("button", { key: "c", className: "dshsc-btn ghost", disabled: pending, onClick: onCancel }, t("action.cancel")),
         h("button", {
           key: "s",
           className: "dshsc-btn primary",
-          disabled: incomplete,
-          onClick: () => onSubmit(form)
-        }, t("action.save"))
+          disabled: incomplete || pending,
+          onClick: () => void submit()
+        }, pending ? t("busy.working") : t("action.save"))
       ]
     },
     hint ? h("p", { className: "dshsc-sub" }, hint) : null,
@@ -3777,9 +3846,14 @@ function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
       h("input", {
         value: form[field.key],
         placeholder: field.placeholder,
-        onChange: (event) => setForm((prev) => ({ ...prev, [field.key]: event.target.value }))
+        disabled: pending,
+        onChange: (event) => {
+          setForm((prev) => ({ ...prev, [field.key]: event.target.value }));
+          if (error) setError(null);
+        }
       })
-    ))
+    )),
+    error ? h("p", { className: "dshsc-form-error", role: "alert" }, error) : null
   );
 }
 function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel, hideCancel = false }) {
@@ -3894,7 +3968,7 @@ function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLi
         { key: "subpath", label: t("form.subpath"), placeholder: "skills", required: false }
       ],
       onCancel: onClose,
-      onSubmit: (form) => void actions.addSubscription(form)
+      onSubmit: (form) => actions.addSubscription(form)
     });
   }
   if (modal.type === "exports") {
