@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** 逐文件语法自检：`node --check` 只看单文件，这里把 lib/、client/ 与 scripts/ 全跑一遍。 */
+/** 逐文件语法自检：`node --check` 只看单文件。TS 源（lib/、client/）由 `tsc` 负责，这里只跑 scripts/ 与 test/。 */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';

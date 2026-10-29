@@ -7,7 +7,7 @@
 
 | 改动 | 必跑 | 说明 |
 |---|---|---|
-| `lib/core/*` | `npm run check` + `npm test` | 341 个离线用例覆盖 hash / state / policy / visibility / roots / agents / links / paths / updates / installer / discovery / remote / native-only / service / routes / client 渲染与滚动口径 / import 图 |
+| `lib/core/*` | `npm run check` + `npm test` | 446 个离线用例覆盖 hash / state / policy / visibility / roots / agents / links / paths / updates / installer / discovery / remote / native-only / service / routes / client 渲染与滚动口径 / import 图 |
 | `lib/routes.ts` | 同上 + 手工打一次接口 | `routes.test.mjs` 覆盖鉴权、身份版本与 409 映射；改 `matchRoute` 后按 §2 的 curl 自测 |
 | `client/**` | `npm run build` + `npm run check` + `npm test` | 源码是唯一事实来源；产物不入库，改完重跑 `npm run build`。`test/client.test.mjs` 用 React 存根跑「渲染 → effect → 再渲染」，能抓未定义变量与字段名错，但**不替代真浏览器** |
 | `dist/`、根 `client.js` | `npm run check:host` / `npm run check:client` | 生成物：不要手改，也不入库；改源码后 `npm run build` |
@@ -35,7 +35,7 @@ PR 与 push `main` 触发，**只按 lockfile 装依赖**（构建期 typescript
 1. `npm ci`（构建期需要 typescript + esbuild；`tar` 是运行时依赖，同时被装上；`prepare` 会先构建一次）
 2. `bash -n scripts/ci-publish.sh`
 3. `npm run check` → `check-syntax.mjs`（scripts/、test/ 逐文件 `node --check`）→ `check-cycles.mjs`（client/ 与 lib/ 的相对 import 无环、无解析不到的路径，支持 `.ts`）→ `npm run build`（tsc + esbuild）→ `check:types`（client 侧 `tsc --noEmit`）→ `check-naming` → `check-pack` → `smoke-release-notes`
-4. `npm test` → 341 个 `node:test` 用例（临时 HOME / DSH_HOME + fake installer / Atom-codeload stub）
+4. `npm test` → 446 个 `node:test` 用例（临时 HOME / DSH_HOME + fake installer / Atom-codeload stub）
 
 注意：
 
