@@ -5,7 +5,7 @@
 ## 1. 技能真身与写入口
 
 - **canonical 真身**：`~/.agents/skills`（`$DSH_AGENTS_HOME/skills`），本身也是 DSH 的 rank 500 扫描根。
-- **唯一写入口**：安装 / 更新 / 删除都由 native installer（`lib/core/installer.js`）完成——下载 codeload tarball → 安全解压 → 发现 `SKILL.md` → 本地计算 tree SHA → 原子 promote → v3 lock 事务。其他模块只读，禁止再手写 canonical 或 lock。
+- **唯一写入口**：安装 / 更新 / 删除都由 native installer（`lib/core/installer.ts`）完成——下载 codeload tarball → 安全解压 → 发现 `SKILL.md` → 本地计算 tree SHA → 原子 promote → v3 lock 事务。其他模块只读，禁止再手写 canonical 或 lock。
 - **v3 lock**：`~/.agents/.skill-lock.json`；设置了 `XDG_STATE_HOME` 时是 `$XDG_STATE_HOME/skills/.skill-lock.json`。
 - **回滚素材**：删除前快照进回收站；更新前快照到 `backups/`，失败自动还原；lock 写失败从回收站恢复。
 - **限流兜底**：GitHub REST 403/429 时，探测与更新检查改用 Atom commit feed + codeload tarball；tarball 只在 `os.tmpdir()` 解压扫描，用完即删，结果不落 canonical 或 lock。codeload 默认上限 100MB（解压侧 200MB / 1 万文件兜底）。

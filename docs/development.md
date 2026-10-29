@@ -5,19 +5,23 @@
 ## 1. 环境
 
 - Node.js ≥ 22.20（`engines`：`^22.20.0 || >=24.0.0`），npm 随 Node。
-- **`dependencies` 只有 `tar@7.5.22`**：随插件安装、精确锁版本，供 native installer 解压；DSH 宿主自带的能力（`@deepseek-ai/dsh-home-paths` / `dsh-skill` / `dsh-skill-filesystem` / `schemastery`，及 YAML 解析用的 `yaml`）走 `peerDependencies`（宿主 runtime resolution 提供，不打包），`devDependencies` 锁版本仅供本仓测试；构建期 devDependency 只有 `esbuild`（`package-lock.json` 已提交）。`npm test` 仍离线；`npm run check` 含 `check:client`（会重建 bundle），开发机需要先 `npm install`。
+- **`dependencies` 只有 `tar@7.5.22`**：随插件安装、精确锁版本，供 native installer 解压；DSH 宿主自带的能力（`@deepseek-ai/dsh-home-paths` / `dsh-skill` / `dsh-skill-filesystem` / `schemastery`，及 YAML 解析用的 `yaml`）走 `peerDependencies`（宿主 runtime resolution 提供，不打包），`devDependencies` 锁版本仅供本仓测试；构建期 devDependency 是 `typescript` + `esbuild`（`package-lock.json` 已提交），`@types/node` / `@types/react` 供类型检查。**Host 用 tsc 编译到 `dist/`，客户端用 esbuild 打包到根 `client.js`，两个产物都不入库**（`npm install` 的 `prepare` 会自动构建一次）。`npm test` 仍离线；`npm run check` 含构建，开发机需要先 `npm install`。
 - 安装/更新/删除都由 native installer 独立完成（下载 → 安全解压 → 发现 → tree SHA → 原子 promote → lock），运行时不调用任何外部命令。REST 403/429 时，探测与更新检查用 Atom commit feed + codeload tarball 兜底，在 `os.tmpdir()` 解压扫描后即删。
 
 ## 2. 目录结构
 
 ```
-lib/index.js        Host 入口：装配 paths / state / registry / installer / service / routes
-lib/routes.js       HTTP 路由（prefix /api/morehao/skills-console）
-lib/core/           领域逻辑：清单、软链、native installer（下载/解压/发现/tree/lock）、
+lib/index.ts        Host 入口：装配 paths / state / registry / installer / service / routes
+lib/routes.ts       HTTP 路由（prefix /api/morehao/skills-console）
+lib/core/           领域逻辑（TS）：清单、软链、native installer（下载/解压/发现/tree/lock）、
                     更新、删除、订阅、哈希、状态、日志、Atom/codeload 限流兜底
-client/             Web Client 源码（ESM）：host / copy / styles / api / icons /
+lib/contract/       跨 Host/Client 的类型契约（纯 .d.ts，不产出、不进 dist）
+client/             Web Client 源码（TS）：host / copy / styles / api / icons /
                     hooks / actions / markdown / scroll / views/* / section / surface / app / index
-client.js           Web Client 构建产物（npm run build:client 生成，不要手改，但要提交）
+dist/               Host 构建产物（tsc 1:1 输出，npm run build:host 生成，不入库）
+client.js           Web Client 构建产物（npm run build:client 生成，不入库）
+tsconfig.host.json / tsconfig.client.json  两套 TS 配置
+scripts/build-host.mjs    tsc 保结构编译 + 复制运行时 JSON 资产（--check / --watch）
 scripts/build-client.mjs  esbuild 打包脚本（--check 校验漂移 / --watch / --sourcemap）
 scripts/check-cycles.mjs  静态 import 图循环检测（client/ 与 lib/）
 locale/{zh,en}.json 分区标题与描述
@@ -30,9 +34,10 @@ docs/               人类向文档；docs/agents/ 是 agent 任务手册
 ## 3. 测试
 
 ```bash
-npm test            # node --test "test/*.test.mjs"，341 例
-npm run check:cycles # 只跑 import 图循环检测（client/ 与 lib/）
-npm run check       # 机械校验：语法 + 循环依赖 + 生成物一致性（check:client）+ 命名 + 打包 + Release 说明投影
+npm test            # node --test "test/*.test.mjs"（pretest 会先 npm run build）
+npm run build       # tsc(lib → dist) + esbuild(client → client.js)
+npm run check:cycles # 只跑 import 图循环检测（client/ 与 lib/，支持 .ts）
+npm run check       # 类型检查 + 循环 + 构建 + 命名 + 打包 + Release 说明投影
 ```
 
 两条硬规矩：
@@ -73,7 +78,7 @@ npm run check       # 机械校验：语法 + 循环依赖 + 生成物一致性�
 - **诊断**：`GET /diagnostics` 的 `drift` 会列出 `exportsMissing` / `legacyShadows` / `disabledButVisible` / `enabledButHidden`，另有顶层 `policy`（`available` / `agents` / `liveAgents` / `errors` / `blindSpots`）；技能自己声明 `disable-model-invocation`、或账本 `mode:'hidden'` 时不算 `enabledButHidden`；不再有 `shadowOrphans` / `shadowBroken` / `shadowUnrecorded`。`GET /state` 的 `visible` 是真扫扫描根 + 宿主 `snapshot()`，再叠加 `policyHiddenPaths` 得到的，不是从账本推的。
 - **可见性模型**：见 [实现与数据边界 §2](internals.md#2-可见性模型)——canonical `~/.agents/skills`（rank 500）是真身；每个 live agent 的 scope 里有一个 policy provider，只在 canonical 是 native winner 时发 `modelInvocable=false` 的候选。项目级副本（100/200）或 user-dsh 副本（400）优先时 provider 沉默，副本继续可见；`~/.dsh/skills`（rank 400）v0.4.0 起不再写入，只留迁移清理。customSkillDirs 与 plugin runtime 技能是盲区，诊断标注。
 - **接口**：所有路由要带 `x-dsh-skills-console: 1` 请求头，否则 403。
-- **生效方式**：`plugin_manager install_bundle(target = 本仓绝对路径)` 时是 `link:`：改 `client/` 后跑 `npm run dev:client`（宿主只 watch 根 `client.js`，产物一变就刷新），改 `lib/` 后刷新页面即可；npm 安装版是拷贝，需要重新 `npm run build:client`、重装并重启 dsh web。本地 link 验证的安装、生效与回退步骤见 §5。
+- **生效方式**：`plugin_manager install_bundle(target = 本仓绝对路径)` 时是 `link:`：改 `client/` 后跑 `npm run dev:client`（宿主只 watch 根 `client.js`），改 `lib/` 后跑 `npm run dev:host`（或 `npm run build:host`）；**装 link 前必须先 `npm run build`，`dsh plugin add` 不会替你构建**。npm 安装版是拷贝，需要重新 `npm run build`、重装并重启 dsh web。本地 link 验证的安装、生效与回退步骤见 §5。
 - **别在本机真实目录上试破坏性操作**：删除、更新 apply 会动 `~/.agents/skills` 与各 Agent 的软链；用临时 `HOME` 起一个干净宿主更安全。接管只补记账、不碰文件。
 - **自动接管**：`GET /state` 会扫描 canonical，把账本里还没有的技能补成 `installs`（有 lock 来源时顺带建订阅）；只读状态或在途写操作时跳过。
 
@@ -126,7 +131,7 @@ dsh plugin --profile desktop install --frozen-lockfile
 ### 5.4 注意
 
 - `dsh plugin` 要写 `~/.dsh/profiles/<name>`；在 agent 沙箱里会报 `EPERM ... package.json.lock`，在终端执行或申请更高权限。
-- 验证前先 `npm run build:client`（或 `npm run check:client`），确保 link 读到的是最新 `client.js`。
+- 验证前先 `npm run build`（或 `npm run check:host` + `npm run check:client`），确保 link 读到的是最新 `dist/` 与 `client.js`。
 - 回退时 pnpm 替换 `link:` 可能连带清掉工作树的 `node_modules`；回退后若 `npm run check` 报 `Cannot find package 'esbuild'`，`npm install` 恢复即可。
 - 别在真实 HOME 上做破坏性验证（删除技能、更新 apply）：用临时 `HOME` / `DSH_HOME` 起干净宿主，见 §3。
 - 只验证 Host 逻辑不必装 link，直接跑 `npm test` / `npm run check`。
@@ -136,7 +141,7 @@ dsh plugin --profile desktop install --frozen-lockfile
 | 症状 | 原因与处理 |
 |---|---|
 | 改了 `client/` 页面没变化 | 忘了重建：`npm run build:client`；`link:` 调试时挂着 `npm run dev:client` |
-| 手改了 `client.js` | 不要改生成物；`npm run check` 的 `check:client` 会按 `client/` 重建并逐字节比对，直接报不一致 |
+| 改了源码但产物没更新 | 跑 `npm run build`；`check:host` / `check:client` 报产物与源码不一致时同理 |
 | `npm run check` 报找不到 `esbuild` | 构建期依赖还没装：`npm install`（`npm test` 不需要） |
 | `client/` 出现在 `npm pack` 清单里 | 源码目录不入包，`check-pack.mjs` 会红；不要把 `client/` 加进 `package.json.files` |
 | 想调试 `client/` 但产物不可读 | `npm run build:client -- --sourcemap`（或 `npm run dev:client -- --sourcemap`）生成 `client.js.map`；它不提交，`client.js` 也会因此与正常产物不同，提交前重跑不带 `--sourcemap` 的构建 |

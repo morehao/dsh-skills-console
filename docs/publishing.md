@@ -120,7 +120,7 @@ npm access list packages morehao --registry https://registry.npmjs.org        # 
 
 - [ ] 包能在 registry 上读到（单版本端点 200；packument 可能还在 processing，见 §5「processing 窗口」）
 - [ ] TP 的 `file` / `repo` / `permissions` 与 3.2 一致
-- [ ] 本仓 `package.json` 的 `name`、`cordis.patch.yml` 的 `name`、`lib/index.js` 的 `export const name` 与新包名一致（`npm run check` 会兜住）
+- [ ] 本仓 `package.json` 的 `name`、`cordis.patch.yml` 的 `name`、`lib/index.ts` 的 `export const name`（产物 `dist/index.js`） 与新包名一致（`npm run check` 会兜住）
 - [ ] 仓库没有残留 `NPM_TOKEN` secret（OIDC 不需要；有也要删）
 
 ### 3.4 收尾：退出登录
@@ -248,7 +248,7 @@ done
 - **npm 版本**：OIDC 发布要求 npm ≥ 11.5.1；Node 22 自带 npm 10.x，所以 release job 有一步 `npm install -g npm@latest`（实测拉到的 npm 12 行为正常）。
 - **`name:` 必须等于文件名**：`release.yml` 的 `name: release.yml`，与 TP 的 Workflow 字段精确匹配。
 - **`gh release create` 必须留在 `release.yml`**：git-kit 的 `/git-release` 预检靠 grep workflow 判定 `EFFECT_RELEASE=workflow`，挪进 `scripts/` 会让它误判成「流程自己建 Release」。
-- **不要给发布 job 加依赖安装 / 构建步骤**：`skills` 已写在 `package.json` 的 runtime dependency 里，由安装方拉取；客户端 bundle（根 `client.js`）是提交进仓的生成物。发布 job 只发已提交的产物，生成物保鲜由 PR 阶段的 `check:client`（`npm run check` 内）负责，多一步就多一个失外面。
+- **发布 job 需要 `npm ci`，但不需要单独 build 步骤**：源码是 TS，产物（`dist/`、根 `client.js`）**不入库**，`npm publish` 触发的 `prepack` 会先 `npm run build`。因此 `release.yml` 必须先 `npm ci` 装上 typescript/esbuild；产物保鲜由 PR 阶段的 `npm run check`（内含 `npm run build`）与 `npm test` 负责。
 
 ## 8. 相关文件
 

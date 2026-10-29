@@ -172,7 +172,7 @@
 
 ## 路径安全
 
-实现在 [`lib/core/skill-files.js`](../lib/core/skill-files.js)，规则与仓库「不接收任意路径」的硬约束一致：
+实现在 [`lib/core/skill-files.ts`](../lib/core/skill-files.ts)，规则与仓库「不接收任意路径」的硬约束一致：
 
 - **根只能反查**：`<canonical>/<name>/` 或 `<canonical>/<name>.md`；根自身是符号链接直接 `bad-path`（v1 不跟随根链）。
 - **名字先校验**：`assertSafeSkillName` 在拼任何路径之前执行（`%2F` 解码出的 `/` 也拦得住）。
