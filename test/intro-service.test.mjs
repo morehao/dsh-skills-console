@@ -340,3 +340,27 @@ test('订阅介绍：两份不同的订阅条目共用全局单飞，并发生�
   await first;
   assert.equal(llm.calls.filter((call) => call.kind === 'stream').length, 1);
 });
+
+test('介绍：max-tokens 截断时不写缓存', async () => {
+  const truncatedLlm = {
+    calls: [],
+    async prepareCall(config) {
+      this.calls.push({ kind: 'prepare', config });
+      return {
+        config: { ...config },
+        async *stream() {
+          yield { type: 'text-delta', index: 0, text: '这是半句' };
+          yield { type: 'usage', usage: { inputTokens: 10, outputTokens: 4096 } };
+          yield { type: 'finish', reason: { kind: 'max-tokens' } };
+        },
+      };
+    },
+  };
+  const { service, introStore } = setup({ llm: truncatedLlm });
+  await assert.rejects(
+    () => service.generateSkillIntro({ name: 'demo', lang: 'zh' }),
+    (error) => error.code === 'error.skills.intro-truncated' && error.status === 502,
+  );
+  assert.equal(introStore.get('demo', 'zh'), null, '截断结果不能进缓存');
+});
+

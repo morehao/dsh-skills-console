@@ -111,3 +111,27 @@ test('介绍缓存：remove 只删指定语言', () => {
   assert.ok(store.get('git-kit', 'en'));
   assert.equal(store.remove('git-kit', 'zh'), false);
 });
+
+test('介绍缓存：v3 旧缓存（含 300 token 截断文本）整体丢弃', () => {
+  const { paths, logs } = setup();
+  fs.mkdirSync(path.dirname(paths.introFile), { recursive: true });
+  fs.writeFileSync(paths.introFile, JSON.stringify({
+    version: 3,
+    items: { 'project-insight': { zh: { ...ENTRY, text: '半句简介……' } } },
+  }), 'utf8');
+  const store = createIntroStore({ paths, logger: (...args) => logs.push(args) });
+  assert.equal(store.get('project-insight', 'zh'), null);
+  assert.ok(logs.some(([event]) => event === 'intro.cache.invalid'), '记录到版本不支持');
+});
+
+test('介绍缓存：非 stop 的条目不当作可用简介返回', () => {
+  const { paths } = setup();
+  fs.mkdirSync(path.dirname(paths.introFile), { recursive: true });
+  fs.writeFileSync(paths.introFile, JSON.stringify({
+    version: INTRO_STORE_VERSION,
+    items: { demo: { zh: { ...ENTRY, finish: 'max-tokens' } } },
+  }), 'utf8');
+  const store = createIntroStore({ paths, logger: () => {} });
+  assert.equal(store.get('demo', 'zh'), null);
+});
+

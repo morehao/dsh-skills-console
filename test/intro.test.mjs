@@ -13,7 +13,7 @@ import {
   truncateUtf8,
 } from '../lib/core/intro.js';
 
-function fakeLlm(chunks, { prepare = true, onStream = null } = {}) {
+function fakeLlm(chunks, { prepare = true, onStream = null, modelInfo = undefined } = {}) {
   const calls = [];
   const llm = {
     calls,
@@ -21,7 +21,10 @@ function fakeLlm(chunks, { prepare = true, onStream = null } = {}) {
   if (prepare) {
     llm.prepareCall = async (config, signal, configure) => {
       calls.push({ kind: 'prepare', config });
-      const metadata = { reasoning: { efforts: [{ id: 'low' }, { id: 'high' }] } };
+      const metadata =
+        modelInfo === undefined
+          ? { reasoning: { efforts: [{ id: 'low' }, { id: 'high' }] } }
+          : modelInfo;
       const controls = configure ? configure({ ...config }, metadata) : { ...config };
       const resolved = Object.freeze({ ...controls, maxTokens: controls.maxTokens ?? 100 });
       return {
@@ -174,7 +177,9 @@ test('runIntroCall：累加 text-delta、取 usage、忽略 reasoning-delta', as
 
   const streamCall = llm.calls.find((call) => call.kind === 'stream');
   assert.equal(streamCall.options.reasoningEffort, 'low', '取最低推理强度');
-  assert.equal(streamCall.options.maxTokens, 500);
+  assert.equal(streamCall.options.maxTokens, 4096, '推理模型按 4096 保底，不能沿用 500 这种小上限');
+  assert.equal(result.maxTokens, 4096);
+  assert.equal(result.finish, 'stop');
   assert.deepEqual(streamCall.options.messages, [
     { role: 'user', content: [{ type: 'text', text: 'input' }] },
   ]);
@@ -192,7 +197,7 @@ test('runIntroCall：没有 prepareCall 的宿主退回直接 stream', async () 
   const result = await runIntroCall({ llm, route: ROUTE, prompt: PROMPT, maxOutputTokens: 200 });
   assert.equal(result.text, '退回路径');
   const streamCall = llm.calls.find((call) => call.kind === 'stream');
-  assert.equal(streamCall.options.maxTokens, 200);
+  assert.equal(streamCall.options.maxTokens, 4096, '没有 prepareCall 时也按推理模型保守保底');
 });
 
 test('runIntroCall：空输出 / 失败 finish / 没有 llm 都给出明确错误', async () => {
@@ -238,3 +243,63 @@ test('runIntroCall：prepareCall 抛出的适配器错误也按 code 映射', as
     (error) => error.code === 'error.skills.intro-no-model' && error.status === 409,
   );
 });
+
+test('runIntroCall：普通模型保底 1024，模型上限更小时按模型上限', async () => {
+  const plain = fakeLlm(
+    [
+      { type: 'text-delta', index: 0, text: '纯文本模型' },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ],
+    { modelInfo: { defaultMaxTokens: 8000 } },
+  );
+  await runIntroCall({ llm: plain, route: ROUTE, prompt: PROMPT, maxOutputTokens: 300 });
+  assert.equal(plain.calls.find((call) => call.kind === 'stream').options.maxTokens, 1024);
+
+  const capped = fakeLlm(
+    [
+      { type: 'text-delta', index: 0, text: '小模型' },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ],
+    { modelInfo: { reasoning: { efforts: [{ id: 'low' }] }, defaultMaxTokens: 2048 } },
+  );
+  await runIntroCall({ llm: capped, route: ROUTE, prompt: PROMPT, maxOutputTokens: 300 });
+  assert.equal(capped.calls.find((call) => call.kind === 'stream').options.maxTokens, 2048);
+});
+
+test('runIntroCall：max-tokens 即使有正文也算截断失败，不返回半句', async () => {
+  const llm = fakeLlm([
+    { type: 'text-delta', index: 0, text: '这是半句' },
+    { type: 'usage', usage: { inputTokens: 10, outputTokens: 4096 } },
+    { type: 'finish', reason: { kind: 'max-tokens' } },
+  ]);
+  await assert.rejects(
+    runIntroCall({ llm, route: ROUTE, prompt: PROMPT, maxOutputTokens: 300 }),
+    (error) =>
+      error.code === 'error.skills.intro-truncated' &&
+      error.status === 502 &&
+      error.detail?.usage?.outputTokens === 4096,
+  );
+});
+
+test('runIntroCall：只有 reasoning、没有正文时报 reasoning-only', async () => {
+  const llm = fakeLlm([
+    { type: 'reasoning-delta', index: 1, text: '思考了很久' },
+    { type: 'usage', usage: { inputTokens: 10, outputTokens: 200 } },
+    { type: 'finish', reason: { kind: 'stop' } },
+  ]);
+  await assert.rejects(
+    runIntroCall({ llm, route: ROUTE, prompt: PROMPT, maxOutputTokens: 300 }),
+    (error) => error.code === 'error.skills.intro-reasoning-only' && error.status === 502,
+  );
+});
+
+test('runIntroCall：块式适配器没有 text-delta 时回退读 block-end 正文', async () => {
+  const llm = fakeLlm([
+    { type: 'block-start', index: 0, blockType: 'text' },
+    { type: 'block-end', index: 0, block: { type: 'text', text: '块式正文' } },
+    { type: 'finish', reason: { kind: 'stop' } },
+  ]);
+  const result = await runIntroCall({ llm, route: ROUTE, prompt: PROMPT, maxOutputTokens: 300 });
+  assert.equal(result.text, '块式正文');
+});
+

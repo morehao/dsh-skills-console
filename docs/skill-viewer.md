@@ -159,6 +159,9 @@
 | `error.skills.intro-too-large` | 正文超出模型上下文（413） |
 | `error.skills.intro-timeout` | 生成超时（504） |
 | `error.skills.intro-empty` | 模型没有返回文本（502） |
+| `error.skills.intro-truncated` | 模型输出达到上限被截断（502） |
+| `error.skills.intro-reasoning-only` | 模型只输出了思考过程、没有正文（502） |
+| `error.skills.intro-no-text` | 模型没有输出文字简介（502） |
 | `error.skills.intro-aborted` | 客户端断开 / 主动取消（499） |
 | `error.skills.intro-failed` | 其他模型失败（502） |
 | `error.skills.subscription-not-found` | 订阅不存在（404） |
