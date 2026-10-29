@@ -136,7 +136,7 @@ function blockNodes(blocks, options) {
 }
 
 /** 正文渲染：`text` 可以是完整 SKILL.md（frontmatter 会自动剥掉）。 */
-export function Markdown({ text, onOpenFile, onOpenAnchor }) {
+export function Markdown({ text, onOpenFile, onOpenAnchor }: any) {
   const { blocks } = parseCached(text);
   return h('div', { className: 'dshsc-md' }, blockNodes(blocks, { onOpenFile, onOpenAnchor }));
 }

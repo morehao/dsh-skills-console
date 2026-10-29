@@ -53,10 +53,10 @@ export function IntroModal({
   viewLabel = null,
   onClose,
   onView = null,
-}) {
+}: any) {
   const enabled = capability?.enabled !== false;
   const available = capability?.available !== false;
-  const intro = useSkillIntro({
+  const intro: any = useSkillIntro({
     name,
     lang: t.lang || 'zh',
     stamp,
@@ -72,7 +72,7 @@ export function IntroModal({
       .replace('{time}', formatWhen(intro.intro.generatedAt) || '—')
     : '';
 
-  const actions = [];
+  const actions: any[] = [];
   if (intro.intro) {
     actions.push(h('button', {
       type: 'button',

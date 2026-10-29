@@ -10,18 +10,18 @@ import React from 'react';
 import { h } from '../host.js';
 import { Overlay } from './overlay.js';
 
-export function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
+export function AddSkillModal({ t, onCancel, onProbe, onInstall }: any) {
   const [source, setSource] = React.useState('');
   // idle | probing | picked | empty | failed
   const [phase, setPhase] = React.useState('idle');
-  const [options, setOptions] = React.useState([]);
+  const [options, setOptions] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState(() => new Set());
   const [manual, setManual] = React.useState('');
   const [skipped, setSkipped] = React.useState(0);
-  const [error, setError] = React.useState(null);
+  const [error, setError] = React.useState<any>(null);
   // 提交安装的进行中 / 失败态：失败时不关窗，就地提示并保留探测结果与勾选
   const [pending, setPending] = React.useState(false);
-  const [submitError, setSubmitError] = React.useState(null);
+  const [submitError, setSubmitError] = React.useState<any>(null);
 
   const reset = (value) => {
     setSource(value);

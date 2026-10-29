@@ -283,7 +283,7 @@ export function parseMarkdown(text: unknown): { blocks: MdNode[]; headings: Arra
         const indent = match[1].replace(/\t/g, '  ').length;
         if (indent > 3) break; // 更深层的嵌套在下面按子列表处理
         const content = match[3];
-        let checked = null;
+        let checked: boolean | null = null;
         const task = /^\[([ xX])\]\s*(.*)$/.exec(content);
         const text2 = task ? task[2] : content;
         if (task) checked = task[1].toLowerCase() === 'x';

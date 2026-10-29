@@ -18,8 +18,8 @@ function shortCommit(value) {
 export function SubscriptionsTab({
   t, subscriptions, rows, expanded, busy, writable, capability = null,
   onToggle, onRefresh, onDelete, onInstall, onAdd,
-}) {
-  const [intro, setIntro] = React.useState(null);
+}: any) {
+  const [intro, setIntro] = React.useState<any>(null);
 
   // 取消订阅 / 刷新后条目没了，弹窗不能留在原地
   React.useEffect(() => {
@@ -110,7 +110,7 @@ export function SubscriptionsTab({
         subscriptions.map((subscription) => {
       const entries = subscription.snapshot?.entries || [];
       const repo = repoOf(subscription.source);
-      const rowsByName = new Map(rows.map((row) => [row.name, row]));
+      const rowsByName = new Map<string, any>(rows.map((row) => [row.name, row]));
       // 已装判定不能只看 subscriptionId：从同一仓库直接安装、或旧版本接管进来的技能，
       // 账本里可能没有订阅关联；物理上已经在了再给「安装」只会覆盖重装。
       const installedRow = (name) => {

@@ -17,7 +17,7 @@ export function Header({
   pluginUpdate, onCheckUpdate,
   onToggleSettings, onChangePlacement,
   onOpenAutoLink, onAddSkill, onAddSubscription,
-}) {
+}: any) {
   const spec = installSpec(plugin);
   const updateAvailable = Boolean(pluginUpdate?.status?.updateAvailable);
 

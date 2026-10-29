@@ -2405,7 +2405,7 @@ function usePluginUpdate() {
   return { status, checking, applying, checkError, applyError, check, apply: apply2, release, loadRelease };
 }
 
-// client/views/header.js
+// client/views/header.ts
 function installSpec(plugin) {
   const name = plugin?.fullName || plugin?.name;
   if (!name) return null;
@@ -2638,7 +2638,7 @@ function Overlay({ t, title, children, footer, onCancel, dismissible = true }) {
   ), overlayHost());
 }
 
-// client/views/intro-modal.js
+// client/views/intro-modal.ts
 var ERROR_KEY = {
   "error.skills.intro-no-model": "intro.error.noModel",
   "error.skills.intro-rate-limit": "intro.error.rateLimit",
@@ -2739,7 +2739,7 @@ function IntroModal({
   );
 }
 
-// client/views/policy-modal.js
+// client/views/policy-modal.ts
 var import_react3 = __toESM(require("react"), 1);
 function PolicyModal({ t, row, busy, onClose, onSave, onUnpark }) {
   const initial = row.mode === "hidden" ? "auto" : row.mode;
@@ -3408,7 +3408,7 @@ function AgentTip({ t, agentTip, agentTipPos, nodeRef }) {
   return portalize(node);
 }
 
-// client/views/subscriptions.js
+// client/views/subscriptions.ts
 var import_react5 = __toESM(require("react"), 1);
 function repoOf(source) {
   const value = String(source || "").trim().toLowerCase().replace(/\.git$/, "");
@@ -3627,10 +3627,10 @@ function SubscriptionsTab({
   );
 }
 
-// client/views/modals.js
+// client/views/modals.ts
 var import_react7 = __toESM(require("react"), 1);
 
-// client/views/add-skill.js
+// client/views/add-skill.ts
 var import_react6 = __toESM(require("react"), 1);
 function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
   const [source, setSource] = import_react6.default.useState("");
@@ -3807,7 +3807,7 @@ function AddSkillModal({ t, onCancel, onProbe, onInstall }) {
   );
 }
 
-// client/views/modals.js
+// client/views/modals.ts
 function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
   const [form, setForm] = import_react7.default.useState(() => Object.fromEntries(fields.map((field) => [field.key, ""])));
   const [pending, setPending] = import_react7.default.useState(false);
@@ -4334,7 +4334,7 @@ function resolveRelativeHref(currentDir, href) {
   return { relPath: out.join("/"), anchor: target.kind === "anchor" ? target.href : "" };
 }
 
-// client/views/markdown-view.js
+// client/views/markdown-view.ts
 var PARSE_CACHE = /* @__PURE__ */ new Map();
 function parseCached(text) {
   const key = String(text ?? "");
@@ -5081,7 +5081,7 @@ function SkillReader({
   ), overlayHost());
 }
 
-// client/views/plugin-update-modal.js
+// client/views/plugin-update-modal.ts
 var import_react9 = __toESM(require("react"), 1);
 function flattenDetails(text) {
   return String(text ?? "").replace(/<details[^>]*>\s*<summary>([\s\S]*?)<\/summary>/gi, (_, summary) => `**${String(summary).trim()}**

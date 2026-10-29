@@ -22,7 +22,7 @@ function flattenDetails(text) {
     .replace(/<\/details>/gi, '');
 }
 
-export function PluginUpdateModal({ t, update, onClose, repoUrl }) {  const { status, checking, applying, checkError, applyError, check, apply, release, loadRelease } = update;
+export function PluginUpdateModal({ t, update, onClose, repoUrl }: any) {  const { status, checking, applying, checkError, applyError, check, apply, release, loadRelease } = update;
   const [copied, setCopied] = React.useState(false);
 
   // 打开即查一次（Host 有 5 分钟缓存，连续打开不会重复打网络）
@@ -68,7 +68,7 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }) {  const { st
 
   const stateTone = (checkError || status?.checkFailed) ? 'err' : available ? 'update' : 'ok';
 
-  const footer = [
+  const footer: any[] = [
     h('button', {
       key: 'check',
       className: 'dshsc-btn ghost',

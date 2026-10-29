@@ -10,7 +10,7 @@ import React from 'react';
 import { h } from '../host.js';
 import { Overlay } from './overlay.js';
 
-export function PolicyModal({ t, row, busy, onClose, onSave, onUnpark }) {
+export function PolicyModal({ t, row, busy, onClose, onSave, onUnpark }: any) {
   const initial = row.mode === 'hidden' ? 'auto' : row.mode;
   const [mode, setMode] = React.useState(initial);
   const [confirming, setConfirming] = React.useState(false);

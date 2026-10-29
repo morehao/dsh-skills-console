@@ -5,10 +5,10 @@ import { h } from '../host.js';
 import { AddSkillModal } from './add-skill.js';
 import { Overlay } from './overlay.js';
 
-export function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
+export function FormModal({ t, title, hint, fields, onCancel, onSubmit }: any) {
   const [form, setForm] = React.useState(() => Object.fromEntries(fields.map((field) => [field.key, ''])));
   const [pending, setPending] = React.useState(false);
-  const [error, setError] = React.useState(null);
+  const [error, setError] = React.useState<any>(null);
   // 默认每项都必填；标了 required: false 的字段（技能名 / ref / 子目录）可留空
   const incomplete = fields.some(
     (field) => field.required !== false && !String(form[field.key] || '').trim(),
@@ -60,7 +60,7 @@ export function FormModal({ t, title, hint, fields, onCancel, onSubmit }) {
   error ? h('p', { className: 'dshsc-form-error', role: 'alert' }, error) : null);
 }
 
-export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel, hideCancel = false }) {
+export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, confirmLabel, hideCancel = false }: any) {
   return h(Overlay, {
     t,
     title,
@@ -76,7 +76,7 @@ export function ConfirmModal({ t, title, body, onCancel, onConfirm, danger, conf
  * 共享设置：把技能暴露给**不读共享根**的其他 Agent。
  * 这里没有作用范围：DSH 的可见性由本地策略决定，共享只影响别的 agent。
  */
-export function ExportsModal({ t, row, agents, onCancel, onSave }) {
+export function ExportsModal({ t, row, agents, onCancel, onSave }: any) {
   // 只列本机真有目录、且能当导出目标的 agent（`exportable` 由 Host 判断：
   // 读共享根的、DSH 自己扫描根的都不在里面）
   const candidates = agents.filter(
@@ -119,7 +119,7 @@ export function ExportsModal({ t, row, agents, onCancel, onSave }) {
   h('p', { className: 'dshsc-sub' }, t('exports.hint')));
 }
 
-export function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
+export function DefaultExportModal({ t, settings, agents, onCancel, onSave }: any) {
   const [targets, setTargets] = React.useState(() => new Set(
     Array.isArray(settings.exportTargets) ? settings.exportTargets : [],
   ));
@@ -154,7 +154,7 @@ export function DefaultExportModal({ t, settings, agents, onCancel, onSave }) {
 }
 
 /** 按 modal.type 分发；未识别的类型不渲染。 */
-export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }) {
+export function Modals({ t, modal, data, autoLinkAgents, actions, onClose, onSaveAutoLink }: any) {
   if (modal.type === 'add-skill') {
     return h(AddSkillModal, {
       t,
