@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.7.1] - 2026-10-29
+
+### 修复
+
+- **可选 peer**：`@deepseek-ai/dsh-home-paths` / `@deepseek-ai/dsh-skill` / `@deepseek-ai/dsh-skill-filesystem` 标记为 `peerDependenciesMeta.optional`。它们由 DSH 宿主在运行时提供；此前作为必装 peer，npm 7+ 会在安装本包时自动解析并安装 `dsh-skill`，而 `dsh-skill@0.2.0-rc.2` 精确 peer 依赖 `@deepseek-ai/dsh-llm@0.2.0-rc.2`，与宿主要求的 `>=0.2.1-rc.3` 冲突，导致消费方（如 `@morehao/dsh-commands`）`npm install` / `npm ci` 报 ERESOLVE、必须加 `legacy-peer-deps`。改为可选 peer 后无需该绕过即可安装。
+
 ## [v0.7.0] - 2026-10-29
 
 ### Refactor
