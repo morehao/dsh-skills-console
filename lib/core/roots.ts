@@ -40,7 +40,7 @@ function isDir(candidate) {
  * `customDirs` 是 `Config.customSkillDirs`；本插件读不到宿主配置，默认空。
  */
 export function listRoots({ paths, projectRoot = null, customDirs = [] }) {
-  const roots = [];
+  const roots: any[] = [];
   if (projectRoot) {
     roots.push({
       source: 'project-dsh',
@@ -85,8 +85,8 @@ export function listRoots({ paths, projectRoot = null, customDirs = [] }) {
  * 与 `listRoots` 的 project-dsh / project-agents / user-dsh / user-agents 一一对应，
  * `test/agents.test.mjs` 有一条用例交叉校验两者的路径集合，别只改一边。
  */
-export function dshScanRootPaths(paths, { projectRoot = null } = {}) {
-  const roots = [];
+export function dshScanRootPaths(paths, { projectRoot = null }: any = {}) {
+  const roots: any[] = [];
   if (projectRoot) {
     roots.push(path.join(projectRoot, '.dsh', 'skills'));
     roots.push(path.join(projectRoot, '.agents', 'skills'));
@@ -109,7 +109,7 @@ export function dshScanRootPaths(paths, { projectRoot = null } = {}) {
  * 与宿主一致地忽略：没有 `SKILL.md`、没有 frontmatter、缺 `name`/`description`、
  * 名字不合法。被忽略的条目放进返回值的 `ignored` 里，供诊断用（不计入可见技能）。
  */
-export function scanSkillRoot(dir, onError = null) {
+export function scanSkillRoot(dir: string, onError: any = null) {
   let entries;
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -117,8 +117,8 @@ export function scanSkillRoot(dir, onError = null) {
     if (onError) onError(error);
     return { entries: [], ignored: [] };
   }
-  const out = [];
-  const ignored = [];
+  const out: any[] = [];
+  const ignored: any[] = [];
   for (const entry of entries) {
     if (entry.name.startsWith('.')) continue;
     const full = path.join(dir, entry.name);

@@ -39,7 +39,7 @@ export function scanCanonical(paths) {
   } catch {
     return [];
   }
-  const out = [];
+  const out: any[] = [];
   for (const entry of entries) {
     if (entry.name.startsWith('.')) continue;
     const full = path.join(dir, entry.name);
@@ -93,9 +93,9 @@ function statusOf({ install, check, locallyModified, brokenExports, subscribed }
  */
 export function buildLedger({ paths, state, registry, lock, visibility, now = new Date().toISOString() }) {
   const scanned = scanCanonical(paths);
-  const installs = new Map(state.installs.map((item) => [item.name, item]));
+  const installs = new Map<string, any>(state.installs.map((item: any) => [item.name, item]));
   const subscriptions = new Set((state.subscriptions || []).map((item) => item.id));
-  const exportsBySkill = new Map();
+  const exportsBySkill = new Map<string, any[]>();
   for (const row of state.exports || []) {
     const list = exportsBySkill.get(row.skill);
     if (list) list.push(row);
@@ -110,7 +110,7 @@ export function buildLedger({ paths, state, registry, lock, visibility, now = ne
 
     // 导出矩阵：账本里的记录 + 各 agent 目录里真的指向 canonical 的链
     // （`agentPresence` 已滤掉 foreign-link / real / 共享根 Agent，它们都不算导出）
-    const exportsRows = [];
+    const exportsRows: any[] = [];
     for (const item of presence) {
       const recorded = recordExports.find((row) => row.target === item.target) || null;
       exportsRows.push({
@@ -139,7 +139,7 @@ export function buildLedger({ paths, state, registry, lock, visibility, now = ne
     // （state 里的 manual 才是插件写过的；这里纯推断，避免把作者声明显示成「自动」。）
     const authorOnly = !parked && !manual && entry.kind === 'dir'
       && Boolean(visible?.foreignHidden) && winnerIsCanonical === true;
-    let currentHash = null;
+    let currentHash: any = null;
     let locallyModified = false;
     if (install && entry.kind === 'dir' && !parked) {
       // manual 的标记行是插件写的，比较前先按 state 还原；还原失败按「本地有改动」保守处理。
@@ -229,7 +229,7 @@ export function buildLedger({ paths, state, registry, lock, visibility, now = ne
   });
 
   // 左栏有、右栏无：别人装的 / 别的 root 里的
-  const visibleOnly = [];
+  const visibleOnly: any[] = [];
   for (const [name, item] of visibility?.byName || []) {
     if (!item.visible) continue;
     if (rows.some((row) => row.name === name)) continue;

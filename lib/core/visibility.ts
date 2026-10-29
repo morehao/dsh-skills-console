@@ -33,12 +33,12 @@ function isPolicyHidden(entry, policyHiddenPaths) {
  * @param {Set}    options.policyHiddenPaths  `enabled === false` 的 canonical 目录
  * @returns {{byName: Map, roots: Array, complete: boolean, errors: Array}}
  */
-export function resolveVisibility({ roots = [], hostSkills = [], policyHiddenPaths = new Set() }) {
-  const byName = new Map();
-  const errors = [];
+export function resolveVisibility({ roots = [], hostSkills = [], policyHiddenPaths = new Set() }: { roots?: any[]; hostSkills?: any[]; policyHiddenPaths?: Set<any> }) {
+  const byName = new Map<string, any>();
+  const errors: any[] = [];
 
   const rootStats = roots.map((root) => {
-    const stat = { source: root.source, rank: root.rank, path: root.path, label: root.label, exists: root.exists, count: 0 };
+    const stat: any = { source: root.source, rank: root.rank, path: root.path, label: root.label, exists: root.exists, count: 0 };
     if (!root.exists) return stat;
     const scanned = scanSkillRoot(root.path, (error) => {
       errors.push({ source: root.source, path: root.path, error: error.message || String(error) });
@@ -86,7 +86,7 @@ export function resolveVisibility({ roots = [], hostSkills = [], policyHiddenPat
     });
   }
 
-  const resolved = new Map();
+  const resolved = new Map<string, any>();
   for (const [name, candidates] of byName) {
     candidates.sort((left, right) => left.rank - right.rank);
     const winner = candidates[0];

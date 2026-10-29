@@ -104,8 +104,8 @@ export function createShadow({ stubPath, name, scope, canonicalHash = null, now 
   if (current.state === 'ours') return { created: false, already: true, stubPath };
   if (current.state !== 'absent') {
     const error = new Error(`无法在 ${stubPath} 建停用标记：${current.state}${current.reason ? `/${current.reason}` : ''}`);
-    error.code = 'error.skills.shadow-conflict';
-    error.detail = { stubPath, state: current.state, reason: current.reason || null };
+    (error as any).code = 'error.skills.shadow-conflict';
+    (error as any).detail = { stubPath, state: current.state, reason: current.reason || null };
     throw error;
   }
 
@@ -129,8 +129,8 @@ export function createShadow({ stubPath, name, scope, canonicalHash = null, now 
     if (fs.existsSync(stubPath)) {
       // 竞态：staging 期间有人抢先建了同名目录
       const error = new Error(`无法在 ${stubPath} 建停用标记：已被占用`);
-      error.code = 'error.skills.shadow-conflict';
-      error.detail = { stubPath, state: 'race' };
+      (error as any).code = 'error.skills.shadow-conflict';
+      (error as any).detail = { stubPath, state: 'race' };
       throw error;
     }
     fs.renameSync(staging, stubPath);
@@ -185,7 +185,7 @@ export function reapShadowLeftovers(dirPath) {
   } catch {
     return [];
   }
-  const reaped = [];
+  const reaped: any[] = [];
   for (const entry of entries) {
     if (!entry.name.startsWith('.shadow-')) continue;
     fs.rmSync(path.join(dirPath, entry.name), { recursive: true, force: true });
