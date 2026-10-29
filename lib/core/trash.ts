@@ -49,7 +49,7 @@ export function createBackup({ paths, skill, fromDir, hash = null, prune = true 
   const meta = { key, skill, hash, from: fromDir, createdAt: new Date().toISOString() };
   fs.writeFileSync(path.join(target, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
   if (prune) pruneBackups({ paths });
-  return { key, dir: target, ...meta };
+  return { ...meta, dir: target };
 }
 
 export function readBackup({ paths, key }) {
@@ -102,7 +102,7 @@ export function trashSkill({ paths, skill, fromDir, hash = null }) {
     expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
   };
   fs.writeFileSync(path.join(target, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
-  return { key, dir: target, ...meta };
+  return { ...meta, dir: target };
 }
 
 export function listTrash({ paths }) {

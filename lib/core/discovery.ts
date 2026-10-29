@@ -19,6 +19,8 @@ import { readSkillFrontmatter } from './skill-md.js';
 const SKIP_DIRS = new Set(['.git', 'node_modules']);
 
 export class DiscoveryError extends Error {
+  code: string;
+  [key: string]: any;
   constructor(code, message, extra = {}) {
     super(message);
     this.name = 'DiscoveryError';
@@ -71,7 +73,7 @@ function assertSkillName(name, dirPath) {
 /**
  * @param {{ dir: string, subpath?: string|null, repoName?: string|null }} options
  */
-export function discoverSkills({ dir, subpath = null, repoName = null } = {}) {
+export function discoverSkills({ dir, subpath = null, repoName = null }: any = {}) {
   if (typeof dir !== 'string' || dir.length === 0) {
     throw new DiscoveryError('invalid-dir', 'discoverSkills 需要解压目录');
   }
@@ -97,7 +99,7 @@ export function discoverSkills({ dir, subpath = null, repoName = null } = {}) {
   }
 
   const fallbackRootName = repoName || path.basename(root);
-  const found = [];
+  const found: any[] = [];
 
   const walk = (current) => {
     let entries;

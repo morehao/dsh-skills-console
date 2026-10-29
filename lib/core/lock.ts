@@ -22,6 +22,8 @@ const TREE_SHA_RE = /^[0-9a-f]{40}$/;
 const CONTENT_SHA_RE = /^[0-9a-f]{64}$/;
 
 export class LockError extends Error {
+  code: string;
+  [key: string]: any;
   constructor(code, message, extra = {}) {
     super(message);
     this.name = 'LockError';
@@ -110,7 +112,7 @@ function atomicWrite(target, text) {
  *   不传则不校验。
  * - 内容没变化时不落盘（不产生 `.bak`、不更新时间戳）。
  */
-export function updateLock({ lockPath, mutate, expectedDigest } = {}) {
+export function updateLock({ lockPath, mutate, expectedDigest }: any = {}) {
   if (typeof mutate !== 'function') {
     throw new LockError('lock-invalid', 'updateLock 需要 mutate 函数');
   }
@@ -132,7 +134,7 @@ export function updateLock({ lockPath, mutate, expectedDigest } = {}) {
     return { data: next, digest: current.digest, changed: false, backup: null };
   }
 
-  let backup = null;
+  let backup: any = null;
   if (current.present) {
     backup = `${lockPath}.bak`;
     try {
@@ -170,7 +172,7 @@ function mergeLockEntry(previous, entry) {
 }
 
 /** 安装/更新后写入一个技能条目；`entry` 由 makeLockEntry 或调用方按 CLI 形状构造。 */
-export function upsertSkill({ lockPath, name, entry, expectedDigest } = {}) {
+export function upsertSkill({ lockPath, name, entry, expectedDigest }: any = {}) {
   assertSkillName(name);
   assertLockEntry(name, entry);
   return updateLock({
@@ -183,7 +185,7 @@ export function upsertSkill({ lockPath, name, entry, expectedDigest } = {}) {
 }
 
 /** 删除一个技能条目；条目本就不存在时视为成功（changed:false）。 */
-export function removeSkill({ lockPath, name, expectedDigest } = {}) {
+export function removeSkill({ lockPath, name, expectedDigest }: any = {}) {
   assertSkillName(name);
   return updateLock({
     lockPath,
@@ -266,7 +268,7 @@ export function makeLockEntry({
   installedAt,
   updatedAt,
   now = new Date(),
-} = {}) {
+}: any = {}) {
   const normalized = typeof source === 'string' ? source.trim().replace(/\.git$/, '') : source;
   if (typeof normalized !== 'string' || !/^[\w.-]+\/[\w.-]+$/.test(normalized)) {
     throw new LockError('lock-invalid', `source 必须是 owner/repo: ${source}`);
@@ -275,7 +277,7 @@ export function makeLockEntry({
     throw new LockError('lock-invalid', `treeSha 必须是 40 位小写 hex: ${treeSha}`);
   }
   const stamp = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
-  const entry = {
+  const entry: any = {
     source: normalized,
     sourceType: 'github',
     sourceUrl: `https://github.com/${normalized}.git`,

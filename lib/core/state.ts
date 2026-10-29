@@ -62,10 +62,10 @@ function legacyExportTargets(settings) {
  * - 顶层 `links[]` 拆成 `exports[]`（agent 链，保留）+ `migration.legacyLinks`（DSH 链/项目链，待删）；
  * - `scopeProjects` 先挂在 `legacyScopeProjects` 上，migrations.js 处理完再删。
  */
-export function upgradeStateV1(value, { now = new Date().toISOString() } = {}) {
+export function upgradeStateV1(value, { now = new Date().toISOString() }: any = {}) {
   const links = Array.isArray(value.links) ? value.links : [];
-  const exportsRows = [];
-  const legacyLinks = [];
+  const exportsRows: any[] = [];
+  const legacyLinks: any[] = [];
   for (const link of links) {
     if (!isPlainObject(link) || typeof link.skill !== 'string' || typeof link.target !== 'string') continue;
     const row = {
@@ -114,10 +114,10 @@ export function upgradeStateV1(value, { now = new Date().toISOString() } = {}) {
  * - `project:*` 只清理桩，**不**转成全局停用；
  * - 删除 `shadows`，版本写 3；v1 遗留的链清理任务保留在 `migration` 里。
  */
-export function upgradeStateV2(value, { now = new Date().toISOString() } = {}) {
+export function upgradeStateV2(value, { now = new Date().toISOString() }: any = {}) {
   const installs = Array.isArray(value.installs) ? value.installs.map((item) => ({ ...item })) : [];
   const known = new Set(installs.map((item) => item.name));
-  const legacyShadows = [];
+  const legacyShadows: any[] = [];
   for (const row of Array.isArray(value.shadows) ? value.shadows : []) {
     if (!isPlainObject(row) || typeof row.skill !== 'string' || typeof row.stubPath !== 'string') continue;
     const scope = typeof row.scope === 'string' ? row.scope : 'user';
@@ -229,11 +229,11 @@ function validateV3(state) {
     }
     if (typeof row.enabled !== 'boolean') row.enabled = true;
   }
-  for (const [key, fields] of [
+  for (const [key, fields] of ([
     ['exports', ['skill', 'target']],
     ['legacyShadows', ['skill', 'stubPath']],
-  ]) {
-    for (const row of state[key]) {
+  ] as Array<[string, string[]]>)) {
+    for (const row of (state as any)[key]) {
       if (!isPlainObject(row)) return { ok: false, reason: `state.${key}[] is not an object` };
       for (const field of fields) {
         if (typeof row[field] !== 'string' || !row[field]) {
@@ -362,7 +362,13 @@ export function validateState(value) {
  * 损坏时**只读降级**，绝不 fail-open：宁可只读，也不要拿坏状态去覆盖链接。
  */
 export class StateStore {
-  constructor(paths, logger = () => {}) {
+  paths: any;
+  logger: any;
+  readOnly: boolean;
+  problem: string | null;
+  state: any;
+
+  constructor(paths: any, logger: any = () => {}) {
     this.paths = paths;
     this.logger = logger;
     this.readOnly = false;
@@ -400,7 +406,7 @@ export class StateStore {
     const verdict = validateState(parsed);
     if (!verdict.ok) {
       this.readOnly = true;
-      this.problem = verdict.reason;
+      this.problem = verdict.reason ?? null;
       this.logger('state.corrupt', { reason: verdict.reason });
       return this.state;
     }
@@ -503,6 +509,8 @@ export class StateStore {
 }
 
 export class StateReadOnlyError extends Error {
+  code: string;
+  [key: string]: any;
   constructor(problem) {
     super(problem || 'state is read-only');
     this.code = 'error.skills.state-readonly';
