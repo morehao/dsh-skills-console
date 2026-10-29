@@ -5,6 +5,7 @@
 ### Fixes
 
 - **intro**: prevent empty or truncated intros on reasoning models (#78)
+- **client**: 添加技能 / 添加订阅弹窗改为「成功才关窗」——提交失败时保留已填来源、探测结果与勾选，弹窗内就地显示错误并可重试；请求进行中锁定弹窗、按钮显示「处理中…」（#79）
 
 **Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.5.5...v0.5.6
 
