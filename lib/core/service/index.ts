@@ -43,6 +43,8 @@ export function createService({
   env = process.env,
   fetchImpl = fetch,
   visibleProvider = async () => ({ skills: [], complete: true }),
+  /** 仅诊断用：DSH registry 技能快照并集（不参与 visible）。 */
+  registrySkillsProvider = async () => ({ available: false, skills: [], complete: false }),
   workspacesProvider = async () => [],
   /** 启停写完后让每个 live agent 的 policy provider 失效（宿主下次 list 重新收集）。 */
   invalidatePolicies = async () => {},
@@ -78,6 +80,7 @@ export function createService({
     env,
     fetchImpl,
     visibleProvider,
+    registrySkillsProvider,
     workspacesProvider,
     invalidatePolicies,
     policyStatus,

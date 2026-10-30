@@ -28,7 +28,7 @@ DSH 会把所有扫描根合并成一张技能表，**rank 小的先赢**；同�
 
 `~/.dsh/skills` 里**不要**再放真身或指向真身的链：那会变成两份真相，正是 v0.3 之前「摘了链却还可见」的根源。`DSH_AGENTS_HOME` 被改到别处时，`~/.agents/skills` 就不再是扫描根——本插件不建可见性链兜底，而是在 `/diagnostics` 里报一条 `canonical-not-scanned`。
 
-**可见性以现场扫描为准**：`/state` 的 `visible` 来自真扫一遍各扫描根 + 宿主 `snapshot()`，再叠加 `enabled=false` 的 policy 判定，不是从账本推的。账本与磁盘不一致时出现在 `diagnostics.drift` 里（导出悬空、legacy 桩残留、启用却不可见……）。
+**可见性以现场扫描为准**：`/state` 的 `visible` 来自真扫一遍各扫描根 + 宿主 `snapshot()`，再叠加 `enabled=false` 的 policy 判定，不是从账本推的。账本与磁盘不一致时出现在 `diagnostics.drift` 里（导出悬空、legacy 桩残留、启用却不可见……）。`/diagnostics` 另有一个只读的 `dshRegistry` 段：列出 DSH registry 额外看到、但不在扫描根里的技能（bundled / 插件 / customSkillDirs / 远端 provider），**仅供排查，不参与 `visible`**，正是下面说的「盲区」明细。
 
 **技能身份是 `SKILL.md` frontmatter 的 `name`，不是目录名**：宿主 `discoverRoot` 也按 frontmatter 的 `name` 读，所以 `xxx.bak-20260101/`（frontmatter 还写着 `name: xxx`）会被当成 `xxx`，和真身在同一个名字上抢 rank——rank 小的赢。没有 `SKILL.md`、缺 `name` / `description`、名字不合法的目录，宿主根本不当技能看，控制台也不算进可见列表。
 

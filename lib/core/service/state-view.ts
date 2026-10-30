@@ -122,6 +122,32 @@ export async function getState(ctx: ServiceCtx, { cwd, workspace }: any = {}) {
   };
 }
 
+/**
+ * 只读诊断：DSH registry 各 live agent 额外看到、但**不在本次扫描根可见集合**里的技能
+ * （bundled / 插件 runtime / customSkillDirs / 远端 provider）。这就是 README 说的「盲区」。
+ *
+ * **只报告，不参与 `visible`**：`visible` 仍按 Agent Skills 扫描根合并，面向规范的本地 agent；
+ * 这里只是把「DSH 还能额外看到什么」如实列出，供排查，不假装支持、也不改写可见性。
+ */
+async function dshRegistryReport(ctx: ServiceCtx, cwd, visible) {
+  const provider = (ctx as any).registrySkillsProvider;
+  if (typeof provider !== 'function') return { available: false, complete: false, agents: 0, skills: [] };
+  let result;
+  try {
+    result = await provider(cwd);
+  } catch (error: any) {
+    ctx.logger('diagnostics.registry.failed', { message: error?.message || String(error) });
+    return { available: false, complete: false, agents: 0, skills: [], error: error?.message || String(error) };
+  }
+  const snap = result || {};
+  const list = Array.isArray(snap.skills) ? snap.skills : [];
+  const extras = list
+    .filter((item) => item && typeof item.name === 'string' && !visible.byName.has(item.name))
+    .map((item) => ({ name: item.name, source: item.source ?? null, provider: item.provider ?? null }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  return { available: Boolean(snap.available), complete: snap.complete !== false, agents: snap.agents ?? 0, skills: extras };
+}
+
 export async function diagnostics(ctx: ServiceCtx) {
   const { paths } = ctx;
   const capabilities = nativeCapabilities(ctx);
@@ -143,6 +169,7 @@ export async function diagnostics(ctx: ServiceCtx) {
   const legacyShadows = state(ctx).legacyShadows || [];
   const exportsRows = state(ctx).exports || [];
   const policy = ctx.policyStatus() || {};
+  const registryView = await dshRegistryReport(ctx, null, visible);
   const drift = {
     /** 账上有链、磁盘上没有（迁移会收缩，运行期只报告） */
     exportsMissing: exportsRows.filter((row) => !row.linkPath || !fs.existsSync(row.linkPath)),
@@ -189,6 +216,9 @@ export async function diagnostics(ctx: ServiceCtx) {
       errors: policy.errors || [],
       blindSpots: ['custom-dirs', 'plugin-skills'],
     },
+    // 只读诊断：DSH registry 额外看到、但不在扫描根可见集合里的技能（盲区明细）。
+    // 不参与 visible —— visible 仍按 Agent Skills 扫描根合并。
+    dshRegistry: registryView,
     installs: state(ctx).installs.length,
     exports: exportsRows.length,
     legacyShadows: legacyShadows.length,
