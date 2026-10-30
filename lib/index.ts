@@ -166,6 +166,7 @@ export function apply(ctx: any, config: any = {}) {
   /**
    * 插件自更新：检查 npm 最新版 / 一键重装自身。
    * `pluginManager` 是桌面端官方能力（installBundle），按可选服务取；拿不到时路由只报手动命令。
+   * 更新会把运行中的插件自己卸载（面板随之消失），所以过程必须落日志。
    */
   const pluginUpdate = createPluginUpdate({
     getPluginManager: () => ctx.get('pluginManager'),
@@ -173,6 +174,7 @@ export function apply(ctx: any, config: any = {}) {
       const profile = ctx.get('profileContext');
       return typeof profile?.name === 'string' ? profile.name : null;
     },
+    logger,
   });
 
   const handler = createRoutes({ service, pluginUpdate, logger });

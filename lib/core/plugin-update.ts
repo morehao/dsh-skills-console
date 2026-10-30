@@ -17,6 +17,9 @@
  *   `already-installed` 拒绝，此时按官方更新路径先 `removeBundle` 再 `installBundle`；拿不到
  *   这些能力就抛 `error.plugin-update.manual`，把手动命令放进 detail 让前端展示/复制。
  * - 不落盘、不加锁：本模块用 `applying` 单飞（进入 `apply()` 立即置位，覆盖查询 + 安装全程）；重启由用户决定。
+ * - 全程落事件日志（`plugin.update.check` / `plugin.update.apply.start` / `plugin.update.apply` /
+ *   `plugin.update.apply.failed`）：更新会把运行中的插件自己卸载，面板与提示会一起消失，
+ *   事后只能靠这份日志判断「装到哪一步、装成没装成」。
  */
 import { readFileSync } from 'node:fs';
 
@@ -160,8 +163,9 @@ function registryPlan(registries) {
  * @param {() => string | null} [deps.getProfileName]  取当前 profile 名（仅用于手动命令）
  * @param {typeof fetch} [deps.fetchImpl]  测试注入
  * @param {() => number} [deps.now]  测试注入
+ * @param {(event: string, detail?: object) => void} [deps.logger]  事件日志（缺省丢弃）
  */
-export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl = globalThis.fetch, now = Date.now, meta = PLUGIN_META }: any = {}) {
+export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl = globalThis.fetch, now = Date.now, meta = PLUGIN_META, logger = () => {} }: any = {}) {
   let cache: any = null; // { version, expiresAt }
   let applying = false; // 路由层单飞：同一时刻只允许一次安装
 
@@ -249,7 +253,15 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
   async function check({ fresh = false }: any = {}) {
     if (fresh) cache = null;
     const latest = await latestVersion();
-    return view({ latest, checkFailed: latest === null });
+    const result = view({ latest, checkFailed: latest === null });
+    logger('plugin.update.check', {
+      current: result.currentVersion,
+      latest: result.latestVersion,
+      updateAvailable: result.updateAvailable,
+      checkFailed: result.checkFailed,
+      fresh,
+    });
+    return result;
   }
 
   /**
@@ -260,10 +272,13 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
    */
   async function apply() {
     if (applying) {
+      logger('plugin.update.apply.busy', { version: meta.version });
       throw new ServiceError('error.plugin-update.busy', '插件正在更新，请稍候', null, 409);
     }
     // 进入即置位：先查最新版也有 await，若等查到再置位，两次并发点击会都通过守卫、装两遍
     applying = true;
+    // 只在真正开始安装后才设：失败日志里 `to: null` 一眼能看出「卡在查版本/没有插件管理器」
+    let target: string | null = null;
     try {
       const latest = await latestVersion();
       if (latest === null) {
@@ -285,6 +300,9 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
       const registry = cache?.version === latest ? cache.registry : undefined;
       const spec = `${meta.name}@${latest}`;
       const installOptions = registry ? { registry } : undefined;
+      target = latest;
+      // 这一步之后运行中的插件可能已被卸载：面板会立刻消失，所以先落日志留痕
+      logger('plugin.update.apply.start', { from: meta.version, to: latest, registry: registry ?? null });
       let result = unwrapResult(await pm.installBundle(spec, installOptions));
       // HMR 开启时，installBundle 对已安装的包名会在跑 pnpm 前直接拒绝 already-installed；
       // 官方页面的「更新」就是先 removeBundle 再 installBundle，这里照同一路径做显式更新。
@@ -303,6 +321,13 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
         throw new ServiceError('error.plugin-update.install-failed', String(failureMessage(result)).slice(0, 600), manualCommand(meta, profileName()), 500);
       }
       cache = { version: latest, expiresAt: now() + CACHE_TTL_MS, registry };
+      logger('plugin.update.apply', {
+        from: meta.version,
+        to: latest,
+        application: result?.application ?? null,
+        restartReason: result?.restartReason ?? null,
+        registry: registry ?? null,
+      });
       return {
         ...view({ latest }),
         updateAvailable: false,
@@ -310,6 +335,14 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
         restartRequired: true,
         applying: false,
       };
+    } catch (error: any) {
+      logger('plugin.update.apply.failed', {
+        from: meta.version,
+        to: target,
+        code: error?.code ?? null,
+        message: String(error?.message ?? error).slice(0, 300),
+      });
+      throw error;
     } finally {
       applying = false;
     }
