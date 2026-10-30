@@ -41,6 +41,21 @@ const required = [
 	"locale/en.json",
 ];
 
+// npm 10（node 22 自带）的 `npm pack` 会**无视 `--ignore-scripts`** 照样执行 `prepare`：
+// pacote 的 DirFetcher 在打包目录时无条件跑 prepare（npm 11 才补上 ignoreScripts 判断），
+// 而 pack 默认 foregroundScripts=true，于是 `prepare → npm run build` 的 "✔ …" 会排在
+// JSON 前面。本地 node 24（npm 11）不复现，CI 的 node 22 必现，所以不能直接 JSON.parse。
+function parsePackJson(stdout) {
+	const text = stdout.trim();
+	if (text.startsWith("[")) return JSON.parse(text);
+	const lines = text.split("\n");
+	const start = lines.findIndex((line) => line === "[");
+	if (start === -1) {
+		throw new Error(`npm pack 输出里没有 JSON 清单（前面可能是 prepare 的构建日志）：\n${text.slice(0, 500)}`);
+	}
+	return JSON.parse(lines.slice(start).join("\n"));
+}
+
 const cacheDir = await mkdtemp(join(tmpdir(), "dsh-skills-console-pack-"));
 let files;
 try {
@@ -49,7 +64,7 @@ try {
 		["pack", "--dry-run", "--json", "--ignore-scripts"],
 		{ cwd: new URL("..", import.meta.url), env: { ...process.env, npm_config_cache: cacheDir } },
 	);
-	files = JSON.parse(stdout)[0].files.map((f) => f.path);
+	files = parsePackJson(stdout)[0].files.map((f) => f.path);
 } finally {
 	await rm(cacheDir, { recursive: true, force: true });
 }
