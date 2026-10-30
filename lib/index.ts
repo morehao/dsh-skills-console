@@ -5,6 +5,7 @@ import { createInstaller } from './core/installer.js';
 import { createLogger } from './core/log.js';
 import { createPaths } from './core/paths.js';
 import { createRegistry } from './core/agents.js';
+import { collectAgentSkills } from './core/agent-skills.js';
 import { createPolicyProvider, installPolicyProviders } from './core/policy.js';
 import { createService } from './core/service.js';
 import { normalizeIntroConfig } from './core/intro.js';
@@ -60,10 +61,9 @@ export function apply(ctx: any, config: any = {}) {
   const policies = installPolicyProviders(ctx, { provider: policyProvider, logger });
 
   /**
-   * 宿主的技能快照。**注意**：不传 `scope`，只能看到 global 层的 provider —— 文件系统
-   * provider 挂在 agent preset 的 scope 层，所以这里拿到的多半只有 bundled/插件技能。
-   * 可见性以 `roots.js` 的本地扫描为准，这个快照只作 rank 600 的垫底候选。
-   * 等宿主提供可用的 scope 入口，再考虑把可见性整体委托给它（见 README「边界（明确不做）」）。
+   * 回退用的技能快照：根 context 的 `ctx.skills`。**注意**：不传 `scope`，只看到 global 层的
+   * provider —— 文件系统 provider 挂在 agent preset 的 scope 层，所以这里多半只有 bundled/插件技能。
+   * 只在拿不到 live agent 快照时兜底（rank 600 垫底候选）。
    */
   const visibleProvider = async (cwd) => {
     const skills = ctx.get('skills');
@@ -81,6 +81,14 @@ export function apply(ctx: any, config: any = {}) {
       })),
     };
   };
+
+  /**
+   * 权威可见性来源：遍历每个 live agent，取它**自己 scope 下**的 `skills.snapshot()` 并集。
+   * agent 的 registry 已经合并了 global + preset（文件系统 provider）+ 本插件的 policy provider，
+   * 所以这就是「该 agent 到底看得见什么」的唯一权威——包含 `customSkillDirs` 和未来新 provider。
+   * 没有 live agent（刚打开设置、还没会话）时 `available:false`，service 自动回退到本地扫描。
+   */
+  const agentsVisibleProvider = (cwd) => collectAgentSkills(ctx.get('agents'), { cwd, logger });
 
   /**
    * 「作用范围」里可以直接勾 DSH 工作区，不必每次走系统目录选择器。
@@ -109,6 +117,7 @@ export function apply(ctx: any, config: any = {}) {
     logger,
     env,
     visibleProvider,
+    agentsVisibleProvider,
     workspacesProvider,
     invalidatePolicies: () => policies.invalidate(),
     policyStatus: () => policies.status(),

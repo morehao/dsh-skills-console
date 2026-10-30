@@ -110,3 +110,78 @@ test('scanSkillRoot：解析 disable-model-invocation / user-invocable（缺省�
   assert.equal(byName.get('slash-only').userInvocable, false);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+// ─── scopedSkills（宿主 per-agent snapshot 权威）对拍 ─────────────────────────────
+
+const scopedSkill = (name, dir, source, invocation = { modelInvocable: true, userInvocable: true }) => ({
+  name,
+  path: path.join(dir, 'SKILL.md'),
+  source,
+  provider: 'fs',
+  invocation,
+});
+
+test('可见性(scoped)：宿主报的 winner 覆盖本地 rank 合并，命中本地目录时保留 raw path', () => {
+  const root = sandbox();
+  const home = path.join(root, 'home');
+  const canonical = skill(path.join(home, '.agents', 'skills', 'demo'), 'demo');
+  const { byName } = resolveVisibility({
+    roots: roots({ home }),
+    scopedSkills: [scopedSkill('demo', canonical, 'user-agents')],
+  });
+  const item = byName.get('demo');
+  assert.equal(item.visible, true);
+  assert.equal(item.winnerSource, 'user-agents');
+  assert.equal(item.winnerPath, canonical, '命中本地候选时用插件自己的 raw 路径，避免 realpath 漂移');
+  assert.equal(item.hostOnly, false);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('可见性(scoped)：只有宿主看得到的 customSkillDirs 技能也纳入（旧算法盲区）', () => {
+  const root = sandbox();
+  const home = path.join(root, 'home');
+  skill(path.join(home, '.agents', 'skills', 'demo'), 'demo');
+  const customDir = path.join(root, 'custom', 'delta');
+  const { byName } = resolveVisibility({
+    roots: roots({ home }),
+    scopedSkills: [scopedSkill('demo', path.join(home, '.agents', 'skills', 'demo'), 'user-agents'), scopedSkill('delta', customDir, 'custom')],
+  });
+  const delta = byName.get('delta');
+  assert.equal(delta.visible, true);
+  assert.equal(delta.winnerSource, 'custom');
+  assert.equal(delta.hostOnly, true);
+  assert.equal(delta.sources.custom, 'present');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('可见性(scoped)：宿主回报 modelInvocable=false 且 frontmatter 可调用 → 判为 policy 隐藏', () => {
+  const root = sandbox();
+  const home = path.join(root, 'home');
+  const canonical = skill(path.join(home, '.agents', 'skills', 'demo'), 'demo');
+  const { byName } = resolveVisibility({
+    roots: roots({ home }),
+    scopedSkills: [scopedSkill('demo', canonical, 'user-agents', { modelInvocable: false, userInvocable: false })],
+  });
+  const item = byName.get('demo');
+  assert.equal(item.visible, false);
+  assert.equal(item.policyHidden, true);
+  assert.equal(item.foreignHidden, false);
+  assert.deepEqual(item.hiddenBy, [{ kind: 'policy', path: canonical }]);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('可见性(scoped)：本地有、宿主没报 → 判该 agent 看不到（scopeHidden）', () => {
+  const root = sandbox();
+  const home = path.join(root, 'home');
+  const canonical = skill(path.join(home, '.agents', 'skills', 'ghost'), 'ghost');
+  const { byName } = resolveVisibility({
+    roots: roots({ home }),
+    scopedSkills: [], // 权威但为空：没有 live agent 看到任何技能
+  });
+  const item = byName.get('ghost');
+  assert.equal(item.visible, false);
+  assert.equal(item.scopeHidden, true);
+  assert.deepEqual(item.hiddenBy, [{ kind: 'scope', path: canonical }]);
+  assert.equal(item.sources['user-agents'], 'shadowed');
+  fs.rmSync(root, { recursive: true, force: true });
+});

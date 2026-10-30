@@ -105,6 +105,7 @@ export async function getState(ctx: ServiceCtx, { cwd, workspace }: any = {}) {
     visible: visibleList,
     visibleComplete: visible.hostComplete && visible.complete,
     visibleErrors: visible.errors,
+    visibilitySource: visible.visibilitySource,
     visibleOnly: ledger.visibleOnly,
     checks: state(ctx).checks,
     cli: capabilities,
@@ -129,6 +130,7 @@ export async function diagnostics(ctx: ServiceCtx) {
   reconcileTracking(ctx, lock);
   // 诊断不传 cwd：只看 user 两个根，避免把某个项目目录的副本算成全局事实
   const visible = await visibilityFor(ctx, null);
+  const visibleSource = visible.visibilitySource;
   const rows = buildLedger({ paths, state: state(ctx), registry: ctx.registry, lock, visibility: visible }).rows;
   const mismatched = rows
     .filter((row) => row.managed && row.lockHash)
@@ -181,13 +183,14 @@ export async function diagnostics(ctx: ServiceCtx) {
         }],
     hashMismatch: mismatched,
     // 宿主 provider 能力与每个 live agent scope 的注册结果。
-    // 盲区（customSkillDirs / plugin runtime 技能）如实标出，不假装支持。
+    // 盲区只在回退路径（无 live agent）存在：此时看不到 customSkillDirs / plugin runtime 技能，
+    // 如实标出；一旦走 agent scope 的 snapshot，这些都已被宿主合并进来，不再是盲区。
     policy: {
       available: Boolean(policy.available),
       agents: policy.registered || 0,
       liveAgents: policy.liveAgents || 0,
       errors: policy.errors || [],
-      blindSpots: ['custom-dirs', 'plugin-skills'],
+      blindSpots: visibleSource === 'agent-scope' ? [] : ['custom-dirs', 'plugin-skills'],
     },
     installs: state(ctx).installs.length,
     exports: exportsRows.length,

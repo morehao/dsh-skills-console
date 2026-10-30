@@ -48,8 +48,10 @@ export interface ServiceCtx {
   env: any;
   /** 可注入 fetch（测试 stub）。 */
   fetchImpl: any;
-  /** 宿主可见技能快照。 */
+  /** 宿主可见技能快照（根 context 的 global 层，回退用）。 */
   visibleProvider: (cwd?: any) => Promise<any>;
+  /** 每个 live agent 的 `skills.snapshot()` 并集（权威可见性来源，见 agent-skills.ts）。 */
+  agentsVisibleProvider: (cwd?: any) => Promise<any>;
   /** 宿主工作区列表。 */
   workspacesProvider: () => Promise<any[]>;
   /** 启停写完后让每个 live agent 的 policy provider 失效。 */
@@ -80,6 +82,7 @@ export interface CreateServiceOptions {
   env?: any;
   fetchImpl?: any;
   visibleProvider?: (cwd?: any) => Promise<any>;
+  agentsVisibleProvider?: (cwd?: any) => Promise<any>;
   workspacesProvider?: () => Promise<any[]>;
   invalidatePolicies?: () => Promise<void>;
   policyStatus?: () => any;

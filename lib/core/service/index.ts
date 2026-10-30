@@ -43,6 +43,7 @@ export function createService({
   env = process.env,
   fetchImpl = fetch,
   visibleProvider = async () => ({ skills: [], complete: true }),
+  agentsVisibleProvider = async () => ({ available: false, skills: [], complete: false }),
   workspacesProvider = async () => [],
   /** 启停写完后让每个 live agent 的 policy provider 失效（宿主下次 list 重新收集）。 */
   invalidatePolicies = async () => {},
@@ -78,6 +79,7 @@ export function createService({
     env,
     fetchImpl,
     visibleProvider,
+    agentsVisibleProvider,
     workspacesProvider,
     invalidatePolicies,
     policyStatus,

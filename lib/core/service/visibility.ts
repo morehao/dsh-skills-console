@@ -38,17 +38,36 @@ export function policyHiddenPathsOf(ctx: ServiceCtx) {
   return hidden;
 }
 
-/** 组装一次可见性视图：扫根 + 合并宿主 snapshot 的 global 层 + 本地策略。 */
+/**
+ * 组装一次可见性视图。
+ *
+ * 合并权优先交给宿主：`agentsVisibleProvider` 取每个 live agent 的 `skills.snapshot()`，
+ * 那是该 agent 真正看到的合并结果（含 customSkillDirs / bundled / policy provider）。
+ * - 拿到（`available === true` 且非不完整）→ 作为 `scopedSkills` 权威，本地扫描只补诊断。
+ * - 拿不到（无 live agent / 全部失败 / 不完整）→ 回退：本地扫描 + 根 context snapshot 的
+ *   global 层（bundled），即旧行为，保证刚打开设置、还没会话时也有结果。
+ */
 export async function visibilityFor(ctx: ServiceCtx, cwd, { withHost = true }: any = {}) {
   const projectRoot = projectRootOf(cwd);
   const roots = listRoots({ paths: ctx.paths, projectRoot });
-  const host = withHost ? await visibleSkills(ctx, cwd) : { skills: [], complete: true };
+
+  const scoped = withHost && typeof ctx.agentsVisibleProvider === 'function'
+    ? await agentsVisibleSkills(ctx, cwd)
+    : { available: false, skills: [], complete: false };
+
+  const useScoped = scoped.available === true && scoped.complete !== false;
+  const host = useScoped || !withHost
+    ? { skills: [], complete: scoped.complete !== false }
+    : await visibleSkills(ctx, cwd);
+
   const resolved = resolveVisibility({
     roots,
     hostSkills: host.skills,
+    scopedSkills: useScoped ? scoped.skills : null,
     policyHiddenPaths: policyHiddenPathsOf(ctx),
   });
-  return { ...resolved, hostComplete: host.complete !== false, projectRoot };
+  const hostComplete = useScoped ? scoped.complete !== false : host.complete !== false;
+  return { ...resolved, hostComplete, projectRoot, visibilitySource: useScoped ? 'agent-scope' : 'local-fallback' };
 }
 
 export async function visibleSkills(ctx: ServiceCtx, cwd) {
@@ -58,6 +77,17 @@ export async function visibleSkills(ctx: ServiceCtx, cwd) {
   } catch (error) {
     ctx.logger('visible.failed', { error: error.message });
     return { skills: [], complete: false, error: error.message };
+  }
+}
+
+/** 每个 live agent 的 `skills.snapshot()` 并集；失败只记日志，交回退路径处理。 */
+export async function agentsVisibleSkills(ctx: ServiceCtx, cwd) {
+  try {
+    const result = await ctx.agentsVisibleProvider(cwd);
+    return result || { available: false, skills: [], complete: false };
+  } catch (error) {
+    ctx.logger('visible.agents.failed', { error: error.message });
+    return { available: false, skills: [], complete: false, error: error.message };
   }
 }
 
