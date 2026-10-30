@@ -94,7 +94,9 @@ DSH（DeepSeek Harness）的技能控制台：**安装、更新、删除、启�
 页头身份胶囊旁的**刷新按钮**用来检查「技能控制台」这个插件自己有没有新版本，而管的是另一个维度——它不是检查技能的上游，而是检查本插件在 npm 上的发布：
 
 - **怎么查**：按宿主 `pluginManager.registries()` 给的 registry 计划（继承 profile 的镜像 / 私有源 / token 配置）依次问 `<registry>/<包名>/latest`（8 秒超时，只取版本号，取不到才回退官方 `registry.npmjs.org`），与本机安装的版本比较；Host 端 5 分钟缓存，连续打开不重复打网络。启动后约 20 秒会静默热身一次，不打扰你。
-- **一键更新**：桌面端有 `pluginManager` 服务时，弹窗里点「更新到 x.y.z」即可把本插件重装到最新版（装到查到最新版的那个 registry）。HMR 开启时宿主会以 `already-installed` 拒绝覆盖同名已安装包，插件按官方更新路径先 `removeBundle` 再 `installBundle`；更新成功后**重启 DSH 生效**（不自动刷新）。
+- **一键更新**：桌面端有 `pluginManager` 服务时，弹窗里点「更新到 x.y.z」即可把本插件重装到最新版（装到查到最新版的那个 registry）。HMR 开启时宿主会以 `already-installed` 拒绝覆盖同名已安装包，插件按官方更新路径先 `removeBundle` 再 `installBundle`；**卸载那一步会让「技能控制台」面板当场消失**（按钮、提示都在面板里），所以弹窗会在动手之前就把下一条讲清楚。
+- **更新后必须完全退出 DSH**：装完 **⌘Q 完全退出再打开** 才会加载新版本；只关窗口、或刷新页面都不行（Host half 在 Electron 主进程里，刷新只重载前端 bundle）。宿主返回 `restart-required` 时也是同一处置。
+- **过程有日志**：`plugin.update.check` / `plugin.update.apply.start` / `plugin.update.apply`（带 `restartReason`）/ `plugin.update.apply.failed` 会写进 `$DSH_HOME/skills-console/dsh-skills-console.log`——面板消失之后仍可据此判断「装到哪一步、装成没装成」。
 - **手动兜底**：环境不支持一键更新时，弹窗给出可复制的手动命令（`dsh plugin --profile <profile> add <包名>@latest`）。
 - **有新版本时**：刷新按钮上会亮一个小圆点，点开即见当前版本 / 最新版本与更新按钮；弹窗还会拉取该版本在 GitHub 上的 **Release 发布说明**正文一并展示（拉不到时给「在 GitHub 查看发布说明」链接）。
 - **边界**：只问 registry、只装本插件自身，不读写其他插件的状态目录；失败静默降级为「暂时无法获取最新版本」，不影响技能管理的任何功能。
