@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.7.3] - 2026-10-30
+
+### 新增
+
+- **plugin-update（可诊断性）**：自更新全程写入事件日志——`plugin.update.check`、`plugin.update.apply.start`（在卸载自己之前写）、`plugin.update.apply`（带 `application` / `restartReason` / `registry`）、`plugin.update.apply.failed`（带 `code` / `message`；`to: null` 表示卡在查版本或宿主没有 `pluginManager`），并发点击记 `plugin.update.apply.busy`。此前自更新不留任何日志，面板一消失就只能靠宿主 `.plugin-manager` 的 pnpm 日志反推。
+
+### 修复
+
+- **plugin-update（提示）**：更新弹窗在动手之前就用警告条说明「一键更新会先卸载当前版本，面板会立刻消失；装完后要完全退出 DSH（⌘Q）再打开，刷新页面没用」，避免用户以为插件坏了；成功提示与重启提示也从含糊的「重启 DSH」改成准确的「完全退出（⌘Q）再打开」。
+
+### 注意
+
+- 触发背景：在当前 DSH 桌面版上，插件自更新（宿主先 `removeBundle` 再 `installBundle`）之后不会把新版本热重挂，面板会一直缺席到完全退出重开——而「请重启」这句话正好渲染在那个已经消失的面板里。0.7.3 不能改变宿主行为，只保证这次更新**说清楚**、**事后查得到**。
+
 ## [v0.7.2] - 2026-10-30
 
 ### 新增
