@@ -1880,3 +1880,34 @@ test('安装 targets 语义：显式 [] 即一个都不建（不回退 settings�
   );
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('诊断：dshRegistry 只读列出 DSH registry 额外看到的技能（不参与 visible）', async () => {
+  const { root, service } = setup({
+    registrySkillsProvider: async () => ({
+      available: true,
+      complete: true,
+      agents: 1,
+      // alpha 已在扫描根可见集合里（setup 的 visibleProvider 提供），bundle-x 只有 DSH registry 看得到
+      skills: [
+        { name: 'alpha', source: 'user-dsh', provider: 'fs' },
+        { name: 'bundle-x', source: 'bundled', provider: 'skill-badge' },
+      ],
+    }),
+  });
+  const report = await service.diagnostics();
+  assert.deepEqual(report.dshRegistry.skills, [
+    { name: 'bundle-x', source: 'bundled', provider: 'skill-badge' },
+  ], '只列出扫描根不可见的额外技能');
+  assert.equal(report.dshRegistry.available, true);
+  assert.equal(report.dshRegistry.complete, true);
+  // 可见性定义不变：alpha 仍按扫描根可见；bundle-x 不进 visible
+  assert.deepEqual(report.policy.blindSpots, ['custom-dirs', 'plugin-skills']);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('诊断：没有 registrySkillsProvider 时 dshRegistry 为空，不影响其余', async () => {
+  const { root, service } = setup();
+  const report = await service.diagnostics();
+  assert.deepEqual(report.dshRegistry, { available: false, complete: false, agents: 0, skills: [] });
+  fs.rmSync(root, { recursive: true, force: true });
+});

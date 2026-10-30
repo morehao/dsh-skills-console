@@ -50,6 +50,12 @@ export interface ServiceCtx {
   fetchImpl: any;
   /** 宿主可见技能快照。 */
   visibleProvider: (cwd?: any) => Promise<any>;
+  /**
+   * **仅诊断用**：DSH registry 各 live agent 的 snapshot 并集（`agent-skills.ts`）。
+   * 只用于 `/diagnostics` 的 `dshRegistry` 盲区报告；**绝不参与** `visible` 计算
+   * （`visible` 仍按 Agent Skills 扫描根合并，见 README「边界」）。
+   */
+  registrySkillsProvider: (cwd?: any) => Promise<any>;
   /** 宿主工作区列表。 */
   workspacesProvider: () => Promise<any[]>;
   /** 启停写完后让每个 live agent 的 policy provider 失效。 */
@@ -80,6 +86,8 @@ export interface CreateServiceOptions {
   env?: any;
   fetchImpl?: any;
   visibleProvider?: (cwd?: any) => Promise<any>;
+  /** 仅诊断用：DSH registry 技能快照并集（不参与 visible）。 */
+  registrySkillsProvider?: (cwd?: any) => Promise<any>;
   workspacesProvider?: () => Promise<any[]>;
   invalidatePolicies?: () => Promise<void>;
   policyStatus?: () => any;

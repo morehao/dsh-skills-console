@@ -5,6 +5,7 @@ import { createInstaller } from './core/installer.js';
 import { createLogger } from './core/log.js';
 import { createPaths } from './core/paths.js';
 import { createRegistry } from './core/agents.js';
+import { collectAgentSkills } from './core/agent-skills.js';
 import { createPolicyProvider, installPolicyProviders } from './core/policy.js';
 import { createService } from './core/service.js';
 import { normalizeIntroConfig } from './core/intro.js';
@@ -63,7 +64,8 @@ export function apply(ctx: any, config: any = {}) {
    * 宿主的技能快照。**注意**：不传 `scope`，只能看到 global 层的 provider —— 文件系统
    * provider 挂在 agent preset 的 scope 层，所以这里拿到的多半只有 bundled/插件技能。
    * 可见性以 `roots.js` 的本地扫描为准，这个快照只作 rank 600 的垫底候选。
-   * 等宿主提供可用的 scope 入口，再考虑把可见性整体委托给它（见 README「边界（明确不做）」）。
+   * 宿主可见性定义仍是「Agent Skills 扫描根合并」（见 README「边界（明确不做）」），不接管
+   * preset 层/其他插件技能源。
    */
   const visibleProvider = async (cwd) => {
     const skills = ctx.get('skills');
@@ -81,6 +83,13 @@ export function apply(ctx: any, config: any = {}) {
       })),
     };
   };
+
+  /**
+   * **仅诊断用**：DSH registry 各 live agent 的 snapshot 并集，用来在 `/diagnostics` 里
+   * 只读列出「DSH 额外看到、但不在扫描根里」的技能（bundled / 插件 / customSkillDirs /
+   * 远端 provider）。**不参与 `visible` 计算**——那是规范扫描根的事；这里只是把盲区如实标出。
+   */
+  const registrySkillsProvider = (cwd) => collectAgentSkills(ctx.get('agents'), { cwd, logger });
 
   /**
    * 「作用范围」里可以直接勾 DSH 工作区，不必每次走系统目录选择器。
@@ -109,6 +118,7 @@ export function apply(ctx: any, config: any = {}) {
     logger,
     env,
     visibleProvider,
+    registrySkillsProvider,
     workspacesProvider,
     invalidatePolicies: () => policies.invalidate(),
     policyStatus: () => policies.status(),
