@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.7.2] - 2026-10-30
+
+### 新增
+
+- **diagnostics**：`/diagnostics` 增加 `dshRegistry` 盲区报告——列出 DSH registry 各 live agent 额外看到、但不在扫描根可见集合里的技能（bundled / 插件 runtime / `customSkillDirs` / 远端 provider）。只读诊断，**不参与** `visible` 计算，也不改变任何可见性判定。（#92）
+
+### 修复
+
+- **check-pack**：npm 10 的 `npm pack` 会无视 `--ignore-scripts` 执行 `prepare`，把构建日志写进 `--json` 清单前的 stdout，导致 `npm run check` 在 CI（node 22 + npm 10.9.9）上 `JSON.parse` 报错、PR 全红。校验脚本现在只截取清单 JSON，npm 10 / 11 行为一致。（#94）
+
 ## [v0.7.1] - 2026-10-29
 
 ### 修复
