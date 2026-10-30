@@ -458,3 +458,101 @@ test('路由 GET /plugin-update/release?version=：透传 version 与发布说�
   assert.equal(askedVersion, '1.3.0');
   assert.equal(JSON.parse(res.out.body).body, 'notes');
 });
+
+test('日志：check 与 apply 全过程落事件日志（面板消失后只能靠它）', async () => {
+  const events = [];
+  const logger = (event, detail) => events.push({ event, detail });
+  const update = createPluginUpdate({
+    meta: META,
+    logger,
+    getPluginManager: () => ({
+      installBundle: async () => ({ application: 'restart-required', restartReason: 'no-hmr' }),
+    }),
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+
+  await update.check();
+  await update.apply();
+
+  assert.deepEqual(events.map((entry) => entry.event), [
+    'plugin.update.check',
+    'plugin.update.apply.start',
+    'plugin.update.apply',
+  ]);
+  assert.equal(events[0].detail.updateAvailable, true);
+  assert.equal(events[0].detail.checkFailed, false);
+  assert.equal(events[0].detail.current, '1.2.3');
+  assert.equal(events[0].detail.latest, '1.3.0');
+  // 宿主没给 registries() 时会回退官方源，日志里记的就是真正问过的那个源
+  assert.deepEqual(events[1].detail, {
+    from: '1.2.3',
+    to: '1.3.0',
+    registry: 'https://registry.npmjs.org/',
+  });
+  assert.equal(events[2].detail.application, 'restart-required');
+  assert.equal(events[2].detail.restartReason, 'no-hmr');
+  assert.equal(events[2].detail.from, '1.2.3');
+  assert.equal(events[2].detail.to, '1.3.0');
+});
+
+test('日志：安装失败记 plugin.update.apply.failed（带 code，to 指向目标版本）', async () => {
+  const events = [];
+  const update = createPluginUpdate({
+    meta: META,
+    logger: (event, detail) => events.push({ event, detail }),
+    getPluginManager: () => ({
+      installBundle: async () => ({ application: 'failed', error: { code: 'E_INSTALL' } }),
+    }),
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+
+  await assert.rejects(() => update.apply());
+  const failed = events.find((entry) => entry.event === 'plugin.update.apply.failed');
+  assert.ok(failed, '必须记一条 failed');
+  assert.equal(failed.detail.from, '1.2.3');
+  assert.equal(failed.detail.to, '1.3.0');
+  assert.equal(failed.detail.code, 'error.plugin-update.install-failed');
+  assert.equal(events.some((entry) => entry.event === 'plugin.update.apply'), false, '失败时不能记成功事件');
+});
+
+test('日志：查不到最新版 / 没有插件管理器时 to 为 null，busy 也留痕', async () => {
+  const events = [];
+  const noCheck = createPluginUpdate({
+    meta: META,
+    logger: (event, detail) => events.push({ event, detail }),
+    fetchImpl: fakeFetch(async () => {
+      throw new Error('ENOTFOUND');
+    }),
+  });
+  await assert.rejects(() => noCheck.apply(), (error) => error.code === 'error.plugin-update.check-failed');
+  const failed = events.find((entry) => entry.event === 'plugin.update.apply.failed');
+  assert.equal(failed.detail.to, null);
+
+  const noManager = createPluginUpdate({
+    meta: META,
+    logger: (event, detail) => events.push({ event, detail }),
+    getPluginManager: () => null,
+    getProfileName: () => 'desktop',
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+  await assert.rejects(() => noManager.apply(), (error) => error.code === 'error.plugin-update.manual');
+  assert.equal(events.filter((entry) => entry.event === 'plugin.update.apply.failed').length, 2);
+  assert.equal(events.some((entry) => entry.event === 'plugin.update.apply.start'), false);
+
+  // 并发点击：第二次直接 busy，且同样留痕
+  const busy = createPluginUpdate({
+    meta: META,
+    logger: (event, detail) => events.push({ event, detail }),
+    getPluginManager: () => ({
+      installBundle: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return { application: 'applied' };
+      },
+    }),
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+  const first = busy.apply();
+  await assert.rejects(() => busy.apply(), (error) => error.code === 'error.plugin-update.busy');
+  await first;
+  assert.equal(events.some((entry) => entry.event === 'plugin.update.apply.busy'), true);
+});

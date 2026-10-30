@@ -122,6 +122,11 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateM
       h('dt', null, t('pluginUpdate.latest')),
       h('dd', null, h('span', { className: 'dshsc-code' }, latest || '—'))),
     h('p', { className: 'dshsc-sub', 'data-kind': stateTone, role: 'status', style: stateTone === 'err' ? { color: 'var(--dsw-alias-state-error-primary)' } : null }, stateLine),
+    // 更新（一键或手动）都会把运行中的插件换掉：面板会消失、提示来不及看。
+    // 所以在动手之前就把「装完要 ⌘Q 完全重启」讲清楚，别让用户以为插件坏了。
+    available && !restartRequired
+      ? h('div', { className: 'dshsc-banner warn' }, t('pluginUpdate.applyWarning'))
+      : null,
     // 有新版本：展示该版本的发布说明（拉了 GitHub Release 正文就渲染，拉不到给外链）
     available
       ? h('div', { className: 'dshsc-release' },
