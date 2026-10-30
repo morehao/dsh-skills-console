@@ -166,4 +166,17 @@
 | Agent 常驻约束 | `AGENTS.md` | 每次会话 |
 | Agent 任务手册 | [docs/agents/](docs/agents/) | 命中任务时按需读 |
 | 人类文档 | [docs/](docs/) · [README.md](README.md) / [README.en.md](README.en.md) | 开发与测试、发布流程、能力说明 |
+| 外部规范 | [Agent Skills 规范](https://agentskills.io/specification) · [skills CLI](https://github.com/vercel-labs/skills) | 技能格式 / 扫描与 lock 的对拍基线（见 §8） |
 | 本地过程 | `.dsh/docs/` | specs / plans / notes / 原型，gitignored |
+
+## 8. 外部规范来源（Agent Skills）
+
+本插件的技能格式与 CLI 兼容性以这两处为权威来源。改 `lib/core/skill-md.ts` / `discovery.ts` / `roots.ts` / `invocation.ts` / `hash.ts` / `lock.ts` 前先对照，别自造字段或规则。
+
+| 来源 | 地址 | 说明 |
+|---|---|---|
+| **Agent Skills 规范（官方）** | [agentskills.io/specification](https://agentskills.io/specification) · 仓库 [agentskills/agentskills](https://github.com/agentskills/agentskills) | 技能目录与 `SKILL.md` 格式的唯一权威：目录 `skill-name/SKILL.md`（+ 可选 `scripts/` / `references/` / `assets/`，渐进披露）；frontmatter 必填 `name`（≤64，小写字母/数字/连字符，首尾不能是连字符）与 `description`（≤1024，非空），可选 `license` / `compatibility` / `metadata` / `allowed-tools`。 |
+| **skills CLI（上游工具）** | [github.com/vercel-labs/skills](https://github.com/vercel-labs/skills) · 站点 [skills.sh](https://skills.sh) · npm `skills`（`npx skills`） | canonical（`~/.agents/skills`）、v3 lock 与内容哈希的兼容基线；`lib/agent-table.json` 由 `npm run sync:agents` 从它（`src/agents.ts` / `dist/cli.mjs`）生成。 |
+
+- **字段边界**：`disable-model-invocation` / `user-invocable` / `whenToUse` 等是 **DSH / 客户端扩展，不属于官方 spec**（官方 frontmatter 表里没有）。调用策略相关逻辑以 [lib/core/skill-md.ts](lib/core/skill-md.ts) 与 [lib/invocation-support.json](lib/invocation-support.json) 的口径为准，不要把它们当成规范字段。
+- **对拍姿势**：格式/解析优先对齐 spec；扫描根、lock、hash、agent 目录以 skills CLI 为准，用 `test/skill-parity.test.mjs` / `test/native-parity.test.mjs` 这类离线对拍兜底。
