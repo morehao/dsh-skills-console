@@ -6,7 +6,7 @@
 
 - 包：`@morehao/dsh-skills-console`（显示名「技能控制台」），DeepSeek Harness（dsh）的**技能控制台插件**；**仓库根即包根**，无 workspace、无子包目录。
 - 两个 half：Host（源码 `lib/**` + `lib/contract/`，`tsc` 编译到 `dist/`）与 Web Client（源码 `client/**`，esbuild 打包到根 `client.js`，`window.__ModuleLoader__` bundle）；默认 `settings.section` 一页两 tab，可在页内切到 `sidebar.panellist` + `main` 独立面板。
-- 纯 ESM、**`dependencies` 只有 `tar@7.5.22`（精确锁版本）**，供 native installer 解压；DSH 宿主已自带的能力（`@deepseek-ai/dsh-home-paths` / `dsh-skill` / `dsh-skill-filesystem` / `schemastery`，以及 YAML 解析用的 `yaml`）一律走 **`peerDependencies`**（由宿主 runtime resolution 提供，不进 `dependencies`、不打包），`devDependencies` 锁版本仅供本仓测试；Host 由 `tsc` 编译、Web Client 由 esbuild 打包，**两个 half 的产物（`dist/`、`client.js`）都不入库**，由 `npm run build` 生成（`prepare` / `prepack` 自动触发）；构建期 devDependency：typescript + esbuild。Node ≥ 22.20（`engines` 另接受 ≥ 24）。
+- 纯 ESM、**`dependencies` 只有 `tar@7.5.22`（精确锁版本，供 native installer 解压）与 `@morehao/dsh-plugin-kit`（`>=0.1.0 <0.2.0`，插件自更新引擎）**；DSH 宿主已自带的能力（`@deepseek-ai/dsh-home-paths` / `dsh-skill` / `dsh-skill-filesystem` / `schemastery`，以及 YAML 解析用的 `yaml`）一律走 **`peerDependencies`**（由宿主 runtime resolution 提供，不进 `dependencies`、不打包），`devDependencies` 锁版本仅供本仓测试；Host 由 `tsc` 编译、Web Client 由 esbuild 打包，**两个 half 的产物（`dist/`、`client.js`）都不入库**，由 `npm run build` 生成（`prepare` / `prepack` 自动触发）；构建期 devDependency：typescript + esbuild。Node ≥ 22.20（`engines` 另接受 ≥ 24）。
 - 技能真身的安装/更新/删除由 native installer 写入：下载/解压/canonical（`~/.agents/skills`）/v3 lock 均由 `lib/core/installer.ts` 负责。本插件其余部分做三件事：**本地策略 provider**（DSH 侧启停/可见性）、**导出链**（给别的 Agent）、**记账 + 事务编排**。
 - 发布：注记 tag `vX.Y.Z` → GitHub Actions OIDC → npm；发布成功后 CI 用注记正文建 GitHub Release。
 
@@ -77,7 +77,7 @@
 - 改 `lib/**` 或 `client/**` 后跑 `npm run build`；`npm run check` 会先构建再校验。`npm run check:host` 可单独确认 `dist/` 是否落后于 `lib/`，`npm run check:client` 确认 `client.js` 是否落后于 `client/`。
 - `link:` 安装与 npm 包都直接读仓库里的 `dist/` 与 `client.js`：装 link 前必须先 `npm run build`（`dsh plugin add` 不跑 `prepare`）。
 - 客户端只允许 `require('react')` / `require('react-dom')`（后者可选）；其它宿主模块或 npm 包一律不许。源码内的相对 `import` 由构建内联；运行时不解析相对 `require`。
-- 构建期依赖是 `typescript` + `esbuild`（以及 `@types/node` / `@types/react`，均 devDependency）；`dependencies` **只允许** `tar@7.5.22`（native installer），精确版本，不要新增其他 `dependencies`；DSH 自带能力（`@deepseek-ai/*`、`yaml`）只走 `peerDependencies`（宿主提供、不打包）+ `devDependencies`（本仓测试）。
+- 构建期依赖是 `typescript` + `esbuild`（以及 `@types/node` / `@types/react`，均 devDependency）；`dependencies` **只允许** `tar@7.5.22`（native installer，精确版本）与 `@morehao/dsh-plugin-kit`（插件自更新引擎，`>=0.1.0 <0.2.0`），不要新增其他 `dependencies`；DSH 自带能力（`@deepseek-ai/*`、`yaml`）只走 `peerDependencies`（宿主提供、不打包）+ `devDependencies`（本仓测试）。
 - `client.js.map` 只用于本地调试（`npm run build:client -- --sourcemap`）：不提交、不入包。
 - 文案：`client/copy.ts` 的 `zh` / `en` 键集合与 `{n}` / `{path}` 占位符必须一一对应；新增文案必须两份一起加。
 - 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `markdown` / `scroll` / `views/*` / `section` / `surface` / `app` / `index`；禁止循环依赖（`client/` 与 `lib/` 由 `npm run check:cycles` 兜底）；`hooks` / `actions` 只依赖 `api`，`views` 不直接发请求（查看器的取数走 `hooks.useSkillReader`）。`scroll` 是只碰 DOM 的基础设施，不依赖 React / `api` / `views`，列表区与查看器共用同一套滚动容器口径。

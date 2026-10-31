@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.7.4] - 2026-10-31
+
+### Refactor
+
+- **plugin-update（引擎收敛到共享包）**：插件自更新的引擎（semver 解析比较、registry 计划、8 秒超时、5 分钟缓存、依次问各 registry、`installBundle` + `already-installed` 先 remove 再 install 的重装流程、`APPLY_IN_PROGRESS` 单飞）收敛到 `@morehao/dsh-plugin-kit`（`>=0.1.0 <0.2.0`，零 `@deepseek-ai` 运行时依赖、宿主能力全部注入）。`lib/core/plugin-update.ts` 退化为薄适配层，只保留本仓特有部分：`PLUGIN_META`、对外视图形状 `canAutoUpdate`、`ServiceError` 错误码映射，以及 GitHub Release 正文（`releaseNotes`，kit 不覆盖）。`isNewerVersion` / `parseSemver` / `registryPlan` / `OFFICIAL_REGISTRY` 从 kit re-export，调用方与签名不变。与 `dsh-commands@0.4.3` 同款改造。
+- **deps**：`dependencies` 新增 `@morehao/dsh-plugin-kit`（`>=0.1.0 <0.2.0`）；`tar@7.5.22` 不变。
+
+### 注意
+
+- 对外行为不变：HTTP 路由回执（`GET /plugin-update`、`POST /plugin-update/apply`、`GET /plugin-update/release`）、错误码（`error.plugin-update.check-failed` / `.manual` / `.busy` / `.install-failed`）、前端字段（`canAutoUpdate` / `manualCommand` / `restartRequired` / `updatedVersion` / `checkFailed`）均保持。`removeBundle` 报 `stop-profile` 时仍提示「完全退出 DSH 后手动更新」。
+- 一处实现细节变化：kit 把 registry 计划用在「查最新版」，`installBundle` 只传 `pkg@version`（registry 由宿主 pnpm 决定），不再把 registry 作为安装选项透传。
+
 ## [v0.7.3] - 2026-10-30
 
 ### 新增

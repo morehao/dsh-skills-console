@@ -5,7 +5,7 @@
 ## 1. 环境
 
 - Node.js ≥ 22.20（`engines`：`^22.20.0 || >=24.0.0`），npm 随 Node。
-- **`dependencies` 只有 `tar@7.5.22`**：随插件安装、精确锁版本，供 native installer 解压；DSH 宿主自带的能力（`@deepseek-ai/dsh-home-paths` / `dsh-skill` / `dsh-skill-filesystem` / `schemastery`，及 YAML 解析用的 `yaml`）走 `peerDependencies`（宿主 runtime resolution 提供，不打包），`devDependencies` 锁版本仅供本仓测试；构建期 devDependency 是 `typescript` + `esbuild`（`package-lock.json` 已提交），`@types/node` / `@types/react` 供类型检查。**Host 用 tsc 编译到 `dist/`，客户端用 esbuild 打包到根 `client.js`，两个产物都不入库**（`npm install` 的 `prepare` 会自动构建一次）。`npm test` 仍离线；`npm run check` 含构建，开发机需要先 `npm install`。
+- **`dependencies` 只有 `tar@7.5.22` 与 `@morehao/dsh-plugin-kit`（`>=0.1.0 <0.2.0`）**：`tar` 随插件安装、精确锁版本，供 native installer 解压；`@morehao/dsh-plugin-kit` 是插件自更新引擎（查 npm 最新版 + 经宿主 `pluginManager` 重装），零 `@deepseek-ai` 运行时依赖、宿主能力全部注入，不再自实现自更新。DSH 宿主自带的能力（`@deepseek-ai/dsh-home-paths` / `dsh-skill` / `dsh-skill-filesystem` / `schemastery`，及 YAML 解析用的 `yaml`）走 `peerDependencies`（宿主 runtime resolution 提供，不打包），`devDependencies` 锁版本仅供本仓测试；构建期 devDependency 是 `typescript` + `esbuild`（`package-lock.json` 已提交），`@types/node` / `@types/react` 供类型检查。**Host 用 tsc 编译到 `dist/`，客户端用 esbuild 打包到根 `client.js`，两个产物都不入库**（`npm install` 的 `prepare` 会自动构建一次）。`npm test` 仍离线；`npm run check` 含构建，开发机需要先 `npm install`。
 - 安装/更新/删除都由 native installer 独立完成（下载 → 安全解压 → 发现 → tree SHA → 原子 promote → lock），运行时不调用任何外部命令。REST 403/429 时，探测与更新检查用 Atom commit feed + codeload tarball 兜底，在 `os.tmpdir()` 解压扫描后即删。
 
 ## 2. 目录结构
@@ -59,7 +59,7 @@ npm run check       # 类型检查 + 循环 + 构建 + 命名 + 打包 + Release
 | `native-install.test.mjs` | Service + 真实 installer 端到端（stub REST/codeload）：安装→state/导出链→删除→回收站/lock |
 | `native-update.test.mjs` | Service + 真实 installer：REST 限流→Atom/codeload 快照→plan/apply→lock/state/备份/导出链存活→rollback 还原 lock 基线 |
 | `remote.test.mjs` | codeload 限额/超时/重定向/token；Atom 解析与错误；tarball 快照扫描与 tree SHA |
-| `native-only.test.mjs` | 0.3 守卫：runtime 依赖只有 tar，`lib/` 不 spawn、不引用 CLI/git 模块、不读旧 CLI/git 环境变量 |
+| `native-only.test.mjs` | 0.3 守卫：runtime 依赖最小（`tar` + `@morehao/dsh-plugin-kit`），`lib/` 不 spawn、不引用 CLI/git 模块、不读旧 CLI/git 环境变量 |
 | `updates.test.mjs` | 快照解析、subpath 过滤、L0–L3 判定、哈希形态（40 位 tree / 64 位内容哈希）与安装基线回退、默认分支失败分流（限流 reset 时间 / 404 / 403 / 网络）、计划 token 稳定性、Trees 200/304/401/404 |
 | `service.test.mjs` | 编排：安装（lock 断言 + 记账 + 默认不建链）、64 位 lock 不误报并按 `treeSha` 判定、导出目标设置、停用只写 `enabled=false` / 不写 `~/.dsh/skills`、启用只改状态、legacy 桩删除失败 409、删除体检只拦记账导出目标（别人的同名链不拦）、删除（回收站）并清 legacy、Agent 目录删掉后导出降级、自动接管（幂等）、无来源接管、只读拒绝且不对账写盘、探测 REST 优先 / Atom+codeload 兜底 / 双通道失败、刷新按 Atom commit 短路、codeload 更新计划；`setInvocation` 三档 + 作者只读 + 归一化哈希 + park 期间拒绝更新/安装 + `reconcileInvocations` 重放；旧 locale 哈希基线一次性重基线（没改过的自动改写、改过的保留）、旧停用哈希不算内容漂移；安装/更新/删除改用 fake installer / 真实 installer |
 | `invocation.test.mjs` | 文件侧：frontmatter 插入/替换/删除、BOM/CRLF/注释/块标量保留、重复 key/无 frontmatter/无闭合拒绝、原子写权限、归一化哈希、park/unpark 内容字节与 hash 校验、park 冲突 `keep=current`、marker 半状态收敛 |

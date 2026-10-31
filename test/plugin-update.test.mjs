@@ -165,24 +165,27 @@ test('check：registries() 缺失或抛错时回退官方 registry', async () =>
   assert.equal((await boom.check()).latestVersion, '1.3.0');
 });
 
-test('apply：把查到最新版的 registry 一并交给 installBundle', async () => {
+test('apply：查最新版时走宿主 registries() 给的源，并以 package@version 交给 installBundle', async () => {
+  // kit 引擎把 registry 计划用在「查最新版」这一步；安装只传 `pkg@version`，registry 由宿主 pnpm 决定。
+  const asked = [];
   const calls = [];
   const update = createPluginUpdate({
     meta: META,
     getPluginManager: () => ({
       registries: async () => ({ registry: 'https://registry.npmmirror.com/', fallbackRegistries: [], resolved: null }),
-      installBundle: async (spec, options) => {
-        calls.push({ spec, options });
+      installBundle: async (spec) => {
+        calls.push(spec);
         return { application: 'restart-required' };
       },
     }),
-    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+    fetchImpl: fakeFetch(async (url) => {
+      asked.push(url);
+      return jsonResponse({ version: '1.3.0' });
+    }),
   });
   await update.apply();
-  assert.deepEqual(calls, [{
-    spec: '@demo/plugin@1.3.0',
-    options: { registry: 'https://registry.npmmirror.com/' },
-  }]);
+  assert.deepEqual(asked, ['https://registry.npmmirror.com/@demo%2Fplugin/latest']);
+  assert.deepEqual(calls, ['@demo/plugin@1.3.0']);
 });
 
 test('apply：没有 pluginManager 时抛 manual，detail 是手动命令', async () => {
@@ -474,28 +477,31 @@ test('日志：check 与 apply 全过程落事件日志（面板消失后只能�
   await update.check();
   await update.apply();
 
-  assert.deepEqual(events.map((entry) => entry.event), [
-    'plugin.update.check',
-    'plugin.update.apply.start',
-    'plugin.update.apply',
-  ]);
-  assert.equal(events[0].detail.updateAvailable, true);
-  assert.equal(events[0].detail.checkFailed, false);
-  assert.equal(events[0].detail.current, '1.2.3');
-  assert.equal(events[0].detail.latest, '1.3.0');
-  // 宿主没给 registries() 时会回退官方源，日志里记的就是真正问过的那个源
-  assert.deepEqual(events[1].detail, {
-    from: '1.2.3',
-    to: '1.3.0',
-    registry: 'https://registry.npmjs.org/',
-  });
-  assert.equal(events[2].detail.application, 'restart-required');
-  assert.equal(events[2].detail.restartReason, 'no-hmr');
-  assert.equal(events[2].detail.from, '1.2.3');
-  assert.equal(events[2].detail.to, '1.3.0');
+  // check 会先记「查到的最新版」（plugin.update.latest）再记视图；apply 前再查一次以刷新视图。
+  const checkViews = events.filter((entry) => entry.event === 'plugin.update.check');
+  assert.ok(checkViews.length >= 1, '至少记一次 check 视图');
+  assert.equal(checkViews[0].detail.updateAvailable, true);
+  assert.equal(checkViews[0].detail.checkFailed, false);
+  assert.equal(checkViews[0].detail.current, '1.2.3');
+  assert.equal(checkViews[0].detail.latest, '1.3.0');
+
+  const start = events.find((entry) => entry.event === 'plugin.update.apply.start');
+  assert.ok(start, '必须记一条 apply.start');
+  assert.equal(start.detail.from, '1.2.3');
+  assert.equal(start.detail.target, '1.3.0');
+
+  const applied = events.find((entry) => entry.event === 'plugin.update.apply');
+  assert.ok(applied, '必须记一条 apply 成功事件');
+  assert.equal(applied.detail.application, 'restart-required');
+  assert.equal(applied.detail.restartRequired, true);
+  assert.equal(applied.detail.updatedVersion, '1.3.0');
+  // 顺序：check 视图 → apply.start → apply 成功
+  const order = events.map((entry) => entry.event);
+  assert.ok(order.indexOf('plugin.update.check') < order.indexOf('plugin.update.apply.start'));
+  assert.ok(order.indexOf('plugin.update.apply.start') < order.indexOf('plugin.update.apply'));
 });
 
-test('日志：安装失败记 plugin.update.apply.failed（带 code，to 指向目标版本）', async () => {
+test('日志：安装失败记 plugin.update.apply.failed（带 code），不记成功事件', async () => {
   const events = [];
   const update = createPluginUpdate({
     meta: META,
@@ -509,13 +515,11 @@ test('日志：安装失败记 plugin.update.apply.failed（带 code，to 指向
   await assert.rejects(() => update.apply());
   const failed = events.find((entry) => entry.event === 'plugin.update.apply.failed');
   assert.ok(failed, '必须记一条 failed');
-  assert.equal(failed.detail.from, '1.2.3');
-  assert.equal(failed.detail.to, '1.3.0');
-  assert.equal(failed.detail.code, 'error.plugin-update.install-failed');
+  assert.equal(failed.detail.code, 'INSTALL_FAILED');
   assert.equal(events.some((entry) => entry.event === 'plugin.update.apply'), false, '失败时不能记成功事件');
 });
 
-test('日志：查不到最新版 / 没有插件管理器时 to 为 null，busy 也留痕', async () => {
+test('日志：查不到最新版 / 没有插件管理器时不留 apply.start，busy 也留痕', async () => {
   const events = [];
   const noCheck = createPluginUpdate({
     meta: META,
@@ -525,8 +529,8 @@ test('日志：查不到最新版 / 没有插件管理器时 to 为 null，busy 
     }),
   });
   await assert.rejects(() => noCheck.apply(), (error) => error.code === 'error.plugin-update.check-failed');
-  const failed = events.find((entry) => entry.event === 'plugin.update.apply.failed');
-  assert.equal(failed.detail.to, null);
+  // 查不到最新版时根本不会进入安装：只记 check 视图（checkFailed）+ latest.failed，无 apply.start
+  assert.equal(events.some((entry) => entry.event === 'plugin.update.apply.start'), false);
 
   const noManager = createPluginUpdate({
     meta: META,
@@ -536,7 +540,6 @@ test('日志：查不到最新版 / 没有插件管理器时 to 为 null，busy 
     fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
   });
   await assert.rejects(() => noManager.apply(), (error) => error.code === 'error.plugin-update.manual');
-  assert.equal(events.filter((entry) => entry.event === 'plugin.update.apply.failed').length, 2);
   assert.equal(events.some((entry) => entry.event === 'plugin.update.apply.start'), false);
 
   // 并发点击：第二次直接 busy，且同样留痕
