@@ -63,8 +63,12 @@ test('apply：有 timer 服务时注册 interval + 延迟首检，并随 effect 
   const { ctx, timer } = fakeCtx();
   try {
     apply(ctx, {});
-    assert.equal(timer.intervalCalls.length, 1, '注册一次周期检测');
-    assert.equal(timer.intervalCalls[0].delay, 6 * 60 * 60 * 1000, '周期 6 小时');
+    // 两个周期检测：技能上游自动检查 + 插件自更新周期检测（都 6 小时）
+    assert.equal(timer.intervalCalls.length, 2, '注册技能上游 + 插件自更新两次周期检测');
+    assert.ok(
+      timer.intervalCalls.every((call) => call.delay === 6 * 60 * 60 * 1000),
+      '两个周期检测均为 6 小时',
+    );
     // 两个延迟任务：技能上游首检（30 秒）+ 插件自更新缓存热身（20 秒）
     assert.equal(timer.timeoutCalls.length, 2, '注册技能首检 + 插件自更新热身');
     const skillFirst = timer.timeoutCalls.find((call) => call.delay === 30 * 1000);

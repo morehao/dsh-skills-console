@@ -216,5 +216,25 @@ export function apply(ctx: any, config: any = {}) {
     }, 'dsh-skills-console:plugin-update-warm');
   }
 
+  // 插件自更新的周期检测：与技能上游同用宿主 timer 服务（可选）。
+  // **只查、不自动 apply**——是否更新由用户在弹窗里点按钮决定（与 runAutoCheck 同一条原则）。
+  // 前端打开弹窗时也会 check()（有 5 分钟缓存），这条周期检测用于「不打开弹窗」时
+  // 让页头的小圆点也能及时反映「有新版本」。失败静默，不打扰用户。
+  if (timer && typeof timer.interval === 'function') {
+    const PLUGIN_UPDATE_CHECK_MS = 6 * 60 * 60 * 1000;
+    ctx.effect(
+      () =>
+        timer.interval(
+          () =>
+            void pluginUpdate
+              .check({ fresh: true })
+              .catch((error) => logger('plugin.update.autoCheck.failed', { message: error?.message })),
+          PLUGIN_UPDATE_CHECK_MS,
+        ),
+      'dsh-skills-console:plugin-update-auto-check',
+    );
+    logger('plugin.update.autoCheck', { intervalMs: PLUGIN_UPDATE_CHECK_MS });
+  }
+
   logger('plugin.apply', { stateDir: paths.stateDir, canonical: paths.canonical, readOnly: store.readOnly });
 }
