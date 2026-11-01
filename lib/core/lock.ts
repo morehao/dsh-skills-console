@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import { writeFileAtomicSync } from './fs-atomic.js';
+import { writeFileAtomicSync } from '@morehao/dsh-plugin-kit/fs';
 
 /**
  * v3 skill lock（`~/.agents/.skill-lock.json`，或 XDG_STATE_HOME 下）的**唯一写入者**。
