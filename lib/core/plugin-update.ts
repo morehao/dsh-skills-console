@@ -9,7 +9,8 @@
  * 本文件只保留 dsh-skills-console 特有的三件事：
  *   - 本仓的对外契约：`check()` 返回 `canAutoUpdate` 视图、`apply()` 抛 `ServiceError`
  *     （`error.plugin-update.*`），路由回执与前端字段都依赖这套形状；
- *   - GitHub Release 正文（`releaseNotes`）：kit 不覆盖，留本仓实现；
+ *   - GitHub Release 正文（`releaseNotes`）：走 kit `./github` 的 `createReleaseReader`
+ *     （v<version> tag / accept vnd.github+json / 失败短缓存 / 非法版本不发请求，与历史逐字对齐）；
  *   - 旧符号 re-export（`isNewerVersion` / `parseSemver` / `registryPlan` / `OFFICIAL_REGISTRY`），
  *     让 `routes.ts` / `service.ts` / `test/*.mjs` 不用一起改。
  *
@@ -18,8 +19,6 @@
  * `INSTALL_FAILED` 等）。本文件把它的错误码映射回本仓的 `ServiceError` 码，保证 HTTP 回执
  * 与前端错误提示不变。
  */
-import { readFileSync } from 'node:fs';
-
 import {
   OFFICIAL_REGISTRY,
   isNewerVersion,
@@ -27,6 +26,8 @@ import {
   parseSemver,
   registryPlan,
 } from '@morehao/dsh-plugin-kit';
+import { createReleaseReader } from '@morehao/dsh-plugin-kit/github';
+import { createPluginMeta } from '@morehao/dsh-plugin-kit/meta';
 import { createPluginUpdater } from '@morehao/dsh-plugin-kit/update';
 
 import { ServiceError } from './service.js';
@@ -38,21 +39,10 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const RELEASE_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /** 插件身份：包名与当前版本。从 package.json 读一次，避免和 page 头硬编码漂移。 */
-export const PLUGIN_META = (() => {
-  try {
-    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
-    const repo = typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url;
-    const match = /github\.com[/:]([\w.-]+\/[\w.-]+?)(?:\.git)?$/i.exec(String(repo || ''));
-    return {
-      name: String(pkg.name || ''),
-      version: String(pkg.version || ''),
-      repository: match ? `https://github.com/${match[1]}` : undefined,
-      repo: match ? match[1] : null,
-    };
-  } catch {
-    return { name: '', version: '', repository: undefined, repo: null };
-  }
-})();
+export const PLUGIN_META = createPluginMeta({
+  pkgUrl: new URL('../../package.json', import.meta.url),
+  defaultName: '@morehao/dsh-skills-console',
+});
 
 /** 手动更新命令（前端展示/复制用），按已发布包 + 当前 profile 拼。 */
 function manualCommand(meta, profileName) {
@@ -185,43 +175,25 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
     }
   }
 
-  // GitHub Release 正文缓存：key = version
-  const releaseCache = new Map();
+  // GitHub Release 正文读取器（懒建，repo 缺失时不建）。语义走 kit `./github`：
+  // - tag 用 `vX.Y.Z`（本仓发布约定），请求 `api.github.com/repos/<repo>/releases/tags/vX`；
+  // - 失败（无 repo / 网络 / 404 / 超时 / 非法版本）返回 null，不抛；前端据此退回「查看发布说明」链接；
+  // - 成功与失败都按 version 短缓存（10 分钟），非法版本不发请求；只读 GitHub 公开 API。
+  const repoSlug = typeof meta.repo === 'string' ? meta.repo.trim() : '';
+  const releaseReader = repoSlug
+    ? createReleaseReader({
+        repo: repoSlug,
+        ...(fetchImpl === undefined ? {} : { fetchImpl }),
+        ...(now === undefined ? {} : { now }),
+        ttlMs: RELEASE_CACHE_TTL_MS,
+        timeoutMs: FETCH_TIMEOUT_MS,
+      })
+    : null;
 
-  /**
-   * 拉某个版本的 GitHub Release 正文（发布说明）。
-   * kit 不覆盖这块，留本仓实现：
-   * - tag 用 `vX.Y.Z`（本仓发布约定），请求 `api.github.com/repos/<repo>/releases/tags/vX`；
-   * - 失败（无 repo / 网络 / 404 / 超时）返回 null，不抛；前端据此退回「查看发布说明」链接；
-   * - 只读 GitHub 公开 API，不读本机任何文件。
-   */
+  /** 拉某个版本的 GitHub Release 正文（发布说明）。无 repo / 非法版本 / 失败 → null，不抛。 */
   async function releaseNotes(version) {
-    const target = String(version || '').trim();
-    if (!meta.repo || parseSemver(target) === undefined) return null;
-    const cached = releaseCache.get(target);
-    if (cached && now() < cached.expiresAt) return cached.value;
-    const tag = `v${target.replace(/^v/, '')}`;
-    try {
-      const response = await fetchImpl(`https://api.github.com/repos/${meta.repo}/releases/tags/${tag}`, {
-        headers: { accept: 'application/vnd.github+json' },
-        redirect: 'error',
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
-      const value = response.ok
-        ? await response.json().then((release) => ({
-            version: target,
-            body: typeof release?.body === 'string' ? release.body : '',
-            htmlUrl: typeof release?.html_url === 'string' ? release.html_url : null,
-            name: typeof release?.name === 'string' ? release.name : null,
-          }))
-        : null;
-      releaseCache.set(target, { value, expiresAt: now() + RELEASE_CACHE_TTL_MS });
-      return value;
-    } catch {
-      // 失败也短缓存，避免连点重复打网络；10 分钟后自然重试
-      releaseCache.set(target, { value: null, expiresAt: now() + RELEASE_CACHE_TTL_MS });
-      return null;
-    }
+    if (!releaseReader) return null;
+    return releaseReader.release(version);
   }
 
   return { check, apply, releaseNotes };

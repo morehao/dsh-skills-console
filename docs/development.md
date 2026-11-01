@@ -5,7 +5,7 @@
 ## 1. 环境
 
 - Node.js ≥ 22.20（`engines`：`^22.20.0 || >=24.0.0`），npm 随 Node。
-- **`dependencies` 只有 `tar@7.5.22` 与 `@morehao/dsh-plugin-kit`（`>=0.1.0 <0.2.0`）**：`tar` 随插件安装、精确锁版本，供 native installer 解压；`@morehao/dsh-plugin-kit` 是插件自更新引擎（查 npm 最新版 + 经宿主 `pluginManager` 重装），零 `@deepseek-ai` 运行时依赖、宿主能力全部注入，不再自实现自更新。DSH 宿主自带的能力（`@deepseek-ai/dsh-home-paths` / `dsh-skill` / `dsh-skill-filesystem` / `schemastery`，及 YAML 解析用的 `yaml`）走 `peerDependencies`（宿主 runtime resolution 提供，不打包），`devDependencies` 锁版本仅供本仓测试；构建期 devDependency 是 `typescript` + `esbuild`（`package-lock.json` 已提交），`@types/node` / `@types/react` 供类型检查。**Host 用 tsc 编译到 `dist/`，客户端用 esbuild 打包到根 `client.js`，两个产物都不入库**（`npm install` 的 `prepare` 会自动构建一次）。`npm test` 仍离线；`npm run check` 含构建，开发机需要先 `npm install`。
+- **`dependencies` 只有 `tar@7.5.22` 与 `@morehao/dsh-plugin-kit`（`^0.3.1`）**：`tar` 随插件安装、精确锁版本，供 native installer 解压；`@morehao/dsh-plugin-kit` 是插件自更新引擎（查 npm 最新版 + 经宿主 `pluginManager` 重装），零 `@deepseek-ai` 运行时依赖、宿主能力全部注入，不再自实现自更新。DSH 宿主自带的能力（`@deepseek-ai/dsh-home-paths` / `dsh-skill` / `dsh-skill-filesystem` / `schemastery`，及 YAML 解析用的 `yaml`）走 `peerDependencies`（宿主 runtime resolution 提供，不打包），`devDependencies` 锁版本仅供本仓测试；构建期 devDependency 是 `typescript` + `esbuild`（`package-lock.json` 已提交），`@types/node` / `@types/react` 供类型检查。**Host 用 tsc 编译到 `dist/`，客户端用 esbuild 打包到根 `client.js`，两个产物都不入库**（`npm install` 的 `prepare` 会自动构建一次）。`npm test` 仍离线；`npm run check` 含构建，开发机需要先 `npm install`。
 - 安装/更新/删除都由 native installer 独立完成（下载 → 安全解压 → 发现 → tree SHA → 原子 promote → lock），运行时不调用任何外部命令。REST 403/429 时，探测与更新检查用 Atom commit feed + codeload tarball 兜底，在 `os.tmpdir()` 解压扫描后即删。
 
 ## 2. 目录结构

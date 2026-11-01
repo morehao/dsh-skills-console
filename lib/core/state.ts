@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { writeFileAtomicSync } from './fs-atomic.js';
+import { writeFileAtomicSync } from '@morehao/dsh-plugin-kit/fs';
 
 /**
  * 状态版本史：

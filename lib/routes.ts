@@ -1,4 +1,7 @@
 import { readFileSync } from 'node:fs';
+
+import { HttpError, createRouteHandler } from '@morehao/dsh-plugin-kit/http';
+
 import { ServiceError } from './core/service.js';
 import { StateReadOnlyError } from './core/state.js';
 
@@ -25,34 +28,6 @@ export const PLUGIN_INFO = (() => {
     return { name: 'dsh-skills-console', fullName: 'dsh-skills-console', version: null, repository: null };
   }
 })();
-
-function sendJson(res: any, status: number, payload: any): void {
-  const body = JSON.stringify(payload);
-  res.writeHead(status, {
-    'content-type': 'application/json; charset=utf-8',
-    'cache-control': 'no-store',
-    'content-length': Buffer.byteLength(body),
-  });
-  res.end(body);
-}
-
-async function readBody(req: any): Promise<any> {
-  const chunks: any[] = [];
-  let size = 0;
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > MAX_BODY) {
-      throw new ServiceError('error.skills.body-too-large', 'request body too large');
-    }
-    chunks.push(chunk);
-  }
-  if (chunks.length === 0) return {};
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
-    throw new ServiceError('error.skills.bad-json', 'request body is not JSON');
-  }
-}
 
 function matchRoute(method, pathname) {
   const segments = pathname.split('/').filter(Boolean);
@@ -131,64 +106,79 @@ function matchRoute(method, pathname) {
   return null;
 }
 
-export function createRoutes({ service, pluginUpdate = null, logger }: any) {
-  return async function handler(req, res) {
-    const url = new URL(req.url || '/', 'http://127.0.0.1');
-    const pathname = url.pathname.startsWith(ROUTE_PREFIX)
-      ? url.pathname.slice(ROUTE_PREFIX.length) || '/'
-      : url.pathname;
-    const method = (req.method || 'GET').toUpperCase();
-
-    // 只认自己的页面：一律要求自定义头。跨源请求带自定义头会先触发预检，等于顺带挡住 CSRF。
-    if (req.headers['x-dsh-skills-console'] !== '1') {
-      sendJson(res, 403, { ok: false, code: 'error.skills.forbidden', message: 'missing x-dsh-skills-console header' });
-      return;
-    }
-
-    const route = matchRoute(method, pathname);
-    if (!route) {
-      sendJson(res, 404, { ok: false, code: 'error.skills.no-route', message: `${method} ${pathname}` });
-      return;
-    }
-
-    // 客户端断开（关抽屉 / 关页面）就取消模型调用：摘要是一次性辅助请求，没必要跑完再丢。
-    // 测试里的 fake res 没有 on/off，所以要按能力探测。
-    const abort = new AbortController();
-    const onClose = () => {
-      if (!res.writableEnded) abort.abort();
-    };
-    if (typeof res.on === 'function') res.on('close', onClose);
-
-    try {
+/**
+ * 统一路由外壳收敛到 kit `createRouteHandler`：鉴权头 / no-store JSON / 有上限 JSON body
+ * / 错误兜底都在包里；本文件只保留 `matchRoute` + `dispatch` 业务，以及本仓的错误码翻译
+ * （dispatcher 不做映射：错误码翻译留在插件侧）。
+ *
+ * 行为等价要点：
+ * - 每请求 `service.reloadState()`（先于分发）；
+ * - 生成类接口把 `AbortSignal` 传下去；客户端断开（关抽屉 / 关页面）就取消模型调用，
+ *   fake req 没有 `on` 时按能力探测跳过；
+ * - 错误映射：`StateReadOnlyError`→409、`ServiceError`→（status||400）、body 超限/非法 JSON
+ *   →400、其余→500，错误码沿用 `error.skills.*`。
+ */
+export function createRoutes({ service, pluginUpdate = null, logger = () => {} }: any) {
+  const handler = createRouteHandler({
+    prefix: ROUTE_PREFIX,
+    header: 'x-dsh-skills-console',
+    maxBodyBytes: MAX_BODY,
+    dispatch: async ({ request, url, method, pathname, body }: any) => {
+      const route = matchRoute(method, pathname);
+      if (!route) {
+        // 404 交给 onError 统一出错误码（保持 `error.skills.no-route` 原样）
+        throw new ServiceError('error.skills.no-route', `${method} ${pathname}`, null, 404);
+      }
       service.reloadState();
-      const body = method === 'GET' ? {} : await readBody(req);
       const query = Object.fromEntries(url.searchParams.entries());
-      const result = await dispatch(route, { body, query, service, pluginUpdate, signal: abort.signal });
-      // 生成期间客户端可能已经走了：往已关闭的响应写会抛 ERR_STREAM_WRITE_AFTER_END
-      if (res.writableEnded || res.destroyed) return;
-      sendJson(res, 200, result);
-    } catch (error) {
-      if (res.writableEnded || res.destroyed) return;
+
+      // 客户端断开就取消模型调用：摘要是一次性辅助请求，没必要跑完再丢。
+      // 测试里的 fake req 没有 on/off，所以要按能力探测。
+      const abort = new AbortController();
+      const onClose = () => {
+        if (!abort.signal.aborted) abort.abort();
+      };
+      const canListen = typeof request?.on === 'function';
+      if (canListen) request.on('close', onClose);
+      try {
+        return await dispatch(route, { body, query, service, pluginUpdate, signal: abort.signal });
+      } finally {
+        if (canListen && typeof request?.off === 'function') request.off('close', onClose);
+      }
+    },
+    onError: (error: any) => {
       if (error instanceof StateReadOnlyError) {
-        sendJson(res, 409, {
-          ok: false,
+        return {
+          status: 409,
           code: 'error.skills.state-readonly',
           message: '状态文件损坏，插件处于只读模式',
-          detail: error.problem || null,
-        });
-        return;
+          extra: { detail: error.problem || null },
+        };
       }
       if (error instanceof ServiceError) {
         // 默认 400；policy-unavailable / shadow-locked 等能力或状态冲突带 409。
-        sendJson(res, error.status || 400, { ok: false, code: error.code, message: error.message, detail: error.detail ?? null });
-        return;
+        return {
+          status: error.status || 400,
+          code: error.code,
+          message: error.message,
+          extra: { detail: error.detail ?? null },
+        };
+      }
+      // body 超限 / 非法 JSON 由 kit 的 readJsonBody 抛 HttpError，翻译回本仓的 error.skills.* 码。
+      if (error instanceof HttpError) {
+        const code = error.code === 'PAYLOAD_TOO_LARGE' ? 'error.skills.body-too-large' : 'error.skills.bad-json';
+        return { status: 400, code, message: error.message };
       }
       logger('route.error', { message: error?.message, stack: String(error?.stack || '').slice(0, 800) });
-      sendJson(res, 500, { ok: false, code: 'error.skills.internal', message: error?.message || 'internal error' });
-    } finally {
-      if (typeof res.off === 'function') res.off('close', onClose);
-    }
-  };
+      return {
+        status: 500,
+        code: 'error.skills.internal',
+        message: error?.message || 'internal error',
+      };
+    },
+    logger,
+  });
+  return handler;
 }
 
 async function dispatch(route: any, { body, query, service, pluginUpdate = null, signal = null }: any) {

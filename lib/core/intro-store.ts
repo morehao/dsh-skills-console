@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-import { writeFileAtomicSync } from './fs-atomic.js';
+import { writeFileAtomicSync } from '@morehao/dsh-plugin-kit/fs';
 import { INTRO_STORE_VERSION } from './intro.js';
 
 /**
