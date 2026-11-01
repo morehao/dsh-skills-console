@@ -219,6 +219,40 @@ test('apply：有 pluginManager 时调用 installBundle 并返回 restartRequire
   assert.equal(result.updatedVersion, '1.3.0');
   assert.equal(result.restartRequired, true);
   assert.equal(result.updateAvailable, false);
+  // 回执带上本进程已装成的目标版本，供前端识别「已装但需重启」的过渡态
+  assert.equal(result.appliedVersion, '1.3.0');
+});
+
+test('apply 后同进程 check：已装成 appliedVersion 时不再谎报 updateAvailable', async () => {
+  // 跨版本自更新：meta 仍是 1.2.3（本进程），但已把 1.3.0 装到磁盘、待重启生效。
+  const update = createPluginUpdate({
+    meta: META,
+    getPluginManager: () => ({ installBundle: async () => ({ application: 'restart-required' }) }),
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+  const before = await update.check({ fresh: true });
+  assert.equal(before.updateAvailable, true, 'apply 前确实落后');
+  assert.equal(before.appliedVersion, null);
+
+  await update.apply();
+  const after = await update.check({ fresh: true });
+  // 关键：不再提示更新；latestVersion 仍保留（让 UI 如实显示「已装 1.3.0，重启生效」）
+  assert.equal(after.updateAvailable, false);
+  assert.equal(after.latestVersion, '1.3.0');
+  assert.equal(after.appliedVersion, '1.3.0');
+});
+
+test('appliedVersion 不掩盖真实安装失败', async () => {
+  const update = createPluginUpdate({
+    meta: META,
+    getPluginManager: () => ({ installBundle: async () => ({ application: 'failed', error: { code: 'E_INSTALL' } }) }),
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+  await assert.rejects(() => update.apply());
+  // 失败后 appliedVersion 仍为空，check 仍如实报告有更新
+  const view = await update.check({ fresh: true });
+  assert.equal(view.appliedVersion, null);
+  assert.equal(view.updateAvailable, true);
 });
 
 test('apply：已是最新时不调用 installBundle', async () => {

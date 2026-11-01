@@ -96,6 +96,7 @@ DSH（DeepSeek Harness）的技能控制台：**安装、更新、删除、启�
 - **怎么查**：按宿主 `pluginManager.registries()` 给的 registry 计划（继承 profile 的镜像 / 私有源 / token 配置）依次问 `<registry>/<包名>/latest`（8 秒超时，只取版本号，取不到才回退官方 `registry.npmjs.org`），与本机安装的版本比较；Host 端 5 分钟缓存，连续打开不重复打网络。启动后约 20 秒会静默热身一次，不打扰你。
 - **一键更新**：桌面端有 `pluginManager` 服务时，弹窗里点「更新到 x.y.z」即可把本插件重装到最新版（装到查到最新版的那个 registry）。HMR 开启时宿主会以 `already-installed` 拒绝覆盖同名已安装包，插件按官方更新路径先 `removeBundle` 再 `installBundle`；**卸载那一步会让「技能控制台」面板当场消失**（按钮、提示都在面板里），所以弹窗会在动手之前就把下一条讲清楚。
 - **更新后必须完全退出 DSH**：装完 **⌘Q 完全退出再打开** 才会加载新版本；只关窗口、或刷新页面都不行（Host half 在 Electron 主进程里，刷新只重载前端 bundle）。宿主返回 `restart-required` 时也是同一处置。
+- **面板消失不是坏了**：一键更新会先卸载旧版本，面板随之消失是宿主流程的正常一步。为避免「提示恰好渲染在已消失的面板里、用户错过」，插件在动手前把「刚点过更新」记到浏览器 `localStorage`；重开（新进程）后面板若已回来，会在右下角弹出一条常驻的**恢复提示**（讲清「面板消失是正常、⌘Q 重开才生效」），点「知道了」收起。另外客户端每次加载都会自愈入口（`settings.section` 与 `sidebar.panellist` 至少保留一个），即使某次侧栏主面板没挂上也不会彻底找不到入口。
 - **过程有日志**：`plugin.update.check` / `plugin.update.apply.start` / `plugin.update.apply`（带 `restartReason`）/ `plugin.update.apply.failed` 会写进 `$DSH_HOME/skills-console/dsh-skills-console.log`——面板消失之后仍可据此判断「装到哪一步、装成没装成」。
 - **手动兜底**：环境不支持一键更新时，弹窗给出可复制的手动命令（`dsh plugin --profile <profile> add <包名>@latest`）。
 - **有新版本时**：刷新按钮上会亮一个小圆点，点开即见当前版本 / 最新版本与更新按钮；弹窗还会拉取该版本在 GitHub 上的 **Release 发布说明**正文一并展示（拉不到时给「在 GitHub 查看发布说明」链接）。
