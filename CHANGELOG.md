@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.7.5] - 2026-11-01
+
+### Refactor
+
+- **deps**：`@morehao/dsh-plugin-kit` `>=0.1.0 <0.2.0` → `>=0.2.1 <0.3.0`。0.2.x 复用宿主原生 registryPlan 与主流 semver 包，对外行为不变，`lib/core/plugin-update.ts` 薄适配层与对外视图形状无需改动。
+
 ## [v0.7.4] - 2026-10-31
 
 ### Refactor
