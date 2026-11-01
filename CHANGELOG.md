@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.7.6] - 2026-11-01
+
+### Refactor
+
+- **kit（行为等价迁移到 @morehao/dsh-plugin-kit@^0.3.1）**：把本仓重复实现收敛到共享包，对外接口与业务语义一律不变：
+  - **fs 原子写**：删除 `lib/core/fs-atomic.ts`，改用 kit `./fs` 的 `writeFileAtomicSync`；`state` / `invocation` / `intro-store` / `lock` 四处引用改指向 kit（`lock` 保留显式 `mode:0o644`）。
+  - **插件身份**：`plugin-update.ts` 的 `PLUGIN_META` 改用 kit `./meta` 的 `createPluginMeta`（`pkgUrl` 为 `../../package.json`），字段 `name` / `version` / `repository` / `repo` 不变。
+  - **发布说明**：`releaseNotes()` 改用 kit `./github` 的 `createReleaseReader`，语义逐字对齐（`v<version>` tag、`accept: vnd.github+json`、失败短缓存 10 分钟、非法版本不发请求、失败返回 `null` 不抛）。
+  - **路由外壳**：`lib/routes.ts` 的 `sendJson` / `readBody` / 头校验改用 kit `./http` 的 `createRouteHandler`；`matchRoute` + `dispatch` 业务保留，错误码翻译仍留在插件侧（`onError`：`StateReadOnlyError`→409、`ServiceError`→`status||400`、body 超限/非法 JSON→`error.skills.*`→400、其余→500）。
+  - **不引入 `./exec`**：保持 `lib/` 的 native-only guard（禁 `node:child_process` / `spawn(`）通过。
+
+### 依赖
+
+- `dependencies`：`@morehao/dsh-plugin-kit` 从 `>=0.2.1 <0.3.0` 升到 `^0.3.1`；`tar@7.5.22` 不变。
+
+### 注意
+
+- **对外零变化**：HTTP 路由响应形状、`error.skills.*` 错误码、`PLUGIN_META` 字段、`releaseNotes` 返回值、前端字段均保持原样。
+- 内部无行为差异：`releaseNotes` 与 kit 实现逻辑一致；路由鉴权/响应/错误映射语义不变。
+
 ## [v0.7.5] - 2026-11-01
 
 ### Refactor
