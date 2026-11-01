@@ -739,4 +739,15 @@ export const CSS = `
     box-shadow: 0 8px 24px rgba(0,0,0,.22); max-width: 420px; }
   .dshsc-toast.err { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
   .dshsc-toast.ok { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 50%, var(--dsw-alias-border-l2)); }
+
+  /* 自更新恢复提示：常驻右下，不随面板消失。比 toast 更宽、带标题与两个动作。 */
+  .dshsc-restore { position: fixed; right: 18px; bottom: 18px; z-index: 72; width: min(420px, calc(100vw - 36px));
+    display: flex; flex-direction: column; gap: 10px; padding: 13px 15px; border-radius: 11px;
+    background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary);
+    border: 1px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, var(--dsw-alias-border-l2));
+    box-shadow: 0 10px 28px rgba(0,0,0,.26); }
+  .dshsc-restore-text { display: flex; flex-direction: column; gap: 5px; }
+  .dshsc-restore-title { font-size: 13px; font-weight: 600; }
+  .dshsc-restore-body { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); }
+  .dshsc-restore-actions { display: flex; justify-content: flex-end; gap: 8px; }
 `;

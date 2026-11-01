@@ -94,6 +94,13 @@ function toServiceError(error, manual) {
 export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl = globalThis.fetch, now = Date.now, meta = PLUGIN_META, logger = () => {} }: any = {}) {
   // 单飞由 kit 引擎内部维护（applying），这里只在 apply 前再查一次保证最新。
   let applying = false; // 本仓视图里的 applying 标记，与 kit 的 isApplying 对齐
+  /**
+   * 本进程内已装成的目标版本。跨版本自更新时宿主返回 `restart-required`（新版本要重启才真正生效），
+   * 但**本进程内的 `meta.version` 仍是旧值**——若只按它判「落后」，页头小红点和弹窗会一直谎报
+   * 「有新版本」。这里记住 apply 成功的目标版本，`check()` 时若 latest 已等于它，就不再提示更新
+   * （`restartRequired` 仍如实为 true：事实是「装了但要重启」）。重启后是新进程，自然归零。
+   */
+  let appliedVersion: string | null = null;
 
   const updater = createPluginUpdater({
     meta: { name: meta.name, version: meta.version, ...(meta.repository === undefined ? {} : { repository: meta.repository }) },
@@ -126,13 +133,23 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
       canAutoUpdate: raw.canApply,
       manualCommand: raw.manualCommand || manualCommand(meta, profileName()),
       applying: raw.applying || applying,
+      // 本进程内已装成的目标版本（跨版本自更新后 = 新版，重启前的过渡态）；没有则 null。
+      appliedVersion,
     };
   }
 
-  /** GET：读最新版本并返回视图。网络失败不抛，用 checkFailed 标记。 */
+  /**
+   * GET：读最新版本并返回视图。网络失败不抛，用 checkFailed 标记。
+   * 同一进程内已 apply 到 `appliedVersion` 时，收敛 `updateAvailable`：
+   * 目标是「别再催用户点更新」——真正生效仍需重启（`restartRequired`），但那由 UI 的恢复提示讲。
+   */
   async function check({ fresh = false }: any = {}) {
     const raw = await updater.check({ fresh });
-    return view(raw);
+    const v = view(raw);
+    if (appliedVersion !== null && v.latestVersion === appliedVersion) {
+      v.updateAvailable = false;
+    }
+    return v;
   }
 
   /**
@@ -160,8 +177,13 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
       }
       try {
         const result = await updater.apply();
+        // apply 成功（宿主确实装了新版）才记：install-failed / remove-failed 不会走到这。
+        if (typeof result.updatedVersion === 'string' && result.updatedVersion) {
+          appliedVersion = result.updatedVersion;
+        }
+        // 用 check() 统一收敛 view：此时 appliedVersion 已就位，updateAvailable 会被收敛为 false。
         return {
-          ...view(await updater.check({ fresh: false })),
+          ...(await check({ fresh: false })),
           updateAvailable: false,
           updatedVersion: result.updatedVersion,
           restartRequired: result.restartRequired !== false,

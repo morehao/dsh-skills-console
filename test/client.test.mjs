@@ -207,6 +207,8 @@ function loadModule(payload, options = {}) {
   if (options.document !== undefined) sandbox.document = options.document;
   if (options.MutationObserver !== undefined) sandbox.MutationObserver = options.MutationObserver;
   if (options.fetch) sandbox.fetch = options.fetch;
+  // 注入假的 localStorage（自更新恢复提示 / layout 卫生读它）；默认没有 → 走 fail-open 空实现。
+  if (options.localStorage !== undefined) sandbox.window.localStorage = options.localStorage;
   sandbox.window.addEventListener = () => {};
   sandbox.window.removeEventListener = () => {};
   vm.createContext(sandbox);
@@ -232,7 +234,7 @@ function loadModule(payload, options = {}) {
     },
   };
   const locale = { getLocale: () => ({ active: options.locale || 'zh' }) };
-  const layout = {
+  const layout = options.layout || {
     selected: [],
     selectPanel(id) { this.selected.push(id); },
   };
@@ -1021,7 +1023,7 @@ test('侧边栏入口：一个开关（不是文字按钮），切换后重新�
   assert.equal(onToggle.props['aria-checked'], 'true', '切到侧栏后开关应为开');
 });
 
-test('入口位置=sidebar：启动时直接注册主面板和侧栏图标', async () => {
+test('入口位置=sidebar：启动时注册主面板 + 侧栏图标，并保一个设置分区兜底（入口自愈）', async () => {
   const { stub, registrations } = loadModule({
     ...STATE,
     settings: { ...STATE.settings, placement: 'sidebar' },
@@ -1033,7 +1035,8 @@ test('入口位置=sidebar：启动时直接注册主面板和侧栏图标', asy
   assert.ok(icon, '侧栏模式要注册 sidebar.panellist');
   assert.equal(main.options.key, 'dsh-skills-console');
   assert.equal(icon.options.id, 'dsh-skills-console');
-  assert.ok(!registrations.some((entry) => entry.key === 'settings.section' && entry.active), '不再占设置分区');
+  // 入口自愈：侧栏模式也保留设置分区作兜底，保证「至少一个入口」始终存在（跨版本自更新后尤其关键）
+  assert.ok(registrations.some((entry) => entry.key === 'settings.section' && entry.active), '侧栏模式也保一个设置分区兜底');
 
   const first = stub.render(main.Component, {});
   first.effects.forEach((fn) => fn());
@@ -2355,4 +2358,108 @@ test('插件更新弹窗：版本占位符替换成真实版本号', async () =>
   assert.ok(!text.includes('{version}'), '弹窗里不能残留 {version} 占位符');
   assert.ok(!text.includes('<details>') && !text.includes('<summary>'), 'details 折叠块要降级，不能露出原始标签');
   assert.ok(text.includes('原始变更记录（自动生成，未改写）'), 'details 的摘要文本仍要展示');
+});
+
+// ---- 自更新恢复提示 + 入口自愈 ----
+
+/** 最小 localStorage 存根：只实现 update-store 用到的 get/set/remove。 */
+function fakeLocalStorage(initial = {}) {
+  const map = new Map(Object.entries(initial));
+  return {
+    map,
+    getItem(key) { return map.has(key) ? map.get(key) : null; },
+    setItem(key, value) { map.set(key, String(value)); },
+    removeItem(key) { map.delete(key); },
+  };
+}
+
+test('自更新恢复提示：读到未过期的 update-pending 记号 → 渲染恢复条', async () => {
+  const ls = fakeLocalStorage({
+    'dsh-skills-console:update-pending': JSON.stringify({ from: '0.7.6', to: '0.7.7', at: Date.now() }),
+  });
+  const { Component, stub } = loadModule(STATE, { localStorage: ls });
+  const out = await settle(stub, Component);
+  const text = textOf(out.tree);
+  assert.ok(text.includes('插件已更新到 0.7.7'), `应渲染恢复条标题，实际：${text.slice(0, 300)}`);
+  const dismiss = collectButtons(out.tree).find((b) => textOf(b).trim() === '知道了');
+  assert.ok(dismiss, '恢复条要有「知道了」按钮');
+});
+
+test('自更新恢复提示：记号过期（>24h）→ 不渲染，并清理', async () => {
+  const old = Date.now() - 25 * 60 * 60 * 1000;
+  const ls = fakeLocalStorage({
+    'dsh-skills-console:update-pending': JSON.stringify({ from: '0.7.6', to: '0.7.7', at: old }),
+  });
+  const { Component, stub } = loadModule(STATE, { localStorage: ls });
+  const out = await settle(stub, Component);
+  assert.ok(!textOf(out.tree).includes('插件已更新到 0.7.7'), '过期记号不应渲染恢复条');
+  assert.equal(ls.getItem('dsh-skills-console:update-pending'), null, '过期记号要被清理');
+});
+
+test('自更新恢复提示：点「知道了」→ 清除记号并收起', async () => {
+  const ls = fakeLocalStorage({
+    'dsh-skills-console:update-pending': JSON.stringify({ from: '0.7.6', to: '0.7.7', at: Date.now() }),
+  });
+  const { Component, stub } = loadModule(STATE, { localStorage: ls });
+  let out = await settle(stub, Component);
+  const dismiss = collectButtons(out.tree).find((b) => textOf(b).trim() === '知道了');
+  assert.ok(dismiss, '应先有「知道了」');
+  dismiss.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.equal(ls.getItem('dsh-skills-console:update-pending'), null, '点「知道了」后记号被清除');
+  assert.ok(!textOf(out.tree).includes('插件已更新到 0.7.7'), '恢复条应消失');
+});
+
+test('自更新恢复提示：没有记号时不渲染恢复条', async () => {
+  const ls = fakeLocalStorage({});
+  const { Component, stub } = loadModule(STATE, { localStorage: ls });
+  const out = await settle(stub, Component);
+  assert.ok(!textOf(out.tree).includes('插件已更新到'), '无记号时不应出现恢复条');
+});
+
+test('入口自愈：sidebar 偏好下仍保留一个设置分区兜底（至少一个入口）', async () => {
+  const { registrations } = loadModule({
+    ...STATE,
+    settings: { ...STATE.settings, placement: 'sidebar' },
+  }, { localStorage: fakeLocalStorage({}) });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const settingsSection = registrations.find((e) => e.key === 'settings.section' && e.active);
+  const sidebar = registrations.find((e) => e.key === 'sidebar.panellist' && e.active);
+  assert.ok(sidebar, 'sidebar 偏好要注册侧栏入口');
+  assert.ok(settingsSection, 'sidebar 偏好也要保一个设置分区兜底');
+});
+
+test('布局卫生：上次选中的主面板当前选不中（未注册）→ 回退会话页(null) 并清记号', async () => {
+  const ls = fakeLocalStorage({
+    'dsh-skills-console:layout-selected': JSON.stringify({ key: 'dsh-skills-console' }),
+  });
+  // 模拟「该主面板本次没注册」：selectPanel 对该 key 抛错，对 null 记录成功
+  const layout = {
+    selected: [],
+    selectPanel(id) {
+      if (id === 'dsh-skills-console') throw new Error('not registered');
+      this.selected.push(id);
+    },
+  };
+  const { registrations } = loadModule(STATE, { localStorage: ls, layout });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(layout.selected.includes(null), '选不中时回退 session（selectPanel(null)）');
+  const after = JSON.parse(ls.getItem('dsh-skills-console:layout-selected'));
+  assert.equal(after.key, '', '回退后清掉 layout 记号');
+  void registrations;
+});
+
+test('布局卫生：上次选中的主面板能选中 → 保持用户选择，不清记号', async () => {
+  const ls = fakeLocalStorage({
+    'dsh-skills-console:layout-selected': JSON.stringify({ key: 'dsh-skills-console' }),
+  });
+  const layout = {
+    selected: [],
+    selectPanel(id) { this.selected.push(id); },
+  };
+  loadModule(STATE, { localStorage: ls, layout });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(layout.selected.includes('dsh-skills-console'), '能选中则保持上次选择');
+  const after = JSON.parse(ls.getItem('dsh-skills-console:layout-selected'));
+  assert.equal(after.key, 'dsh-skills-console', '可选中时不清记号');
 });

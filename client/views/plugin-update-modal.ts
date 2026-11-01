@@ -10,6 +10,7 @@ import type { Translate } from '../copy.js';
 import { RefreshIcon } from '../icons.js';
 import { Overlay } from './overlay.js';
 import { Markdown } from './markdown-view.js';
+import { writePendingUpdate } from '../update-store.js';
 
 /**
  * Release 正文里常有 `<details><summary>…</summary>…</details>`（本仓 CI 用它折叠
@@ -110,7 +111,11 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateM
       key: 'apply',
       className: 'dshsc-btn primary',
       disabled: applying,
-      onClick: () => void apply(),
+      // 动手前先落「刚点过更新」的记号：一键更新会把这快面板卸载掉，重开的新进程靠它渲染恢复提示。
+      onClick: () => {
+        try { writePendingUpdate(String(current || ''), String(latest || '')); } catch { /* 记不上也不拦更新 */ }
+        void apply();
+      },
     }, applying ? t('pluginUpdate.applying') : t('pluginUpdate.update').replace('{version}', String(latest || ''))));
   }
   footer.push(h('button', { key: 'close', className: 'dshsc-btn ghost', onClick: onClose }, t('pluginUpdate.close')));
