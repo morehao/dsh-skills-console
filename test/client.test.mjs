@@ -892,16 +892,24 @@ test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧',
   const tools = collectByType(tree, 'div').find((node) => node.props.className === 'dshsc-tools');
   assert.ok(tools, '页头有插件工具组');
   assert.ok(collectByType(tools, 'a').includes(link), 'GitHub 要收进工具组');
-  // 顺序：更新胶囊 → GitHub → 设置
-  const capsule = collectByType(tools, 'div').find((node) => typeof node.props.className === 'string' && node.props.className.includes('dshsc-cap'));
-  assert.ok(capsule, '有内联更新胶囊');
-  assert.equal(tools.children[0], capsule, '更新胶囊在最前（GitHub 前面）');
-  assert.equal(tools.children[1]?.props?.href, 'https://github.com/morehao/dsh-skills-console', 'GitHub 紧随更新胶囊');
+  // 顺序：更新状态区（状态胶囊 + 动作按钮）→ GitHub → 设置
+  const group = collectByType(tools, 'div').find((node) => node.props.className === 'dshsc-update-group');
+  assert.ok(group, '有更新状态区');
+  assert.equal(tools.children[0], group, '更新状态区在最前（GitHub 前面）');
+  assert.equal(tools.children[1]?.props?.href, 'https://github.com/morehao/dsh-skills-console', 'GitHub 紧随更新状态区');
   assert.equal(tools.children[2]?.props?.className, 'dshsc-settings', '设置留在工具组外侧');
-  // 胶囊内点文字区 → onCheckUpdate（打开详情弹窗）；标签文案由 capsule.latest 派生。
+  const capsule = collectByType(group, 'div').find((node) => typeof node.props.className === 'string' && node.props.className.startsWith('dshsc-cap'));
+  assert.ok(capsule, '更新状态区里有状态胶囊');
+  // 状态胶囊点文字区 → onCheckUpdate（打开详情弹窗）；标签文案由 capsule.latest 派生。
   const capText = collectButtons(capsule).find((button) => button.props['aria-label'] === '检查插件更新');
   assert.ok(capText, '胶囊文字区是「检查插件更新」按钮（打开详情弹窗）');
   assert.ok(String(textOf(capText)).includes('已是最新'), '胶囊文案含最新状态');
+  // 「检查」按钮与胶囊分开，形状风格跟业务按钮一致（.dshsc-btn），不再塞在胶囊内。
+  const checkAction = collectButtons(group).find((button) => textOf(button).trim() === '检查');
+  assert.ok(checkAction, '更新状态区有独立的「检查」按钮');
+  assert.ok(!collectByType(capsule, 'button').includes(checkAction), '「检查」按钮不在胶囊内，与文案分开');
+  assert.ok(String(checkAction.props.className).split(' ').includes('dshsc-btn'), '「检查」按钮用 .dshsc-btn 形状');
+  assert.ok(!String(checkAction.props.className).includes('dshsc-cap-btn'), '不再用胶囊内的小按钮样式');
   const gear = collectButtons(tools).find((button) => button.props['aria-label'] === '插件设置');
   assert.ok(gear, '设置也要收进工具组');
   assert.match(String(gear.props.className), /dshsc-tool/);
@@ -2391,15 +2399,18 @@ test('更新胶囊：有新版本 → 点「更新」进入二次确认 → 点�
   const cap = collectByType(out.tree, 'div').find((n) => typeof n.props.className === 'string' && n.props.className === 'dshsc-cap');
   assert.ok(cap, '页头有更新胶囊');
   assert.equal(cap.props['data-tone'], 'new', '有新版本时胶囊是琥珀态');
-  const updateBtn = buttonByText(cap, '更新');
-  assert.ok(updateBtn, '胶囊有「更新」按钮');
+  const group = collectByType(out.tree, 'div').find((n) => n.props.className === 'dshsc-update-group');
+  assert.ok(group, '有更新状态区');
+  const updateBtn = buttonByText(group, '更新');
+  assert.ok(updateBtn, '状态区有「更新」按钮');
   updateBtn.props.onClick();
   out = await settle(stub, Component, out.hooks);
-  const cap2 = collectByType(out.tree, 'div').find((n) => typeof n.props.className === 'string' && n.props.className.includes('dshsc-cap'));
-  assert.ok(buttonByText(cap2, '确认'), '点「更新」后出现「确认」');
-  assert.ok(buttonByText(cap2, '取消'), '点「更新」后出现「取消」');
+  const group2 = collectByType(out.tree, 'div').find((n) => n.props.className === 'dshsc-update-group');
+  assert.ok(group2, '有更新状态区');
+  assert.ok(buttonByText(group2, '确认'), '点「更新」后出现「确认」');
+  assert.ok(buttonByText(group2, '取消'), '点「更新」后出现「取消」');
   assert.equal(applied.length, 0, '未点确认前不 apply');
-  buttonByText(cap2, '确认').props.onClick();
+  buttonByText(group2, '确认').props.onClick();
   out = await settle(stub, Component, out.hooks);
   assert.equal(applied.length, 1, '点「确认」后才真正 apply');
 });

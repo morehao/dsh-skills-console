@@ -95,17 +95,19 @@ export function Header({
     if (!updateAvailable || applying || settled) setConfirming(false);
   }, [updateAvailable, applying, settled]);
 
-  function capsuleAction() {
+  // 动作按钮：与状态胶囊分开成一组，形状/风格跟右侧业务按钮（.dshsc-btn）一致。
+  //   applying/checking → 禁用；confirming → 确认/取消；可更新 → 更新；失败 → 重试；其余 → 检查。
+  function actionButtons() {
     if (applying) {
-      return h('button', { className: 'dshsc-cap-btn ghost', type: 'button', disabled: true }, t('pluginUpdate.capsule.applyingShort'));
+      return h('button', { className: 'dshsc-btn', type: 'button', disabled: true }, t('pluginUpdate.capsule.applyingShort'));
     }
     if (checking) {
-      return h('button', { className: 'dshsc-cap-btn ghost', type: 'button', disabled: true }, t('pluginUpdate.capsule.checkingShort'));
+      return h('button', { className: 'dshsc-btn', type: 'button', disabled: true }, t('pluginUpdate.capsule.checkingShort'));
     }
     if (confirming) {
       return [
         h('button', {
-          key: 'yes', className: 'dshsc-cap-btn danger', type: 'button',
+          key: 'yes', className: 'dshsc-btn primary', type: 'button',
           onClick: () => {
             setConfirming(false);
             // 动手前落「刚点过更新」的记号：一键更新会先卸载插件自身、面板随之消失，
@@ -115,24 +117,24 @@ export function Header({
           },
         }, t('pluginUpdate.capsule.confirmYes')),
         h('button', {
-          key: 'no', className: 'dshsc-cap-btn ghost', type: 'button', onClick: () => setConfirming(false),
+          key: 'no', className: 'dshsc-btn ghost', type: 'button', onClick: () => setConfirming(false),
         }, t('pluginUpdate.capsule.cancel')),
       ];
     }
     if (updateAvailable && st?.canAutoUpdate !== false) {
       return h('button', {
-        className: 'dshsc-cap-btn primary', type: 'button',
+        className: 'dshsc-btn primary', type: 'button',
         onClick: () => setConfirming(true),
       }, t('pluginUpdate.capsule.update'));
     }
     if (checkFailed) {
       return h('button', {
-        className: 'dshsc-cap-btn ghost', type: 'button', onClick: () => void upd?.check?.(true),
+        className: 'dshsc-btn', type: 'button', onClick: () => void upd?.check?.(true),
       }, t('pluginUpdate.capsule.retry'));
     }
     // 最新 / restart / 不可一键更新：给「检查」入口
     return h('button', {
-      className: 'dshsc-cap-btn ghost', type: 'button', onClick: () => void upd?.check?.(true),
+      className: 'dshsc-btn', type: 'button', onClick: () => void upd?.check?.(true),
     }, t('pluginUpdate.capsule.check'));
   }
 
@@ -140,17 +142,18 @@ export function Header({
     ? t('pluginUpdate.capsule.confirmHint').replace('{version}', String(latest || ''))
     : stateText;
 
-  // 插件级工具跟身份胶囊同组：内联更新胶囊、GitHub 开仓库、齿轮开设置；业务动作留在右侧
+  // 插件级工具跟身份胶囊同组：状态胶囊 + 动作按钮、GitHub 开仓库、齿轮开设置；业务动作留在右侧
   const headTools = h('div', { className: 'dshsc-tools' },
-    // 内联更新胶囊：点文字区打开详情弹窗（看 Release 正文），点右侧按钮就地检查/更新（两段确认）。
-    h('div', { className: `dshsc-cap${confirming ? ' confirming' : ''}`, 'data-tone': tone },
-      h('button', {
-        className: 'dshsc-cap-text', type: 'button',
-        title: t('pluginUpdate.check'),
-        'aria-label': t('pluginUpdate.check'),
-        onClick: onCheckUpdate,
-      }, h('span', { className: 'dshsc-cap-dot' }), h('span', { className: 'dshsc-cap-label' }, capsuleText)),
-      h('span', { className: 'dshsc-cap-action' }, capsuleAction())),
+    // 更新状态区：左侧状态胶囊点文字区打开详情弹窗（看 Release 正文），右侧动作按钮就地检查/更新（两段确认）。
+    h('div', { className: 'dshsc-update-group' },
+      h('div', { className: `dshsc-cap${confirming ? ' confirming' : ''}`, 'data-tone': tone },
+        h('button', {
+          className: 'dshsc-cap-text', type: 'button',
+          title: t('pluginUpdate.check'),
+          'aria-label': t('pluginUpdate.check'),
+          onClick: onCheckUpdate,
+        }, h('span', { className: 'dshsc-cap-dot' }), h('span', { className: 'dshsc-cap-label' }, capsuleText))),
+      h('span', { className: 'dshsc-update-actions' }, actionButtons())),
     // 先源码、后设置：GitHub 紧挨包名，齿轮留在工具组最外侧
     h('a', {
       className: 'dshsc-tool',
