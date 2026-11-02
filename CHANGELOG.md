@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.8.0] - 2026-11-02
+
+### 新增
+
+- **页头内联更新胶囊**：插件自更新的入口从「刷新图标 + 弹窗」改为页头一枚内联**状态胶囊**，直接在页头显示「已是最新 / 有新版本 / 更新中 / 已更新待重启 / 检查失败」，并就地提供「检查 / 更新 / 重试」，更新走**两段确认**（先点「更新」再「确认」，防误触）。点胶囊文字区仍可打开详情弹窗。
+- **更新弹窗改为纯详情页**：只展示当前/最新版本与该版本 GitHub Release 正文（更新内容），不再承载更新操作——更新操作统一收在页头胶囊，避免「信息页兼操作页」。（与 dsh-github-trending v0.8.7 的方向一致）
+
+### 改进
+
+- **客户端状态机收敛到共享包**：`usePluginUpdate` 改为复用 `@morehao/dsh-plugin-kit/update/client` 的 `createUpdateController`（模块级单例，页头与弹窗共享同一份状态），check/apply 错误经统一 `state.error` 收敛。
+- **跨进程更新记号收敛到共享包**：pending 记号（`write/read/clearPendingUpdate`）改为委托 `@morehao/dsh-plugin-kit/update/restore` 的 `createPendingStore`，对外接口不变，旧 `localStorage` 键平滑迁移。依赖 `@morehao/dsh-plugin-kit` 升至 `^0.4.0`。
+
+### 移除
+
+- **手动更新命令**：不再在弹窗展示/复制 `dsh plugin add …` 手动命令；本地安装等不可一键更新的场景仅给一句提示（请自行重装到最新版本）。相关文案 `pluginUpdate.manual/copy/copied` 随之下线。
+
 ## [v0.7.7] - 2026-11-01
 
 ### 新增
