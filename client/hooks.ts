@@ -3,6 +3,7 @@
  * 状态尽量收在这里，让 Section 只做派生值与拼装。
  */
 import React from 'react';
+import { createUpdateController } from '@morehao/dsh-plugin-kit/update/client';
 
 import { apiCall, checkPluginUpdate, applyPluginUpdate, fetchPluginRelease } from './api.js';
 import type {
@@ -359,56 +360,98 @@ export function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = nu
 
 /**
  * 插件自身版本检查 / 更新。
- * - `status` 是 Host 返回的视图（currentVersion / latestVersion / updateAvailable / manualCommand ...）；
- * - `check(fresh)` 主动查询；`apply()` 一键重装并刷新状态；
- * - `checkError` 区分「查不到最新版」与「网络错误」，供弹窗给不同提示。
+ *
+ * 状态机复用 `@morehao/dsh-plugin-kit/update/client` 的 `createUpdateController`（与
+ * dsh-github-trending 同一套）：`idle → checking → available | current | failed →
+ * applying → applied | restart-required`，单飞 / 并发保护 / 错误收敛都由 kit 负责，本文件
+ * 只做三件本仓特有的事：
+ *   1. 把 Host 的视图字段（`canAutoUpdate` 而非 kit 的 `canApply`）适配成 kit 的 request；
+ *   2. 保留对外 `status` 形状（组件按 `pluginUpdate.status.xxx` 读取），由 kit state.view 派生；
+ *   3. Release 正文加载（`release` / `loadRelease`）——kit controller 不含这块。
+ *
+ * controller 是**模块级单例**：页头胶囊与更新弹窗共享同一份状态，不会各打一次网络。
  */
+function pluginUpdateRequest() {
+  return {
+    // Host 视图带 canAutoUpdate / appliedVersion；kit 期望 canApply / installKind。
+    // 缺字段时给保守默认（能 auto 但 installKind 未知 → kit 规则 registry|unknown 允许 apply）。
+    check: async (options: { fresh?: boolean } = {}) => {
+      const raw = await checkPluginUpdate({ fresh: options.fresh === true });
+      return {
+        packageName: raw.packageName || '',
+        currentVersion: raw.currentVersion || '',
+        latestVersion: raw.latestVersion ?? null,
+        updateAvailable: Boolean(raw.updateAvailable),
+        checkFailed: Boolean(raw.checkFailed),
+        canApply: raw.canAutoUpdate !== false,
+        installKind: raw.canAutoUpdate === false ? 'link' : 'unknown',
+        manualCommand: raw.manualCommand || '',
+        applying: Boolean(raw.applying),
+        // 本进程内已装成的目标版本（跨版本自更新后的过渡态），供 status 派生时收敛。
+        appliedVersion: raw.appliedVersion ?? null,
+      } as any;
+    },
+    apply: async () => {
+      const raw = await applyPluginUpdate();
+      const application: 'applied' | 'restart-required' = raw.restartRequired ? 'restart-required' : 'applied';
+      return { application, updatedVersion: String(raw.updatedVersion || ''), restartRequired: Boolean(raw.restartRequired) };
+    },
+  };
+}
+
+let pluginUpdateController: any = null;
+function getPluginUpdateController() {
+  if (pluginUpdateController === null) {
+    pluginUpdateController = createUpdateController({ request: pluginUpdateRequest() });
+  }
+  return pluginUpdateController;
+}
+
+/**
+ * 把 kit state 派生成组件消费的 `status` 视图（字段名沿用 Host / 旧实现）。
+ * `error.code === 'CHECK_FAILED'` 时 `checkFailed` 置真，与旧 `status.checkFailed` 语义一致。
+ */
+function statusFromControllerState(state: any) {
+  const view = state?.view;
+  if (!view) return null;
+  const applying = state.status === 'applying';
+  const restartRequired = state.status === 'restart-required' || state.status === 'applied';
+  return {
+    packageName: view.packageName,
+    currentVersion: view.currentVersion,
+    latestVersion: view.latestVersion,
+    updateAvailable: view.updateAvailable,
+    checkFailed: Boolean(view.checkFailed) || state.status === 'failed',
+    canAutoUpdate: view.canApply !== false,
+    manualCommand: view.manualCommand || '',
+    applying,
+    restartRequired,
+    updatedVersion: restartRequired ? view.latestVersion : null,
+  };
+}
+
 export function usePluginUpdate() {
-  const [status, setStatus] = React.useState<any>(null);
-  const [checking, setChecking] = React.useState(false);
-  const [applying, setApplying] = React.useState(false);
-  const [checkError, setCheckError] = React.useState<any>(null);
-  const [applyError, setApplyError] = React.useState<any>(null);
+  const controller = getPluginUpdateController();
+  const [state, setState] = React.useState<any>(() => controller.getState());
   // 某版本的发布说明：{ loading, data: {version, body, htmlUrl, name} | null }
   const [release, setRelease] = React.useState<any>({ loading: false, data: null, version: null });
-  const inFlight = React.useRef(false);
+
+  React.useEffect(() => {
+    const unsubscribe = controller.subscribe(setState);
+    // 首个订阅者挂载时静默检查一次（有 Host 端 5 分钟缓存，连续打开不重复打网络）。
+    if (controller.getState().status === 'idle') void controller.check();
+    return unsubscribe;
+  }, [controller]);
 
   const check = React.useCallback(async (fresh = false) => {
-    if (inFlight.current) return null;
-    inFlight.current = true;
-    setChecking(true);
-    setCheckError(null);
-    try {
-      const next = await checkPluginUpdate({ fresh });
-      setStatus(next);
-      return next;
-    } catch (error) {
-      setCheckError({ code: error?.code || null, message: error?.message || '检查失败' });
-      return null;
-    } finally {
-      inFlight.current = false;
-      setChecking(false);
-    }
-  }, []);
+    await controller.check({ fresh });
+    return statusFromControllerState(controller.getState());
+  }, [controller]);
 
   const apply = React.useCallback(async () => {
-    setApplying(true);
-    setApplyError(null);
-    try {
-      const next = await applyPluginUpdate();
-      setStatus(next);
-      return next;
-    } catch (error) {
-      setApplyError({
-        code: error?.code || null,
-        message: error?.message || '更新失败',
-        detail: error?.detail || null,
-      });
-      return null;
-    } finally {
-      setApplying(false);
-    }
-  }, []);
+    await controller.apply();
+    return statusFromControllerState(controller.getState());
+  }, [controller]);
 
   const loadRelease = React.useCallback(async (version: string | null | undefined) => {
     const target = String(version || '').trim();
@@ -424,6 +467,17 @@ export function usePluginUpdate() {
       return null;
     }
   }, []);
+
+  const status = statusFromControllerState(state);
+  const checking = state.status === 'checking';
+  const applying = state.status === 'applying';
+  // 统一错误：kit 把 check / apply 的失败都收敛到 state.error；按当前 status 归到 checkError / applyError，
+  // 供组件区分「查不到最新版」和「安装失败」两种提示语。
+  const failed = state.status === 'failed';
+  const checkError = failed && (state.error?.code === 'CHECK_FAILED' || state.error?.code === null || state.error?.code === undefined)
+    ? state.error
+    : null;
+  const applyError = failed && checkError === null ? state.error : null;
 
   return { status, checking, applying, checkError, applyError, check, apply, release, loadRelease };
 }
