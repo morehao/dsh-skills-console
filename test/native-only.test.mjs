@@ -17,7 +17,7 @@ test('native-only：runtime 依赖最小（tar + 自更新引擎 kit），lib �
   // tar 仍精确锁版本，供 native installer 解压；@morehao/dsh-plugin-kit 是插件自更新引擎
   // （零 @deepseek-ai 运行时依赖，宿主能力全部注入），不再自实现自更新。除此之外不允许别的运行时依赖。
   assert.equal(pkg.dependencies?.tar, '7.5.22');
-  assert.equal(pkg.dependencies?.['@morehao/dsh-plugin-kit'], '^0.3.1');
+  assert.equal(pkg.dependencies?.['@morehao/dsh-plugin-kit'], '^0.4.0');
   const runtimeDeps = Object.keys(pkg.dependencies ?? {}).sort();
   assert.deepEqual(runtimeDeps, ['@morehao/dsh-plugin-kit', 'tar']);
 

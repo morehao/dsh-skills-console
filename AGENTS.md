@@ -39,7 +39,7 @@
 | [lib/core/updates.ts](lib/core/updates.ts) | GitHub Trees 快照、REST 失败分流（限流/404/网络）、L0–L3 判定、计划 token |
 | [lib/core/trash.ts](lib/core/trash.ts) | 删除前快照（回收站）与备份 |
 | [lib/core/log.ts](lib/core/log.ts) | JSONL 事件日志，1MB 滚动，写失败不阻塞主流程 |
-| [client/](client/) | Web Client 源码（ESM）：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `markdown` / `scroll` / `views/*` / `section` / `surface` / `app` |
+| [client/](client/) | Web Client 源码（ESM）：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `markdown` / `scroll` / `views/*` / `section` / `surface` / `app`；插件自更新状态机复用 `@morehao/dsh-plugin-kit/update/client`（内联进 `client.js`） |
 | [scripts/build-client.mjs](scripts/build-client.mjs) | esbuild 打包：`client/` → 根 `client.js`，`--check` 校验生成物漂移 |
 | [scripts/](scripts/) | 语法自检、循环依赖检测、命名/打包校验、agent 表导出、发布与 Release 正文投影 |
 | [test/](test/) | `node --test` 用例（离线、临时 HOME、fake installer / Atom-codeload stub） |
@@ -76,7 +76,8 @@
 - 源码目录：Host 是 `lib/**`（TS，含纯类型 `lib/contract/*.d.ts`），Web Client 是 `client/**`（TS）。**产物一律不入库**：`dist/`（tsc 1:1 输出）与根 `client.js`（esbuild bundle + `__ModuleLoader__.load` 外壳）都在 `.gitignore` 里，由 `npm run build` 生成，**禁止手改**。
 - 改 `lib/**` 或 `client/**` 后跑 `npm run build`；`npm run check` 会先构建再校验。`npm run check:host` 可单独确认 `dist/` 是否落后于 `lib/`，`npm run check:client` 确认 `client.js` 是否落后于 `client/`。
 - `link:` 安装与 npm 包都直接读仓库里的 `dist/` 与 `client.js`：装 link 前必须先 `npm run build`（`dsh plugin add` 不跑 `prepare`）。
-- 客户端只允许 `require('react')` / `require('react-dom')`（后者可选）；其它宿主模块或 npm 包一律不许。源码内的相对 `import` 由构建内联；运行时不解析相对 `require`。
+- 客户端**运行时**只允许 `require('react')` / `require('react-dom')`（后者可选）；其它宿主模块或 npm 包一律不许。源码内的相对 `import` 由构建内联；运行时不解析相对 `require`。
+- **允许内联进 `client.js` 的 npm 源码（精确白名单）**：`@morehao/dsh-plugin-kit/dist/update-client.js`（自更新状态机）与 `@morehao/dsh-plugin-kit/dist/update-restore.js`（跨进程更新记号 pending store）——均纯 ESM、零 node 内建、不 require react，esbuild 内联成 `client.js` 的一部分，运行时不需要额外 `require`。`scripts/build-client.mjs` 的纯度校验用精确路径白名单 `ALLOWED_INLINE_MODULES` 放行它们；**其它任何 npm 包仍一律不许进 `client.js`**，新增白名单项要单独评估（纯 ESM / 无 node 内建 / 不 require 宿主模块）。
 - 构建期依赖是 `typescript` + `esbuild`（以及 `@types/node` / `@types/react`，均 devDependency）；`dependencies` **只允许** `tar@7.5.22`（native installer，精确版本）与 `@morehao/dsh-plugin-kit`（插件自更新引擎，`^0.3.1`），不要新增其他 `dependencies`；DSH 自带能力（`@deepseek-ai/*`、`yaml`）只走 `peerDependencies`（宿主提供、不打包）+ `devDependencies`（本仓测试）。
 - `client.js.map` 只用于本地调试（`npm run build:client -- --sourcemap`）：不提交、不入包。
 - 文案：`client/copy.ts` 的 `zh` / `en` 键集合与 `{n}` / `{path}` 占位符必须一一对应；新增文案必须两份一起加。
