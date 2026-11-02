@@ -892,12 +892,16 @@ test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧',
   const tools = collectByType(tree, 'div').find((node) => node.props.className === 'dshsc-tools');
   assert.ok(tools, '页头有插件工具组');
   assert.ok(collectByType(tools, 'a').includes(link), 'GitHub 要收进工具组');
-  // 顺序：刷新检查更新 → GitHub → 设置
-  const refresh = collectButtons(tools).find((button) => button.props['aria-label'] === '检查插件更新');
-  assert.ok(refresh, '有检查插件更新的刷新按钮');
-  assert.equal(tools.children[0], refresh, '刷新按钮在最前（GitHub 前面）');
-  assert.equal(tools.children[1]?.props?.href, 'https://github.com/morehao/dsh-skills-console', 'GitHub 紧随刷新按钮');
+  // 顺序：更新胶囊 → GitHub → 设置
+  const capsule = collectByType(tools, 'div').find((node) => typeof node.props.className === 'string' && node.props.className.includes('dshsc-cap'));
+  assert.ok(capsule, '有内联更新胶囊');
+  assert.equal(tools.children[0], capsule, '更新胶囊在最前（GitHub 前面）');
+  assert.equal(tools.children[1]?.props?.href, 'https://github.com/morehao/dsh-skills-console', 'GitHub 紧随更新胶囊');
   assert.equal(tools.children[2]?.props?.className, 'dshsc-settings', '设置留在工具组外侧');
+  // 胶囊内点文字区 → onCheckUpdate（打开详情弹窗）；标签文案由 capsule.latest 派生。
+  const capText = collectButtons(capsule).find((button) => button.props['aria-label'] === '检查插件更新');
+  assert.ok(capText, '胶囊文字区是「检查插件更新」按钮（打开详情弹窗）');
+  assert.ok(String(textOf(capText)).includes('已是最新'), '胶囊文案含最新状态');
   const gear = collectButtons(tools).find((button) => button.props['aria-label'] === '插件设置');
   assert.ok(gear, '设置也要收进工具组');
   assert.match(String(gear.props.className), /dshsc-tool/);
@@ -2354,10 +2358,50 @@ test('插件更新弹窗：版本占位符替换成真实版本号', async () =>
 
   const text = textOf(out.tree);
   assert.ok(text.includes('v0.5.6 更新内容'), `更新内容标题要用真实版本号，实际：${text.slice(0, 300)}`);
-  assert.ok(text.includes('更新到 0.5.6'), `更新按钮要用真实版本号，实际：${text.slice(0, 300)}`);
+  // 弹窗是纯详情：不再有「更新到 vX」操作按钮（操作只在页头胶囊），改为提示去胶囊操作。
+  assert.ok(!text.includes('更新到 0.5.6'), '弹窗不再承载更新操作按钮');
+  assert.ok(text.includes('更新操作请点页头右侧状态胶囊上的「更新」'), '弹窗提示更新操作在胶囊');
   assert.ok(!text.includes('{version}'), '弹窗里不能残留 {version} 占位符');
   assert.ok(!text.includes('<details>') && !text.includes('<summary>'), 'details 折叠块要降级，不能露出原始标签');
   assert.ok(text.includes('原始变更记录（自动生成，未改写）'), 'details 的摘要文本仍要展示');
+});
+
+test('更新胶囊：有新版本 → 点「更新」进入二次确认 → 点「确认」才真正 apply', async () => {
+  const applied = [];
+  const fetchStub = async (url, init = {}) => {
+    const href = String(url);
+    if (href.includes('/plugin-update/apply')) {
+      applied.push(true);
+      return { ok: true, status: 200, json: async () => ({ ok: true, restartRequired: true, updatedVersion: '0.5.6' }) };
+    }
+    if (href.includes('/plugin-update/release')) {
+      return { ok: true, status: 200, json: async () => ({ version: '0.5.6', body: 'x', htmlUrl: null }) };
+    }
+    if (href.includes('/plugin-update')) {
+      return { ok: true, status: 200, json: async () => ({
+        packageName: '@morehao/dsh-skills-console',
+        currentVersion: '0.5.5', latestVersion: '0.5.6', updateAvailable: true,
+        checkFailed: false, canAutoUpdate: true, applying: false, ...({}),
+      }) };
+    }
+    return { ok: true, status: 200, json: async () => STATE };
+  };
+  const { Component, stub } = loadModule(STATE, { fetch: fetchStub });
+  let out = await settle(stub, Component);
+  const cap = collectByType(out.tree, 'div').find((n) => typeof n.props.className === 'string' && n.props.className === 'dshsc-cap');
+  assert.ok(cap, '页头有更新胶囊');
+  assert.equal(cap.props['data-tone'], 'new', '有新版本时胶囊是琥珀态');
+  const updateBtn = buttonByText(cap, '更新');
+  assert.ok(updateBtn, '胶囊有「更新」按钮');
+  updateBtn.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  const cap2 = collectByType(out.tree, 'div').find((n) => typeof n.props.className === 'string' && n.props.className.includes('dshsc-cap'));
+  assert.ok(buttonByText(cap2, '确认'), '点「更新」后出现「确认」');
+  assert.ok(buttonByText(cap2, '取消'), '点「更新」后出现「取消」');
+  assert.equal(applied.length, 0, '未点确认前不 apply');
+  buttonByText(cap2, '确认').props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.equal(applied.length, 1, '点「确认」后才真正 apply');
 });
 
 // ---- 自更新恢复提示 + 入口自愈 ----

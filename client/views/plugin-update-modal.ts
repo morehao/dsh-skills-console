@@ -1,7 +1,10 @@
 /**
- * 插件自更新弹窗：展示当前 / 最新版本，有新版本时拉 GitHub Release 正文展示更新内容；
- * 一键更新；不可自动更新时给可复制的手动命令。
- * 状态与请求都在 `usePluginUpdate`，这里只渲染。
+ * 插件自更新「详情」弹窗：**纯信息页**——展示当前 / 最新版本、状态行，以及该版本的
+ * GitHub Release 正文（更新内容）。不发任何更新动作。
+ *
+ * 更新操作（检查 / 更新 / 两段确认）只在页头内联更新胶囊里，弹窗不承担操作，
+ * 避免「信息页兼操作页」（与 dsh-github-trending v0.8.7 的关于弹层同一条结论）。
+ * 数据与状态都在 `usePluginUpdate`，这里只渲染。
  */
 import React from 'react';
 
@@ -10,7 +13,6 @@ import type { Translate } from '../copy.js';
 import { RefreshIcon } from '../icons.js';
 import { Overlay } from './overlay.js';
 import { Markdown } from './markdown-view.js';
-import { writePendingUpdate } from '../update-store.js';
 
 /**
  * Release 正文里常有 `<details><summary>…</summary>…</details>`（本仓 CI 用它折叠
@@ -30,17 +32,13 @@ interface PluginUpdateController {
     latestVersion?: string | null;
     updateAvailable?: boolean;
     canAutoUpdate?: boolean;
-    manualCommand?: string | null;
     restartRequired?: boolean;
     updatedVersion?: string | null;
     checkFailed?: boolean;
   } | null;
   checking: boolean;
-  applying: boolean;
   checkError?: { code?: string | null; message?: string } | null;
-  applyError?: { code?: string | null; message?: string; detail?: unknown } | null;
   check: (fresh?: boolean) => Promise<unknown>;
-  apply: () => Promise<unknown>;
   release: { loading: boolean; data: { version?: string; body?: string; htmlUrl?: string | null } | null; version: string | null };
   loadRelease: (version: string | null | undefined) => Promise<unknown>;
 }
@@ -52,8 +50,8 @@ interface PluginUpdateModalProps {
   repoUrl: string;
 }
 
-export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateModalProps) {  const { status, checking, applying, checkError, applyError, check, apply, release, loadRelease } = update;
-  const [copied, setCopied] = React.useState(false);
+export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateModalProps) {
+  const { status, checking, checkError, check, release, loadRelease } = update;
 
   // 打开即查一次（Host 有 5 分钟缓存，连续打开不会重复打网络）
   React.useEffect(() => {
@@ -64,7 +62,6 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateM
   const current = status?.currentVersion || '—';
   const available = Boolean(status?.updateAvailable);
   const canAuto = status?.canAutoUpdate !== false;
-  const manual = status?.manualCommand || '';
   const restartRequired = status?.restartRequired === true;
   const updatedVersion = status?.updatedVersion || null;
 
@@ -77,16 +74,6 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateM
   const releaseLoading = release?.version === latest && release.loading;
   const releaseBody = typeof releaseData?.body === 'string' ? flattenDetails(releaseData.body.trim()).trim() : '';
   const releaseUrl = releaseData?.htmlUrl || (repoUrl ? `${repoUrl}/releases` : null);
-
-  const copy = () => {
-    if (!manual || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
-    Promise.resolve(navigator.clipboard.writeText(manual))
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      })
-      .catch(() => {});
-  };
 
   let stateLine;
   if (checking && !status) stateLine = t('pluginUpdate.checking');
@@ -102,22 +89,10 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateM
     h('button', {
       key: 'check',
       className: 'dshsc-btn ghost',
-      disabled: checking || applying,
+      disabled: checking,
       onClick: () => void check(true),
     }, h(RefreshIcon, { size: 13 }), t('pluginUpdate.recheck')),
   ];
-  if (available && canAuto) {
-    footer.push(h('button', {
-      key: 'apply',
-      className: 'dshsc-btn primary',
-      disabled: applying,
-      // 动手前先落「刚点过更新」的记号：一键更新会把这快面板卸载掉，重开的新进程靠它渲染恢复提示。
-      onClick: () => {
-        try { writePendingUpdate(String(current || ''), String(latest || '')); } catch { /* 记不上也不拦更新 */ }
-        void apply();
-      },
-    }, applying ? t('pluginUpdate.applying') : t('pluginUpdate.update').replace('{version}', String(latest || ''))));
-  }
   footer.push(h('button', { key: 'close', className: 'dshsc-btn ghost', onClick: onClose }, t('pluginUpdate.close')));
 
   return h(Overlay, { t, title: t('pluginUpdate.title'), onCancel: onClose, footer },
@@ -127,11 +102,6 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateM
       h('dt', null, t('pluginUpdate.latest')),
       h('dd', null, h('span', { className: 'dshsc-code' }, latest || '—'))),
     h('p', { className: 'dshsc-sub', 'data-kind': stateTone, role: 'status', style: stateTone === 'err' ? { color: 'var(--dsw-alias-state-error-primary)' } : null }, stateLine),
-    // 更新（一键或手动）都会把运行中的插件换掉：面板会消失、提示来不及看。
-    // 所以在动手之前就把「装完要 ⌘Q 完全重启」讲清楚，别让用户以为插件坏了。
-    available && !restartRequired
-      ? h('div', { className: 'dshsc-banner warn' }, t('pluginUpdate.applyWarning'))
-      : null,
     // 有新版本：展示该版本的发布说明（拉了 GitHub Release 正文就渲染，拉不到给外链）
     available
       ? h('div', { className: 'dshsc-release' },
@@ -145,19 +115,16 @@ export function PluginUpdateModal({ t, update, onClose, repoUrl }: PluginUpdateM
                     ? h('a', { className: 'dshsc-md-link', href: releaseUrl, target: '_blank', rel: 'noopener noreferrer' }, t('pluginUpdate.viewReleaseNotes'))
                     : t('pluginUpdate.releaseUnavailable')))
       : null,
-    applyError
-      ? h('p', { className: 'dshsc-sub', role: 'alert', style: { color: 'var(--dsw-alias-state-error-primary)' } }, applyError.message)
-      : null,
     restartRequired
       ? h('p', { className: 'dshsc-sub' }, t('pluginUpdate.restartHint'))
       : null,
-    // 一键更新不可用（或本次安装失败后想手动兜底）：给命令 + 复制
-    (!canAuto && manual)
-      ? h('div', { className: 'dshsc-field' },
-          h('span', null, t('pluginUpdate.manual')),
-          h('div', { className: 'dshsc-inline', style: { display: 'flex', gap: 8, alignItems: 'center' } },
-            h('code', { className: 'dshsc-code', style: { flex: 1, wordBreak: 'break-all' } }, manual),
-            h('button', { className: 'dshsc-btn ghost', onClick: copy }, copied ? t('pluginUpdate.copied') : t('pluginUpdate.copy'))))
+    // 一键更新不可用：只给一句提示，不再展示/复制手动命令（本地安装等场景由用户自行重装）。
+    (!canAuto && available)
+      ? h('p', { className: 'dshsc-sub' }, t('pluginUpdate.manualUnavailable'))
+      : null,
+    // 更新操作入口：只在页头胶囊。这里明确告诉用户去胶囊操作。
+    available
+      ? h('p', { className: 'dshsc-sub' }, t('pluginUpdate.updateInCapsule'))
       : null,
   );
 }

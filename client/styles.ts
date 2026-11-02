@@ -63,6 +63,33 @@ export const CSS = `
   .dshsc-tool-dot { position: relative; color: var(--dsw-alias-brand-primary); }
   .dshsc-tool-dot::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px;
     border-radius: 50%; background: var(--dsw-alias-state-warning-primary, #e8b15a); box-shadow: 0 0 0 1.5px var(--dsw-alias-bg-base); }
+  /* 内联更新胶囊：页头自查更新，就地检查 / 更新（两段确认）。点文字区开详情弹窗，点右侧按钮触发动作。 */
+  .dshsc-cap { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 2px 3px 2px 9px;
+    border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2);
+    max-width: 320px; min-width: 0; }
+  .dshsc-cap-text { display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 24px;
+    padding: 0 2px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary);
+    font: inherit; font-size: 12px; cursor: pointer; border-radius: 6px; }
+  .dshsc-cap-text:hover { color: var(--dsw-alias-label-primary); }
+  .dshsc-cap-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary); }
+  .dshsc-cap[data-tone="ok"] .dshsc-cap-dot { background: var(--dsw-alias-state-success-primary, #4fbf7b); }
+  .dshsc-cap[data-tone="new"] .dshsc-cap-dot { background: var(--dsw-alias-state-warning-primary, #e8b15a);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--dsw-alias-state-warning-primary, #e8b15a) 22%, transparent); }
+  .dshsc-cap[data-tone="err"] .dshsc-cap-dot { background: var(--dsw-alias-state-error-primary); }
+  .dshsc-cap[data-tone="new"] .dshsc-cap-label { color: var(--dsw-alias-label-primary); }
+  .dshsc-cap-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dshsc-cap-action { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+  .dshsc-cap-btn { font: inherit; font-size: 12px; font-weight: 500; height: 24px; padding: 0 10px;
+    border-radius: 999px; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center;
+    white-space: nowrap; }
+  .dshsc-cap-btn.primary { background: var(--dsw-alias-brand-primary); color: var(--dsw-alias-bg-base); font-weight: 600; }
+  .dshsc-cap-btn.primary:hover:not(:disabled) { opacity: .9; }
+  .dshsc-cap-btn.danger { background: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-bg-base); font-weight: 600; }
+  .dshsc-cap-btn.danger:hover:not(:disabled) { opacity: .9; }
+  .dshsc-cap-btn.ghost { background: transparent; color: var(--dsw-alias-label-secondary); }
+  .dshsc-cap-btn.ghost:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); }
+  .dshsc-cap-btn:disabled { opacity: .55; cursor: not-allowed; }
+  .dshsc-cap-btn:focus-visible, .dshsc-cap-text:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
   .dshsc-settings { position: relative; display: inline-flex; }
   /* 设置面板留在 Host 对话框内（焦点陷阱 / 层级都跟着走）；开启时按左右余量选边和宽度 */
   .dshsc-pop { position: absolute; top: calc(100% + 8px); z-index: 30; box-sizing: border-box;

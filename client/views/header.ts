@@ -1,17 +1,38 @@
 /** 页头：标题 / 身份胶囊 / 插件工具（刷新检查更新 → GitHub + 设置浮层）/ 业务动作。 */
+import React from 'react';
 import type { RefObject } from 'react';
 
 import { h } from '../host.js';
 import { GITHUB_URL } from '../api.js';
 import type { PluginInfo, SettingsPlacement } from '../api.js';
 import type { Translate } from '../copy.js';
-import { Logo, GitHubIcon, GearIcon, RefreshIcon } from '../icons.js';
+import { Logo, GitHubIcon, GearIcon } from '../icons.js';
+import { writePendingUpdate } from '../update-store.js';
 
 /** 安装标识：跟页面外安装插件时输入的一模一样（`@scope/name@version`），不带 `v`。 */
 function installSpec(plugin: PluginInfo | null | undefined): string | null {
   const name = plugin?.fullName || plugin?.name;
   if (!name) return null;
   return plugin.version ? `${name}@${plugin.version}` : name;
+}
+
+/** 插件自更新控制器视图（`usePluginUpdate` 的返回子集）：胶囊就地检查/更新，详情走弹窗。 */
+export interface HeaderPluginUpdate {
+  status?: {
+    currentVersion?: string;
+    latestVersion?: string | null;
+    updateAvailable?: boolean;
+    canAutoUpdate?: boolean;
+    checkFailed?: boolean;
+    restartRequired?: boolean;
+    updatedVersion?: string | null;
+  } | null;
+  checking?: boolean;
+  applying?: boolean;
+  checkError?: { code?: string | null; message?: string } | null;
+  applyError?: { code?: string | null; message?: string } | null;
+  check?: (fresh?: boolean) => Promise<unknown>;
+  apply?: () => Promise<unknown>;
 }
 
 export interface HeaderProps {
@@ -28,7 +49,7 @@ export interface HeaderProps {
   placement: string;
   placementBusy: string | null;
   readOnly: boolean;
-  pluginUpdate?: { status?: { updateAvailable?: boolean } | null } | null;
+  pluginUpdate?: HeaderPluginUpdate | null;
   onCheckUpdate: () => void;
   onToggleSettings: () => void;
   onChangePlacement: (next: string) => void;
@@ -46,18 +67,90 @@ export function Header({
   onOpenAutoLink, onAddSkill, onAddSubscription,
 }: HeaderProps) {
   const spec = installSpec(plugin);
-  const updateAvailable = Boolean(pluginUpdate?.status?.updateAvailable);
+  // 内联更新胶囊：状态由 controller 派生出的 status 决定；两段确认的 confirming 是本组件局部态。
+  const [confirming, setConfirming] = React.useState(false);
+  const upd = pluginUpdate || null;
+  const st = upd?.status || null;
+  const checking = Boolean(upd?.checking);
+  const applying = Boolean(upd?.applying);
+  const updateAvailable = Boolean(st?.updateAvailable);
+  const checkFailed = Boolean(upd?.checkError) || Boolean(st?.checkFailed);
+  const settled = Boolean(st?.restartRequired);
+  const latest = st?.latestVersion || null;
+  const current = st?.currentVersion || '—';
 
-  // 插件级工具跟身份胶囊同组：刷新检查更新、GitHub 开仓库、齿轮开设置；业务动作留在右侧
+  // 状态机收敛成「一种 tone + 一句文案 + 一个动作」：
+  //   checking → 灰；failed → 红（重试）；available → 琥珀（更新/确认）；running/独立态 → 灰；最新 → 绿（检查）。
+  let tone = 'ok';
+  let stateText = t('pluginUpdate.capsule.latest').replace('{version}', String(current));
+  if (applying) { tone = 'muted'; stateText = t('pluginUpdate.capsule.applying').replace('{version}', String(latest || '')); }
+  else if (checking) { tone = 'muted'; stateText = t('pluginUpdate.capsule.checking'); }
+  else if (checkFailed) { tone = 'err'; stateText = t('pluginUpdate.capsule.checkFailed'); }
+  else if (settled) { tone = 'ok'; stateText = t('pluginUpdate.capsule.restart'); }
+  else if (st && updateAvailable) { tone = 'new'; stateText = t('pluginUpdate.capsule.available').replace('{version}', String(latest || '')); }
+  else if (st) { tone = 'ok'; stateText = t('pluginUpdate.capsule.latest').replace('{version}', String(current)); }
+
+  // 确认态：文案换成提示，动作换成「确认/取消」。
+  React.useEffect(() => {
+    if (!updateAvailable || applying || settled) setConfirming(false);
+  }, [updateAvailable, applying, settled]);
+
+  function capsuleAction() {
+    if (applying) {
+      return h('button', { className: 'dshsc-cap-btn ghost', type: 'button', disabled: true }, t('pluginUpdate.capsule.applyingShort'));
+    }
+    if (checking) {
+      return h('button', { className: 'dshsc-cap-btn ghost', type: 'button', disabled: true }, t('pluginUpdate.capsule.checkingShort'));
+    }
+    if (confirming) {
+      return [
+        h('button', {
+          key: 'yes', className: 'dshsc-cap-btn danger', type: 'button',
+          onClick: () => {
+            setConfirming(false);
+            // 动手前落「刚点过更新」的记号：一键更新会先卸载插件自身、面板随之消失，
+            // 重开的新进程靠这个记号渲染跨进程恢复提示。（操作只在胶囊发起，故记号写在这里）
+            try { writePendingUpdate(String(current || ''), String(latest || '')); } catch { /* 记不上也不拦更新 */ }
+            void upd?.apply?.();
+          },
+        }, t('pluginUpdate.capsule.confirmYes')),
+        h('button', {
+          key: 'no', className: 'dshsc-cap-btn ghost', type: 'button', onClick: () => setConfirming(false),
+        }, t('pluginUpdate.capsule.cancel')),
+      ];
+    }
+    if (updateAvailable && st?.canAutoUpdate !== false) {
+      return h('button', {
+        className: 'dshsc-cap-btn primary', type: 'button',
+        onClick: () => setConfirming(true),
+      }, t('pluginUpdate.capsule.update'));
+    }
+    if (checkFailed) {
+      return h('button', {
+        className: 'dshsc-cap-btn ghost', type: 'button', onClick: () => void upd?.check?.(true),
+      }, t('pluginUpdate.capsule.retry'));
+    }
+    // 最新 / restart / 不可一键更新：给「检查」入口
+    return h('button', {
+      className: 'dshsc-cap-btn ghost', type: 'button', onClick: () => void upd?.check?.(true),
+    }, t('pluginUpdate.capsule.check'));
+  }
+
+  const capsuleText = confirming
+    ? t('pluginUpdate.capsule.confirmHint').replace('{version}', String(latest || ''))
+    : stateText;
+
+  // 插件级工具跟身份胶囊同组：内联更新胶囊、GitHub 开仓库、齿轮开设置；业务动作留在右侧
   const headTools = h('div', { className: 'dshsc-tools' },
-    // 刷新按钮放在 GitHub 前面：点一下检查插件自身版本，有新版本时高亮提示
-    h('button', {
-      className: `dshsc-tool${updateAvailable ? ' dshsc-tool-dot' : ''}`,
-      type: 'button',
-      title: t('pluginUpdate.check'),
-      'aria-label': t('pluginUpdate.check'),
-      onClick: onCheckUpdate,
-    }, h(RefreshIcon, { size: 15 })),
+    // 内联更新胶囊：点文字区打开详情弹窗（看 Release 正文），点右侧按钮就地检查/更新（两段确认）。
+    h('div', { className: `dshsc-cap${confirming ? ' confirming' : ''}`, 'data-tone': tone },
+      h('button', {
+        className: 'dshsc-cap-text', type: 'button',
+        title: t('pluginUpdate.check'),
+        'aria-label': t('pluginUpdate.check'),
+        onClick: onCheckUpdate,
+      }, h('span', { className: 'dshsc-cap-dot' }), h('span', { className: 'dshsc-cap-label' }, capsuleText)),
+      h('span', { className: 'dshsc-cap-action' }, capsuleAction())),
     // 先源码、后设置：GitHub 紧挨包名，齿轮留在工具组最外侧
     h('a', {
       className: 'dshsc-tool',

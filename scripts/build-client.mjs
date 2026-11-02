@@ -30,6 +30,19 @@ const sourcemap = argv.has("--sourcemap");
 // 运行时唯一允许的宿主模块；react-dom 在 host.js 里是可选的。
 const ALLOWED_EXTERNAL = new Set(["react", "react-dom"]);
 
+// 允许内联进 client.js 的 node_modules 源码（besides client/）。
+// 精确白名单：只放行插件自更新引擎的客户端状态机 —— 纯 ESM、零 node 内建、不 require react，
+// 由 esbuild 内联成 client.js 的一部分，运行时不需要额外 require。
+// 其它任何 npm 包仍一律不许进 client.js（保持「产物只来自 client/ + 这两个引擎模块」的纯度）。
+const ALLOWED_INLINE_MODULES = [
+  "node_modules/@morehao/dsh-plugin-kit/dist/update-client.js",
+  "node_modules/@morehao/dsh-plugin-kit/dist/update-restore.js",
+];
+
+function isAllowedInline(input) {
+  return ALLOWED_INLINE_MODULES.some((allowed) => input === allowed || input.startsWith(allowed + "."));
+}
+
 const banner = [
   "/* AUTO-GENERATED from client/ by scripts/build-client.mjs — do not edit. */",
   "/* eslint-disable */",
@@ -63,7 +76,7 @@ function options({ write }) {
   };
 }
 
-/** 纯度校验：外部依赖只有 react / react-dom，源码只能来自 client/。 */
+/** 纯度校验：外部依赖只有 react / react-dom，源码只能来自 client/（+ 精确白名单的 kit 引擎）。 */
 function verify(metafile) {
   const problems = [];
   const output = Object.keys(metafile.outputs).find((key) => key === "client.js");
@@ -75,7 +88,9 @@ function verify(metafile) {
     }
   }
   for (const input of Object.keys(metafile.inputs)) {
-    if (!input.startsWith("client/")) problems.push(`产物包含了 client/ 之外的源码：${input}`);
+    if (input.startsWith("client/")) continue;
+    if (isAllowedInline(input)) continue;
+    problems.push(`产物包含了 client/ 之外的源码：${input}`);
   }
   if (problems.length > 0) {
     for (const problem of problems) console.error(`✖ ${problem}`);
