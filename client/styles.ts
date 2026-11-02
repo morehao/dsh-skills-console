@@ -64,10 +64,10 @@ export const CSS = `
   .dshsc-tool-dot::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px;
     border-radius: 50%; background: var(--dsw-alias-state-warning-primary, #e8b15a); box-shadow: 0 0 0 1.5px var(--dsw-alias-bg-base); }
   /* 内联更新胶囊：页头自查更新，就地检查 / 更新（两段确认）。点文字区开详情弹窗，点右侧按钮触发动作。 */
-  .dshsc-cap { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 2px 3px 2px 9px;
+  .dshsc-cap { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 2px 3px 2px 9px;
     border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2);
     max-width: 320px; min-width: 0; }
-  .dshsc-cap-text { display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 24px;
+  .dshsc-cap-text { display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 20px;
     padding: 0 2px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary);
     font: inherit; font-size: 12px; cursor: pointer; border-radius: 6px; }
   .dshsc-cap-text:hover { color: var(--dsw-alias-label-primary); }
@@ -79,7 +79,7 @@ export const CSS = `
   .dshsc-cap[data-tone="new"] .dshsc-cap-label { color: var(--dsw-alias-label-primary); }
   .dshsc-cap-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dshsc-cap-action { display: inline-flex; align-items: center; gap: 4px; flex: none; }
-  .dshsc-cap-btn { font: inherit; font-size: 12px; font-weight: 500; height: 24px; padding: 0 10px;
+  .dshsc-cap-btn { font: inherit; font-size: 12px; font-weight: 500; height: 20px; padding: 0 9px;
     border-radius: 999px; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center;
     white-space: nowrap; }
   .dshsc-cap-btn.primary { background: var(--dsw-alias-brand-primary); color: var(--dsw-alias-bg-base); font-weight: 600; }
