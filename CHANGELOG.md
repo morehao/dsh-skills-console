@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### 新增
+
+- **「关于」弹窗**：点页头身份胶囊（安装标识 `@scope/name@version`）打开居中弹窗——顶部紧凑身份头（小 logo / 名称 / 版本胶囊），下方信息表展示包名（整行点击复制，行尾短暂显示「已复制」/「复制失败」）、GitHub 仓库外链与许可（MIT）。纯信息页，不承载检查更新（参照 `dsh-github-trending`）。
+
+### 变更
+
+- **自更新恢复提示改为居中弹层**：更新后「请 ⌘Q 重开生效」的提示不再缩在右下角、也不再自动消失，改为居中弹层——显示 `from → to` 版本跨栏，只有「关闭」按钮（点遮罩不关，Esc 可关），点「关闭」才收起并清掉 `localStorage` 记号。
+
+### 修复
+
+- **开启侧栏入口后设置里仍残留一条**：`settings.section` 与 `sidebar.panellist` 现在严格互斥——开启「侧栏入口」后只在侧栏出现，设置页不再保留同名分区。
+- **关闭侧栏入口报错**：修复从侧栏切回设置时报 `list slot "settings.section" already has an entry with id "dsh-skills-console" ...`（host 拒绝同一 slot 重复 id）。根因是旧版的「保命入口」兜底与偏好入口同时注册了 `settings.section`。改为 boot 时无条件常驻注册一次 `settings.section`，`mount('settings')` 复用它、绝不重复注册；切换侧栏只拆装 `main` / `sidebar.panellist`。
+
 ## [v0.8.1] - 2026-11-02
 
 ### 修复

@@ -448,6 +448,39 @@ export const CSS = `
   .dshsc-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: 12px; align-items: baseline; }
   .dshsc-kv dt { color: var(--dsw-alias-label-secondary); }
   .dshsc-kv dd { margin: 0; }
+
+  /* ---------- 关于弹层（参照 dsh-github-trending） ---------- */
+  /* 应用身份：顶部紧凑头部（小 logo / 名称 / 版本胶囊居中）；与信息表整卡同色，无渐变、无影子、无分隔边，
+     用背景替代纯留白以压缩顶部高度。负外边距让它贴住弹窗内容盒上沿（Overlay 内边距 18px）。 */
+  .dshsc-about-identity { position: relative; margin: -18px -18px 0; padding: 14px 18px;
+    border-radius: 12px 12px 0 0; display: flex; flex-direction: column; align-items: center; gap: 7px;
+    background: var(--dsw-alias-bg-base); }
+  .dshsc-about-logo svg { display: block; }
+  .dshsc-about-name { font-size: 13.5px; font-weight: 680; letter-spacing: -.01em; line-height: 1.2; }
+  .dshsc-about-ver { font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 10.5px; color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-1);
+    border: 1px solid var(--dsw-alias-border-l1); border-radius: 999px; padding: 0 8px; line-height: 16px; }
+  /* 信息表：无上方分割线，左对齐，键列略窄 */
+  .dshsc-about-kv { grid-template-columns: 84px minmax(0, 1fr); padding-top: 2px; }
+  .dshsc-about-kv dt { white-space: nowrap; }
+  .dshsc-about-kv a { color: var(--dsw-alias-brand-primary); text-decoration: none; }
+  .dshsc-about-kv a:hover { text-decoration: underline; }
+  .dshsc-about-kv dd { min-width: 0; overflow-wrap: anywhere; }
+  .dshsc-about-mono, .dshsc-about-kv .dshsc-mono { font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12px; }
+  .dshsc-about-kv .dshsc-hint { color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+  /* 包名行：整行可点复制，无独立按钮 */
+  .dshsc-about-pkgrow { padding: 0; }
+  .dshsc-about-pkglink { appearance: none; font: inherit; border: 0; background: none; padding: 5px 6px; margin: -5px -6px;
+    border-radius: 6px; width: calc(100% + 12px); display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer;
+    color: inherit; }
+  .dshsc-about-pkglink:hover { background: var(--dsw-alias-bg-layer-2); }
+  .dshsc-about-pkglink-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
+  .dshsc-about-copied { opacity: 0; transition: opacity .12s ease; font-size: 11px; flex: none; color: var(--dsw-alias-label-secondary); }
+  .dshsc-about-pkglink.is-ok .dshsc-about-copied { opacity: 1; color: var(--dsw-alias-state-success-primary, #22c55e); }
+  .dshsc-about-pkglink.is-err .dshsc-about-copied { opacity: 1; color: var(--dsw-alias-state-error-primary, #ef4444); }
+  /* 身份胶囊变成按钮后：可点提示（保留原等宽只读观感） */
+  button.dshsc-id { appearance: none; border: 0; background: transparent; cursor: pointer; border-radius: 6px; }
+  button.dshsc-id:hover { color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-1); }
   .dshsc-modal-close { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border: 0; border-radius: 7px;
     background: transparent; color: var(--dsw-alias-label-secondary); font-size: 18px; line-height: 1; cursor: pointer; }
   .dshsc-modal-close:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
@@ -759,14 +792,26 @@ export const CSS = `
   .dshsc-toast.err { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
   .dshsc-toast.ok { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 50%, var(--dsw-alias-border-l2)); }
 
-  /* 自更新恢复提示：常驻右下，不随面板消失。比 toast 更宽、带标题与两个动作。 */
-  .dshsc-restore { position: fixed; right: 18px; bottom: 18px; z-index: 72; width: min(420px, calc(100vw - 36px));
-    display: flex; flex-direction: column; gap: 10px; padding: 13px 15px; border-radius: 11px;
-    background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary);
-    border: 1px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, var(--dsw-alias-border-l2));
-    box-shadow: 0 10px 28px rgba(0,0,0,.26); }
-  .dshsc-restore-text { display: flex; flex-direction: column; gap: 5px; }
-  .dshsc-restore-title { font-size: 13px; font-weight: 600; }
-  .dshsc-restore-body { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); }
-  .dshsc-restore-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  /* 自更新恢复提示：居中弹层，唯一动作「关闭」，版本跨栏当主角（参照 dsh-github-trending v0.8.12） */
+  .dshsc-restore-mask { position: fixed; inset: 0; z-index: 74; display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: rgba(4,6,9,.55); animation: dshsc-restore-mask-in .14s ease-out; }
+  .dshsc-restore { width: 100%; max-width: 448px; padding: 18px 20px 12px; border-radius: 12px;
+    border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-base);
+    box-shadow: 0 24px 60px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.08); animation: dshsc-restore-in .16s cubic-bezier(.2,.8,.3,1); }
+  .dshsc-restore-versions { display: flex; align-items: center; gap: 8px; }
+  .dshsc-restore-version { font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 12px; font-weight: 500; line-height: 24px; color: var(--dsw-alias-label-secondary); }
+  .dshsc-restore-version.is-new { font-weight: 650; padding: 0 8px; border-radius: 6px;
+    color: var(--dsw-alias-brand-primary); background: color-mix(in srgb, var(--dsw-alias-brand-primary) 9%, var(--dsw-alias-bg-base)); }
+  .dshsc-restore-arrow { display: inline-flex; align-items: center; justify-content: center; color: var(--dsw-alias-label-secondary); }
+  .dshsc-restore-title { font-size: 15px; font-weight: 600; letter-spacing: -.008em; color: var(--dsw-alias-label-primary); }
+  .dshsc-restore-versions + .dshsc-restore-title { margin-top: 12px; }
+  .dshsc-restore-body { margin: 5px 0 0; font-size: 13px; line-height: 1.6; color: var(--dsw-alias-label-secondary); }
+  .dshsc-restore-foot { display: flex; justify-content: flex-end; margin-top: 14px; }
+  .dshsc-restore-close { appearance: none; font: inherit; font-size: 13px; cursor: pointer; padding: 5px 10px;
+    border-radius: 7px; border: 1px solid transparent; background: none; color: var(--dsw-alias-brand-primary); }
+  .dshsc-restore-close:hover { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 10%, transparent); }
+  @keyframes dshsc-restore-in { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes dshsc-restore-mask-in { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .dshsc-restore-mask, .dshsc-restore { animation: none; } }
 `;
