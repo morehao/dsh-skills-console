@@ -50,7 +50,7 @@ export const CSS = `
   .dshsc-spec { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 
   /* 插件级工具（设置 / GitHub）：跟在身份胶囊后面，用细线分组；鬼影按钮不和业务按钮抢权重 */
-  .dshsc-tools { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: 2px;
+  .dshsc-tools { position: relative; display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: 2px;
     padding-left: 9px; border-left: 1px solid var(--dsw-alias-border-l1); }
   .dshsc-tool { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
     width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent;
@@ -59,29 +59,34 @@ export const CSS = `
   .dshsc-tool:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
   .dshsc-tool:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
   .dshsc-tool[aria-expanded="true"] { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
-  /* 刷新按钮：检查到新版本时右上角点个品牌色圆点 */
-  .dshsc-tool-dot { position: relative; color: var(--dsw-alias-brand-primary); }
-  .dshsc-tool-dot::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px;
-    border-radius: 50%; background: var(--dsw-alias-state-warning-primary, #e8b15a); box-shadow: 0 0 0 1.5px var(--dsw-alias-bg-base); }
-  /* 内联更新胶囊：页头自查更新，就地检查 / 更新（两段确认）。点文字区开详情弹窗，点右侧按钮触发动作。 */
-  /* 更新状态区：状态胶囊 + 动作按钮成组，按钮沿用 .dshsc-btn 的形状，与右侧业务按钮一致 */
-  .dshsc-update-group { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-  .dshsc-update-actions { display: inline-flex; align-items: center; gap: 4px; flex: none; }
-  .dshsc-cap { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px;
-    border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2);
-    max-width: 320px; min-width: 0; }
-  .dshsc-cap-text { display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 20px;
-    padding: 0; border: 0; background: transparent; color: var(--dsw-alias-label-secondary);
-    font: inherit; font-size: 12px; cursor: pointer; border-radius: 6px; }
-  .dshsc-cap-text:hover { color: var(--dsw-alias-label-primary); }
-  .dshsc-cap-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary); }
-  .dshsc-cap[data-tone="ok"] .dshsc-cap-dot { background: var(--dsw-alias-state-success-primary, #4fbf7b); }
-  .dshsc-cap[data-tone="new"] .dshsc-cap-dot { background: var(--dsw-alias-state-warning-primary, #e8b15a);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--dsw-alias-state-warning-primary, #e8b15a) 22%, transparent); }
-  .dshsc-cap[data-tone="err"] .dshsc-cap-dot { background: var(--dsw-alias-state-error-primary); }
-  .dshsc-cap[data-tone="new"] .dshsc-cap-label { color: var(--dsw-alias-label-primary); }
-  .dshsc-cap-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dshsc-cap-text:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+  /* 刷新单元：版本徽标 + 纯图标刷新，作为一个整体；与右侧图标仍走工具组 2px 间距 */
+  .dshsc-refresh-unit { display: inline-flex; align-items: center; gap: 4px; }
+  /* 版本徽标：仅在「有新版本」时出现，透明底细描边（与裸图标同克制度），高度对齐图标按钮中线 */
+  .dshsc-ver-badge { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+    height: 22px; padding: 0 8px; border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--dsw-alias-state-warning-primary, #e8b15a) 42%, transparent);
+    background: transparent; color: var(--dsw-alias-state-warning-primary, #e8b15a);
+    font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; cursor: pointer;
+    transition: background .12s ease, border-color .12s ease; }
+  .dshsc-ver-badge:hover { background: color-mix(in srgb, var(--dsw-alias-state-warning-primary, #e8b15a) 12%, transparent);
+    border-color: color-mix(in srgb, var(--dsw-alias-state-warning-primary, #e8b15a) 60%, transparent); }
+  .dshsc-ver-badge:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+  /* 纯图标刷新：状态靠图标颜色 + 角标 + 旋转表达，文案走 title（tooltip） */
+  .dshsc-refresh svg { display: block; transition: color .12s ease; }
+  .dshsc-refresh[data-state="available"] { color: var(--dsw-alias-state-warning-primary, #e8b15a); }
+  .dshsc-refresh[data-state="available"]::after { content: ""; position: absolute; top: 3px; right: 3px;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--dsw-alias-state-warning-primary, #e8b15a);
+    box-shadow: 0 0 0 1.5px var(--dsw-alias-bg-base); }
+  .dshsc-refresh[data-state="checking"] { color: var(--dsw-alias-label-tertiary); cursor: default; }
+  .dshsc-refresh[data-state="checking"] svg { animation: dshsc-spin .9s linear infinite; }
+  .dshsc-refresh[data-state="error"] { color: var(--dsw-alias-state-error-primary); }
+  .dshsc-refresh[data-state="ok-flash"] { color: var(--dsw-alias-state-success-primary, #4fbf7b); }
+  @keyframes dshsc-spin { to { transform: rotate(360deg); } }
+  /* 确认气泡：贴着刷新图标右下方弹出，复用 .dshsc-pop 的浮层基样式 */
+  .dshsc-confirm-pop { width: max-content; min-width: 200px; max-width: 260px; right: 0; z-index: 30; }
+  .dshsc-confirm-details { align-self: flex-start; margin-top: 6px; color: var(--dsw-alias-brand-primary); }
+  .dshsc-confirm-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
   .dshsc-settings { position: relative; display: inline-flex; }
   /* 设置面板留在 Host 对话框内（焦点陷阱 / 层级都跟着走）；开启时按左右余量选边和宽度 */
   .dshsc-pop { position: absolute; top: calc(100% + 8px); z-index: 30; box-sizing: border-box;
