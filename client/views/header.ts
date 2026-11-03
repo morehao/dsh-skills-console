@@ -8,6 +8,8 @@ import type { PluginInfo, SettingsPlacement } from '../api.js';
 import type { Translate } from '../copy.js';
 import { Logo, GitHubIcon, GearIcon, RefreshIcon } from '../icons.js';
 import { writePendingUpdate } from '../update-store.js';
+import { deriveUpdateUiState, updateStatusLabel } from '@morehao/dsh-plugin-kit/update/client';
+import type { UpdateClientState } from '@morehao/dsh-plugin-kit/update/client';
 
 /** 安装标识：跟页面外安装插件时输入的一模一样（`@scope/name@version`），不带 `v`。 */
 function installSpec(plugin: PluginInfo | null | undefined): string | null {
@@ -33,6 +35,8 @@ export interface HeaderPluginUpdate {
   applyError?: { code?: string | null; message?: string } | null;
   check?: (fresh?: boolean) => Promise<unknown>;
   apply?: () => Promise<unknown>;
+  /** 原始 controller 状态（plugin-kit `UpdateClientState`），用于共享的状态派生。 */
+  clientState?: UpdateClientState | null;
 }
 
 export interface HeaderProps {
@@ -68,41 +72,66 @@ export function Header({
   onOpenAutoLink, onAddSkill, onAddSubscription, onOpenAbout,
 }: HeaderProps) {
   const spec = installSpec(plugin);
-  // 内联更新胶囊：状态由 controller 派生出的 status 决定；两段确认的 confirming 是本组件局部态。
+  // 内联更新胶囊：状态由 controller 派生；两段确认的 confirming 是本组件局部态。
   const [confirming, setConfirming] = React.useState(false);
   const upd = pluginUpdate || null;
   const st = upd?.status || null;
-  const checking = Boolean(upd?.checking);
-  const applying = Boolean(upd?.applying);
-  const updateAvailable = Boolean(st?.updateAvailable);
-  const checkFailed = Boolean(upd?.checkError) || Boolean(st?.checkFailed);
-  const settled = Boolean(st?.restartRequired);
   const latest = st?.latestVersion || null;
   const current = st?.currentVersion || '—';
 
-  // 状态收敛成「一个 data-state + 一句 tooltip 文案」：
-  //   available → 琥珀（有新版本）；checking/applying → 旋转禁用；error → 红（重试）；
-  //   latest → 普通图标；ok-flash → 绿（刚更新完）。版本号常驻在图标左侧的徽标里（仅 available）。
-  let state = 'latest';
-  let tip = t('pluginUpdate.capsule.latest').replace('{version}', String(current));
-  if (applying) { state = 'checking'; tip = t('pluginUpdate.capsule.applying').replace('{version}', String(latest || '')); }
-  else if (checking) { state = 'checking'; tip = t('pluginUpdate.capsule.checking'); }
-  else if (checkFailed) { state = 'error'; tip = t('pluginUpdate.capsule.checkFailed'); }
-  else if (settled) { state = 'ok-flash'; tip = t('pluginUpdate.capsule.restart'); }
-  else if (st && updateAvailable) { state = 'available'; tip = t('pluginUpdate.capsule.available').replace('{version}', String(latest || '')); }
-  else if (st) { state = 'latest'; tip = t('pluginUpdate.capsule.latest').replace('{version}', String(current)); }
+  // 跨插件的状态派生统一走 plugin-kit（与 dsh-github-trending 同一套）：
+  //   visual → data-state；showBadge/badgeVersion → 版本徽标；busy/settled/actionable → 交互。
+  // 优先用原始 controller 状态；缺失时回退到由旧字段派生的等价状态，保证组件可独立渲染。
+  const clientState: UpdateClientState = upd?.clientState ?? {
+    status: upd?.applying ? 'applying'
+      : upd?.checking ? 'checking'
+      : upd?.checkError ? 'failed'
+      : st?.updateAvailable ? 'available'
+      : st ? 'current'
+      : 'idle',
+    view: st === null ? null : {
+      packageName: '',
+      currentVersion: String(current),
+      latestVersion: latest,
+      updateAvailable: Boolean(st.updateAvailable),
+      checkFailed: Boolean(st.checkFailed),
+      canApply: st.canAutoUpdate !== false,
+      installKind: st.canAutoUpdate === false ? 'link' : 'unknown',
+      manualCommand: '',
+    },
+    error: (() => {
+      const e = upd?.checkError ?? upd?.applyError ?? null;
+      if (e === null) return null;
+      return { message: String(e.message ?? ''), ...(typeof e.code === 'string' ? { code: e.code } : {}) };
+    })(),
+  };
+  const ui = deriveUpdateUiState(clientState);
+  const label = updateStatusLabel(clientState);
 
-  const busy = applying || checking;
+  // 语义 key → 本仓文案（plugin-kit 只给「该显示哪条」，文案留在本仓 i18n）。
+  const LABEL_COPY: Record<string, string> = {
+    checking: t('pluginUpdate.capsule.checking'),
+    applying: t('pluginUpdate.capsule.applying').replace('{version}', label.params.version || ''),
+    available: t('pluginUpdate.capsule.available').replace('{version}', label.params.latest || ''),
+    latest: t('pluginUpdate.capsule.latest').replace('{version}', label.params.version || ''),
+    done: t('pluginUpdate.capsule.restart'),
+    checkFailed: t('pluginUpdate.capsule.checkFailed'),
+    failed: t('pluginUpdate.capsule.checkFailed'),
+  };
+  const state = ui.visual;
+  const tip = LABEL_COPY[label.key] ?? t('pluginUpdate.capsule.latest').replace('{version}', String(current));
+
+  const busy = ui.busy;
 
   // 确认态：有新版本且可更新时，点图标弹确认气泡；更新中/更新后自动收起。
   React.useEffect(() => {
-    if (!updateAvailable || busy || settled) setConfirming(false);
-  }, [updateAvailable, busy, settled]);
+    if (!ui.actionable) setConfirming(false);
+  }, [ui.actionable]);
 
   // 点刷新图标的动作：可更新 → 开确认气泡；失败 → 重试；其余 → 检查。
   function onRefreshClick() {
     if (busy) return;
-    if (updateAvailable && st?.canAutoUpdate !== false) { setConfirming((v) => !v); return; }
+    if (ui.actionable) { setConfirming((v) => !v); return; }
     void upd?.check?.(true);
   }
 
@@ -114,9 +143,10 @@ export function Header({
     void upd?.apply?.();
   }
 
-  // 版本徽标：仅「有新版本」时出现，显示目标版本号；点击等同点图标（弹确认气泡）。
-  const showBadge = Boolean(st && updateAvailable && !busy && !settled);
-  const confirmOpen = confirming && updateAvailable && !busy && !settled;
+  // 版本徽标：仅「有新版本且可自动更新、非忙碌、未落定」时出现（由 plugin-kit 派生）；
+  // 点击等同点图标（弹确认气泡）。
+  const showBadge = ui.showBadge;
+  const confirmOpen = confirming && ui.actionable;
 
   // 插件级工具跟身份胶囊同组：版本徽标 + 刷新图标、GitHub 开仓库、齿轮开设置；业务动作留在右侧
   const headTools = h('div', { className: 'dshsc-tools' },

@@ -479,5 +479,5 @@ export function usePluginUpdate() {
     : null;
   const applyError = failed && checkError === null ? state.error : null;
 
-  return { status, checking, applying, checkError, applyError, check, apply, release, loadRelease };
+  return { status, checking, applying, checkError, applyError, check, apply, release, loadRelease, clientState: state };
 }
