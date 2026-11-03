@@ -892,24 +892,18 @@ test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧',
   const tools = collectByType(tree, 'div').find((node) => node.props.className === 'dshsc-tools');
   assert.ok(tools, '页头有插件工具组');
   assert.ok(collectByType(tools, 'a').includes(link), 'GitHub 要收进工具组');
-  // 顺序：更新状态区（状态胶囊 + 动作按钮）→ GitHub → 设置
-  const group = collectByType(tools, 'div').find((node) => node.props.className === 'dshsc-update-group');
-  assert.ok(group, '有更新状态区');
-  assert.equal(tools.children[0], group, '更新状态区在最前（GitHub 前面）');
-  assert.equal(tools.children[1]?.props?.href, 'https://github.com/morehao/dsh-skills-console', 'GitHub 紧随更新状态区');
+  // 顺序：刷新单元（版本徽标 + 纯图标刷新）→ GitHub → 设置
+  const unit = collectByType(tools, 'div').find((node) => node.props.className === 'dshsc-refresh-unit');
+  assert.ok(unit, '有刷新单元');
+  assert.equal(tools.children[0], unit, '刷新单元在最前（GitHub 前面）');
+  assert.equal(tools.children[1]?.props?.href, 'https://github.com/morehao/dsh-skills-console', 'GitHub 紧随刷新单元');
   assert.equal(tools.children[2]?.props?.className, 'dshsc-settings', '设置留在工具组外侧');
-  const capsule = collectByType(group, 'div').find((node) => typeof node.props.className === 'string' && node.props.className.startsWith('dshsc-cap'));
-  assert.ok(capsule, '更新状态区里有状态胶囊');
-  // 状态胶囊点文字区 → onCheckUpdate（打开详情弹窗）；标签文案由 capsule.latest 派生。
-  const capText = collectButtons(capsule).find((button) => button.props['aria-label'] === '检查插件更新');
-  assert.ok(capText, '胶囊文字区是「检查插件更新」按钮（打开详情弹窗）');
-  assert.ok(String(textOf(capText)).includes('已是最新'), '胶囊文案含最新状态');
-  // 「检查」按钮与胶囊分开，形状风格跟业务按钮一致（.dshsc-btn），不再塞在胶囊内。
-  const checkAction = collectButtons(group).find((button) => textOf(button).trim() === '检查');
-  assert.ok(checkAction, '更新状态区有独立的「检查」按钮');
-  assert.ok(!collectByType(capsule, 'button').includes(checkAction), '「检查」按钮不在胶囊内，与文案分开');
-  assert.ok(String(checkAction.props.className).split(' ').includes('dshsc-btn'), '「检查」按钮用 .dshsc-btn 形状');
-  assert.ok(!String(checkAction.props.className).includes('dshsc-cap-btn'), '不再用胶囊内的小按钮样式');
+  // 纯图标刷新：状态由 data-state 表达，文案走 title；latest 态无角标、无版本徽标。
+  const refresh = collectButtons(unit).find((button) => String(button.props.className).split(' ').includes('dshsc-refresh'));
+  assert.ok(refresh, '刷新单元里有刷新图标按钮');
+  assert.equal(refresh.props['data-state'], 'latest', '最新态 data-state=latest');
+  assert.ok(String(refresh.props.title).includes('已是最新'), 'tooltip 含最新状态');
+  assert.ok(!collectByType(unit, 'button').some((b) => b.props.className === 'dshsc-ver-badge'), '最新态不显示版本徽标');
   const gear = collectButtons(tools).find((button) => button.props['aria-label'] === '插件设置');
   assert.ok(gear, '设置也要收进工具组');
   assert.match(String(gear.props.className), /dshsc-tool/);
@@ -2387,16 +2381,21 @@ test('插件更新弹窗：版本占位符替换成真实版本号', async () =>
   };
   const { Component, stub } = loadModule(STATE, { fetch: fetchStub });
   let out = await settle(stub, Component);
-  const refresh = collectButtons(out.tree).find((button) => button.props['aria-label'] === '检查插件更新');
-  assert.ok(refresh, '页头有检查插件更新的刷新按钮');
+  // 打开详情弹窗：点刷新图标（available 态）→ 确认气泡里的「查看发布说明」
+  const refresh = collectByType(out.tree, 'button').find((button) => String(button.props.className).split(' ').includes('dshsc-refresh'));
+  assert.ok(refresh, '页头有刷新图标按钮');
   refresh.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  const details = collectByType(out.tree, 'button').find((button) => String(button.props.className).includes('dshsc-confirm-details'));
+  assert.ok(details, '确认气泡里有「查看发布说明」入口');
+  details.props.onClick();
   out = await settle(stub, Component, out.hooks);
 
   const text = textOf(out.tree);
   assert.ok(text.includes('v0.5.6 更新内容'), `更新内容标题要用真实版本号，实际：${text.slice(0, 300)}`);
-  // 弹窗是纯详情：不再有「更新到 vX」操作按钮（操作只在页头胶囊），改为提示去胶囊操作。
+  // 弹窗是纯详情：不再有「更新到 vX」操作按钮（操作走页头刷新图标的确认气泡），改为提示去刷新图标操作。
   assert.ok(!text.includes('更新到 0.5.6'), '弹窗不再承载更新操作按钮');
-  assert.ok(text.includes('更新操作请点页头右侧状态胶囊上的「更新」'), '弹窗提示更新操作在胶囊');
+  assert.ok(text.includes('更新操作请点页头右侧刷新图标'), '弹窗提示更新操作在页头刷新图标');
   assert.ok(!text.includes('{version}'), '弹窗里不能残留 {version} 占位符');
   assert.ok(!text.includes('<details>') && !text.includes('<summary>'), 'details 折叠块要降级，不能露出原始标签');
   assert.ok(text.includes('原始变更记录（自动生成，未改写）'), 'details 的摘要文本仍要展示');
@@ -2424,21 +2423,21 @@ test('更新胶囊：有新版本 → 点「更新」进入二次确认 → 点�
   };
   const { Component, stub } = loadModule(STATE, { fetch: fetchStub });
   let out = await settle(stub, Component);
-  const cap = collectByType(out.tree, 'div').find((n) => typeof n.props.className === 'string' && n.props.className === 'dshsc-cap');
-  assert.ok(cap, '页头有更新胶囊');
-  assert.equal(cap.props['data-tone'], 'new', '有新版本时胶囊是琥珀态');
-  const group = collectByType(out.tree, 'div').find((n) => n.props.className === 'dshsc-update-group');
-  assert.ok(group, '有更新状态区');
-  const updateBtn = buttonByText(group, '更新');
-  assert.ok(updateBtn, '状态区有「更新」按钮');
-  updateBtn.props.onClick();
+  const refresh = collectByType(out.tree, 'button').find((n) => String(n.props.className).split(' ').includes('dshsc-refresh'));
+  assert.ok(refresh, '页头有刷新图标按钮');
+  assert.equal(refresh.props['data-state'], 'available', '有新版本时刷新图标是 available 态');
+  const badge = collectByType(out.tree, 'button').find((n) => n.props.className === 'dshsc-ver-badge');
+  assert.ok(badge, '有新版本时显示版本徽标');
+  assert.ok(String(textOf(badge)).includes('v0.5.6'), '徽标显示目标版本号');
+  // 点徽标（等同点图标）→ 弹确认气泡（两段确认）
+  badge.props.onClick();
   out = await settle(stub, Component, out.hooks);
-  const group2 = collectByType(out.tree, 'div').find((n) => n.props.className === 'dshsc-update-group');
-  assert.ok(group2, '有更新状态区');
-  assert.ok(buttonByText(group2, '确认'), '点「更新」后出现「确认」');
-  assert.ok(buttonByText(group2, '取消'), '点「更新」后出现「取消」');
+  const pop = collectByType(out.tree, 'div').find((n) => String(n.props.className).includes('dshsc-confirm-pop'));
+  assert.ok(pop, '点图标/徽标后弹确认气泡');
+  assert.ok(buttonByText(pop, '确认'), '气泡里有「确认」');
+  assert.ok(buttonByText(pop, '取消'), '气泡里有「取消」');
   assert.equal(applied.length, 0, '未点确认前不 apply');
-  buttonByText(group2, '确认').props.onClick();
+  buttonByText(pop, '确认').props.onClick();
   out = await settle(stub, Component, out.hooks);
   assert.equal(applied.length, 1, '点「确认」后才真正 apply');
 });
