@@ -10,8 +10,10 @@ export function createSurface({ slots, layout, t, pickDirectory }: any): any {
   let surface: 'settings' | 'sidebar' | null = null;
   let userSelected = false;
   const surfaceDisposers: Array<() => void> = [];
-  // 兜底入口的 disposer：与偏好入口分开管，偏好切换时不必拆它，但 dispose() 时要一起回收。
-  let fallbackDisposer: (() => void) | null = null;
+  // 常驻的 settings.section 注册（boot 时由 registerFallbackSettingsSection 建）。它不随
+  // mount() 的偏好切换拆装；mount('settings') 复用这一条，绝不另注册第二份同名 slot。
+  let fallbackSettingsDisposer: (() => void) | null = null;
+  let fallbackSettingsComponent: any = null;
 
   function SettingsSurface(props: any) {
     return h(Section, {
@@ -42,13 +44,43 @@ export function createSurface({ slots, layout, t, pickDirectory }: any): any {
     }
   }
 
-  function registerSettingsSection() {
-    return slots.inject('settings.section', () =>
+  /**
+   * boot 时常驻注册一次 settings.section（「保命入口」）。组件由调用方给，便于与首挂载保持
+   * 同一份 Section 实例工厂。若已有常驻注册则幂等返回。
+   */
+  function registerFallbackSettingsSection(Component: any) {
+    if (fallbackSettingsDisposer) return;
+    fallbackSettingsComponent = Component;
+    fallbackSettingsDisposer = slots.inject('settings.section', () =>
       slots.register({
         name: 'settings.section', id: PANEL_ID, order: 26, label: () => t('section.title'),
-      }, SettingsSurface));
+      }, Component));
   }
 
+  /**
+   * 给 settings.section 占一个位：已有常驻注册就复用（不重复注册），否则注册一条。
+   * 返回该注册的 disposer，供 mount() 从设置页切走时注销。
+   */
+  function ensureSettingsSection() {
+    if (!fallbackSettingsDisposer) registerFallbackSettingsSection(fallbackSettingsComponent);
+    return () => {
+      if (fallbackSettingsDisposer) {
+        try { fallbackSettingsDisposer(); } catch { /* ignore */ }
+        fallbackSettingsDisposer = null;
+      }
+    };
+  }
+
+  /**
+   * 两个入口严格互斥：settings 偏好只挂设置页分区；sidebar 偏好只挂 main + 侧栏按钮。
+   *
+   * 曾经这里额外挂一个 settings.section 兜底（「保命入口」），但宿主对同一 slot 里重复的 id
+   * 会直接抛错——`list slot "settings.section" already has an entry with id "dsh-skills-console" ...`。
+   * 用户从侧栏切回设置（不重载进程）时会同时命中「偏好入口」与「兜底入口」触发该报错；
+   * 也造成了「开启侧栏后设置里仍留着一条」的问题。入口自愈交由 index.ts 顶层 provider 承担
+   * （boot 时无条件注册一次 settings.section，保证恒有一个设置入口），这里只管按偏好切换、
+   * 绝不重复注册同名 slot。
+   */
   function mount(next: string) {
     const target = next === 'sidebar' ? 'sidebar' : 'settings';
     if (surface === target) return;
@@ -64,30 +96,7 @@ export function createSurface({ slots, layout, t, pickDirectory }: any): any {
         return [disposeMain, disposeIcon];
       }));
     } else {
-      surfaceDisposers.push(registerSettingsSection());
-    }
-  }
-
-  /**
-   * 入口自愈：无论当前偏好是哪一套，都保证「设置页分区」这个最稳的入口在。
-   *
-   * 场景来自实机：宿主跨版本自更新先 removeBundle 把自己卸掉，`settings.section` 与
-   * `sidebar.panellist` 一起注销；重装不热挂回，用户重启后如果偏好是 sidebar，也就只会挂
-   * sidebar 那套。若那次 sidebar 的 main 没挂上（例如主面板存在性判定的边界），用户会「找不到入口」。
-   * 这里补一道兜底：只要不是 settings 偏好，就额外挂一个 settings.section（幂等，不覆盖现有）。
-   * 它是「保命入口」而非用户偏好；偏好切到 settings 时由 mount('settings') 正常接管，这里不重建。
-   */
-  function ensureFallbackEntry() {
-    if (surface === 'settings') {
-      // 偏好就是设置页分区，本身就是最稳的入口，无需兜底
-      if (fallbackDisposer) { try { fallbackDisposer(); } catch { /* ignore */ } fallbackDisposer = null; }
-      return;
-    }
-    if (fallbackDisposer) return; // 已挂过
-    try {
-      fallbackDisposer = registerSettingsSection();
-    } catch {
-      fallbackDisposer = null;
+      surfaceDisposers.push(ensureSettingsSection());
     }
   }
 
@@ -111,12 +120,15 @@ export function createSurface({ slots, layout, t, pickDirectory }: any): any {
 
   function dispose() {
     clearSurface();
-    if (fallbackDisposer) {
-      try { fallbackDisposer(); } catch { /* ignore */ }
-      fallbackDisposer = null;
+    if (fallbackSettingsDisposer) {
+      try { fallbackSettingsDisposer(); } catch { /* ignore */ }
+      fallbackSettingsDisposer = null;
     }
     surface = null;
   }
 
-  return { mount, changeSurface, ensureFallbackEntry, clearSurface, dispose, hasUserSelected: () => userSelected };
+  return {
+    mount, changeSurface, registerFallbackSettingsSection, clearSurface, dispose,
+    hasUserSelected: () => userSelected,
+  };
 }

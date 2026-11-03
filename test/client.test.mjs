@@ -924,7 +924,7 @@ test('页头：GitHub / 设置跟身份胶囊同组，业务动作留在右侧',
   assert.deepEqual(labels, ['新安装时自动共享 · 1 ▾', '添加技能'], '右侧只剩业务动作，主按钮在最右');
 });
 
-test('页头身份：按安装时要输入的包名显示（@scope/name@version），只读不设复制', async () => {
+test('页头身份：按安装时要输入的包名显示（@scope/name@version），点击打开「关于」', async () => {
   const { Component, stub } = loadModule({
     ...STATE,
     plugin: { name: 'dsh-skills-console', fullName: '@morehao/dsh-skills-console', version: '9.9.9' },
@@ -934,23 +934,51 @@ test('页头身份：按安装时要输入的包名显示（@scope/name@version�
   await new Promise((resolve) => setTimeout(resolve, 20));
   const tree = stub.render(Component, {}, first.hooks).tree;
 
-  const chip = collectByType(tree, 'span').find((node) => node.props.className === 'dshsc-id');
-  assert.ok(chip, '页头有身份 chip');
+  const chip = collectButtons(tree).find((node) => String(node.props.className).split(' ').includes('dshsc-id'));
+  assert.ok(chip, '页头有身份 chip（按钮，点开「关于」）');
   assert.equal(textOf(chip).trim(), '@morehao/dsh-skills-console@9.9.9', '显示完整安装标识，不自造 v 前缀');
-  assert.equal(chip.props.title, '@morehao/dsh-skills-console@9.9.9', '窄面板省略时用标题给出完整标识');
-  assert.ok(!chip.props.onClick, '身份 chip 是纯展示，不挂点击');
-  assert.ok(
-    !collectButtons(tree).some((button) => String(button.props.className).split(' ').includes('dshsc-id')),
-    '身份 chip 不是按钮，不提供复制操作',
-  );
+  assert.ok(String(chip.props.title).includes('@morehao/dsh-skills-console@9.9.9'), '窄面板省略时用标题给出完整标识');
+  assert.equal(typeof chip.props.onClick, 'function', '身份 chip 可点击，打开「关于」弹层');
 
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
   const idCss = (css.match(/\.dshsc-id\s*\{[^}]*\}/) || [''])[0];
   assert.ok(idCss.includes('monospace'), '安装标识用等宽字体，像命令行里输入的那段');
   assert.ok(!/(^|[\s;])border(-[a-z]+)?\s*:/.test(idCss), '不描边，直接融进标题行');
   assert.ok(!/(^|[\s;])background(-[a-z]+)?\s*:/.test(idCss), '不加底色，避免在小面板里像一枚按钮');
-  assert.ok(!idCss.includes('cursor: pointer'), '只读展示不用手型光标');
   assert.ok(!css.includes('.dshsc-idcopy'), '不再有复制图标样式');
+});
+
+test('关于弹窗：点页头包名打开，展示包名 / 仓库外链 / 许可', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    plugin: { name: 'dsh-skills-console', fullName: '@morehao/dsh-skills-console', version: '9.9.9', repository: 'https://github.com/morehao/dsh-skills-console' },
+  });
+  let out = await settle(stub, Component);
+  assert.ok(!textOf(out.tree).includes('许可'), '默认不显示关于内容');
+
+  const chip = collectButtons(out.tree).find((node) => String(node.props.className).split(' ').includes('dshsc-id'));
+  assert.ok(chip, '页头有可点身份 chip');
+  chip.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+
+  const text = textOf(out.tree);
+  assert.ok(text.includes('关于'), '打开「关于」弹窗');
+  assert.ok(text.includes('@morehao/dsh-skills-console@9.9.9'), '包名行显示完整安装标识');
+  assert.ok(text.includes('许可'), '有许可行');
+  assert.ok(text.includes('MIT'), '许可是 MIT');
+
+  const repoLink = collectByType(out.tree, 'a').find(
+    (node) => node.props.href === 'https://github.com/morehao/dsh-skills-console' && textOf(node).trim() === 'morehao/dsh-skills-console',
+  );
+  assert.ok(repoLink, '仓库是外链（显示 owner/repo，区别于页头 GitHub 图标）');
+  assert.equal(repoLink.props.target, '_blank', '外链新开');
+  assert.equal(repoLink.props.rel, 'noreferrer', '外链不传 referrer');
+
+  const close = collectButtons(out.tree).find((button) => textOf(button).trim() === '关闭');
+  assert.ok(close, '有「关闭」按钮');
+  close.props.onClick();
+  out = await settle(stub, Component, out.hooks);
+  assert.ok(!textOf(out.tree).includes('许可'), '关闭后关于内容消失');
 });
 
 test('页头身份：只有短名时退回短名，不硬编码 scope', async () => {
@@ -1035,7 +1063,7 @@ test('侧边栏入口：一个开关（不是文字按钮），切换后重新�
   assert.equal(onToggle.props['aria-checked'], 'true', '切到侧栏后开关应为开');
 });
 
-test('入口位置=sidebar：启动时注册主面板 + 侧栏图标，并保一个设置分区兜底（入口自愈）', async () => {
+test('入口位置=sidebar：启动时注册主面板 + 侧栏图标，且设置里不再残留一条（互斥）', async () => {
   const { stub, registrations } = loadModule({
     ...STATE,
     settings: { ...STATE.settings, placement: 'sidebar' },
@@ -1047,8 +1075,8 @@ test('入口位置=sidebar：启动时注册主面板 + 侧栏图标，并保一
   assert.ok(icon, '侧栏模式要注册 sidebar.panellist');
   assert.equal(main.options.key, 'dsh-skills-console');
   assert.equal(icon.options.id, 'dsh-skills-console');
-  // 入口自愈：侧栏模式也保留设置分区作兜底，保证「至少一个入口」始终存在（跨版本自更新后尤其关键）
-  assert.ok(registrations.some((entry) => entry.key === 'settings.section' && entry.active), '侧栏模式也保一个设置分区兜底');
+  // 开启侧栏入口后，设置里不应再保留一条（两个入口互斥）——这正是重复注册报错的根因
+  assert.ok(!registrations.some((entry) => entry.key === 'settings.section' && entry.active), '侧栏模式不应残留 settings.section');
 
   const first = stub.render(main.Component, {});
   first.effects.forEach((fn) => fn());
@@ -2428,16 +2456,27 @@ function fakeLocalStorage(initial = {}) {
   };
 }
 
-test('自更新恢复提示：读到未过期的 update-pending 记号 → 渲染恢复条', async () => {
+test('自更新恢复提示：读到未过期的 update-pending 记号 → 渲染居中恢复弹层', async () => {
   const ls = fakeLocalStorage({
     'dsh-skills-console:update-pending': JSON.stringify({ from: '0.7.6', to: '0.7.7', at: Date.now() }),
   });
   const { Component, stub } = loadModule(STATE, { localStorage: ls });
   const out = await settle(stub, Component);
   const text = textOf(out.tree);
-  assert.ok(text.includes('插件已更新到 0.7.7'), `应渲染恢复条标题，实际：${text.slice(0, 300)}`);
-  const dismiss = collectButtons(out.tree).find((b) => textOf(b).trim() === '知道了');
-  assert.ok(dismiss, '恢复条要有「知道了」按钮');
+  assert.ok(text.includes('新版本已安装'), `有 from/to 时标题只说结论，实际：${text.slice(0, 300)}`);
+  assert.ok(text.includes('v0.7.6') && text.includes('v0.7.7'), '版本跨栏同时显示旧版本与目标版本');
+  const dismiss = collectButtons(out.tree).find((b) => textOf(b).trim() === '关闭');
+  assert.ok(dismiss, '恢复弹层要有「关闭」按钮');
+});
+
+test('自更新恢复提示：无旧版本（首次安装）→ 退回带版本号标题，不显示跨栏', async () => {
+  const ls = fakeLocalStorage({
+    'dsh-skills-console:update-pending': JSON.stringify({ from: '', to: '0.7.7', at: Date.now() }),
+  });
+  const { Component, stub } = loadModule(STATE, { localStorage: ls });
+  const out = await settle(stub, Component);
+  const text = textOf(out.tree);
+  assert.ok(text.includes('插件已更新到 0.7.7'), `无旧版本时用 title 模板，实际：${text.slice(0, 300)}`);
 });
 
 test('自更新恢复提示：记号过期（>24h）→ 不渲染，并清理', async () => {
@@ -2447,41 +2486,75 @@ test('自更新恢复提示：记号过期（>24h）→ 不渲染，并清理', 
   });
   const { Component, stub } = loadModule(STATE, { localStorage: ls });
   const out = await settle(stub, Component);
-  assert.ok(!textOf(out.tree).includes('插件已更新到 0.7.7'), '过期记号不应渲染恢复条');
+  assert.ok(!textOf(out.tree).includes('新版本已安装'), '过期记号不应渲染恢复弹层');
   assert.equal(ls.getItem('dsh-skills-console:update-pending'), null, '过期记号要被清理');
 });
 
-test('自更新恢复提示：点「知道了」→ 清除记号并收起', async () => {
+test('自更新恢复提示：点「关闭」→ 清除记号并收起', async () => {
   const ls = fakeLocalStorage({
     'dsh-skills-console:update-pending': JSON.stringify({ from: '0.7.6', to: '0.7.7', at: Date.now() }),
   });
   const { Component, stub } = loadModule(STATE, { localStorage: ls });
   let out = await settle(stub, Component);
-  const dismiss = collectButtons(out.tree).find((b) => textOf(b).trim() === '知道了');
-  assert.ok(dismiss, '应先有「知道了」');
+  const dismiss = collectButtons(out.tree).find((b) => textOf(b).trim() === '关闭');
+  assert.ok(dismiss, '应先有「关闭」');
   dismiss.props.onClick();
   out = await settle(stub, Component, out.hooks);
-  assert.equal(ls.getItem('dsh-skills-console:update-pending'), null, '点「知道了」后记号被清除');
-  assert.ok(!textOf(out.tree).includes('插件已更新到 0.7.7'), '恢复条应消失');
+  assert.equal(ls.getItem('dsh-skills-console:update-pending'), null, '点「关闭」后记号被清除');
+  assert.ok(!textOf(out.tree).includes('新版本已安装'), '恢复弹层应消失');
 });
 
-test('自更新恢复提示：没有记号时不渲染恢复条', async () => {
+test('自更新恢复提示：没有记号时不渲染恢复弹层', async () => {
   const ls = fakeLocalStorage({});
   const { Component, stub } = loadModule(STATE, { localStorage: ls });
   const out = await settle(stub, Component);
-  assert.ok(!textOf(out.tree).includes('插件已更新到'), '无记号时不应出现恢复条');
+  assert.ok(!textOf(out.tree).includes('新版本已安装') && !textOf(out.tree).includes('插件已更新到'), '无记号时不应出现恢复弹层');
 });
 
-test('入口自愈：sidebar 偏好下仍保留一个设置分区兜底（至少一个入口）', async () => {
+test('两个入口互斥：sidebar 偏好下只有侧栏入口，settings.section 不重复注册、不残留', async () => {
   const { registrations } = loadModule({
     ...STATE,
     settings: { ...STATE.settings, placement: 'sidebar' },
   }, { localStorage: fakeLocalStorage({}) });
   await new Promise((resolve) => setTimeout(resolve, 20));
-  const settingsSection = registrations.find((e) => e.key === 'settings.section' && e.active);
   const sidebar = registrations.find((e) => e.key === 'sidebar.panellist' && e.active);
   assert.ok(sidebar, 'sidebar 偏好要注册侧栏入口');
-  assert.ok(settingsSection, 'sidebar 偏好也要保一个设置分区兜底');
+  const settingsEntries = registrations.filter((e) => e.key === 'settings.section' && e.active);
+  assert.equal(settingsEntries.length, 0, 'sidebar 偏好下不应残留 settings.section');
+});
+
+test('切回设置不报错：sidebar ↔ settings 往返切换，settings.section 始终至多一条（不重复注册）', async () => {
+  const { Component, stub, registrations, layout } = loadModule({
+    ...STATE,
+    settings: { ...STATE.settings, placement: 'settings' },
+  }, { localStorage: fakeLocalStorage({}) });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  const activeSettings = () => registrations.filter((e) => e.key === 'settings.section' && e.active);
+  assert.equal(activeSettings().length, 1, '初始在设置页：一条 settings.section');
+
+  // 打开「插件设置」面板，拨开关切到侧栏
+  let tree = stub.render(Component, {}, first.hooks).tree;
+  collectButtons(tree).find((b) => b.props['aria-label'] === '插件设置').props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const toSidebar = collectButtons(tree).find((b) => b.props.role === 'switch' && b.props['aria-label']?.includes('侧边栏入口'));
+  toSidebar.props.onClick();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(registrations.some((e) => e.key === 'main' && e.active), '切到侧栏后注册 main');
+  assert.equal(activeSettings().length, 0, '切到侧栏后设置分区注销');
+
+  // 从侧栏再切回设置：这是曾经触发「already has an entry with id」报错的路径
+  tree = stub.render(Component, {}, first.hooks).tree;
+  collectButtons(tree).find((b) => b.props['aria-label'] === '插件设置').props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const toSettings = collectButtons(tree).find((b) => b.props.role === 'switch' && b.props['aria-label']?.includes('侧边栏入口'));
+  toSettings.props.onClick();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(activeSettings().length, 1, '切回设置后恰好一条 settings.section（无重复注册）');
+  assert.ok(!registrations.some((e) => e.key === 'main' && e.active), '切回设置后主面板注销');
+  void layout;
 });
 
 test('布局卫生：上次选中的主面板当前选不中（未注册）→ 回退会话页(null) 并清记号', async () => {

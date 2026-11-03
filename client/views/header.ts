@@ -56,6 +56,7 @@ export interface HeaderProps {
   onOpenAutoLink: () => void;
   onAddSkill: () => void;
   onAddSubscription: () => void;
+  onOpenAbout: () => void;
 }
 
 export function Header({
@@ -64,7 +65,7 @@ export function Header({
   settingsOpen, settingsRef, settingsPlacement, placement, placementBusy, readOnly,
   pluginUpdate, onCheckUpdate,
   onToggleSettings, onChangePlacement,
-  onOpenAutoLink, onAddSkill, onAddSubscription,
+  onOpenAutoLink, onAddSkill, onAddSubscription, onOpenAbout,
 }: HeaderProps) {
   const spec = installSpec(plugin);
   // 内联更新胶囊：状态由 controller 派生出的 status 决定；两段确认的 confirming 是本组件局部态。
@@ -205,11 +206,16 @@ export function Header({
       h('div', { className: 'dshsc-heading-text' },
         h('div', { className: 'dshsc-title-row' },
           h('h2', { className: 'dshsc-title' }, page ? t('page.title') : t('section.title')),
-          // 身份：按「安装时输入的包名」显示，点一下整段复制（Host 从 package.json 注入）
-          // 身份：按「安装时输入的包名」显示，只读展示（Host 从 package.json 注入）
+          // 身份：按「安装时输入的包名」显示（Host 从 package.json 注入）。
+          // 点整段打开「关于」弹层（许可 / 仓库 / 包名）；参照 dsh-github-trending 的入口约定。
           spec
-            ? h('span', { className: 'dshsc-id', title: spec },
-                h('span', { className: 'dshsc-spec' }, spec))
+            ? h('button', {
+                type: 'button',
+                className: 'dshsc-id',
+                title: `${t('about.title')} · ${spec}`,
+                'aria-label': t('about.title'),
+                onClick: onOpenAbout,
+              }, h('span', { className: 'dshsc-spec' }, spec))
             : null,
           headTools),
         h('p', { className: 'dshsc-sub' }, t('section.subtitle')))),

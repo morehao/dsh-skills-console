@@ -20,6 +20,7 @@ import { SubscriptionsTab } from './views/subscriptions.js';
 import { Modals } from './views/modals.js';
 import { SkillReader } from './views/skill-reader.js';
 import { PluginUpdateModal } from './views/plugin-update-modal.js';
+import { AboutDialog } from './views/about.js';
 import { RestoreNotice } from './views/restore-notice.js';
 import { clearPendingUpdate, readPendingUpdate, type PendingUpdate } from './update-store.js';
 
@@ -60,6 +61,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
   // 插件自更新：打开刷新弹窗时才查询；启动后 Host 已热身一次缓存
   const pluginUpdate = usePluginUpdate();
   const [updateOpen, setUpdateOpen] = React.useState(false);
+  const [aboutOpen, setAboutOpen] = React.useState(false);
   // 自更新恢复提示：进入面板时读一次「刚点过更新」的记号（重开的新进程读得到）。
   // 它是一条常驻提示（portalize 到 body），不随设置分区/侧栏面板的显隐而消失。
   const [pendingUpdate, setPendingUpdate] = React.useState<PendingUpdate | null>(null);
@@ -237,6 +239,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
       onOpenAutoLink: () => setModal({ type: 'autolink' }),
       onAddSkill: actions.requestAddSkill,
       onAddSubscription: actions.requestAddSubscription,
+      onOpenAbout: () => setAboutOpen(true),
     }),
 
     error ? h('div', { className: 'dshsc-banner err' }, `${error} · `, h('button', { className: 'dshsc-btn ghost', onClick: () => void reload() }, t('action.retry'))) : null,
@@ -310,13 +313,14 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
     }) : null,
     agentTip ? h(AgentTip, { t, agentTip, agentTipPos, nodeRef: agentTipRef }) : null,
     updateOpen ? h(PluginUpdateModal, { t, update: pluginUpdate, repoUrl: GITHUB_URL, onClose: () => setUpdateOpen(false) }) : null,
-    // 自更新恢复提示：常驻右下，点「知道了」清记号并卸载；「重新检查更新」打开更新弹窗
+    aboutOpen && data?.plugin ? h(AboutDialog, { t, plugin: data.plugin, onClose: () => setAboutOpen(false) }) : null,
+    // 自更新恢复提示：居中弹层，点「关闭」清记号并卸载（不自动消失，参照 dsh-github-trending）
     pendingUpdate
       ? h(RestoreNotice, {
           t,
           version: pendingUpdate.to,
+          from: pendingUpdate.from,
           onDismiss: () => { clearPendingUpdate(); setPendingUpdate(null); },
-          onRecheck: () => { clearPendingUpdate(); setPendingUpdate(null); setUpdateOpen(true); },
         })
       : null,
   );

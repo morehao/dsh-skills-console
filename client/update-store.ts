@@ -45,7 +45,7 @@ export function readPendingUpdate(): PendingUpdate | null {
   return pendingStore.read();
 }
 
-/** 清除记号（用户点「知道了」或已确认重开）。 */
+/** 清除记号（用户点「关闭」或已确认重开）。 */
 export function clearPendingUpdate(): void {
   pendingStore.clear();
 }

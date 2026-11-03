@@ -3,6 +3,8 @@ import { apiCall } from './api.js';
 import { buildTranslate } from './copy.js';
 import { installSettingsNavIcon } from './icons.js';
 import { createSurface } from './surface.js';
+import { Section } from './section.js';
+import { h } from './host.js';
 import { readLayoutSelected, writeLayoutSelected } from './update-store.js';
 
 export const inject = ['slots'];
@@ -20,9 +22,16 @@ export function apply(ctx: any): void {
   const layout = ctx.get('layout');
   const surface = createSurface({ slots, layout, t, pickDirectory });
 
+  // 入口自愈：boot 时无条件注册一次 settings.section（保命入口，保证「设置里一定找得到」）。
+  // 侧栏偏好只影响 mount() 挂哪一套；两者互斥、绝不重复注册同名 slot（重复 id 会让宿主抛
+  // `list slot "settings.section" already has an entry with id ...`）。createSurface 内部会
+  // 跟踪这条常驻注册：若随后 mount('settings') 要挂设置分区，就复用这一条、不再另注册。
+  surface.registerFallbackSettingsSection((props: any) => h(Section, {
+    t, page: false, pickDirectory,
+    onPlacementChange: (next: string) => surface.changeSurface(next, props?.close),
+  }));
+
   surface.mount('settings');
-  // 入口自愈：偏好若是 sidebar，也额外保一个设置页分区，避免侧栏入口缺失时彻底找不到（跨版本自更新后尤其）
-  surface.ensureFallbackEntry();
   ctx.effect(() => () => {
     surface.dispose();
   }, 'dsh-skills-console:surface');
@@ -50,7 +59,6 @@ export function apply(ctx: any): void {
     .then((state) => {
       if (!surface.hasUserSelected() && state?.settings?.placement === 'sidebar') {
         surface.mount('sidebar');
-        surface.ensureFallbackEntry();
       }
     })
     .catch(() => {});
