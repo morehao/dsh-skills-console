@@ -196,7 +196,7 @@ export function createRoutes({ service, pluginUpdate = null, logger = () => {} }
 async function dispatch(route: any, { body, query, service, pluginUpdate = null, signal = null }: any) {
   switch (route.name) {
     case 'state': {
-      const state = await service.getState({ cwd: query.cwd || body.cwd, workspace: query.workspace });
+      const state = await service.getState({ cwd: query.cwd || body.cwd, workspace: query.workspace, lang: query.lang });
       return { ...state, plugin: PLUGIN_INFO };
     }
     case 'agents':

@@ -43,7 +43,7 @@ interface ViewerState {
 }
 
 export function Section({ t, page = false, pickDirectory, onPlacementChange }: SectionProps) {
-  const { data, error, busy, toasts, setToast, dismissToast, setBusy, reload, run } = useSkillsData();
+  const { data, error, busy, toasts, setToast, dismissToast, setBusy, reload, run } = useSkillsData(t.lang || 'zh');
   const [tab, setTab] = React.useState('installed');
   const [view, setView] = React.useState('flat');
   const [modal, setModal] = React.useState<ModalState | null>(null);

@@ -248,7 +248,8 @@ export function SubscriptionsTab({
       t,
       capability,
       candidateCount: (batchFor.snapshot?.entries || []).length,
-      cachedCount: 0,
+      // 「已有简介」由后端权威判定（条目上的 introCached），前端不再写死 0。
+      cachedCount: (batchFor.snapshot?.entries || []).filter((e) => e.introCached === true).length,
       concurrency: 2,
       onClose: () => setBatchFor(null),
       onStart: async (mode) => {

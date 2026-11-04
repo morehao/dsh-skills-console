@@ -11,8 +11,9 @@ import { ensureHashBaseline, reconcileTracking } from './tracking.js';
 import { visibilityFor, workspaceList } from './visibility.js';
 import { reconcileInvocations } from './invocation.js';
 import { detectedTargets } from './exports.js';
-import { introCapability } from './intro.js';
+import { introCapability, introCachedFor } from './intro.js';
 import { activeIntroJob } from './intro-batch.js';
+import { introLang, scopeKey } from '../intro.js';
 import type { ServiceCtx } from '../../contract/service.js';
 
 /**
@@ -60,13 +61,48 @@ export function ensureMigrated(ctx: ServiceCtx) {
   return current;
 }
 
-export async function getState(ctx: ServiceCtx, { cwd, workspace }: any = {}) {
+export async function getState(ctx: ServiceCtx, { cwd, workspace, lang }: any = {}) {
   const { paths, store, registry } = ctx;
   const lock = readLock(paths);
   reconcileTracking(ctx, lock);
   const visible = await visibilityFor(ctx, cwd);
   const ledger = buildLedger({ paths, state: state(ctx), registry, lock, visibility: visible });
   const capabilities = nativeCapabilities(ctx);
+  const capability = introCapability(ctx);
+  // 「是否已有简介」只由后端判定（与生成/批量同一口径），前端不再拿 description 自行推断。
+  // 能力不可用时不算（省去逐行读盘），字段留空 → 前端按 0 处理。
+  const language = introLang(lang);
+  const introUsable = capability.enabled && capability.available && Boolean(ctx.introStore);
+  const installRows = introUsable
+    ? await Promise.all(ledger.rows.map(async (row: any) => ({
+        ...row,
+        introCached: row.hasSkillFile
+          ? await introCachedFor(ctx, { name: row.name, source: row.source ?? null, language })
+          : false,
+      })))
+    : ledger.rows;
+  // 订阅条目没有本地正文：与批量任务订阅分支一致，只看 introStore 是否有该 lang 的条目。
+  const subscriptions = introUsable
+    ? (Array.isArray(state(ctx).subscriptions) ? state(ctx).subscriptions : []).map((sub: any) => {
+        const entries = Array.isArray(sub?.snapshot?.entries) ? sub.snapshot.entries : [];
+        return {
+          ...sub,
+          snapshot: sub.snapshot
+            ? {
+                ...sub.snapshot,
+                entries: entries.map((entry: any) => ({
+                  ...entry,
+                  introCached: Boolean(
+                    entry?.name
+                      ? ctx.introStore!.get(scopeKey(sub.source, entry.name), language)
+                      : null,
+                  ),
+                })),
+              }
+            : sub.snapshot,
+        };
+      })
+    : state(ctx).subscriptions;
   const rowByName = new Map(ledger.rows.map((row) => [row.name, row]));
   const visibleList: any[] = [];
   for (const [name, item] of visible.byName) {
@@ -99,9 +135,9 @@ export async function getState(ctx: ServiceCtx, { cwd, workspace }: any = {}) {
     // 批量简介任务：运行中 / 最近中断的任务摘要（前端挂载时恢复轮询 / 提示「继续」）
     activeIntroJob: activeIntroJob(ctx),
     agents: { all: registry.all(), detected: detectedTargets(ctx) },
-    subscriptions: state(ctx).subscriptions,
+    subscriptions,
     workspaces: await workspaceList(ctx),
-    installs: ledger.rows,
+    installs: installRows,
     exports: state(ctx).exports,
     legacyShadows: state(ctx).legacyShadows,
     roots: visible.roots,

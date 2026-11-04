@@ -140,6 +140,8 @@ export interface SkillRow {
   enabled: boolean;
   visible: boolean;
   description?: string | null;
+  /** 后端权威判定：该技能在当前语言下是否已有可用且新鲜的简介缓存。 */
+  introCached?: boolean;
   status: string;
   source?: string | null;
   commit?: string | null;
@@ -180,6 +182,8 @@ export interface AgentTarget {
 export interface SubscriptionEntry {
   name: string;
   description?: string | null;
+  /** 后端权威判定：该条目在当前语言下是否已有可用简介缓存。 */
+  introCached?: boolean;
   skillPath?: string | null;
   valid?: boolean;
   [extra: string]: unknown;

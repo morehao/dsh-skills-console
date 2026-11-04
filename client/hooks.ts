@@ -29,7 +29,7 @@ export interface ToastItem extends Toast {
 let toastSeq = 0;
 
 /** 清单 / 错误 / 忙碌 / toast：挂载即拉一次 /state，变更动作统一走 run。 */
-export function useSkillsData() {
+export function useSkillsData(lang: string = 'zh') {
   const [data, setData] = React.useState<SkillsState | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
@@ -39,13 +39,14 @@ export function useSkillsData() {
 
   const reload = React.useCallback(async () => {
     try {
-      const next = await apiCall('GET', '/state');
+      // lang 决定后端按哪种语言判定「是否已有简介」（introCached），只影响该展示字段。
+      const next = await apiCall('GET', `/state?lang=${encodeURIComponent(lang || 'zh')}`);
       setData(next);
       setError(null);
     } catch (err) {
       setError(err.message);
     }
-  }, []);
+  }, [lang]);
 
   React.useEffect(() => {
     void reload();

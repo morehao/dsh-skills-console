@@ -52,6 +52,35 @@ export function introCapability(ctx: ServiceCtx) {
   };
 }
 
+/**
+ * 某技能在指定语言下是否已有**可用且新鲜**的简介缓存。
+ *
+ * 与生成路径（`generateLocalIntroInner` 的短路判断）和批量任务（`hasFreshIntro`）
+ * **完全同口径**：SKILL.md 原始字节 hash + `introStore` 命中。
+ * `/state` 用它给每行/每条目下发 `introCached`，让前端只消费结果、不再拿
+ * `description` 之类的字段自行推断「有没有简介」。
+ *
+ * 读不到 SKILL.md 时按「无内容 hash」处理（与批量任务 `readIntroSourceForHash` 的容错一致）。
+ */
+export async function introCachedFor(
+  ctx: ServiceCtx,
+  { name, source, language }: { name: string; source: string | null; language: string },
+): Promise<boolean> {
+  if (!ctx.introStore) return false;
+  const key = scopeKey(source, name);
+  const entry = ctx.introStore.get(key, language);
+  if (!entry) return false;
+  let hash: string | null = null;
+  try {
+    const { file } = await readIntroSource(ctx, name);
+    hash = contentFingerprint(file.content);
+  } catch {
+    hash = null;
+  }
+  // 有 hash 时必须相等（内容未变动）；读不到正文时视为命中（与批量预判一致）
+  return !hash || entry.hash === hash;
+}
+
 /** 介绍用的模型路由：显式配置 > 宿主默认模型；解析不出来就是「没有可用模型」。 */
 export function resolveIntroRoute(ctx: ServiceCtx) {
   if (ctx.introOptions.provider && ctx.introOptions.model) {

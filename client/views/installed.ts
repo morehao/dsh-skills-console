@@ -620,9 +620,10 @@ export function InstalledTab({
       })
     : null;
 
-  // 批量候选：有 SKILL.md 的已安装技能；已有简介的按缓存命中数估算跳过
+  // 批量候选：有 SKILL.md 的已安装技能；「已有简介」由后端权威判定（row.introCached，与生成/批量同口径），
+  // 前端不再拿 description 之类的字段自行推断。
   const batchCandidates = rows.filter((row) => row.hasSkillFile);
-  const batchCached = batchCandidates.filter((row) => Boolean((row as any).description)).length;
+  const batchCached = batchCandidates.filter((row) => row.introCached === true).length;
   const batchModal = batchOpen && data?.intro
     ? h(IntroBatchModal, {
         t,
