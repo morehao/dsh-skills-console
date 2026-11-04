@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.8.5] - 2026-11-04
+
+### Features
+
+- **client**: 操作提示改为顶部居中状态条 (#115)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.8.4...v0.8.5
+
 ## [Unreleased]
 
 ## [v0.8.2] - 2026-11-03
