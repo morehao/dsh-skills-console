@@ -8,7 +8,7 @@
 
 **Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.8.4...v0.8.5
 
-## [Unreleased]
+## [v0.8.6] - 2026-11-04
 
 ### 新增
 
@@ -18,6 +18,8 @@
 ### 变更
 
 - **简介缓存改为身份寻址**（`owner/repo/技能名`）：订阅页生成的简介，装到本地后直接复用、不再重复调用模型；同名不同源互不串。旧缓存（v4 及更早）升级后按冷启动重建。
+
+## [Unreleased]
 
 ## [v0.8.2] - 2026-11-03
 
