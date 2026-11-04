@@ -340,7 +340,7 @@ export function InstalledTab({
                 onClick: () => openIntro(row),
               },
               h('span', { className: 'dshsc-spark', 'aria-hidden': 'true' }, '✨'),
-              row.introCached ? t('intro.button') : t('intro.ctaEmpty'))
+              h('span', { className: 'dshsc-intro-txt' }, row.introCached ? t('intro.button') : t('intro.ctaEmpty')))
             : null,
           statusTag(row),
         ),
