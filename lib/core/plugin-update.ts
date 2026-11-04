@@ -38,9 +38,12 @@ const FETCH_TIMEOUT_MS = 8000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const RELEASE_CACHE_TTL_MS = 10 * 60 * 1000;
 
+/** 本插件 `package.json` 的导入地址：供 kit 每次 check 现读「磁盘已安装版本」。 */
+export const PLUGIN_PKG_URL = new URL('../../package.json', import.meta.url);
+
 /** 插件身份：包名与当前版本。从 package.json 读一次，避免和 page 头硬编码漂移。 */
 export const PLUGIN_META = createPluginMeta({
-  pkgUrl: new URL('../../package.json', import.meta.url),
+  pkgUrl: PLUGIN_PKG_URL,
   defaultName: '@morehao/dsh-skills-console',
 });
 
@@ -91,21 +94,27 @@ function toServiceError(error, manual) {
  * @param {() => number} [deps.now]  测试注入
  * @param {(event: string, detail?: object) => void} [deps.logger]  事件日志（缺省丢弃）
  */
-export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl = globalThis.fetch, now = Date.now, meta = PLUGIN_META, logger = () => {} }: any = {}) {
+export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl = globalThis.fetch, now = Date.now, meta = PLUGIN_META, stateStore, readInstalledVersion, logger = () => {} }: any = {}) {
+  // 默认身份补齐 pkgUrl：让 kit 每次 check 现读磁盘已安装版本（唯一真相）。
+  const metaWithUrl = meta.pkgUrl === undefined && meta === PLUGIN_META ? { ...meta, pkgUrl: PLUGIN_PKG_URL } : meta;
   // 单飞由 kit 引擎内部维护（applying），这里只在 apply 前再查一次保证最新。
   let applying = false; // 本仓视图里的 applying 标记，与 kit 的 isApplying 对齐
-  /**
-   * 本进程内已装成的目标版本。跨版本自更新时宿主返回 `restart-required`（新版本要重启才真正生效），
-   * 但**本进程内的 `meta.version` 仍是旧值**——若只按它判「落后」，页头小红点和弹窗会一直谎报
-   * 「有新版本」。这里记住 apply 成功的目标版本，`check()` 时若 latest 已等于它，就不再提示更新
-   * （`restartRequired` 仍如实为 true：事实是「装了但要重启」）。重启后是新进程，自然归零。
-   */
-  let appliedVersion: string | null = null;
 
+  // 「当前版本 / 是否落后 / 是否待重启」全部由 kit 按磁盘真身判定（kit 0.5.0 起）。
+  // 本仓不再自维护 appliedVersion 内存变量：那是历史半吊子收敛，只在「同进程 apply」时生效，
+  // 重启即失效，正是「更新完仍提示有新版本」的根源。
   const updater = createPluginUpdater({
-    meta: { name: meta.name, version: meta.version, ...(meta.repository === undefined ? {} : { repository: meta.repository }) },
+    meta: {
+      name: metaWithUrl.name,
+      version: metaWithUrl.version,
+      // pkgUrl：让 kit 每次 check 现读磁盘已安装版本（唯一真相）。显式给才有；测试可省略以回退 meta.version。
+      ...(metaWithUrl.pkgUrl === undefined ? {} : { pkgUrl: metaWithUrl.pkgUrl }),
+      ...(metaWithUrl.repository === undefined ? {} : { repository: metaWithUrl.repository }),
+    },
     ...(typeof getPluginManager === 'function' ? { getPluginManager } : {}),
     ...(typeof getProfileName === 'function' ? { getProfileName } : {}),
+    ...(stateStore === undefined ? {} : { stateStore }),
+    ...(typeof readInstalledVersion === 'function' ? { readInstalledVersion } : {}),
     ...(fetchImpl === undefined ? {} : { fetchImpl }),
     ...(now === undefined ? {} : { now }),
     cacheTtlMs: CACHE_TTL_MS,
@@ -122,34 +131,29 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
     }
   }
 
-  /** 把手动命令 / applying 叠到 kit 视图上，得到本仓前端契约的形状。 */
+  /** 把手动命令 / applying / 磁盘版本真相叠到 kit 视图上，得到本仓前端契约的形状。 */
   function view(raw) {
     return {
       packageName: raw.packageName,
-      currentVersion: raw.currentVersion,
+      currentVersion: raw.currentVersion, // 磁盘已安装版本
+      runtimeVersion: raw.runtimeVersion, // 本进程加载的代码版本（诊断用）
       latestVersion: raw.latestVersion,
       updateAvailable: raw.updateAvailable,
+      restartRequired: Boolean(raw.restartRequired),
       checkFailed: raw.checkFailed,
       canAutoUpdate: raw.canApply,
       manualCommand: raw.manualCommand || manualCommand(meta, profileName()),
       applying: raw.applying || applying,
-      // 本进程内已装成的目标版本（跨版本自更新后 = 新版，重启前的过渡态）；没有则 null。
-      appliedVersion,
     };
   }
 
   /**
    * GET：读最新版本并返回视图。网络失败不抛，用 checkFailed 标记。
-   * 同一进程内已 apply 到 `appliedVersion` 时，收敛 `updateAvailable`：
-   * 目标是「别再催用户点更新」——真正生效仍需重启（`restartRequired`），但那由 UI 的恢复提示讲。
+   * 「是否有新版」由 kit 基于磁盘已安装版本判定——更新完未重启不再谎报；真正生效需重启由
+   * `restartRequired` 如实表达，前端据此展示「已更新 · 重启生效」。
    */
   async function check({ fresh = false }: any = {}) {
-    const raw = await updater.check({ fresh });
-    const v = view(raw);
-    if (appliedVersion !== null && v.latestVersion === appliedVersion) {
-      v.updateAvailable = false;
-    }
-    return v;
+    return view(await updater.check({ fresh }));
   }
 
   /**
@@ -157,7 +161,7 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
    * - 先再查一次（fresh），确认确实落后：kit 的 apply 依赖上一次 check 的视图；
    * - 没有 pluginManager → 映射为 manual（带手动命令）；
    * - 安装中重复点击 → 映射为 busy；
-   * - 已是最新 → 直接返回 updatedVersion: null（不调用 installBundle）。
+   * - 磁盘已是最新 → 直接返回 updatedVersion: null（kit 会抛 NO_UPDATE，这里前置挡掉）。
    */
   async function apply() {
     if (applying) {
@@ -172,16 +176,14 @@ export function createPluginUpdate({ getPluginManager, getProfileName, fetchImpl
       if (raw.checkFailed || raw.latestVersion === null) {
         throw new ServiceError('error.plugin-update.check-failed', '暂时无法获取最新版本，请稍后再试', manual, 503);
       }
-      if (!raw.updateAvailable || !isNewerVersion(meta.version, raw.latestVersion)) {
+      // 磁盘已是最新（updateAvailable 基于磁盘版本）→ 不再重装，避免重复卸载重装同一版本。
+      if (!raw.updateAvailable || !isNewerVersion(raw.currentVersion, raw.latestVersion)) {
         return { ...view(raw), updateAvailable: false, updatedVersion: null, applying: false };
       }
       try {
         const result = await updater.apply();
-        // apply 成功（宿主确实装了新版）才记：install-failed / remove-failed 不会走到这。
-        if (typeof result.updatedVersion === 'string' && result.updatedVersion) {
-          appliedVersion = result.updatedVersion;
-        }
-        // 用 check() 统一收敛 view：此时 appliedVersion 已就位，updateAvailable 会被收敛为 false。
+        // 用 check() 统一收敛 view：kit 按磁盘版本判定，apply 后磁盘已最新 → updateAvailable=false、
+        // restartRequired=true（若进程仍是旧代码）。重启后新进程同样如此。
         return {
           ...(await check({ fresh: false })),
           updateAvailable: false,

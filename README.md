@@ -97,7 +97,7 @@ DSH（DeepSeek Harness）的技能控制台：**安装、更新、删除、启�
 
 - **怎么查**：按宿主 `pluginManager.registries()` 给的 registry 计划（继承 profile 的镜像 / 私有源 / token 配置）依次问 `<registry>/<包名>/latest`（8 秒超时，只取版本号，取不到才回退官方 `registry.npmjs.org`），与本机安装的版本比较；Host 端 5 分钟缓存，连续打开不重复打网络。启动后约 20 秒会静默热身一次，不打扰你。
 - **就地检查与更新**：胶囊直接显示当前状态（已是最新 / 有新版本 / 更新中 / 已更新待重启 / 检查失败），右侧按钮就地提供「检查 / 更新 / 重试」。有新版本时点「更新」→ 再点「确认」即把本插件重装到最新版（**两段确认**，防误触）。桌面端有 `pluginManager` 服务时走一键更新：HMR 开启时宿主会以 `already-installed` 拒绝覆盖同名已安装包，插件按官方更新路径先 `removeBundle` 再 `installBundle`。
-- **更新后必须完全退出 DSH**：装完 **⌘Q 完全退出再打开** 才会加载新版本；只关窗口、或刷新页面都不行（Host half 在 Electron 主进程里，刷新只重载前端 bundle）。宿主返回 `restart-required` 时也是同一处置。
+- **更新后必须完全退出 DSH**：装完 **⌘Q 完全退出再打开** 才会加载新版本；只关窗口、或刷新页面都不行（Host half 在 Electron 主进程里，刷新只重载前端 bundle）。宿主返回 `restart-required` 时也是同一处置。版本判定以**磁盘已安装版本**为唯一真相（`@morehao/dsh-plugin-kit@^0.5.0`）：更新装到磁盘后胶囊即变「已更新 · 重启生效」，不会再因为进程仍是旧代码而持续报「有新版本」。
 - **面板消失不是坏了**：一键更新会先卸载旧版本，面板与胶囊随之消失是宿主流程的正常一步。为避免「提示恰好渲染在已消失的面板里、用户错过」，插件在动手前把「刚点过更新」记到浏览器 `localStorage`（经共享包 `@morehao/dsh-plugin-kit/update/restore`）；重开（新进程）后面板若已回来，会弹出一个居中的**恢复提示**弹层（讲清「面板消失是正常、⌘Q 重开才生效」，并显示 from → to 两个版本号），点「关闭」收起（不自动消失；Esc 也可关）。另外客户端每次加载都会无条件注册一次设置页分区（`settings.section`）作为保命入口，保证「设置里一定找得到」；「侧栏入口」开着时只在侧栏出现、设置里不再残留一条，两者互斥、不会重复注册同一个 slot。
 - **过程有日志**：`plugin.update.check` / `plugin.update.apply.start` / `plugin.update.apply`（带 `restartReason`）/ `plugin.update.apply.failed` 会写进 `$DSH_HOME/skills-console/dsh-skills-console.log`——面板消失之后仍可据此判断「装到哪一步、装成没装成」。
 - **详情弹窗**：点胶囊文字区可打开**纯详情弹窗**，展示当前版本 / 最新版本，并拉取该版本在 GitHub 上的 **Release 发布说明**正文一并展示（拉不到时给「在 GitHub 查看发布说明」链接）。弹窗只读，更新操作统一收在胶囊里。

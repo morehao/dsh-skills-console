@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.8.11] - 2026-11-04
+
+### Fixes
+
+- **plugin-update**: 修复「更新完不重启仍持续提示有新版本」。版本判定改为以**磁盘已安装版本**为唯一真相
+  （由 `@morehao/dsh-plugin-kit@^0.5.0` 提供）：一键更新写入磁盘后即视为「已最新」，不再基于进程启动快照
+  谎报有新版、也不再允许重复卸载重装同一版本。「已装待重启」由 `restartRequired` 如实表达，并落
+  `$DSH_HOME/skills-console/update-state.json` 跨重启保留提示。
+
+### Dependencies
+
+- 升级 `@morehao/dsh-plugin-kit` 到 `^0.5.0`（`UpdateView.currentVersion` 语义改为磁盘版本、新增
+  `restartRequired` / `createUpdateStateStore`）。
+
 ## [v0.8.9] - 2026-11-04
 
 ### Features

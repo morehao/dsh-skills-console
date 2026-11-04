@@ -11,6 +11,7 @@ import { createService } from './core/service.js';
 import { normalizeIntroConfig } from './core/intro.js';
 import { createIntroStore } from './core/intro-store.js';
 import { createPluginUpdate } from './core/plugin-update.js';
+import { createUpdateStateStore } from '@morehao/dsh-plugin-kit/update';
 import { StateStore } from './core/state.js';
 import { createRoutes, ROUTE_PREFIX } from './routes.js';
 
@@ -175,6 +176,9 @@ export function apply(ctx: any, config: any = {}) {
       const profile = ctx.get('profileContext');
       return typeof profile?.name === 'string' ? profile.name : null;
     },
+    // 跨重启的「已装待重启」记号：落 $DSH_HOME/skills-console/update-state.json，
+    // 让「更新完未重启」的新进程也能显示「已更新 · 重启生效」，并防重复提示。
+    stateStore: createUpdateStateStore({ dir: paths.stateDir, file: 'update-state.json' }),
     logger,
   });
 

@@ -33,6 +33,7 @@ test('isNewerVersion：core / 预发布 / 非法输入', () => {
 test('check：落后时报告 updateAvailable 与手动命令', async () => {
   const update = createPluginUpdate({
     meta: META,
+    readInstalledVersion: () => '1.2.3',
     getPluginManager: () => null,
     getProfileName: () => 'desktop',
     fetchImpl: fakeFetch(async (url) => {
@@ -42,6 +43,7 @@ test('check：落后时报告 updateAvailable 与手动命令', async () => {
   });
   const view = await update.check();
   assert.equal(view.currentVersion, '1.2.3');
+  assert.equal(view.runtimeVersion, '1.2.3');
   assert.equal(view.latestVersion, '1.3.0');
   assert.equal(view.updateAvailable, true);
   assert.equal(view.checkFailed, false);
@@ -52,12 +54,28 @@ test('check：落后时报告 updateAvailable 与手动命令', async () => {
 test('check：最新版与当前一致时不提示更新', async () => {
   const update = createPluginUpdate({
     meta: META,
+    readInstalledVersion: () => '1.2.3',
     getPluginManager: () => ({ installBundle() {} }),
     fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.2.3' })),
   });
   const view = await update.check();
   assert.equal(view.updateAvailable, false);
   assert.equal(view.canAutoUpdate, true);
+});
+
+test('check：磁盘已最新但进程仍是旧代码 → 不再谎报有新版本，且 restartRequired', async () => {
+  // runtime=1.2.3（本进程），磁盘已被更新到 1.3.0（=latest），仅未重启。
+  const update = createPluginUpdate({
+    meta: META,
+    readInstalledVersion: () => '1.3.0',
+    getPluginManager: () => ({ installBundle() {} }),
+    fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
+  });
+  const view = await update.check();
+  assert.equal(view.currentVersion, '1.3.0'); // 磁盘真身
+  assert.equal(view.runtimeVersion, '1.2.3'); // 进程快照
+  assert.equal(view.updateAvailable, false); // 关键：不再谎报
+  assert.equal(view.restartRequired, true); // 但要重启
 });
 
 test('check：网络失败 / 非 2xx / 非法版本都标记 checkFailed，不抛', async () => {
@@ -206,6 +224,7 @@ test('apply：有 pluginManager 时调用 installBundle 并返回 restartRequire
   const calls = [];
   const update = createPluginUpdate({
     meta: META,
+    readInstalledVersion: () => '1.2.3',
     getPluginManager: () => ({
       installBundle: async (spec) => {
         calls.push(spec);
@@ -219,46 +238,52 @@ test('apply：有 pluginManager 时调用 installBundle 并返回 restartRequire
   assert.equal(result.updatedVersion, '1.3.0');
   assert.equal(result.restartRequired, true);
   assert.equal(result.updateAvailable, false);
-  // 回执带上本进程已装成的目标版本，供前端识别「已装但需重启」的过渡态
-  assert.equal(result.appliedVersion, '1.3.0');
 });
 
-test('apply 后同进程 check：已装成 appliedVersion 时不再谎报 updateAvailable', async () => {
-  // 跨版本自更新：meta 仍是 1.2.3（本进程），但已把 1.3.0 装到磁盘、待重启生效。
+test('apply 后 check：磁盘已被更新到 latest 时不再谎报 updateAvailable（真相在磁盘）', async () => {
+  // 用可变变量模拟磁盘版本：apply 前 1.2.3，apply 成功后磁盘变 1.3.0（宿主确实装了新版）。
+  let installed = '1.2.3';
   const update = createPluginUpdate({
     meta: META,
-    getPluginManager: () => ({ installBundle: async () => ({ application: 'restart-required' }) }),
+    readInstalledVersion: () => installed,
+    getPluginManager: () => ({
+      installBundle: async () => {
+        installed = '1.3.0'; // 宿主装完，磁盘就是新版
+        return { application: 'restart-required' };
+      },
+    }),
     fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
   });
   const before = await update.check({ fresh: true });
-  assert.equal(before.updateAvailable, true, 'apply 前确实落后');
-  assert.equal(before.appliedVersion, null);
+  assert.equal(before.updateAvailable, true, 'apply 前磁盘确实落后');
 
   await update.apply();
   const after = await update.check({ fresh: true });
-  // 关键：不再提示更新；latestVersion 仍保留（让 UI 如实显示「已装 1.3.0，重启生效」）
+  // 关键：磁盘已是 1.3.0 → 不再提示更新；latest 保留，restartRequired 如实为真（进程仍是 1.2.3）
+  assert.equal(after.currentVersion, '1.3.0');
   assert.equal(after.updateAvailable, false);
   assert.equal(after.latestVersion, '1.3.0');
-  assert.equal(after.appliedVersion, '1.3.0');
+  assert.equal(after.restartRequired, true);
 });
 
-test('appliedVersion 不掩盖真实安装失败', async () => {
+test('安装失败时不改磁盘版本，check 仍如实报告有更新', async () => {
   const update = createPluginUpdate({
     meta: META,
+    readInstalledVersion: () => '1.2.3', // 安装失败，磁盘仍是旧版
     getPluginManager: () => ({ installBundle: async () => ({ application: 'failed', error: { code: 'E_INSTALL' } }) }),
     fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.3.0' })),
   });
   await assert.rejects(() => update.apply());
-  // 失败后 appliedVersion 仍为空，check 仍如实报告有更新
   const view = await update.check({ fresh: true });
-  assert.equal(view.appliedVersion, null);
+  assert.equal(view.currentVersion, '1.2.3');
   assert.equal(view.updateAvailable, true);
 });
 
-test('apply：已是最新时不调用 installBundle', async () => {
+test('apply：磁盘已是最新时不调用 installBundle', async () => {
   let called = false;
   const update = createPluginUpdate({
     meta: META,
+    readInstalledVersion: () => '1.2.3',
     getPluginManager: () => ({ installBundle: async () => { called = true; return { application: 'applied' }; } }),
     fetchImpl: fakeFetch(async () => jsonResponse({ version: '1.2.3' })),
   });
