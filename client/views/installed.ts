@@ -67,6 +67,13 @@ export function InstalledTab({
   const [batchJobId, setBatchJobId] = React.useState<string | null>(null);
   const [resumeClosed, setResumeClosed] = React.useState(false);
   const batchJob = useIntroJob(batchJobId);
+  // 批量任务进入终态后，进度条自动收起（停留 3s 让人看到结果）；用户仍可随时手动关闭
+  const batchJobStatus = batchJob?.status;
+  React.useEffect(() => {
+    if (!batchJobStatus || batchJobStatus === 'running' || batchJobStatus === 'paused') return;
+    const timer = setTimeout(() => setBatchJobId(null), 3000);
+    return () => clearTimeout(timer);
+  }, [batchJobStatus]);
   const capability = (data?.intro || null) as any;
   const activeBatch = (data as any)?.activeIntroJob || null;
 
