@@ -20,6 +20,8 @@ export interface Paths {
   dshGlobalSkills: string;
   stateFile: string;
   introFile: string;
+  /** 批量简介任务进度落盘（可丢；重启只读回提示，不自动续跑）。 */
+  introJobsFile: string;
   /** 旧版简介缓存（只读回退用）。 */
   introLegacyFiles: string[];
   backupsDir: string;

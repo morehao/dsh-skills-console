@@ -691,6 +691,29 @@ test('GitHub 跳转：来源仓库名与 commit 渲染成外链，无来源不�
   }
 });
 
+test('批量生成简介：工具栏有入口，点开确认弹窗只给「生成范围」两选项', async () => {
+  const { Component, stub } = loadModule({ ...STATE });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  let tree = stub.render(Component, {}, first.hooks).tree;
+
+  // 工具栏「批量生成简介」按钮存在（intro 可用时）
+  const batchBtn = collectButtons(tree).find((b) => textOf(b).includes('批量生成简介'));
+  assert.ok(batchBtn, '应有批量生成按钮');
+
+  // 点开 → 弹窗出现，且只有范围单选（不暴露并发 / 遇错）
+  batchBtn.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const opts = collectByClass(tree, 'dshsc-batchopt');
+  assert.equal(opts.length, 2, '范围只有两个选项（缺失 / 全部）');
+  const text = textOf(tree);
+  assert.ok(text.includes('仅生成缺失的'));
+  assert.ok(text.includes('全部重新生成'));
+  assert.ok(!text.includes('并发'), '并发度不暴露给用户');
+  assert.ok(!text.includes('遇到错误'), '遇错策略不暴露给用户');
+});
+
 test('同名副本：可见的不是这一份时，点名模型实际看到的那份', async () => {
   const { Component, stub } = loadModule({
     ...STATE,

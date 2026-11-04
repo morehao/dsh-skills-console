@@ -12,6 +12,7 @@ import { visibilityFor, workspaceList } from './visibility.js';
 import { reconcileInvocations } from './invocation.js';
 import { detectedTargets } from './exports.js';
 import { introCapability } from './intro.js';
+import { activeIntroJob } from './intro-batch.js';
 import type { ServiceCtx } from '../../contract/service.js';
 
 /**
@@ -95,6 +96,8 @@ export async function getState(ctx: ServiceCtx, { cwd, workspace }: any = {}) {
     },
     // 技能介绍（模型生成）：前端据此决定按钮显隐；可用 ≠ 已登录，失败会在生成时如实报错
     intro: introCapability(ctx),
+    // 批量简介任务：运行中 / 最近中断的任务摘要（前端挂载时恢复轮询 / 提示「继续」）
+    activeIntroJob: activeIntroJob(ctx),
     agents: { all: registry.all(), detected: detectedTargets(ctx) },
     subscriptions: state(ctx).subscriptions,
     workspaces: await workspaceList(ctx),

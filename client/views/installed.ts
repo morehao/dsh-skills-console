@@ -11,6 +11,7 @@ import type { Translate } from '../copy.js';
 import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, ShareIcon } from '../icons.js';
 import { IntroModal } from './intro-modal.js';
 import { PolicyModal } from './policy-modal.js';
+import { IntroBatchModal, useIntroJob, startIntroJob, cancelIntroJob } from '../intro-batch.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
@@ -32,6 +33,7 @@ interface InstalledActions {
   onCloseAgentTip: () => void;
   onToggleBuiltin: () => void;
   onClearFilters: () => void;
+  onBatchFailed?: (error: any) => void;
 }
 
 export interface InstalledTabProps {
@@ -59,6 +61,12 @@ export function InstalledTab({
   const updatable = (row: SkillRow) => UPDATABLE.has(row.status);
   const [policy, setPolicy] = React.useState<{ row: SkillRow } | null>(null);
   const [intro, setIntro] = React.useState<{ row: SkillRow } | null>(null);
+  // 批量生成简介：确认弹窗 + 轮询任务进度
+  const [batchOpen, setBatchOpen] = React.useState(false);
+  const [batchJobId, setBatchJobId] = React.useState<string | null>(null);
+  const batchJob = useIntroJob(batchJobId);
+  const capability = (data?.intro || null) as any;
+  const activeBatch = (data as any)?.activeIntroJob || null;
   // 直读共享根的 Agent 不需要导出；旧 Host 若还把它们的链塞进 row.exports，这里也不显示
   const sharedTargets = new Set((data?.agents?.detected || [])
     .filter((agent) => agent.kind === 'agent' && agent.sharedHome === 'yes')
@@ -468,6 +476,14 @@ export function InstalledTab({
         filterChip('manual', t('filter.manual')),
         filterChip('off', t('filter.off'))),
       h('div', { className: 'dshsc-listbar-actions' },
+        data?.intro && (data.intro as any).enabled !== false && (data.intro as any).available !== false
+          ? h('button', {
+              className: 'dshsc-btn',
+              disabled: busy !== null || Boolean(batchJob) || Boolean(activeBatch),
+              title: t('introBatch.title'),
+              onClick: () => setBatchOpen(true),
+            }, `✨ ${t('introBatch.button')}`)
+          : null,
         h('button', {
           className: 'dshsc-btn sq',
           disabled: busy !== null,
@@ -558,6 +574,7 @@ export function InstalledTab({
       visibleOnlyBanners(),
       builtinNotice(),
       listBar(),
+      batchBar,
       h('div', { className: 'dshsc-listscroll' },
         visibleRows.length === 0 ? filteredEmpty() : body),
     );
@@ -596,5 +613,49 @@ export function InstalledTab({
         },
       })
     : null;
-  return h(React.Fragment, null, content(), policyModal, introModal);
+
+  // 批量候选：有 SKILL.md 的已安装技能；已有简介的按缓存命中数估算跳过
+  const batchCandidates = rows.filter((row) => row.hasSkillFile);
+  const batchCached = batchCandidates.filter((row) => Boolean((row as any).description)).length;
+  const batchModal = batchOpen && data?.intro
+    ? h(IntroBatchModal, {
+        t,
+        capability: data.intro,
+        candidateCount: batchCandidates.length,
+        cachedCount: batchCached,
+        concurrency: Number((data.intro as any)?.batchConcurrency) || 2,
+        onClose: () => setBatchOpen(false),
+        onStart: async (mode) => {
+          try {
+            const res = await startIntroJob({ kind: 'installed', lang: t.lang || 'zh', mode });
+            setBatchOpen(false);
+            if (res?.job?.id) setBatchJobId(res.job.id);
+          } catch (error) {
+            setBatchOpen(false);
+            // 建任务失败（如已有任务在跑 / 无模型）：父层用统一状态条提示
+            actions.onBatchFailed?.(error);
+          }
+        },
+      })
+    : null;
+
+  // 批量进度条：有 jobId 时显示逐条进度 + 取消；跑完自动收起
+  const batchBar = batchJob
+    ? h('div', { className: 'dshsc-jobbar' },
+        h('span', { className: 'dshsc-jobbar-ic' }, batchJob.status === 'running' ? '◠' : '✓'),
+        h('span', null, t('introBatch.running')),
+        h('span', { className: 'dshsc-jobbar-track' },
+          h('i', { style: { width: `${batchJob.total ? Math.round(((batchJob.done + batchJob.skipped + batchJob.failed) / batchJob.total) * 100) : 0}%` } })),
+        h('span', { className: 'dshsc-jobbar-cnt' },
+          t('introBatch.progress')
+            .replace('{done}', String(batchJob.done))
+            .replace('{total}', String(batchJob.total))
+            .replace('{skipped}', String(batchJob.skipped))
+            .replace('{failed}', String(batchJob.failed))),
+        batchJob.status === 'running'
+          ? h('button', { className: 'dshsc-btn ghost sm', onClick: () => void cancelIntroJob(batchJob.id) }, t('introBatch.cancel'))
+          : h('button', { className: 'dshsc-btn ghost sm', onClick: () => setBatchJobId(null) }, t('action.close')))
+    : null;
+
+  return h(React.Fragment, null, content(), policyModal, introModal, batchModal);
 }

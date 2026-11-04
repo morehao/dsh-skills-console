@@ -28,6 +28,10 @@ export interface ServiceRuntime {
    * agent 的重试/限流体系，并发越高越容易撞 429；在第一个 await 之前占位，避免两个请求同时通过检查。
    */
   introInFlight: any;
+  /** 批量简介任务表（可变，单一实例）：jobId → job。 */
+  introJobs: Map<string, any>;
+  /** 全局单批量任务：正在跑的任务 id（null 表示空闲）。配额保护只在全局一份时成立。 */
+  introJobRunningId: string | null;
   /** 旧哈希口径重基线「每进程/每实例只跑一次」的标记（可变，单一实例）。 */
   hashBaselineChecked: boolean;
 }

@@ -188,6 +188,13 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
     onCloseAgentTip: closeAgentTip,
     onToggleBuiltin: () => setBuiltinOpen((prev) => !prev),
     onClearFilters: () => { setQuery(''); setFilter('all'); },
+    onBatchFailed: (error: any) => {
+      const busy = error?.code === 'error.skills.intro-job-busy';
+      setToast({
+        kind: 'err',
+        text: busy ? t('introBatch.busy') : (error?.message || t('intro.error.generic')),
+      });
+    },
   };
 
   const subscriptionActions = {

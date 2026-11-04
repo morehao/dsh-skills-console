@@ -57,6 +57,8 @@ export const DEFAULT_INTRO_CONFIG = Object.freeze({
   maxInputBytes: 24 * 1024,
   maxOutputTokens: 4_096,
   timeoutMs: 60_000,
+  /** 批量生成的默认并发度（手动单条仍单飞）。 */
+  batchConcurrency: 2,
 });
 
 /** 调用/准备阶段的失败，由 Service 转成带 HTTP 状态的错误。 */
@@ -113,7 +115,14 @@ export function normalizeIntroConfig(raw: any = {}) {
       INTRO_LIMITS.minTimeoutMs,
       INTRO_LIMITS.maxTimeoutMs,
     ),
+    // 批量生成的并发度：默认 2，夹到 1–4（1=纯串行）。只服务批量任务，手动单条仍单飞。
+    batchConcurrency: clampInt(source.batchConcurrency, DEFAULT_INTRO_CONFIG.batchConcurrency, 1, 4),
   });
+}
+
+/** 批量并发度夹到 1–4；非法回落默认 2。 */
+export function clampBatchConcurrency(value: any): number {
+  return clampInt(value, DEFAULT_INTRO_CONFIG.batchConcurrency, 1, 4);
 }
 
 /** 未知语言一律按中文处理（界面只有 zh / en 两档）。 */

@@ -231,6 +231,8 @@ export interface IntroCapability {
   provider?: string | null;
   model?: string | null;
   timeoutMs?: number;
+  /** 批量生成的并发度（Host 默认 2，仅用于成本预估）。 */
+  batchConcurrency?: number;
   [extra: string]: unknown;
 }
 
@@ -262,6 +264,8 @@ export interface SkillsState {
   subscriptions?: Subscription[];
   installs?: SkillRow[];
   intro?: IntroCapability | null;
+  /** 运行中 / 最近中断的批量简介任务摘要（用于挂载后恢复轮询 / 提示「继续」）。 */
+  activeIntroJob?: any;
   visibleOnly?: VisibleOnlyItem[];
   [extra: string]: unknown;
 }
