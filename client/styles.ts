@@ -388,6 +388,15 @@ export const CSS = `
     .dshsc-entryhead, .dshsc-sub-entry { grid-template-columns: minmax(0, 1fr) 96px 78px; }
   }
   .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  /* 仓库名 / 提交号外链：视觉等同 .dshsc-code，hover 才显出可点（下划线 + 主色），不喧宾夺主 */
+  .dshsc-repolink, .dshsc-sha { text-decoration: none; border-bottom: 1px dashed transparent;
+    transition: color .12s ease, border-color .12s ease; cursor: pointer; }
+  .dshsc-repolink:hover, .dshsc-sha:hover { color: var(--dsw-alias-brand-primary);
+    border-bottom-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, transparent); }
+  .dshsc-repolink:focus-visible, .dshsc-sha:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary);
+    outline-offset: 1px; border-radius: 3px; }
+  .dshsc-sha { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+    color: var(--dsw-alias-label-tertiary); }
 
   /* 调用策略 chip：一个入口显示当前模式；点开三档弹窗。窄列里允许省略，不撑破 102px */
   .dshsc-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; max-width: 100%;

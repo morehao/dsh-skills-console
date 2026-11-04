@@ -2,6 +2,7 @@
 import React from 'react';
 
 import { h } from '../host.js';
+import { githubRepoUrl } from '../api.js';
 import type { IntroCapability, SkillRow, Subscription, SubscriptionEntry } from '../api.js';
 import type { Translate } from '../copy.js';
 import { CaretIcon, RefreshIcon } from '../icons.js';
@@ -149,7 +150,20 @@ export function SubscriptionsTab({
               'aria-label': `${subscription.source} ${open ? t('action.collapse') : t('action.expand')}`,
               onClick: () => onToggle(subscription.id),
             }, h(CaretIcon, { open })),
-            h('span', { className: 'dshsc-name' }, subscription.source)),
+            // 仓库名：能认出来的 owner/repo 渲染成 GitHub 外链（caret 是 button，链接是兄弟节点，不嵌套）；
+            // 认不出保持纯文本，不出死链。
+            (() => {
+              const url = githubRepoUrl(subscription.source);
+              return url
+                ? h('a', {
+                    className: 'dshsc-name dshsc-repolink',
+                    href: url,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    title: t('link.openRepo'),
+                  }, subscription.source)
+                : h('span', { className: 'dshsc-name' }, subscription.source);
+            })()),
           // 宽屏铺成 Ref / 条目两列；窄屏回到仓库名下方一行。
           h('div', { className: 'dshsc-sub-meta' },
             h('span', { className: 'dshsc-tag dshsc-subref' }, subscription.ref || t('subscription.defaultRef')),

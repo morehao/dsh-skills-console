@@ -5,7 +5,7 @@
 import React from 'react';
 
 import { h } from '../host.js';
-import { short } from '../api.js';
+import { short, githubRepoUrl, githubCommitUrl } from '../api.js';
 import type { AgentTipState, SkillRow, SkillsState } from '../api.js';
 import type { Translate } from '../copy.js';
 import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, ShareIcon } from '../icons.js';
@@ -184,11 +184,35 @@ export function InstalledTab({
     if (!row.source) {
       return h('div', { className: 'dshsc-src', title: t('meta.noUpstream') }, t('meta.noUpstream'));
     }
-    const ref = row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : '';
-    const text = `${row.source}${ref}`;
-    return h('div', { className: 'dshsc-src', title: text },
+    const repoUrl = githubRepoUrl(row.source);
+    const commitUrl = githubCommitUrl(row.source, row.commit);
+    const refLabel = row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : '';
+    // 仓库名：能认出来就是外链（GitHub），否则保持纯文本，不出死链。
+    const repoNode = repoUrl
+      ? h('a', {
+          className: 'dshsc-code dshsc-repolink',
+          href: repoUrl,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          title: t('link.openRepo'),
+        }, row.source)
+      : h('span', { className: 'dshsc-code' }, row.source);
+    // ref / commit：是合法 commit SHA 时指到提交页，否则（分支名等）纯文本。
+    const refNode = !refLabel
+      ? null
+      : commitUrl
+        ? h('a', {
+            className: 'dshsc-sha',
+            href: commitUrl,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            title: t('link.openCommit'),
+          }, refLabel)
+        : h('span', { className: 'dshsc-code' }, refLabel);
+    return h('div', { className: 'dshsc-src', title: `${row.source}${refLabel}` },
       h('span', null, `${t('meta.from')} `),
-      h('span', { className: 'dshsc-code' }, text));
+      repoNode,
+      refNode);
   }
 
   /**

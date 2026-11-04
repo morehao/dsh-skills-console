@@ -18,6 +18,22 @@ export function short(sha: string | null | undefined): string {
 }
 
 /**
+ * `owner/repo` → GitHub 仓库页 URL；认不出就返回 null（调用方渲染纯文本，杜绝死链）。
+ * 接受 `.git` 后缀与 github.com 的 http(s) URL 形态，其余一律不认。
+ */
+export function githubRepoUrl(source?: string | null): string | null {
+  if (!source) return null;
+  const s = String(source).trim().replace(/\.git$/, '').replace(/^https?:\/\/github\.com\//i, '');
+  return /^[\w.-]+\/[\w.-]+$/.test(s) ? `https://github.com/${s}` : null;
+}
+
+/** `owner/repo` + 7–40 位 commit SHA → 该提交页 URL；任一非法返回 null。 */
+export function githubCommitUrl(source?: string | null, sha?: string | null): string | null {
+  const repo = githubRepoUrl(source);
+  return repo && /^[0-9a-f]{7,40}$/i.test(sha || '') ? `${repo}/commit/${sha}` : null;
+}
+
+/**
  * 统一请求入口。
  * `options.signal` 用于可取消的请求（技能简介生成：关抽屉就中止模型调用）。
  */
