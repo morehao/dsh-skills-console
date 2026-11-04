@@ -206,7 +206,8 @@ export const CSS = `
   .dshsc-policy { min-width: 0; display: flex; align-items: center; }
   .dshsc-row:hover { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 48%, transparent); }
   .dshsc-row.off { opacity: .7; }
-  .dshsc-cell { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  /* 4px 列间距：技能名与下方来源/提示行之间留出呼吸，全行第二行统一下移 */
+  .dshsc-cell { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .dshsc-namerow { display: flex; align-items: center; gap: 7px; min-width: 0; }
   /* 可见性状态点：中性表达（实心=模型可见，空心=模型不可见），不绑定任何 Agent 身份 */
   .dshsc-vdot { flex: none; width: 6px; height: 6px; border-radius: 50%; box-sizing: border-box;
@@ -363,10 +364,16 @@ export const CSS = `
     color: var(--dsw-alias-label-tertiary); font-size: 10px; font-weight: 500; letter-spacing: .02em; }
   .dshsc-entryhead .right { justify-self: end; box-sizing: border-box; width: var(--dshsc-entry-act);
     text-align: center; padding-right: 0; }
+  /* 整行按垂直中线对齐：第一列（名字+可选描述）、状态列、操作列都以条目中线为准，
+     与已安装行（dshsc-row 也是 align-items:center）保持同一套对齐语义。
+     用 center 而非 start：start 会让「有描述」与「无描述」的行各自贴顶，
+     名字行、状态、下载图标的高度基准不同，视觉上彼此错开。 */
   .dshsc-sub-entry { display: grid; grid-template-columns: minmax(0, 1fr) 110px 92px; gap: 10px;
     align-items: center; font-size: 12px; padding: 6px 0; border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-sub-entry > .dshsc-actions { justify-self: end; display: flex; align-items: center; }
   .dshsc-entryhead + .dshsc-sub-entry { border-top: 0; }
-  .dshsc-sub-entry .dshsc-name { font-size: 12px; font-weight: 500; }
+  /* 名字字号/字重与已安装行同一基准（13px/600 的按钮），让胶囊与名字的视觉重心一致。 */
+  .dshsc-sub-entry .dshsc-name { font-size: 12.5px; font-weight: 600; }
   /* 条目第一列：名字 + ✨ 同一行，作者原描述单独一行（超长省略，完整内容在 title） */
   .dshsc-sub-skill { min-width: 0; }
   .dshsc-sub-namerow { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -720,29 +727,43 @@ export const CSS = `
   .dshsc-info-sec dd { margin: 0; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
   .dshsc-info-sec dd.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 
-  /* 列表行的 ✨ 简介入口：只占一个小胶囊，不改变行高与列宽 */
-  .dshsc-intro-btn { flex: none; display: inline-flex; align-items: center; gap: 3px;
-    height: 19px; padding: 0 7px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px;
+  /* 列表行的 ✨ 简介入口：与状态标签（.dshsc-tag）同高同圆角，不改变行高与列宽。
+     已安装行与订阅条目共用这一套规格，改这里两处一起生效。
+     --dshsc-intro-accent 是两态的强调色（靛紫）：与「✓ 最新」蓝绿、「有更新」黄
+     色相均拉开，不会被误读成警告。优先取宿主中性强调色令牌（warning 在 DSH 里是
+     中性强调、非错误语义），回落固定紫。 */
+  .dshsc-intro-btn { --dshsc-intro-accent: var(--dsw-alias-state-warning-primary, #b18cf5);
+    flex: none; display: inline-flex; align-items: center; gap: 6px;
+    height: 18px; padding: 0 7px; box-sizing: border-box;
+    border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px;
     background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 11px;
-    line-height: 1; cursor: pointer; white-space: nowrap; }
+    line-height: 18px; cursor: pointer; white-space: nowrap; vertical-align: middle; }
+  /* 文本单独成 flex 子项并用 18px 行盒，消除匿名文本节点的 baseline 对齐差异
+     （button 里的裸文本在部分字体下会沿 baseline 贴底，导致文字在胶囊内偏下）。 */
+  .dshsc-intro-txt { display: inline-flex; align-items: center; line-height: 18px; }
   .dshsc-intro-btn:hover { color: var(--dsw-alias-label-primary); border-color: var(--dsw-alias-border-l3);
     background: var(--dsw-alias-bg-layer-1); }
   .dshsc-intro-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
-  .dshsc-intro-btn .dshsc-spark { font-size: 10px; color: var(--dsw-alias-brand-primary); }
-  /* 已有简介：实心品牌色胶囊 —— 一眼「点亮/已生成」 */
+  /* ✨ 用定宽字形盒（与状态标签的 ✓ 同号），高度不再随字体随机 */
+  .dshsc-intro-btn .dshsc-spark { display: inline-flex; align-items: center; justify-content: center;
+    width: 11px; height: 11px; font-size: 11px; line-height: 1;
+    color: var(--dshsc-intro-accent); }
+  /* 已生成：实心淡紫胶囊 —— 一眼「点亮/已生成」 */
   .dshsc-intro-btn.cached { border-color: transparent;
-    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
-    color: var(--dsw-alias-brand-primary); font-weight: 600; }
+    background: color-mix(in srgb, var(--dshsc-intro-accent) 16%, transparent);
+    color: color-mix(in srgb, var(--dshsc-intro-accent) 78%, var(--dsw-alias-label-primary));
+    font-weight: 600; }
   .dshsc-intro-btn.cached:hover {
-    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent);
-    border-color: var(--dsw-alias-brand-primary); }
-  .dshsc-intro-btn.cached .dshsc-spark { color: var(--dsw-alias-brand-primary); }
-  /* 未生成：虚线描边 + 灰字，文案换成「生成简介」 —— 一眼「待生成」 */
-  .dshsc-intro-btn.empty { border-style: dashed; border-color: var(--dsw-alias-border-l3);
+    background: color-mix(in srgb, var(--dshsc-intro-accent) 24%, transparent);
+    border-color: var(--dshsc-intro-accent); }
+  .dshsc-intro-btn.cached .dshsc-spark { color: var(--dshsc-intro-accent); }
+  /* 未生成：同色相虚线描边 —— 同为「待生成」，只靠实心/虚线区分两态 */
+  .dshsc-intro-btn.empty { border-style: dashed;
+    border-color: color-mix(in srgb, var(--dshsc-intro-accent) 55%, var(--dsw-alias-border-l3));
     color: var(--dsw-alias-label-tertiary); }
   .dshsc-intro-btn.empty:hover { color: var(--dsw-alias-label-secondary);
-    border-color: var(--dsw-alias-brand-primary); background: transparent; }
-  .dshsc-intro-btn.empty .dshsc-spark { color: var(--dsw-alias-label-tertiary); opacity: .8; }
+    border-color: var(--dshsc-intro-accent); background: transparent; }
+  .dshsc-intro-btn.empty .dshsc-spark { color: var(--dshsc-intro-accent); opacity: .8; }
 
   /* 简介弹窗：和调用策略一样走标准居中弹窗（Overlay），这里只调内容排版 */
   .dshsc-intro-sub { margin: 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary);

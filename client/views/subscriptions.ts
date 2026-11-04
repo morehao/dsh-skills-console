@@ -71,7 +71,7 @@ export function SubscriptionsTab({
       onClick: () => openIntro(subscription, entry),
     },
     h('span', { className: 'dshsc-spark', 'aria-hidden': 'true' }, '✨'),
-    cached ? t('intro.button') : t('intro.ctaEmpty'));
+    h('span', { className: 'dshsc-intro-txt' }, cached ? t('intro.button') : t('intro.ctaEmpty')));
   }
 
   // 只对仍然存在的订阅 + 条目渲染弹窗（刷新期间快照可能被换掉）
