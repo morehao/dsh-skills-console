@@ -425,7 +425,7 @@ test('调用策略：仅手动行点 chip 打开三档弹层，保存发 invocat
   const calls = [];
   const fetchStub = async (url, init = {}) => {
     calls.push({ url: String(url), method: init.method, body: init.body });
-    if (String(url).endsWith('/state')) {
+    if (String(url).split('?')[0].endsWith('/state')) {
       return { ok: true, status: 200, json: async () => ({ ...STATE, installs: [row] }) };
     }
     return { ok: true, status: 200, json: async () => ({ ok: true, mode: 'auto' }) };
@@ -472,7 +472,7 @@ test('调用策略：完全停用先在弹窗底栏二次确认，确认后才 P
   const calls = [];
   const fetchStub = async (url, init = {}) => {
     calls.push({ url: String(url), method: init.method, body: init.body });
-    if (String(url).endsWith('/state')) {
+    if (String(url).split('?')[0].endsWith('/state')) {
       return { ok: true, status: 200, json: async () => ({ ...STATE, installs: [row] }) };
     }
     return { ok: true, status: 200, json: async () => ({ ok: true, mode: 'hidden' }) };
@@ -537,7 +537,7 @@ test('完全停用：chip 打开恢复入口，二次确认后 POST /unpark', as
   const calls = [];
   const fetchStub = async (url, init = {}) => {
     calls.push({ url: String(url), method: init.method });
-    if (String(url).endsWith('/state')) {
+    if (String(url).split('?')[0].endsWith('/state')) {
       return { ok: true, status: 200, json: async () => ({ ...STATE, installs: [row] }) };
     }
     return { ok: true, status: 200, json: async () => ({ ok: true, mode: 'manual' }) };
