@@ -11,13 +11,34 @@ import {
   runIntroCall,
   IntroError,
   introEntry,
+  scopeKey,
 } from '../intro.js';
 import { readSkillFile, readSkillTree, resolveSkillRoot } from '../skill-files.js';
 import { parseSkillFrontmatter } from '../skill-md.js';
 import { fetchRemoteSkillMd } from '../remote.js';
+import { readLock } from '../inventory.js';
 import { assertSafeSkillName, skillFileFailure } from './shared.js';
 import { ServiceError } from './errors.js';
 import type { ServiceCtx } from '../../contract/service.js';
+
+/**
+ * 解析某技能在本机的缓存作用域：`{ key, source }`。
+ * source 优先取 v3 lock 的 `source`（canonical 记账的唯一来源），退化到 install 记录；
+ * 都没有（unmanaged / 非托管）时 key 为 `local/<name>`。与 `inventory.ts` 的 source 口径一致。
+ */
+export function introCacheScope(ctx: ServiceCtx, name: string): { key: string; source: string | null } {
+  let source: string | null = null;
+  try {
+    const lock = readLock(ctx.paths);
+    const lockEntry = lock.skills?.[name] || null;
+    const install = (Array.isArray(ctx.store.state?.installs) ? ctx.store.state.installs : [])
+      .find((row: any) => row.name === name) || null;
+    source = lockEntry?.source ?? install?.source ?? null;
+  } catch {
+    source = null;
+  }
+  return { key: scopeKey(source, name), source };
+}
 
 /** `/state` 下发的介绍能力：前端据此决定按钮显隐与提示。 */
 export function introCapability(ctx: ServiceCtx) {
@@ -121,7 +142,8 @@ export function remoteIntroTarget(ctx: ServiceCtx, subscriptionId, name) {
     commit: snapshot.commit,
     skillPath: entry.skillPath,
     description: typeof entry.description === 'string' ? entry.description : '',
-    cacheKey: `remote:${subscription.source}@${snapshot.commit}:${entry.skillPath}`,
+    // 与已安装侧共享的身份 key：`<owner/repo>/<entry.name>`，装到本地后按同一 key 命中。
+    cacheKey: scopeKey(subscription.source, entry.name),
   };
 }
 
@@ -247,7 +269,8 @@ export async function getSkillIntro(ctx: ServiceCtx, { name, lang }: any = {}) {
   const capability = introCapability(ctx);
   if (!ctx.introStore) return { ok: true, name, lang: language, intro: null, capability };
   const { file } = await readIntroSource(ctx, name);
-  const entry = ctx.introStore.get(name, language);
+  const { key } = introCacheScope(ctx, name);
+  const entry = ctx.introStore.get(key, language);
   return {
     ok: true,
     name,
@@ -284,7 +307,8 @@ export async function generateSkillIntro(ctx: ServiceCtx, { name, lang, force = 
     try {
       const { root, file } = await readIntroSource(ctx, name);
       const hash = contentFingerprint(file.content);
-      const cached = ctx.introStore.get(name, language);
+      const { key } = introCacheScope(ctx, name);
+      const cached = ctx.introStore.get(key, language);
       if (cached && !force) {
         const intro = publicIntro(cached, hash);
         if (!intro.stale) {
@@ -324,7 +348,7 @@ export async function generateSkillIntro(ctx: ServiceCtx, { name, lang, force = 
         maxTokens: result.maxTokens,
         finish: result.finish,
       });
-      ctx.introStore.put(name, language, entry);
+      ctx.introStore.put(key, language, entry);
       ctx.logger('intro.generate', {
         name,
         lang: language,
@@ -459,7 +483,9 @@ export async function generateRemoteIntro(ctx: ServiceCtx, { subscriptionId, nam
         const result = await callIntroModel(ctx, { llm, route, prompt, signal });
         const entry = introEntry({
           text: result.text,
-          hash: target.commit,
+          // 用 SKILL.md 原始字节的指纹，而不是 commit：这样装到本地后，本地侧按同一份
+          // 字节算出的指纹能对上 → stale=false，直接命中（复用的关键）。
+          hash: contentFingerprint(file.text),
           provider: result.provider,
           model: result.model,
           usage: result.usage,
