@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.8.7] - 2026-11-04
+
+### Tests
+
+- 新增 `apply()` 裸 ctx 守卫测试（`test/apply-guard.test.mjs`）：用 `@morehao/dsh-plugin-kit/test` 的 `createUndeclaredContext()` / `createAbsentContext()` 断言具名导出 `apply` 在服务未就绪时降级不抛，复现「读未声明服务 → 红点无面板」事故；含自检防假绿。
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.8.6...v0.8.7
+
 ## [v0.8.5] - 2026-11-04
 
 ### Features
