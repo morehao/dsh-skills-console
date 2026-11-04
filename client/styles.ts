@@ -791,11 +791,33 @@ export const CSS = `
   .dshsc-reader-more:hover { text-decoration: underline; }
   .dshsc-reader-more:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
 
-  .dshsc-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; font-size: 12px; padding: 10px 13px; border-radius: 9px;
-    background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l2);
-    box-shadow: 0 8px 24px rgba(0,0,0,.22); max-width: 420px; }
-  .dshsc-toast.err { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
-  .dshsc-toast.ok { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 50%, var(--dsw-alias-border-l2)); }
+  /* 顶部居中状态条（方向 A）：一次操作反馈的轻量提示。
+     portal 到 overlayHost（设置弹窗里落进同一个 dialog），层级高于面板内容但不挡操作；
+     多条纵向堆叠，连点多个操作不互相覆盖。成功绿对勾、失败红感叹号。 */
+  .dshsc-toastwrap { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 90;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    width: max-content; max-width: min(560px, calc(100vw - 32px)); pointer-events: none; }
+  .dshsc-toastbar { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; box-sizing: border-box;
+    width: 100%; padding: 10px 12px 10px 13px; border-radius: 10px; font-size: 12.5px; line-height: 1.45;
+    background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary);
+    border: 1px solid var(--dsw-alias-border-l2); box-shadow: 0 12px 30px rgba(0,0,0,.45);
+    animation: dshsc-toast-drop .22s cubic-bezier(.2,.8,.3,1); }
+  .dshsc-toastbar.ok { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 50%, var(--dsw-alias-border-l2)); }
+  .dshsc-toastbar.err { border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 55%, transparent); }
+  .dshsc-toastbar-ic { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; }
+  .dshsc-toastbar.ok .dshsc-toastbar-ic { background: var(--dsw-alias-state-success-primary); color: #08130c; }
+  .dshsc-toastbar.err .dshsc-toastbar-ic { background: var(--dsw-alias-state-error-primary); color: #1a0705; }
+  .dshsc-toastbar-body { flex: 1 1 auto; min-width: 0; }
+  .dshsc-toastbar-title { font-weight: 650; margin-bottom: 2px; }
+  .dshsc-toastbar-msg { color: var(--dsw-alias-label-secondary); overflow-wrap: anywhere; }
+  .dshsc-toastbar.ok .dshsc-toastbar-msg { color: var(--dsw-alias-label-primary); }
+  .dshsc-toastbar-x { flex: none; border: 0; background: none; padding: 0 2px; cursor: pointer;
+    color: var(--dsw-alias-label-tertiary); font-size: 15px; line-height: 1; }
+  .dshsc-toastbar-x:hover { color: var(--dsw-alias-label-primary); }
+  .dshsc-toastbar-x:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; border-radius: 4px; }
+  @keyframes dshsc-toast-drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .dshsc-toastbar { animation: none; } }
 
   /* 自更新恢复提示：居中弹层，唯一动作「关闭」，版本跨栏当主角（参照 dsh-github-trending v0.8.12） */
   .dshsc-restore-mask { position: fixed; inset: 0; z-index: 74; display: flex; align-items: center; justify-content: center;
