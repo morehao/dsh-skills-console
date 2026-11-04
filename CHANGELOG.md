@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.8.9] - 2026-11-04
+
+### Features
+
+- **intro**: 技能列表区分「已生成 / 未生成」简介状态 (#128)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.8.8...v0.8.9
+
 ## [v0.8.8] - 2026-11-04
 
 ### Fixes
