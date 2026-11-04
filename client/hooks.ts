@@ -17,13 +17,25 @@ import type {
 } from './api.js';
 
 const TOAST_MS = 4200;
+/** 顶部居中状态条：成功约 3s 自动收，失败停久一点（用户可手动关）。 */
+const TOAST_MS_OK = 3000;
+const TOAST_MS_ERR = 5200;
+
+/** 状态条实例：在 Toast 之上加 id，供堆叠列表按条移除。 */
+export interface ToastItem extends Toast {
+  id: number;
+}
+
+let toastSeq = 0;
 
 /** 清单 / 错误 / 忙碌 / toast：挂载即拉一次 /state，变更动作统一走 run。 */
 export function useSkillsData() {
   const [data, setData] = React.useState<SkillsState | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
-  const [toast, setToast] = React.useState<Toast | null>(null);
+  // 顶部居中状态条是「堆叠」的：连点多个操作不互相覆盖；每条自己定时退出。
+  const [toasts, setToasts] = React.useState<ToastItem[]>([]);
+  const timers = React.useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const reload = React.useCallback(async () => {
     try {
@@ -39,11 +51,40 @@ export function useSkillsData() {
     void reload();
   }, [reload]);
 
-  React.useEffect(() => {
-    if (!toast) return undefined;
-    const timer = setTimeout(() => setToast(null), TOAST_MS);
-    return () => clearTimeout(timer);
-  }, [toast]);
+  /** 移除一条（手动关 / 定时到）；清掉它的计时器。 */
+  const dismissToast = React.useCallback((id: number) => {
+    const timer = timers.current.get(id);
+    if (timer) { clearTimeout(timer); timers.current.delete(id); }
+    setToasts((list) => list.filter((item) => item.id !== id));
+  }, []);
+
+  /**
+   * 压入一条状态条。签名保持 `(Toast | null)` 兼容旧调用点：null 清空全部。
+   * 成功类自动收；失败/警告停更久，且用户可以手动关。
+   */
+  const setToast = React.useCallback((next: Toast | null) => {
+    if (!next) {
+      timers.current.forEach((timer) => clearTimeout(timer));
+      timers.current.clear();
+      setToasts([]);
+      return;
+    }
+    const item: ToastItem = { ...next, id: ++toastSeq };
+    // 最多同时留 3 条，旧的顶掉
+    setToasts((list) => [...list, item].slice(-3));
+    const ttl = next.kind === 'ok' ? TOAST_MS_OK : TOAST_MS_ERR;
+    const timer = setTimeout(() => {
+      timers.current.delete(item.id);
+      setToasts((list) => list.filter((t) => t.id !== item.id));
+    }, ttl);
+    timers.current.set(item.id, timer);
+  }, []);
+
+  // 卸载时清掉所有计时器
+  React.useEffect(() => () => {
+    timers.current.forEach((timer) => clearTimeout(timer));
+    timers.current.clear();
+  }, []);
 
   // `toastError: false` 用于「错误由调用方在弹窗内联展示」的动作：仍统一走 busy / reload，
   // 但不弹全局错误 toast，避免和弹窗内提示重复。默认 true，其余调用点不用改。
@@ -61,10 +102,10 @@ export function useSkillsData() {
         setBusy(null);
       }
     },
-    [reload],
+    [reload, setToast],
   );
 
-  return { data, error, busy, toast, setToast, setBusy, reload, run };
+  return { data, error, busy, toasts, setToast, dismissToast, setBusy, reload, run };
 }
 
 /** 页头设置浮层：开关、锚点、按左右余量选边与宽度。 */

@@ -250,10 +250,11 @@ export interface SkillsState {
   [extra: string]: unknown;
 }
 
-/** 全局 toast。 */
+/** 全局 toast。`title` 可选：错误类提示给一句主标题，正文放明细（不传则只显示 text）。 */
 export interface Toast {
   kind: string;
   text: string;
+  title?: string;
 }
 
 /** 删除冲突详情（error.skills.remove-conflict 的 detail.conflicts）。 */

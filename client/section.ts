@@ -4,7 +4,7 @@
  */
 import React from 'react';
 
-import { h, overlayHost, portalize } from './host.js';
+import { h, overlayHost } from './host.js';
 import { apiCall, GITHUB_URL } from './api.js';
 import type { ModalState, SkillRow, SkillsState, Toast } from './api.js';
 import type { Translate } from './copy.js';
@@ -16,6 +16,7 @@ import { Header } from './views/header.js';
 import { Toolbar } from './views/toolbar.js';
 import { InstalledTab } from './views/installed.js';
 import { AgentTip } from './views/agent-tip.js';
+import { ToastStack } from './views/toast.js';
 import { SubscriptionsTab } from './views/subscriptions.js';
 import { Modals } from './views/modals.js';
 import { SkillReader } from './views/skill-reader.js';
@@ -41,7 +42,7 @@ interface ViewerState {
 }
 
 export function Section({ t, page = false, pickDirectory, onPlacementChange }: SectionProps) {
-  const { data, error, busy, toast, setToast, setBusy, reload, run } = useSkillsData();
+  const { data, error, busy, toasts, setToast, dismissToast, setBusy, reload, run } = useSkillsData();
   const [tab, setTab] = React.useState('installed');
   const [view, setView] = React.useState('flat');
   const [modal, setModal] = React.useState<ModalState | null>(null);
@@ -295,7 +296,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
     h('style', null, CSS),
     viewer?.mode === 'page' ? null : listNode,
     readerNode,
-    toast ? portalize(h('div', { className: `dshsc-toast ${toast.kind}` }, toast.text), overlayHost()) : null,
+    h(ToastStack, { t, toasts, onDismiss: dismissToast, host: overlayHost() }),
     modal ? h(Modals, {
       t,
       modal,
