@@ -577,7 +577,7 @@ test('完全停用：操作列只留恢复 / 删除', async () => {
   assert.ok(!labels.some((label) => label.startsWith('共享设置')), '停用行不给共享设置');
 });
 
-test('订阅表头：四列 + 展开条目子表头，窄屏收成仓库 / 操作', async () => {
+test('订阅表头：仓库 / 操作两列 + 展开条目子表头', async () => {
   const { Component, stub } = loadModule({
     ...STATE,
     subscriptions: [{
@@ -599,10 +599,16 @@ test('订阅表头：四列 + 展开条目子表头，窄屏收成仓库 / 操�
   const heads = collectByClass(tree, 'dshsc-subhead');
   assert.equal(heads.length, 1, '订阅列表一个表头');
   const head = textOf(heads[0]);
-  for (const expected of ['仓库', 'Ref', '条目', '操作']) {
+  // 仓库信息（名字 / Ref / 已装进度）聚拢在仓库列里，表头只剩「仓库 / 操作」两列
+  for (const expected of ['仓库', '操作']) {
     assert.ok(head.includes(expected), `订阅表头缺少：${expected}`);
   }
   assert.equal(collectByClass(tree, 'dshsc-entryhead').length, 0, '未展开时没有条目子表头');
+
+  // 仓库行里仍能看到 Ref 与已装进度（不再是独立列）
+  const row = collectByClass(tree, 'dshsc-sub-row')[0];
+  assert.ok(textOf(row).includes('main'), '仓库行里能看到 Ref');
+  assert.ok(collectByClass(row, 'dshsc-progress').length === 1, '仓库行里有已装进度');
 
   const caret = collectButtons(tree).find((button) => String(button.props.className || '').includes('dshsc-caret'));
   caret.props.onClick();
@@ -617,8 +623,9 @@ test('订阅表头：四列 + 展开条目子表头，窄屏收成仓库 / 操�
   const css = collectByType(tree, 'style').map((node) => String(node.children[0] || '')).join('\n');
   const subhead = (css.match(/\.dshsc-subhead\s*\{[^}]*\}/) || [''])[0];
   assert.match(subhead, /position:\s*sticky/, '订阅表头要 sticky');
-  assert.match(subhead, /grid-template-columns:\s*minmax\(0, 1fr\) 86px 178px 118px/, '表头与行共用四列列宽');
-  assert.match(css, /\.dshsc-subhead \.dshsc-href[^{]*\{[^}]*display:\s*none/, '窄屏隐藏 Ref 表头');
+  assert.match(subhead, /grid-template-columns:\s*minmax\(0, 1fr\) auto/, '表头与行共用两列列宽');
+  // 统一图标操作条
+  assert.match(css, /\.dshsc-iconbar\s*\{[^}]*display:\s*flex/, '操作列用图标操作条');
 });
 
 test('CLI 不可用 / 只读：顶部提示 + 写操作按钮禁用', async () => {
@@ -1728,7 +1735,8 @@ test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给�
     (button) => button.props['aria-label'] === label || button.props.title === label,
   );
   assert.ok(named('检查更新'), '订阅行要有「检查更新」图标按钮');
-  assert.ok(labels.includes('取消订阅'), '订阅行要有「取消订阅」');
+  assert.ok(named('删除订阅'), '订阅行要有「删除订阅」图标按钮');
+  assert.ok(!labels.includes('取消订阅'), '「取消订阅」已改为删除图标，不再占文字宽度');
   assert.ok(textOf(tree).includes('已安装'), '「已装」统一为「已安装」');
   assert.ok(!labels.includes('⋯'), '不使用折叠菜单');
 
@@ -1736,8 +1744,10 @@ test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给�
   assert.ok(caret, '订阅行要有展开箭头');
   caret.props.onClick();
   tree = stub.render(Component, {}, first.hooks).tree;
-  labels = collectButtons(tree).map((button) => textOf(button).trim());
-  assert.ok(labels.filter((label) => label === '安装').length === 1, '只有未装条目给安装按钮');
+  // 安装入口改为图标按钮：用可访问名称判定，不再靠文字
+  const installNamed = (node) => collectButtons(node).some(
+    (button) => button.props['aria-label'] === '安装 git-kit' || button.props.title === '安装',
+  );
   const entryRows = collectByClass(tree, 'dshsc-sub-entry');
   assert.equal(entryRows.length, 2);
   assert.ok(textOf(entryRows[0]).includes('已安装'), '已装条目显示已安装');
@@ -1746,7 +1756,8 @@ test('订阅：检查更新 / 取消订阅都直接可见，安装入口只给�
     '已安装',
     '已安装状态只用文字，不再带对钩',
   );
-  assert.ok(!collectButtons(entryRows[0]).some((button) => textOf(button).trim() === '安装'), '已装条目不再给安装按钮');
+  assert.ok(!installNamed(entryRows[0]), '已装条目不再给安装按钮');
+  assert.ok(installNamed(entryRows[1]), '未装条目给安装按钮');
   assert.ok(textOf(entryRows[0]).includes('-'), '已装条目的操作列用破折号占位');
 });
 
@@ -1773,10 +1784,14 @@ test('订阅：同仓库直接安装、账本没有订阅关联时也不再给�
   caret.props.onClick();
   tree = stub.render(Component, {}, first.hooks).tree;
   const entries = collectByClass(tree, 'dshsc-sub-entry');
+  const installNamed = (node) => collectButtons(node).some(
+    (button) => String(button.props['aria-label'] || '').startsWith('安装') || button.props.title === '安装',
+  );
   assert.ok(textOf(entries[0]).includes('已安装'), '按仓库 + 名称认出已安装');
-  assert.ok(!collectButtons(entries[0]).some((button) => textOf(button).trim() === '安装'), '同仓库已装条目不给安装');
-  assert.ok(collectButtons(entries[1]).some((button) => textOf(button).trim() === '安装'), '真正未装的同名仓库条目仍给安装');
-  assert.ok(collectByClass(tree, 'dshsc-substat').some((node) => textOf(node).includes('已安装 1')), '已装计数按条目算');
+  assert.ok(!installNamed(entries[0]), '同仓库已装条目不给安装');
+  assert.ok(installNamed(entries[1]), '真正未装的同名仓库条目仍给安装');
+  // 已装进度改为小圆点 + 数字（.dshsc-progress），不再用旧的 substat 长串
+  assert.ok(textOf(collectByClass(tree, 'dshsc-progress')[0]).includes('已安装'), '已装进度按条目算');
 });
 
 // ---------- 查看技能内容（抽屉 / 整页 / 文件 / 信息） ----------
