@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.8.8] - 2026-11-04
+
+### Fixes
+
+- **intro**: 批量简介已缓存条数改由后端权威判定 (#124)
+
+### Refactors
+
+- **subscriptions**: 订阅操作列改为统一图标操作条 (#123)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.8.7...v0.8.8
+
 ## [v0.8.7] - 2026-11-04
 
 ### Tests
