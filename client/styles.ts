@@ -266,7 +266,22 @@ export const CSS = `
   .dshsc-btn.sq { box-sizing: border-box; width: 24px; padding: 0; justify-content: center; }
   .dshsc-btn.sq svg { display: block; }
   .dshsc-listbar .dshsc-btn.sq { width: 26px; padding: 0; }
-  .dshsc-sub-row .dshsc-btn.sq { width: 24px; padding: 0; }
+  /* 订阅行统一图标操作条（.dshsc-iconbar）：一排等宽 28px 方形图标按钮，权重一致；
+     hover 才染色（tint 品牌色 / danger 错误色），危险操作前用 .dshsc-act-sep 分隔线隔开。 */
+  .dshsc-iconbar { display: flex; align-items: center; gap: 4px; }
+  .dshsc-btn.ic { box-sizing: border-box; width: 28px; height: 28px; padding: 0; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--dsw-alias-label-secondary); background: transparent; border: 1px solid transparent; }
+  .dshsc-btn.ic svg { display: block; }
+  .dshsc-btn.ic:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-2);
+    color: var(--dsw-alias-label-primary); border-color: transparent; }
+  .dshsc-btn.ic:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+  .dshsc-btn.ic.tint:hover:not(:disabled) { color: var(--dsw-alias-brand-primary);
+    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent); }
+  .dshsc-btn.ic.danger:hover:not(:disabled) { color: var(--dsw-alias-state-error-primary);
+    background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent); }
+  .dshsc-btn.ic:disabled { opacity: .38; cursor: not-allowed; }
+  .dshsc-act-sep { width: 1px; height: 16px; margin: 0 3px; flex: none; background: var(--dsw-alias-border-l2); }
 
   .dshsc-groupstack { display: flex; flex-direction: column; gap: 12px; }
   .dshsc-group-head { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid var(--dsw-alias-border-l1);
@@ -308,7 +323,7 @@ export const CSS = `
   .dshsc-subscroll { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
     background: var(--dsw-alias-bg-layer-1); }
   .dshsc-subhead { position: sticky; top: 0; z-index: 3; display: grid;
-    grid-template-columns: minmax(0, 1fr) 86px 178px 118px; gap: 10px; align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center;
     height: 30px; padding: 0 12px 0 14px; background: var(--dsw-alias-bg-layer-2);
     border-bottom: 1px solid var(--dsw-alias-border-l1); border-radius: 11px 11px 0 0;
     color: var(--dsw-alias-label-tertiary); font-size: 10.5px; font-weight: 500; letter-spacing: .02em; }
@@ -317,29 +332,32 @@ export const CSS = `
   .dshsc-sub-block { border-top: 1px solid var(--dsw-alias-border-l1); }
   .dshsc-subhead + .dshsc-sub-block { border-top: 0; }
   .dshsc-sub-block + .dshsc-sub-block { border-top: 1px solid var(--dsw-alias-border-l1); }
-  .dshsc-sub-row { display: grid; grid-template-columns: minmax(0, 1fr) 86px 178px 118px;
-    gap: 10px; align-items: center; padding: 8px 12px 8px 14px; min-height: 52px; }
-  .dshsc-sub-repo { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  /* 宽屏把 Ref / 条目铺成两列，窄屏回到仓库名下方一行 */
-  .dshsc-sub-meta { display: contents; }
-  .dshsc-subref { justify-self: start; }
+  .dshsc-sub-row { display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px; align-items: center; padding: 9px 12px 9px 14px; min-height: 48px; }
+  /* 仓库信息聚合在一行：caret + 名字 + Ref 标签 + 已装进度 */
+  .dshsc-sub-info { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; row-gap: 4px; }
   .dshsc-caret { flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent;
     color: var(--dsw-alias-label-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
   .dshsc-caret:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
   .dshsc-caret:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
   .dshsc-sub-row .dshsc-name { font-size: 12.5px; }
-  .dshsc-substat { font-size: 11px; color: var(--dsw-alias-label-tertiary); white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; }
-  .dshsc-sub-row .dshsc-actions { justify-self: end; display: flex; align-items: center; gap: 2px; }
-  .dshsc-sub-row .dshsc-btn { height: 24px; padding: 0 7px; font-size: 11.5px; display: inline-flex; align-items: center; }
+  .dshsc-subref { flex: none; }
+  /* 已装进度：小圆点 + 「N/M 已装」，全装绿 / 部分黄 / 未装灰 */
+  .dshsc-progress { display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
+    color: var(--dsw-alias-label-tertiary); white-space: nowrap; flex: none; }
+  .dshsc-progress b { color: var(--dsw-alias-label-secondary); font-weight: 600; }
+  .dshsc-progress-dot { width: 6px; height: 6px; border-radius: 50%; flex: none;
+    background: var(--dsw-alias-border-l3); }
+  .dshsc-progress-dot.full { background: var(--dsw-alias-state-success-primary); }
+  .dshsc-progress-dot.partial { background: var(--dsw-alias-state-warn-primary); }
+  .dshsc-sub-row .dshsc-actions { justify-self: end; }
   /* 条目缩进对齐仓库名：行左内边距 14 + caret 24 + 间距 8 = 46 */
   .dshsc-sub-list { display: flex; flex-direction: column; padding: 0 12px 7px 46px;
     background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 22%, transparent);
     border-top: 1px solid var(--dsw-alias-border-l1); }
-  /* 条目操作列 92px 是照两枚按钮预留的，眼下每行只有一枚「安装」（两字 ≈ 43px：0 9px padding + 边框）。
-     表头「操作」和已装行的破折号都按按钮宽度做一个右对齐的居中盒子：三者落在同一条中轴上，
-     既不贴着列右缘，也不用改列宽 / 挪按钮。换语言或字号时盒子只是不再严格等于按钮宽度。 */
-  .dshsc-sub-list { --dshsc-entry-act: 44px; }
+  /* 条目操作列 92px 照一枚 28px 安装图标按钮预留；表头「操作」和已装行的破折号
+     都按 --dshsc-entry-act（=按钮宽）做右对齐盒子，三者落在同一条中轴上。 */
+  .dshsc-sub-list { --dshsc-entry-act: 28px; }
   .dshsc-entryhead { display: grid; grid-template-columns: minmax(0, 1fr) 110px 92px; gap: 10px;
     align-items: center; height: 26px; border-bottom: 1px solid var(--dsw-alias-border-l1);
     color: var(--dsw-alias-label-tertiary); font-size: 10px; font-weight: 500; letter-spacing: .02em; }
@@ -356,8 +374,7 @@ export const CSS = `
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dshsc-state { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
   .dshsc-state.ok svg { color: var(--dsw-alias-state-success-primary); }
-  .dshsc-sub-entry .dshsc-actions { justify-self: end; display: flex; justify-content: flex-end; }
-  .dshsc-sub-entry .dshsc-btn { height: 24px; padding: 0 9px; font-size: 11.5px; }
+  .dshsc-sub-entry .dshsc-actions { justify-self: end; }
   /* 已装条目的操作列没有动作：破折号占位，居中在按钮宽度里，和表头、安装按钮同一条中轴 */
   .dshsc-sub-entry .dshsc-noop { box-sizing: border-box; width: var(--dshsc-entry-act); padding: 0;
     text-align: center; color: var(--dsw-alias-label-tertiary); font-size: 11.5px; line-height: 24px; }
@@ -377,13 +394,9 @@ export const CSS = `
     .dshsc-listhead .dshsc-hagents, .dshsc-listhead .dshsc-hpolicy { display: none; }
     .dshsc-listhead .dshsc-col-wide { display: none; }
     .dshsc-listhead .dshsc-col-narrow { display: inline; }
-    /* 订阅表头收成「仓库 / 操作」，Ref 与条目数移到仓库名下 */
-    .dshsc-subhead { grid-template-columns: minmax(0, 1fr) auto; }
-    .dshsc-subhead .dshsc-href, .dshsc-subhead .dshsc-hcount { display: none; }
-    .dshsc-sub-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding: 8px 12px; }
-    .dshsc-sub-repo { grid-column: 1; grid-row: 1; }
-    .dshsc-sub-meta { display: flex; align-items: center; gap: 8px; min-width: 0; grid-column: 1; grid-row: 2; }
-    .dshsc-sub-row .dshsc-actions { grid-column: 2; grid-row: 1 / span 2; }
+    /* 订阅表头本就是「仓库 / 操作」两列，窄屏只需收窄内边距与图标间距 */
+    .dshsc-sub-row { padding: 9px 12px; }
+    .dshsc-iconbar { gap: 2px; }
     /* 展开条目：状态 / 操作两列收窄，技能名仍吃剩余宽度 */
     .dshsc-entryhead, .dshsc-sub-entry { grid-template-columns: minmax(0, 1fr) 96px 78px; }
   }
