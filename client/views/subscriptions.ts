@@ -2,10 +2,12 @@
 import React from 'react';
 
 import { h } from '../host.js';
+import { githubRepoUrl } from '../api.js';
 import type { IntroCapability, SkillRow, Subscription, SubscriptionEntry } from '../api.js';
 import type { Translate } from '../copy.js';
 import { CaretIcon, RefreshIcon } from '../icons.js';
 import { IntroModal } from './intro-modal.js';
+import { IntroBatchModal } from '../intro-batch.js';
 
 /** 仓库标识归一化：订阅的 source 与账本里的 source 都可能是 owner/repo。 */
 function repoOf(source: string | null | undefined) {
@@ -25,18 +27,23 @@ export interface SubscriptionsTabProps {
   busy: string | null;
   writable: boolean;
   capability?: IntroCapability | null;
+  /** 运行中/中断的批量任务（用于禁用重复入口）。 */
+  activeJob?: any;
   onToggle: (id: string) => void;
   onRefresh: (subscription: Subscription) => void;
   onDelete: (subscription: Subscription) => void;
   onInstall: (subscription: Subscription, entry: SubscriptionEntry) => void;
   onAdd: () => void;
+  /** 为本仓库生成简介：mode 由确认弹窗选择。 */
+  onBatchStart?: (subscription: Subscription, mode: 'missing' | 'all') => void | Promise<void>;
 }
 
 export function SubscriptionsTab({
-  t, subscriptions, rows, expanded, busy, writable, capability = null,
-  onToggle, onRefresh, onDelete, onInstall, onAdd,
+  t, subscriptions, rows, expanded, busy, writable, capability = null, activeJob = null,
+  onToggle, onRefresh, onDelete, onInstall, onAdd, onBatchStart,
 }: SubscriptionsTabProps) {
   const [intro, setIntro] = React.useState<{ subscriptionId: string; name: string } | null>(null);
+  const [batchFor, setBatchFor] = React.useState<Subscription | null>(null);
 
   // 取消订阅 / 刷新后条目没了，弹窗不能留在原地
   React.useEffect(() => {
@@ -149,13 +156,34 @@ export function SubscriptionsTab({
               'aria-label': `${subscription.source} ${open ? t('action.collapse') : t('action.expand')}`,
               onClick: () => onToggle(subscription.id),
             }, h(CaretIcon, { open })),
-            h('span', { className: 'dshsc-name' }, subscription.source)),
+            // 仓库名：能认出来的 owner/repo 渲染成 GitHub 外链（caret 是 button，链接是兄弟节点，不嵌套）；
+            // 认不出保持纯文本，不出死链。
+            (() => {
+              const url = githubRepoUrl(subscription.source);
+              return url
+                ? h('a', {
+                    className: 'dshsc-name dshsc-repolink',
+                    href: url,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    title: t('link.openRepo'),
+                  }, subscription.source)
+                : h('span', { className: 'dshsc-name' }, subscription.source);
+            })()),
           // 宽屏铺成 Ref / 条目两列；窄屏回到仓库名下方一行。
           h('div', { className: 'dshsc-sub-meta' },
             h('span', { className: 'dshsc-tag dshsc-subref' }, subscription.ref || t('subscription.defaultRef')),
             h('span', { className: 'dshsc-substat' },
               `${entries.length} ${t('skillCount')} · ${t('installed')} ${installedCount}`)),
           h('div', { className: 'dshsc-actions' },
+            capability && capability.enabled !== false && capability.available !== false
+              ? h('button', {
+                  className: 'dshsc-btn',
+                  disabled: busy !== null || Boolean(activeJob),
+                  title: t('introBatch.title'),
+                  onClick: () => setBatchFor(subscription),
+                }, `✨ ${t('introBatch.buttonN').replace('{n}', String(entries.length))}`)
+              : null,
             h('button', {
               className: 'dshsc-btn sq',
               disabled: busy !== null,
@@ -195,5 +223,18 @@ export function SubscriptionsTab({
           : null,
       );
     }))),
-    introModal);
+    introModal,
+    batchFor ? h(IntroBatchModal, {
+      t,
+      capability,
+      candidateCount: (batchFor.snapshot?.entries || []).length,
+      cachedCount: 0,
+      concurrency: 2,
+      onClose: () => setBatchFor(null),
+      onStart: async (mode) => {
+        const target = batchFor;
+        setBatchFor(null);
+        if (target && onBatchStart) await onBatchStart(target, mode);
+      },
+    }) : null);
 }

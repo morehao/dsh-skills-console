@@ -662,6 +662,74 @@ test('未纳入追踪：开关禁用、可见性以中性状态点表达、保�
   assert.equal(chip.props.title, '还未纳入追踪，不能启停');
 });
 
+test('GitHub 跳转：来源仓库名与 commit 渲染成外链，无来源不出死链', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    installs: [
+      ROW({ name: 'git-kit', source: 'morehao/ai-kit', commit: 'a1b2c3d4e5f6', ref: 'main' }),
+      ROW({ name: 'local-only', managed: false, status: 'unmanaged', source: null, commit: null, ref: null, exports: [] }),
+    ],
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+
+  const repoLinks = collectByClass(tree, 'dshsc-repolink');
+  assert.equal(repoLinks.length, 1, '只有有来源的那一行渲染仓库链接');
+  assert.equal(repoLinks[0].props.href, 'https://github.com/morehao/ai-kit');
+  assert.equal(repoLinks[0].props.target, '_blank');
+  assert.equal(repoLinks[0].props.rel, 'noopener noreferrer');
+
+  const shaLink = collectByClass(tree, 'dshsc-sha');
+  assert.equal(shaLink.length, 1, '合法 commit 渲染提交链接');
+  assert.equal(shaLink[0].props.href, 'https://github.com/morehao/ai-kit/commit/a1b2c3d4e5f6');
+
+  // 无来源的行（unmanaged）不应出现指向 github.com/undefined 的死链
+  for (const link of [...repoLinks, ...shaLink]) {
+    assert.ok(!String(link.props.href).includes('undefined'));
+  }
+});
+
+test('批量生成简介：工具栏有入口，点开确认弹窗只给「生成范围」两选项', async () => {
+  const { Component, stub } = loadModule({ ...STATE });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  let tree = stub.render(Component, {}, first.hooks).tree;
+
+  // 工具栏「批量生成简介」按钮存在（intro 可用时）
+  const batchBtn = collectButtons(tree).find((b) => textOf(b).includes('批量生成简介'));
+  assert.ok(batchBtn, '应有批量生成按钮');
+
+  // 点开 → 弹窗出现，且只有范围单选（不暴露并发 / 遇错）
+  batchBtn.props.onClick();
+  tree = stub.render(Component, {}, first.hooks).tree;
+  const opts = collectByClass(tree, 'dshsc-batchopt');
+  assert.equal(opts.length, 2, '范围只有两个选项（缺失 / 全部）');
+  const text = textOf(tree);
+  assert.ok(text.includes('仅生成缺失的'));
+  assert.ok(text.includes('全部重新生成'));
+  assert.ok(!text.includes('并发'), '并发度不暴露给用户');
+  assert.ok(!text.includes('遇到错误'), '遇错策略不暴露给用户');
+});
+
+test('批量：重启后有 interrupted 任务 → 居中弹层提示「继续」，不自动开始', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    activeIntroJob: { id: 'uk-1', kind: 'installed', status: 'interrupted', total: 5, done: 3, failed: 0, skipped: 0, running: 0, pending: 2, resumable: ['x', 'y'] },
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const text = textOf(tree);
+  assert.ok(text.includes('上次有未完成的批量任务'), '应提示未完成任务');
+  assert.ok(text.includes('继续生成'), '应有继续按钮');
+  // 是居中弹层（overlay），不是右下角：结构上有 dshsc-overlay
+  assert.ok(collectByClass(tree, 'dshsc-overlay').length >= 1, '应是居中弹层');
+});
+
 test('同名副本：可见的不是这一份时，点名模型实际看到的那份', async () => {
   const { Component, stub } = loadModule({
     ...STATE,

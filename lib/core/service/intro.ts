@@ -11,13 +11,34 @@ import {
   runIntroCall,
   IntroError,
   introEntry,
+  scopeKey,
 } from '../intro.js';
 import { readSkillFile, readSkillTree, resolveSkillRoot } from '../skill-files.js';
 import { parseSkillFrontmatter } from '../skill-md.js';
 import { fetchRemoteSkillMd } from '../remote.js';
+import { readLock } from '../inventory.js';
 import { assertSafeSkillName, skillFileFailure } from './shared.js';
 import { ServiceError } from './errors.js';
 import type { ServiceCtx } from '../../contract/service.js';
+
+/**
+ * 解析某技能在本机的缓存作用域：`{ key, source }`。
+ * source 优先取 v3 lock 的 `source`（canonical 记账的唯一来源），退化到 install 记录；
+ * 都没有（unmanaged / 非托管）时 key 为 `local/<name>`。与 `inventory.ts` 的 source 口径一致。
+ */
+export function introCacheScope(ctx: ServiceCtx, name: string): { key: string; source: string | null } {
+  let source: string | null = null;
+  try {
+    const lock = readLock(ctx.paths);
+    const lockEntry = lock.skills?.[name] || null;
+    const install = (Array.isArray(ctx.store.state?.installs) ? ctx.store.state.installs : [])
+      .find((row: any) => row.name === name) || null;
+    source = lockEntry?.source ?? install?.source ?? null;
+  } catch {
+    source = null;
+  }
+  return { key: scopeKey(source, name), source };
+}
 
 /** `/state` 下发的介绍能力：前端据此决定按钮显隐与提示。 */
 export function introCapability(ctx: ServiceCtx) {
@@ -26,6 +47,8 @@ export function introCapability(ctx: ServiceCtx) {
     available: Boolean(ctx.introStore) && Boolean(ctx.getLlm()),
     langs: ['zh', 'en'],
     timeoutMs: ctx.introOptions.timeoutMs,
+    /** 批量生成的并发度（默认 2；前端只用它估时长，不展示给用户）。 */
+    batchConcurrency: ctx.introOptions.batchConcurrency,
   };
 }
 
@@ -121,7 +144,8 @@ export function remoteIntroTarget(ctx: ServiceCtx, subscriptionId, name) {
     commit: snapshot.commit,
     skillPath: entry.skillPath,
     description: typeof entry.description === 'string' ? entry.description : '',
-    cacheKey: `remote:${subscription.source}@${snapshot.commit}:${entry.skillPath}`,
+    // 与已安装侧共享的身份 key：`<owner/repo>/<entry.name>`，装到本地后按同一 key 命中。
+    cacheKey: scopeKey(subscription.source, entry.name),
   };
 }
 
@@ -247,7 +271,8 @@ export async function getSkillIntro(ctx: ServiceCtx, { name, lang }: any = {}) {
   const capability = introCapability(ctx);
   if (!ctx.introStore) return { ok: true, name, lang: language, intro: null, capability };
   const { file } = await readIntroSource(ctx, name);
-  const entry = ctx.introStore.get(name, language);
+  const { key } = introCacheScope(ctx, name);
+  const entry = ctx.introStore.get(key, language);
   return {
     ok: true,
     name,
@@ -261,6 +286,81 @@ export async function getSkillIntro(ctx: ServiceCtx, { name, lang }: any = {}) {
  * 生成技能介绍：显式操作，一次一个模型调用。
  * 命中缓存且内容未变时直接返回（`cached: true`），不烧额度。
  */
+/**
+ * 本地技能生成的**主体**（不含全局单飞）：读源 → 命中缓存短路 → 调模型 → 写缓存。
+ * 单条入口 `generateSkillIntro` 与批量执行器共用，保证行为一致；批量自己控并发，故不走单飞。
+ */
+export async function generateLocalIntroInner(
+  ctx: ServiceCtx,
+  { name, language, force = false, signal = null, llm, startedAt = Date.now() }: any,
+) {
+  const { root, file } = await readIntroSource(ctx, name);
+  const hash = contentFingerprint(file.content);
+  const { key } = introCacheScope(ctx, name);
+  const cached = ctx.introStore.get(key, language);
+  if (cached && !force) {
+    const intro = publicIntro(cached, hash);
+    if (!intro.stale) {
+      return { ok: true, name, lang: language, cached: true, intro, usage: null };
+    }
+  }
+
+  const route = resolveIntroRoute(ctx);
+  if (!route) {
+    throw new ServiceError(
+      'error.skills.intro-no-model',
+      '还没有可用的默认模型，请先在 DSH 里选择模型',
+      null,
+      409,
+    );
+  }
+
+  const prompt = buildIntroPrompt({
+    name,
+    description: parseSkillFrontmatter(file.content).description || '',
+    files: await introFileNames(ctx, root, file.relPath),
+    content: file.content,
+    maxInputBytes: ctx.introOptions.maxInputBytes,
+    lang: language,
+  });
+
+  const result = await callIntroModel(ctx, { llm, route, prompt, signal });
+  const entry = introEntry({
+    text: result.text,
+    hash,
+    provider: result.provider,
+    model: result.model,
+    usage: result.usage,
+    inputBytes: prompt.inputBytes,
+    truncated: prompt.truncated,
+    sourceBytes: prompt.sourceBytes,
+    maxTokens: result.maxTokens,
+    finish: result.finish,
+  });
+  ctx.introStore.put(key, language, entry);
+  ctx.logger('intro.generate', {
+    name,
+    lang: language,
+    provider: result.provider,
+    model: result.model,
+    effort: result.reasoningEffort || null,
+    maxTokens: result.maxTokens ?? null,
+    finish: result.finish || null,
+    inputBytes: prompt.inputBytes,
+    truncated: prompt.truncated,
+    durationMs: Date.now() - startedAt,
+    usage: result.usage || null,
+  });
+  return {
+    ok: true,
+    name,
+    lang: language,
+    cached: false,
+    intro: publicIntro(entry, hash),
+    usage: result.usage || null,
+  };
+}
+
 export async function generateSkillIntro(ctx: ServiceCtx, { name, lang, force = false, signal = null }: any = {}) {
   assertSafeSkillName(name);
   const language = introLang(lang);
@@ -282,70 +382,7 @@ export async function generateSkillIntro(ctx: ServiceCtx, { name, lang, force = 
 
   return withIntroInFlight(ctx, { name, lang: language, kind: 'local' }, async (startedAt) => {
     try {
-      const { root, file } = await readIntroSource(ctx, name);
-      const hash = contentFingerprint(file.content);
-      const cached = ctx.introStore.get(name, language);
-      if (cached && !force) {
-        const intro = publicIntro(cached, hash);
-        if (!intro.stale) {
-          return { ok: true, name, lang: language, cached: true, intro, usage: null };
-        }
-      }
-
-      const route = resolveIntroRoute(ctx);
-      if (!route) {
-        throw new ServiceError(
-          'error.skills.intro-no-model',
-          '还没有可用的默认模型，请先在 DSH 里选择模型',
-          null,
-          409,
-        );
-      }
-
-      const prompt = buildIntroPrompt({
-        name,
-        description: parseSkillFrontmatter(file.content).description || '',
-        files: await introFileNames(ctx, root, file.relPath),
-        content: file.content,
-        maxInputBytes: ctx.introOptions.maxInputBytes,
-        lang: language,
-      });
-
-      const result = await callIntroModel(ctx, { llm, route, prompt, signal });
-      const entry = introEntry({
-        text: result.text,
-        hash,
-        provider: result.provider,
-        model: result.model,
-        usage: result.usage,
-        inputBytes: prompt.inputBytes,
-        truncated: prompt.truncated,
-        sourceBytes: prompt.sourceBytes,
-        maxTokens: result.maxTokens,
-        finish: result.finish,
-      });
-      ctx.introStore.put(name, language, entry);
-      ctx.logger('intro.generate', {
-        name,
-        lang: language,
-        provider: result.provider,
-        model: result.model,
-        effort: result.reasoningEffort || null,
-        maxTokens: result.maxTokens ?? null,
-        finish: result.finish || null,
-        inputBytes: prompt.inputBytes,
-        truncated: prompt.truncated,
-        durationMs: Date.now() - startedAt,
-        usage: result.usage || null,
-      });
-      return {
-        ok: true,
-        name,
-        lang: language,
-        cached: false,
-        intro: publicIntro(entry, hash),
-        usage: result.usage || null,
-      };
+      return await generateLocalIntroInner(ctx, { name, language, force, signal, llm, startedAt });
     } catch (error) {
       if (!(error instanceof ServiceError)) {
         ctx.logger('intro.generate.failed', {
@@ -377,6 +414,107 @@ export async function getRemoteIntro(ctx: ServiceCtx, { subscriptionId, name, la
     description: target.description,
     intro: entry ? publicRemoteIntro(entry) : null,
     capability,
+  };
+}
+
+/**
+ * 远端生成的**主体**（不含全局单飞）：按 commit 拉 SKILL.md → 调模型 → 写缓存。
+ * 单条 `generateRemoteIntro` 与批量执行器共用。
+ */
+export async function generateRemoteIntroInner(
+  ctx: ServiceCtx,
+  { target, name, language, force = false, signal = null, llm, startedAt = Date.now() }: any,
+) {
+  const cached = ctx.introStore.get(target.cacheKey, language);
+  if (cached && !force) {
+    return {
+      ok: true,
+      subscriptionId: target.subscription.id,
+      name,
+      lang: language,
+      cached: true,
+      source: target.source,
+      commit: target.commit,
+      skillPath: target.skillPath,
+      intro: publicRemoteIntro(cached),
+      usage: null,
+    };
+  }
+
+  const route = resolveIntroRoute(ctx);
+  if (!route) {
+    throw new ServiceError(
+      'error.skills.intro-no-model',
+      '还没有可用的默认模型，请先在 DSH 里选择模型',
+      null,
+      409,
+    );
+  }
+
+  let file;
+  try {
+    file = await fetchRemoteSkillMd({
+      source: target.source,
+      ref: target.commit,
+      skillPath: target.skillPath,
+      token: ctx.runtime.tokenOf,
+      fetchImpl: ctx.fetchImpl,
+    });
+  } catch (error) {
+    throw remoteIntroSourceFailure(error);
+  }
+
+  const prompt = buildIntroPrompt({
+    name,
+    description: target.description,
+    files: [],
+    content: file.text,
+    maxInputBytes: ctx.introOptions.maxInputBytes,
+    lang: language,
+  });
+
+  const result = await callIntroModel(ctx, { llm, route, prompt, signal });
+  const entry = introEntry({
+    text: result.text,
+    // 用 SKILL.md 原始字节的指纹，而不是 commit：这样装到本地后，本地侧按同一份
+    // 字节算出的指纹能对上 → stale=false，直接命中（复用的关键）。
+    hash: contentFingerprint(file.text),
+    provider: result.provider,
+    model: result.model,
+    usage: result.usage,
+    inputBytes: prompt.inputBytes,
+    truncated: prompt.truncated,
+    sourceBytes: prompt.sourceBytes,
+    maxTokens: result.maxTokens,
+    finish: result.finish,
+  });
+  ctx.introStore.put(target.cacheKey, language, entry);
+  ctx.logger('intro.generate.remote', {
+    source: target.source,
+    name,
+    lang: language,
+    commit: target.commit,
+    provider: result.provider,
+    model: result.model,
+    effort: result.reasoningEffort || null,
+    maxTokens: result.maxTokens ?? null,
+    finish: result.finish || null,
+    inputBytes: prompt.inputBytes,
+    truncated: prompt.truncated,
+    durationMs: Date.now() - startedAt,
+    usage: result.usage || null,
+  });
+  return {
+    ok: true,
+    subscriptionId: target.subscription.id,
+    name,
+    lang: language,
+    cached: false,
+    source: target.source,
+    commit: target.commit,
+    skillPath: target.skillPath,
+    intro: publicRemoteIntro(entry),
+    usage: result.usage || null,
   };
 }
 
@@ -424,79 +562,7 @@ export async function generateRemoteIntro(ctx: ServiceCtx, { subscriptionId, nam
     { name, lang: language, kind: 'remote', source: target.source },
     async (startedAt) => {
       try {
-        const route = resolveIntroRoute(ctx);
-        if (!route) {
-          throw new ServiceError(
-            'error.skills.intro-no-model',
-            '还没有可用的默认模型，请先在 DSH 里选择模型',
-            null,
-            409,
-          );
-        }
-
-        let file;
-        try {
-          file = await fetchRemoteSkillMd({
-            source: target.source,
-            ref: target.commit,
-            skillPath: target.skillPath,
-            token: ctx.runtime.tokenOf,
-            fetchImpl: ctx.fetchImpl,
-          });
-        } catch (error) {
-          throw remoteIntroSourceFailure(error);
-        }
-
-        const prompt = buildIntroPrompt({
-          name,
-          description: target.description,
-          files: [],
-          content: file.text,
-          maxInputBytes: ctx.introOptions.maxInputBytes,
-          lang: language,
-        });
-
-        const result = await callIntroModel(ctx, { llm, route, prompt, signal });
-        const entry = introEntry({
-          text: result.text,
-          hash: target.commit,
-          provider: result.provider,
-          model: result.model,
-          usage: result.usage,
-          inputBytes: prompt.inputBytes,
-          truncated: prompt.truncated,
-          sourceBytes: prompt.sourceBytes,
-          maxTokens: result.maxTokens,
-          finish: result.finish,
-        });
-        ctx.introStore.put(target.cacheKey, language, entry);
-        ctx.logger('intro.generate.remote', {
-          source: target.source,
-          name,
-          lang: language,
-          commit: target.commit,
-          provider: result.provider,
-          model: result.model,
-          effort: result.reasoningEffort || null,
-          maxTokens: result.maxTokens ?? null,
-          finish: result.finish || null,
-          inputBytes: prompt.inputBytes,
-          truncated: prompt.truncated,
-          durationMs: Date.now() - startedAt,
-          usage: result.usage || null,
-        });
-        return {
-          ok: true,
-          subscriptionId,
-          name,
-          lang: language,
-          cached: false,
-          source: target.source,
-          commit: target.commit,
-          skillPath: target.skillPath,
-          intro: publicRemoteIntro(entry),
-          usage: result.usage || null,
-        };
+        return await generateRemoteIntroInner(ctx, { target, name, language, force, signal, llm, startedAt });
       } catch (error) {
         if (!(error instanceof ServiceError)) {
           ctx.logger('intro.generate.remote.failed', {

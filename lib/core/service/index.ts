@@ -32,6 +32,14 @@ import {
   listSkillBody,
   listSkillFiles,
 } from './intro.js';
+import {
+  activeIntroJob,
+  cancelIntroJob,
+  createIntroJob,
+  getIntroJob,
+  loadPersistedJobs,
+  resumeIntroJob,
+} from './intro-batch.js';
 import type { ServiceCtx } from '../../contract/service.js';
 
 export function createService({
@@ -68,6 +76,9 @@ export function createService({
     PROBE_MAX: 50,
     // 技能介绍全局单飞占位；旧哈希口径重基线「每实例只跑一次」标记。
     introInFlight: null,
+    // 批量简介任务表 + 全局单任务守卫（配额保护：同一时刻只允许一个批量任务）。
+    introJobs: new Map<string, any>(),
+    introJobRunningId: null,
     hashBaselineChecked: false,
   };
 
@@ -90,6 +101,13 @@ export function createService({
     getDefaultModel,
     runtime,
   };
+
+  // 读回上次没跑完的批量任务（只标 interrupted 供提示，不自动续跑）。
+  try {
+    loadPersistedJobs(ctx);
+  } catch (error) {
+    logger('intro.job.load.failed', { message: error?.message });
+  }
 
   return {
     paths,
@@ -128,6 +146,17 @@ export function createService({
     getRemoteIntro: (args?: any) => getRemoteIntro(ctx, args),
 
     generateRemoteIntro: (args?: any) => generateRemoteIntro(ctx, args),
+
+    // 批量简介任务：建 / 查 / 取消 / 继续
+    createIntroJob: (args?: any) => createIntroJob(ctx, args),
+
+    getIntroJob: (args?: any) => getIntroJob(ctx, args),
+
+    cancelIntroJob: (args?: any) => cancelIntroJob(ctx, args),
+
+    resumeIntroJob: (args?: any) => resumeIntroJob(ctx, args),
+
+    activeIntroJob: () => activeIntroJob(ctx),
 
     listSkillFiles: (args) => listSkillFiles(ctx, args),
 

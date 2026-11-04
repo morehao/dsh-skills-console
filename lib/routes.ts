@@ -93,6 +93,18 @@ function matchRoute(method, pathname) {
     if (segments.length === 2 && segments[1] === 'rollback' && method === 'POST') return { name: 'updates.rollback' };
   }
 
+  // 批量简介任务：建（POST /intro-jobs）、查（GET /intro-jobs/:id）、取消 / 继续
+  if (segments[0] === 'intro-jobs') {
+    if (segments.length === 1 && method === 'POST') return { name: 'intro.job.create' };
+    if (segments.length === 2 && method === 'GET') return { name: 'intro.job.get', params: { id: decodeURIComponent(segments[1]) } };
+    if (segments.length === 3 && segments[2] === 'cancel' && method === 'POST') {
+      return { name: 'intro.job.cancel', params: { id: decodeURIComponent(segments[1]) } };
+    }
+    if (segments.length === 3 && segments[2] === 'resume' && method === 'POST') {
+      return { name: 'intro.job.resume', params: { id: decodeURIComponent(segments[1]) } };
+    }
+  }
+
   // 插件自身版本检查 / 更新（与技能上游 updates.* 是两回事，见 core/plugin-update.js）
   if (segments.length === 1 && segments[0] === 'plugin-update' && method === 'GET') return { name: 'plugin.update.check' };
   if (segments.length === 2 && segments[0] === 'plugin-update' && segments[1] === 'apply' && method === 'POST') {
@@ -228,6 +240,21 @@ async function dispatch(route: any, { body, query, service, pluginUpdate = null,
         force: body.force === true,
         signal,
       });
+    case 'intro.job.create':
+      return service.createIntroJob({
+        kind: body.kind,
+        subscriptionId: body.subscriptionId,
+        names: Array.isArray(body.names) ? body.names : null,
+        lang: body.lang ?? query.lang,
+        mode: body.mode === 'all' ? 'all' : 'missing',
+        onError: body.onError === 'pause' ? 'pause' : 'continue',
+      });
+    case 'intro.job.get':
+      return service.getIntroJob({ id: route.params.id });
+    case 'intro.job.cancel':
+      return service.cancelIntroJob({ id: route.params.id });
+    case 'intro.job.resume':
+      return service.resumeIntroJob({ id: route.params.id });
     case 'skill.adopt':
       return service.adopt({ name: route.params.name });
     case 'skill.mode':

@@ -106,6 +106,8 @@ export function createPaths(env: NodeJS.ProcessEnv = process.env, overrides: Pat
     stateFile: path.join(stateDir, 'state.json'),
     /** 技能介绍缓存（模型生成、可丢；不进 state.json 的版本化结构） */
     introFile,
+    /** 批量简介任务的进度落盘（可丢；进程重启后读回「未完成」提示，但不自动续跑） */
+    introJobsFile: path.join(cacheDir, 'intro-jobs.json'),
     /**
      * v0.5.8 及更早版本的简介缓存放在 stateDir 下；升级后只读回退用（读旧、写新），
      * 下一次生成就会自然迁到 introFile。

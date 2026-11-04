@@ -82,6 +82,10 @@
 - `client.js.map` 只用于本地调试（`npm run build:client -- --sourcemap`）：不提交、不入包。
 - 文案：`client/copy.ts` 的 `zh` / `en` 键集合与 `{n}` / `{path}` 占位符必须一一对应；新增文案必须两份一起加。
 - 模块边界：`host` / `copy` / `styles` / `api` / `icons` / `hooks` / `actions` / `markdown` / `scroll` / `views/*` / `section` / `surface` / `app` / `index`；禁止循环依赖（`client/` 与 `lib/` 由 `npm run check:cycles` 兜底）；`hooks` / `actions` 只依赖 `api`，`views` 不直接发请求（查看器的取数走 `hooks.useSkillReader`）。`scroll` 是只碰 DOM 的基础设施，不依赖 React / `api` / `views`，列表区与查看器共用同一套滚动容器口径。
+- **通知与提示的位置规范（硬约束，禁止右下角）**：v0.8.5 起右下角的提示样式已删除，任何新提示**不得**再定位到右下角（`right`/`bottom` 贴角）。按提示性质二选一：
+  - **一次操作反馈（瞬态、可自动消失）** → 顶部居中状态条：复用 `views/toast.ts` 的 `ToastStack`（`.dshsc-toastwrap` / `.dshsc-toastbar`；成功约 3s 自动收、失败约 5s 且可手动关、多条纵向堆叠），`portal` 到 `overlayHost`（设置弹窗里落进同一 dialog）。走 `hooks` 里已有的 toast 队列，不要自造第二条提示通道。
+  - **需要用户照做的持久提示（重启/未完成任务/待确认等）** → 居中弹层（`position:fixed` 遮罩 + 卡片，如 `views/restore-notice.ts` / 本仓 `Overlay`），不自动消失、由用户显式关闭。它值得挡住面板一次，而不是缩在角落被忽略。
+  - 唯一的「贴按钮」例外是行内/按钮旁的气泡（如 Agent「+n」、更新确认），它跟随触发元素定位，不是全局提示，不算本规范范围。
 - 查看器（抽屉 / 整页）是只读视图：正文与文件都来自 Host 的两个 `GET` 接口，接口契约见 [docs/skill-viewer.md](docs/skill-viewer.md)；新增读逻辑时不要绕开 `lib/core/skill-files.ts` 的路径校验。
 
 ### 包与发布

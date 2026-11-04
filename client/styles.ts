@@ -388,6 +388,15 @@ export const CSS = `
     .dshsc-entryhead, .dshsc-sub-entry { grid-template-columns: minmax(0, 1fr) 96px 78px; }
   }
   .dshsc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  /* 仓库名 / 提交号外链：视觉等同 .dshsc-code，hover 才显出可点（下划线 + 主色），不喧宾夺主 */
+  .dshsc-repolink, .dshsc-sha { text-decoration: none; border-bottom: 1px dashed transparent;
+    transition: color .12s ease, border-color .12s ease; cursor: pointer; }
+  .dshsc-repolink:hover, .dshsc-sha:hover { color: var(--dsw-alias-brand-primary);
+    border-bottom-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, transparent); }
+  .dshsc-repolink:focus-visible, .dshsc-sha:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary);
+    outline-offset: 1px; border-radius: 3px; }
+  .dshsc-sha { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+    color: var(--dsw-alias-label-tertiary); }
 
   /* 调用策略 chip：一个入口显示当前模式；点开三档弹窗。窄列里允许省略，不撑破 102px */
   .dshsc-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
@@ -538,6 +547,40 @@ export const CSS = `
   /* 弹窗页脚按钮可能是「图标 + 文字」：统一成水平排列，避免 svg(display:block) 把文字挤到下一行 */
   .dshsc-modal-foot .dshsc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
   .dshsc-modal-foot .dshsc-btn svg { display: block; }
+
+  /* ===== 批量生成简介：确认弹窗 + 进度条 ===== */
+  .dshsc-btn.sm { height: 22px; font-size: 11.5px; padding: 0 8px; }
+  .dshsc-modal-desc { margin: 2px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--dsw-alias-label-secondary); }
+  .dshsc-modal-error { margin: 12px 0 0; font-size: 12px; color: var(--dsw-alias-state-error-primary); }
+  .dshsc-batchopts { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .dshsc-batchopt { display: flex; gap: 10px; align-items: flex-start; text-align: left; width: 100%;
+    padding: 10px 12px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 9px;
+    background: transparent; color: inherit; cursor: pointer; transition: border-color .12s, background .12s; }
+  .dshsc-batchopt:hover { border-color: var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); }
+  .dshsc-batchopt.on { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, transparent);
+    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 9%, transparent); }
+  .dshsc-batchopt-radio { flex: none; width: 16px; height: 16px; margin-top: 1px; border-radius: 50%;
+    border: 2px solid var(--dsw-alias-border-l3); }
+  .dshsc-batchopt.on .dshsc-batchopt-radio { border-color: var(--dsw-alias-brand-primary);
+    box-shadow: inset 0 0 0 3px var(--dsw-alias-bg-layer-1), inset 0 0 0 8px var(--dsw-alias-brand-primary); }
+  .dshsc-batchopt-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .dshsc-batchopt-title { font-size: 12.5px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+  .dshsc-batchopt-hint { font-size: 11.5px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-batchcost { margin: 16px 0 0; padding: 9px 12px; border: 1px solid var(--dsw-alias-border-l1);
+    border-radius: 8px; background: var(--dsw-alias-bg-layer-2); font-size: 11.5px; line-height: 1.55;
+    color: var(--dsw-alias-label-tertiary); }
+
+  /* 进度条：工具栏下方一整行，随任务出现 */
+  .dshsc-jobbar { display: flex; align-items: center; gap: 10px; flex: none; padding: 7px 10px;
+    margin: 0 12px 6px; font-size: 12px; color: var(--dsw-alias-label-secondary);
+    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 26%, transparent); border-radius: 9px; }
+  .dshsc-jobbar-ic { color: var(--dsw-alias-brand-primary); }
+  .dshsc-jobbar-track { flex: 1; min-width: 80px; height: 5px; border-radius: 3px;
+    background: var(--dsw-alias-bg-layer-3); overflow: hidden; }
+  .dshsc-jobbar-track > i { display: block; height: 100%; border-radius: 3px;
+    background: var(--dsw-alias-brand-primary); transition: width .3s; }
+  .dshsc-jobbar-cnt { font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 插件更新弹窗里的「更新内容」（GitHub Release 正文）：限高滚动，长说明不撑爆弹窗 */
   .dshsc-release-head { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-primary); margin-bottom: 6px; }
   .dshsc-release-body { max-height: 260px; overflow: auto; padding: 10px 12px; border-radius: 10px;

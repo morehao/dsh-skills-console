@@ -31,6 +31,7 @@ export const Config = z.object({
     maxInputBytes: z.number(),
     maxOutputTokens: z.number(),
     timeoutMs: z.number(),
+    batchConcurrency: z.number(),
   }),
 });
 

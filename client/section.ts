@@ -6,7 +6,8 @@ import React from 'react';
 
 import { h, overlayHost } from './host.js';
 import { apiCall, GITHUB_URL } from './api.js';
-import type { ModalState, SkillRow, SkillsState, Toast } from './api.js';
+import { startIntroJob } from './intro-batch.js';
+import type { ModalState, SkillRow, SkillsState, Subscription, Toast } from './api.js';
 import type { Translate } from './copy.js';
 import { isScroller, nearestScroller } from './scroll.js';
 import { CSS } from './styles.js';
@@ -188,6 +189,13 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
     onCloseAgentTip: closeAgentTip,
     onToggleBuiltin: () => setBuiltinOpen((prev) => !prev),
     onClearFilters: () => { setQuery(''); setFilter('all'); },
+    onBatchFailed: (error: any) => {
+      const busy = error?.code === 'error.skills.intro-job-busy';
+      setToast({
+        kind: 'err',
+        text: busy ? t('introBatch.busy') : (error?.message || t('intro.error.generic')),
+      });
+    },
   };
 
   const subscriptionActions = {
@@ -284,6 +292,19 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
           busy,
           writable,
           capability: data?.intro || null,
+          activeJob: (data as any)?.activeIntroJob || null,
+          onBatchStart: async (subscription: Subscription, mode: 'missing' | 'all') => {
+            await run('intro-batch', async () => {
+              try {
+                await startIntroJob({ kind: 'subscription', subscriptionId: subscription.id, lang: t.lang || 'zh', mode });
+                await reload();
+                setToast({ kind: 'ok', text: `${subscription.source} · ${t('introBatch.running')}` });
+              } catch (error: any) {
+                const busyJob = error?.code === 'error.skills.intro-job-busy';
+                setToast({ kind: 'err', text: busyJob ? t('introBatch.busy') : (error?.message || t('intro.error.generic')) });
+              }
+            });
+          },
           ...subscriptionActions,
         }),
 

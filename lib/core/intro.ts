@@ -19,10 +19,11 @@ import { sha256 } from './hash.js';
 
 /**
  * 简介缓存的格式版本（与 state 的版本无关，坏了直接当空表）。
- * v4 = 只缓存 `finish: stop` 的完整简介；v3 及更早的条目（含 300 token 上限下
- * 产生的截断文本）全部丢弃重建。
+ * v5 = 缓存 key 从「身份无关」（`<lang>:<name>` / `remote:<src>@<commit>:<path>`）改为
+ * **身份寻址**（`<owner/repo>/<name>`，见 `scopeKey`），让订阅页与已安装列表共享同一份简介；
+ * v4 及更早的旧 key 全部丢弃重建（缓存可丢，不做迁移）。
  */
-export const INTRO_STORE_VERSION = 4;
+export const INTRO_STORE_VERSION = 5;
 
 /** 介绍语言：跟随界面语言，只支持这两档。 */
 export const INTRO_LANGS = Object.freeze(['zh', 'en']);
@@ -56,6 +57,8 @@ export const DEFAULT_INTRO_CONFIG = Object.freeze({
   maxInputBytes: 24 * 1024,
   maxOutputTokens: 4_096,
   timeoutMs: 60_000,
+  /** 批量生成的默认并发度（手动单条仍单飞）。 */
+  batchConcurrency: 2,
 });
 
 /** 调用/准备阶段的失败，由 Service 转成带 HTTP 状态的错误。 */
@@ -112,7 +115,14 @@ export function normalizeIntroConfig(raw: any = {}) {
       INTRO_LIMITS.minTimeoutMs,
       INTRO_LIMITS.maxTimeoutMs,
     ),
+    // 批量生成的并发度：默认 2，夹到 1–4（1=纯串行）。只服务批量任务，手动单条仍单飞。
+    batchConcurrency: clampInt(source.batchConcurrency, DEFAULT_INTRO_CONFIG.batchConcurrency, 1, 4),
   });
+}
+
+/** 批量并发度夹到 1–4；非法回落默认 2。 */
+export function clampBatchConcurrency(value: any): number {
+  return clampInt(value, DEFAULT_INTRO_CONFIG.batchConcurrency, 1, 4);
 }
 
 /** 未知语言一律按中文处理（界面只有 zh / en 两档）。 */
@@ -493,7 +503,32 @@ export async function runIntroCall({ llm, route, prompt, maxOutputTokens, signal
   };
 }
 
-/** 缓存 key：技能名 + 语言；失效判定只看 SKILL.md 的内容哈希。 */
+/**
+ * 身份寻址缓存 key：`<owner/repo>/<skillName>`，无 source 时退化 `local/<name>`。
+ *
+ * 为什么按身份（而不是内容）寻址：订阅页与已安装列表都能稳定算出同一个 source+name，
+ * 因此「订阅里生成 → 安装到本地」能直接命中，不用再烧一次模型；同名不同源也天然不串。
+ * 失效判定仍看 entry 里的 `contentHash`（SKILL.md 原始字节），与 key 解耦。
+ *
+ * @param source `owner/repo`（可带 `.git` / GitHub URL，内部归一）；空则退化为 local。
+ * @param name   技能名（frontmatter name，两端一致）。
+ */
+export function scopeKey(source: string | null | undefined, name: string): string {
+  const repo = canonicalRepo(source);
+  return repo ? `${repo}/${name}` : `local/${name}`;
+}
+
+/** 归一 `owner/repo`（去 .git / URL 前缀 / 小写）；不合法返回 null。 */
+export function canonicalRepo(source: string | null | undefined): string | null {
+  if (!source) return null;
+  const s = String(source).trim().replace(/\.git$/, '').replace(/^https?:\/\/github\.com\//i, '').toLowerCase();
+  return /^[\w.-]+\/[\w.-]+$/.test(s) ? s : null;
+}
+
+/**
+ * 旧缓存 key（v4 及更早：本地 `<lang>:<name>`、远端 `remote:<src>@<commit>:<path>`）。
+ * 仅保留给少量仍在校验 `introKey` 的测试；store 升到 v5 后按空表重建，不再写这个 key。
+ */
 export function introKey(name, lang) {
   return `${introLang(lang)}:${name}`;
 }
