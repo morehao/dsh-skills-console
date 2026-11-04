@@ -86,6 +86,7 @@ export function Header({
     status: upd?.applying ? 'applying'
       : upd?.checking ? 'checking'
       : upd?.checkError ? 'failed'
+      : st?.restartRequired ? 'restart-required'
       : st?.updateAvailable ? 'available'
       : st ? 'current'
       : 'idle',
@@ -98,6 +99,7 @@ export function Header({
       canApply: st.canAutoUpdate !== false,
       installKind: st.canAutoUpdate === false ? 'link' : 'unknown',
       manualCommand: '',
+      restartRequired: Boolean(st.restartRequired),
     },
     error: (() => {
       const e = upd?.checkError ?? upd?.applyError ?? null;

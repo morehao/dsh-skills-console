@@ -415,7 +415,7 @@ export function useSkillIntro({ name, lang, stamp, enabled = true, endpoint = nu
  */
 function pluginUpdateRequest() {
   return {
-    // Host 视图带 canAutoUpdate / appliedVersion；kit 期望 canApply / installKind。
+    // Host 视图带 canAutoUpdate / restartRequired / runtimeVersion；kit 期望 canApply / installKind。
     // 缺字段时给保守默认（能 auto 但 installKind 未知 → kit 规则 registry|unknown 允许 apply）。
     check: async (options: { fresh?: boolean } = {}) => {
       const raw = await checkPluginUpdate({ fresh: options.fresh === true });
@@ -429,8 +429,9 @@ function pluginUpdateRequest() {
         installKind: raw.canAutoUpdate === false ? 'link' : 'unknown',
         manualCommand: raw.manualCommand || '',
         applying: Boolean(raw.applying),
-        // 本进程内已装成的目标版本（跨版本自更新后的过渡态），供 status 派生时收敛。
-        appliedVersion: raw.appliedVersion ?? null,
+        // 磁盘已最新但需重启（Host 按磁盘版本判定）；重启后新进程据此也显示「待重启」。
+        restartRequired: Boolean(raw.restartRequired),
+        runtimeVersion: raw.runtimeVersion ?? '',
       } as any;
     },
     apply: async () => {
@@ -457,18 +458,23 @@ function statusFromControllerState(state: any) {
   const view = state?.view;
   if (!view) return null;
   const applying = state.status === 'applying';
-  const restartRequired = state.status === 'restart-required' || state.status === 'applied';
+  // 待重启：本次 apply 走到 restart-required / applied，或 Host 视图直接告出 restartRequired（重启后新进程）。
+  const restartRequired =
+    state.status === 'restart-required' ||
+    state.status === 'applied' ||
+    view.restartRequired === true;
   return {
     packageName: view.packageName,
     currentVersion: view.currentVersion,
     latestVersion: view.latestVersion,
-    updateAvailable: view.updateAvailable,
+    updateAvailable: view.updateAvailable && !restartRequired,
     checkFailed: Boolean(view.checkFailed) || state.status === 'failed',
     canAutoUpdate: view.canApply !== false,
     manualCommand: view.manualCommand || '',
     applying,
     restartRequired,
-    updatedVersion: restartRequired ? view.latestVersion : null,
+    // 待重启时报「已更新到 X」：优先 latest；重启后新进程无 latest 时用当前磁盘版本。
+    updatedVersion: restartRequired ? (view.latestVersion || view.currentVersion) : null,
   };
 }
 
