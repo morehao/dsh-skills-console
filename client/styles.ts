@@ -729,6 +729,20 @@ export const CSS = `
     background: var(--dsw-alias-bg-layer-1); }
   .dshsc-intro-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
   .dshsc-intro-btn .dshsc-spark { font-size: 10px; color: var(--dsw-alias-brand-primary); }
+  /* 已有简介：实心品牌色胶囊 —— 一眼「点亮/已生成」 */
+  .dshsc-intro-btn.cached { border-color: transparent;
+    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
+    color: var(--dsw-alias-brand-primary); font-weight: 600; }
+  .dshsc-intro-btn.cached:hover {
+    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent);
+    border-color: var(--dsw-alias-brand-primary); }
+  .dshsc-intro-btn.cached .dshsc-spark { color: var(--dsw-alias-brand-primary); }
+  /* 未生成：虚线描边 + 灰字，文案换成「生成简介」 —— 一眼「待生成」 */
+  .dshsc-intro-btn.empty { border-style: dashed; border-color: var(--dsw-alias-border-l3);
+    color: var(--dsw-alias-label-tertiary); }
+  .dshsc-intro-btn.empty:hover { color: var(--dsw-alias-label-secondary);
+    border-color: var(--dsw-alias-brand-primary); background: transparent; }
+  .dshsc-intro-btn.empty .dshsc-spark { color: var(--dsw-alias-label-tertiary); opacity: .8; }
 
   /* 简介弹窗：和调用策略一样走标准居中弹窗（Overlay），这里只调内容排版 */
   .dshsc-intro-sub { margin: 0; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-tertiary);

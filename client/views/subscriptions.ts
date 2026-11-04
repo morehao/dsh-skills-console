@@ -62,15 +62,16 @@ export function SubscriptionsTab({
   }
 
   function introButton(subscription: Subscription, entry: SubscriptionEntry) {
+    const cached = entry.introCached === true;
     return h('button', {
       type: 'button',
-      className: 'dshsc-intro-btn',
-      title: t('intro.open'),
+      className: `dshsc-intro-btn ${cached ? 'cached' : 'empty'}`,
+      title: cached ? t('intro.open') : t('intro.openEmpty'),
       'aria-haspopup': 'dialog',
       onClick: () => openIntro(subscription, entry),
     },
     h('span', { className: 'dshsc-spark', 'aria-hidden': 'true' }, '✨'),
-    t('intro.button'));
+    cached ? t('intro.button') : t('intro.ctaEmpty'));
   }
 
   // 只对仍然存在的订阅 + 条目渲染弹窗（刷新期间快照可能被换掉）

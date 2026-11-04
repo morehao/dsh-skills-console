@@ -334,13 +334,13 @@ export function InstalledTab({
           data?.intro
             ? h('button', {
                 type: 'button',
-                className: 'dshsc-intro-btn',
-                title: t('intro.open'),
+                className: `dshsc-intro-btn ${row.introCached ? 'cached' : 'empty'}`,
+                title: row.introCached ? t('intro.open') : t('intro.openEmpty'),
                 'aria-haspopup': 'dialog',
                 onClick: () => openIntro(row),
               },
               h('span', { className: 'dshsc-spark', 'aria-hidden': 'true' }, '✨'),
-              t('intro.button'))
+              row.introCached ? t('intro.button') : t('intro.ctaEmpty'))
             : null,
           statusTag(row),
         ),
