@@ -82,6 +82,8 @@ export function publicJob(job) {
     pending,
     startedAt: job.startedAt,
     updatedAt: job.updatedAt,
+    // 中断任务的可继续条目（仅 interrupted 有；「继续」= 用这些名字新建一个任务）
+    resumable: Array.isArray(job.resumable) ? job.resumable : null,
     items: items.map((item) => ({
       name: item.name,
       key: item.key,
@@ -262,6 +264,7 @@ export async function createIntroJob(ctx: ServiceCtx, args: any = {}) {
   const job = {
     id: jobId(),
     kind,
+    subscriptionId: kind === 'subscription' ? (subscriptionId || null) : null,
     mode: wantAll ? 'all' : 'missing',
     lang: language,
     onError: onError === 'pause' ? 'pause' : 'continue',
@@ -317,9 +320,26 @@ export function cancelIntroJob(ctx: ServiceCtx, { id }: any = {}) {
   return { ok: true, job: publicJob(job) };
 }
 
-/** 暂停后继续：仅对 paused 有效；paused 时 running 指针仍占着，这里重启 worker。 */
+/**
+ * 继续：
+ * - paused：重启 worker（running 指针仍在，直接跑）；
+ * - interrupted（重启后读回的）：没有可复用的 worker/abort，按原 kind/mode/resumable 新建一个任务；
+ * - 其余状态：原样返回。
+ */
 export async function resumeIntroJob(ctx: ServiceCtx, { id }: any = {}) {
   const job = findJob(ctx, id);
+  if (job.status === 'interrupted') {
+    const names = Array.isArray(job.resumable) && job.resumable.length ? job.resumable : null;
+    if (!names) throw new ServiceError('error.skills.intro-job-nothing', '没有可继续的条目', { id }, 409);
+    return createIntroJob(ctx, {
+      kind: job.kind,
+      subscriptionId: job.subscriptionId || undefined,
+      names,
+      lang: job.lang,
+      mode: job.mode,
+      onError: job.onError,
+    });
+  }
   if (job.status !== 'paused') return { ok: true, job: publicJob(job) };
   const llm = ctx.getLlm();
   if (!llm) throw new ServiceError('error.skills.intro-unavailable', '当前宿主没有模型服务（llm），无法继续', null, 501);

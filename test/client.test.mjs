@@ -714,6 +714,22 @@ test('批量生成简介：工具栏有入口，点开确认弹窗只给「生�
   assert.ok(!text.includes('遇到错误'), '遇错策略不暴露给用户');
 });
 
+test('批量：重启后有 interrupted 任务 → 居中弹层提示「继续」，不自动开始', async () => {
+  const { Component, stub } = loadModule({
+    ...STATE,
+    activeIntroJob: { id: 'uk-1', kind: 'installed', status: 'interrupted', total: 5, done: 3, failed: 0, skipped: 0, running: 0, pending: 2, resumable: ['x', 'y'] },
+  });
+  const first = stub.render(Component, {});
+  first.effects.forEach((fn) => fn());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tree = stub.render(Component, {}, first.hooks).tree;
+  const text = textOf(tree);
+  assert.ok(text.includes('上次有未完成的批量任务'), '应提示未完成任务');
+  assert.ok(text.includes('继续生成'), '应有继续按钮');
+  // 是居中弹层（overlay），不是右下角：结构上有 dshsc-overlay
+  assert.ok(collectByClass(tree, 'dshsc-overlay').length >= 1, '应是居中弹层');
+});
+
 test('同名副本：可见的不是这一份时，点名模型实际看到的那份', async () => {
   const { Component, stub } = loadModule({
     ...STATE,

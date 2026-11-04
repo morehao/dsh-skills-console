@@ -56,7 +56,7 @@ function makeLlm({ text = '简介正文。', rateLimitFirst = 0, failFor = new S
   };
 }
 
-function setup({ intro = {}, llm } = {}) {
+function setup({ intro = {}, llm, fetchImpl } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dshsc-intro-batch-'));
   const home = path.join(root, 'home');
   fs.mkdirSync(home, { recursive: true });
@@ -74,6 +74,7 @@ function setup({ intro = {}, llm } = {}) {
     introOptions: normalizeIntroConfig(intro),
     getLlm: () => llm,
     getDefaultModel: () => ({ provider: 'test', model: 'fake' }),
+    ...(fetchImpl ? { fetchImpl } : {}),
   });
   return { root, paths, store, service, introStore, llm };
 }
@@ -218,4 +219,68 @@ test('批量：落盘只存摘要；重启读回 interrupted 但不自动续跑'
 
   // 清理：让原服务的任务跑完，避免悬挂 worker
   await waitJob(service, created.job.id, 6000);
+});
+
+// ---- 订阅维度批量 -----------------------------------------------------------
+
+const REMOTE_COMMIT = 'c'.repeat(40);
+
+function seedSubscription(store, { id = 'sub-1', source = 'morehao/skills' } = {}) {
+  store.update((draft) => {
+    draft.subscriptions.push({
+      id,
+      source,
+      ref: null,
+      addedAt: new Date().toISOString(),
+      snapshot: {
+        commit: REMOTE_COMMIT,
+        rootSha: 'd'.repeat(40),
+        entries: [
+          { name: 'alpha', skillPath: 'skills/alpha/SKILL.md', treeSha: 'e'.repeat(40), description: 'Alpha skill' },
+          { name: 'beta', skillPath: 'skills/beta/SKILL.md', treeSha: 'f'.repeat(40), description: 'Beta skill' },
+        ],
+        fetchedAt: new Date().toISOString(),
+        etag: null,
+      },
+    });
+  });
+}
+
+function remoteFetch() {
+  const calls = [];
+  const impl = async (url) => {
+    calls.push({ url: String(url) });
+    const text = '---\nname: x\ndescription: x\n---\n正文写在这里';
+    return new Response(text, { status: 200 });
+  };
+  impl.calls = calls;
+  return impl;
+}
+
+test('批量：订阅维度按 commit 拉 SKILL.md 生成，写身份 key 缓存', async () => {
+  const llm = makeLlm();
+  const { store, service, introStore } = setup({ llm, fetchImpl: remoteFetch() });
+  seedSubscription(store);
+  const created = await service.createIntroJob({ kind: 'subscription', subscriptionId: 'sub-1', lang: 'zh', mode: 'all' });
+  const job = await waitJob(service, created.job.id, 4000);
+  assert.equal(job.status, 'done');
+  assert.equal(job.done, 2);
+  // 缓存按 owner/repo/name
+  assert.ok(introStore.get(scopeKey('morehao/skills', 'alpha'), 'zh'));
+  assert.ok(introStore.get(scopeKey('morehao/skills', 'beta'), 'zh'));
+});
+
+test('批量：订阅维度 missing 复用已缓存条目（不联网）', async () => {
+  const llm = makeLlm();
+  const fetchImpl = remoteFetch();
+  const { store, service, introStore } = setup({ llm, fetchImpl });
+  seedSubscription(store);
+  // 预置 beta 缓存
+  introStore.put(scopeKey('morehao/skills', 'beta'), 'zh', {
+    hash: 'whatever', text: '已有 beta', provider: 'test', model: 'fake', finish: 'stop',
+  });
+  const created = await service.createIntroJob({ kind: 'subscription', subscriptionId: 'sub-1', lang: 'zh', mode: 'missing' });
+  const job = await waitJob(service, created.job.id, 4000);
+  assert.equal(job.skipped, 1, 'beta 应跳过');
+  assert.equal(job.done, 1, '只生成 alpha');
 });

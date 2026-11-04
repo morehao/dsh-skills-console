@@ -10,8 +10,9 @@ import type { AgentTipState, SkillRow, SkillsState } from '../api.js';
 import type { Translate } from '../copy.js';
 import { EyeIcon, InfoIcon, RefreshIcon, TrashIcon, DownloadIcon, ShareIcon } from '../icons.js';
 import { IntroModal } from './intro-modal.js';
+import { Overlay } from './overlay.js';
 import { PolicyModal } from './policy-modal.js';
-import { IntroBatchModal, useIntroJob, startIntroJob, cancelIntroJob } from '../intro-batch.js';
+import { IntroBatchModal, useIntroJob, startIntroJob, cancelIntroJob, resumeIntroJob } from '../intro-batch.js';
 
 const UPDATABLE = new Set(['update-available', 'locally-modified', 'conflict']);
 
@@ -64,9 +65,14 @@ export function InstalledTab({
   // 批量生成简介：确认弹窗 + 轮询任务进度
   const [batchOpen, setBatchOpen] = React.useState(false);
   const [batchJobId, setBatchJobId] = React.useState<string | null>(null);
+  const [resumeClosed, setResumeClosed] = React.useState(false);
   const batchJob = useIntroJob(batchJobId);
   const capability = (data?.intro || null) as any;
   const activeBatch = (data as any)?.activeIntroJob || null;
+
+  // 重启后发现「上次未完成的批量任务」：居中弹层提示「继续」（绝不自动续跑）。
+  const resumeJob = !resumeClosed && !batchJobId && activeBatch && activeBatch.status === 'interrupted'
+    ? activeBatch : null;
   // 直读共享根的 Agent 不需要导出；旧 Host 若还把它们的链塞进 row.exports，这里也不显示
   const sharedTargets = new Set((data?.agents?.detected || [])
     .filter((agent) => agent.kind === 'agent' && agent.sharedHome === 'yes')
@@ -657,5 +663,32 @@ export function InstalledTab({
           : h('button', { className: 'dshsc-btn ghost sm', onClick: () => setBatchJobId(null) }, t('action.close')))
     : null;
 
-  return h(React.Fragment, null, content(), policyModal, introModal, batchModal);
+  // 上次未完成任务：居中弹层（持久、需用户照做 → 居中，不落右下角）
+  const resumeModal = resumeJob
+    ? h(Overlay, {
+        t,
+        title: t('introBatch.resumeTitle'),
+        onCancel: () => setResumeClosed(true),
+        footer: [
+          h('button', { key: 'ignore', type: 'button', className: 'dshsc-btn ghost', onClick: () => setResumeClosed(true) }, t('introBatch.resumeIgnore')),
+          h('button', {
+            key: 'go',
+            type: 'button',
+            className: 'dshsc-btn primary',
+            onClick: async () => {
+              try {
+                const res = await resumeIntroJob(resumeJob.id);
+                setResumeClosed(true);
+                if (res?.job?.id) setBatchJobId(res.job.id);
+              } catch (error: any) {
+                actions.onBatchFailed?.(error);
+              }
+            },
+          }, t('introBatch.resumeGo')),
+        ],
+      },
+      h('p', { className: 'dshsc-modal-desc' }, t('introBatch.resumeBody')))
+    : null;
+
+  return h(React.Fragment, null, content(), policyModal, introModal, batchModal, resumeModal);
 }

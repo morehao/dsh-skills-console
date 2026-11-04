@@ -7,6 +7,7 @@ import type { IntroCapability, SkillRow, Subscription, SubscriptionEntry } from 
 import type { Translate } from '../copy.js';
 import { CaretIcon, RefreshIcon } from '../icons.js';
 import { IntroModal } from './intro-modal.js';
+import { IntroBatchModal } from '../intro-batch.js';
 
 /** 仓库标识归一化：订阅的 source 与账本里的 source 都可能是 owner/repo。 */
 function repoOf(source: string | null | undefined) {
@@ -26,18 +27,23 @@ export interface SubscriptionsTabProps {
   busy: string | null;
   writable: boolean;
   capability?: IntroCapability | null;
+  /** 运行中/中断的批量任务（用于禁用重复入口）。 */
+  activeJob?: any;
   onToggle: (id: string) => void;
   onRefresh: (subscription: Subscription) => void;
   onDelete: (subscription: Subscription) => void;
   onInstall: (subscription: Subscription, entry: SubscriptionEntry) => void;
   onAdd: () => void;
+  /** 为本仓库生成简介：mode 由确认弹窗选择。 */
+  onBatchStart?: (subscription: Subscription, mode: 'missing' | 'all') => void | Promise<void>;
 }
 
 export function SubscriptionsTab({
-  t, subscriptions, rows, expanded, busy, writable, capability = null,
-  onToggle, onRefresh, onDelete, onInstall, onAdd,
+  t, subscriptions, rows, expanded, busy, writable, capability = null, activeJob = null,
+  onToggle, onRefresh, onDelete, onInstall, onAdd, onBatchStart,
 }: SubscriptionsTabProps) {
   const [intro, setIntro] = React.useState<{ subscriptionId: string; name: string } | null>(null);
+  const [batchFor, setBatchFor] = React.useState<Subscription | null>(null);
 
   // 取消订阅 / 刷新后条目没了，弹窗不能留在原地
   React.useEffect(() => {
@@ -170,6 +176,14 @@ export function SubscriptionsTab({
             h('span', { className: 'dshsc-substat' },
               `${entries.length} ${t('skillCount')} · ${t('installed')} ${installedCount}`)),
           h('div', { className: 'dshsc-actions' },
+            capability && capability.enabled !== false && capability.available !== false
+              ? h('button', {
+                  className: 'dshsc-btn',
+                  disabled: busy !== null || Boolean(activeJob),
+                  title: t('introBatch.title'),
+                  onClick: () => setBatchFor(subscription),
+                }, `✨ ${t('introBatch.buttonN').replace('{n}', String(entries.length))}`)
+              : null,
             h('button', {
               className: 'dshsc-btn sq',
               disabled: busy !== null,
@@ -209,5 +223,18 @@ export function SubscriptionsTab({
           : null,
       );
     }))),
-    introModal);
+    introModal,
+    batchFor ? h(IntroBatchModal, {
+      t,
+      capability,
+      candidateCount: (batchFor.snapshot?.entries || []).length,
+      cachedCount: 0,
+      concurrency: 2,
+      onClose: () => setBatchFor(null),
+      onStart: async (mode) => {
+        const target = batchFor;
+        setBatchFor(null);
+        if (target && onBatchStart) await onBatchStart(target, mode);
+      },
+    }) : null);
 }
