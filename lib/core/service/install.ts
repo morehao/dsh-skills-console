@@ -9,7 +9,7 @@ import { readLock } from '../inventory.js';
 import { inspectTarget, removeLink } from '../links.js';
 import { restoreBackup, trashSkill } from '../trash.js';
 import { removeShadow } from '../shadow.js';
-import { parseSource, hashShape } from '../updates.js';
+import { parseSource, hashShape, snapshotId } from '../updates.js';
 import { readSnapshot } from './snapshots.js';
 import { detectedTargets, exportSkill, exportTargetList } from './exports.js';
 import { assertNotParked, reapplyInvocation } from './invocation.js';
@@ -77,6 +77,10 @@ export async function install(ctx: ServiceCtx, { source, subscriptionId, skills 
     const installed: any[] = [];
     const warnings = [...(result.warnings || [])];
     const recordedAt = nowIso();
+    // 「source 即上游」：即使本次不是按订阅安装（subscription 为 null），也按 resolvedSource
+    // 算出订阅 id 并在记账时建一条订阅，使「按仓库装」与「按订阅装」结果一致——
+    // 装进来的技能一律可检测更新，不再出现「无上游」。
+    const sourceSubscriptionId = subscriptionId ? subscription.id : snapshotId({ source: resolvedSource, ref: pin, subpath: null });
     for (const item of result.installed) {
       const canonicalPath = path.join(paths.canonical, item.name);
       if (!fs.existsSync(canonicalPath)) {
@@ -89,7 +93,10 @@ export async function install(ctx: ServiceCtx, { source, subscriptionId, skills 
       const shape = hashShape(lockHash);
       const record = {
         name: item.name,
-        subscriptionId: subscription ? subscription.id : null,
+        subscriptionId: sourceSubscriptionId,
+        // 来源落全：install 记录本身就带 source，更新检测不必再回头查 lock/订阅。
+        source: resolvedSource,
+        sourceUrl: `https://github.com/${resolvedSource}.git`,
         skillPath: item.skillPath,
         ref: pin,
         commit: commit || snapshot?.commit || null,
@@ -103,6 +110,19 @@ export async function install(ctx: ServiceCtx, { source, subscriptionId, skills 
           : null,
       };
       store.update((draft) => {
+        // 没有持久订阅时，按来源顺带建一条（快照留空，首检时再拉），使它能被定时探测覆盖。
+        if (sourceSubscriptionId && !draft.subscriptions.some((row) => row.id === sourceSubscriptionId)) {
+          draft.subscriptions.push({
+            id: sourceSubscriptionId,
+            source: resolvedSource,
+            ref: pin,
+            subpath: subscription?.subpath || null,
+            skills: '*',
+            lastCheck: null,
+            snapshot: snapshot || null,
+            adopted: true,
+          });
+        }
         const index = draft.installs.findIndex((row) => row.name === item.name);
         if (index >= 0) {
           draft.installs[index] = {

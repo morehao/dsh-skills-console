@@ -88,7 +88,7 @@ export type UpdateStatus =
   | 'locally-modified'
   | 'parked'
   | 'not-managed'
-  | 'no-subscription'
+  | 'no-source'
   | 'failed';
 
 export interface UpdateInput {
@@ -170,6 +170,7 @@ const SERVICE_CODE_MAP: Record<string, string> = {
   'error.skills.not-found': 'not-found',
   'error.skills.not-managed': 'not-managed',
   'error.skills.no-subscription': 'no-subscription',
+  'error.skills.no-source': 'no-source',
   'error.skills.parked': 'parked',
   'error.skills.no-skills': 'install-failed',
   'error.skills.install-failed': 'install-failed',
@@ -326,8 +327,9 @@ export function createPublicApi(service: any): SkillsConsoleApi {
           const code = error?.code;
           if (code === 'error.skills.not-managed') {
             results.push({ name, status: 'not-managed', fromCommit, toCommit: null });
-          } else if (code === 'error.skills.no-subscription') {
-            results.push({ name, status: 'no-subscription', fromCommit, toCommit: null });
+          } else if (code === 'error.skills.no-source') {
+            // 来源缺失是异常（不该发生），不是正常状态；如实报 failed，不伪造「无上游」。
+            results.push({ name, status: 'no-source', fromCommit, toCommit: null });
           } else {
             results.push({
               name,

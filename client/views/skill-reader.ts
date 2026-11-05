@@ -349,10 +349,11 @@ export function SkillReader({  t,
             : null)
       : null,
     h('div', { className: 'dshsc-reader-meta' },
-      h('span', null, `${t('meta.from')} `,
-        h('span', { className: 'dshsc-code' }, row?.source
-          ? `${row.source}${row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : ''}`
-          : t('meta.noUpstream'))),
+      row?.source
+        ? h('span', null, `${t('meta.from')} `,
+            h('span', { className: 'dshsc-code' },
+              `${row.source}${row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : ''}`))
+        : null,
       tree ? h('span', null, t('viewer.fileCount').replace('{n}', String(fileCount))) : null,
       row?.updatedAt ? h('span', null, formatWhen(row.updatedAt)) : null));
 

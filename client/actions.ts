@@ -29,7 +29,7 @@ export function useSkillActions({ t, rows, reload, run, setBusy, setToast, setMo
   async function adopt(row: SkillRow) {
     await run(`adopt:${row.name}`, async () => {
       const result = await apiCall('POST', `/skills/${encodeURIComponent(row.name)}/adopt`, {});
-      setToast({ kind: 'ok', text: `${row.name} · ${result.tracked ? t('adopt.done') : t('adopt.noUpstream')}` });
+      setToast({ kind: 'ok', text: `${row.name} · ${t('adopt.done')}` });
       return result;
     });
   }
