@@ -189,6 +189,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
     onCloseAgentTip: closeAgentTip,
     onToggleBuiltin: () => setBuiltinOpen((prev) => !prev),
     onClearFilters: () => { setQuery(''); setFilter('all'); },
+    onIntroGenerated: () => { void reload(); },
     onBatchFailed: (error: any) => {
       const busy = error?.code === 'error.skills.intro-job-busy';
       setToast({
@@ -293,6 +294,7 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
           writable,
           capability: data?.intro || null,
           activeJob: (data as any)?.activeIntroJob || null,
+          onIntroGenerated: () => { void reload(); },
           onBatchStart: async (subscription: Subscription, mode: 'missing' | 'all') => {
             await run('intro-batch', async () => {
               try {
