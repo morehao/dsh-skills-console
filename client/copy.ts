@@ -705,8 +705,9 @@ export function buildTranslate(locale?: LocaleLike | null): Translate {
   };
   const translate = (key: string): string => {
     const id = active();
-    // 未知语言（0.2.2 起宿主内置 ja/es/fr/de/ru/pt）回落英文；缺失 locale 时 active() 仍是 'zh'。
-    const pack = DICT[id] || DICT.en;
+    // 中文族（zh / zh-Hant / zh-CN…）统一用中文词典；其余未知语言（0.2.2 起宿主内置
+    // ja/es/fr/de/ru/pt）回落英文。缺失 locale 时 active() 仍是 'zh'。
+    const pack = id.startsWith('zh') ? DICT.zh : DICT[id] || DICT.en;
     return pack[key] ?? DICT.en[key] ?? DICT.zh[key] ?? key;
   };
   // 摘要语言跟随界面语言：zh* → zh，其余 → en（缺失 locale 时 active() 仍返回 'zh'）
