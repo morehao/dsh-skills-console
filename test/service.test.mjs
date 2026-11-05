@@ -547,7 +547,7 @@ test('自动接管：CLI 已装好的技能在第一次读取时直接纳入追�
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('接管：没有 lock 来源的技能也能纳入追踪，但无法检测更新', async () => {
+test('接管：没有 lock 来源的技能也能纳入追踪，只是无法检测更新（不是「无上游」状态）', async () => {
   const { root, paths, store, service } = setup();
   const dir = path.join(paths.canonical, 'beta');
   fs.mkdirSync(dir, { recursive: true });
@@ -555,8 +555,7 @@ test('接管：没有 lock 来源的技能也能纳入追踪，但无法检测�
 
   const result = await service.adopt({ name: 'beta' });
   assert.equal(result.ok, true);
-  assert.equal(result.tracked, false);
-  assert.match(result.note, /没有可识别的远端来源/);
+  assert.equal(result.tracked, undefined, '不再返回 tracked 这种「有无上游」的二态');
   const install = store.findInstall('beta');
   assert.ok(install);
   assert.equal(install.subscriptionId, null);
@@ -564,24 +563,60 @@ test('接管：没有 lock 来源的技能也能纳入追踪，但无法检测�
   const state = await service.getState({});
   const row = state.installs.find((item) => item.name === 'beta');
   assert.equal(row.managed, true);
-  assert.equal(row.status, 'no-upstream', '没有订阅来源 → 无上游，不该混进「待检查」');
+  assert.equal(row.status, 'unknown', '没有来源时落到「待检查」，而不是一个叫「无上游」的状态');
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('删除订阅但保留技能：清单标成「无上游」，不再永久挂在待检查里', async () => {
+test('删除订阅但保留技能：安装记录仍有 source，照样能检测更新', async () => {
   const gh = githubStub();
   const { root, store, service } = setup({ fetchImpl: gh.fetchImpl });
   const added = await service.addSubscription({ source: 'morehao/ai-kit' });
   await service.install({ subscriptionId: added.subscription.id, skills: ['alpha'] });
 
-  // keepInstalled 默认 true：技能留着，订阅记录没了 → 检查更新永远轮不到它
+  // keepInstalled 默认 true：技能留着，订阅记录没了 —— 但 install 自带 source，仍可检测更新
   await service.removeSubscription({ id: added.subscription.id });
   assert.ok(store.findInstall('alpha').subscriptionId, '保留安装时仍指向旧订阅 id');
 
   const after = await service.getState({});
   const row = after.installs.find((item) => item.name === 'alpha');
-  assert.equal(row.status, 'no-upstream');
-  assert.equal(after.installs.filter((item) => item.status === 'unknown').length, 0, '无上游不算待检查');
+  assert.notEqual(row.status, 'no-upstream', '不再有「无上游」状态');
+  assert.ok(row.source, '安装记录自带 source');
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('「source 即上游」：install 只带 source、无持久订阅，仍能按来源检测更新', async () => {
+  const tree = [
+    { path: 'skills', type: 'tree', sha: '1'.repeat(40) },
+    { path: 'skills/alpha', type: 'tree', sha: '2'.repeat(40) },
+    { path: 'skills/alpha/SKILL.md', type: 'blob', sha: '3'.repeat(40) },
+  ];
+  const gh = githubStub({ tree });
+  const { root, paths, store, service } = setup({ fetchImpl: gh.fetchImpl });
+
+  // 直接按 source 装（不经订阅）。install 记录必须自带 source。
+  const installed = await service.install({ source: 'morehao/ai-kit', skills: ['alpha'], targets: [] });
+  assert.equal(installed.ok, true);
+  const record = store.findInstall('alpha');
+  assert.equal(record.source, 'morehao/ai-kit', 'install 记录必须落 source');
+  assert.ok(record.sourceUrl, 'install 记录必须落 sourceUrl');
+  assert.ok(record.subscriptionId, '按来源算出订阅 id');
+  // 强制抹掉持久订阅，模拟「订阅被删 / 老记录没有订阅」：更新检测仍应工作
+  store.update((draft) => {
+    draft.subscriptions = draft.subscriptions.filter((item) => item.id !== record.subscriptionId);
+    const row = draft.installs.find((item) => item.name === 'alpha');
+    row.subscriptionId = null;
+    row.commit = null;
+    row.treeSha = null;
+  });
+
+  const checked = await service.checkUpdates({});
+  const verdict = checked.checks.find((item) => item.name === 'alpha');
+  assert.ok(verdict, '没有持久订阅也要能从 source 合成并检测');
+  assert.notEqual(verdict.status, 'no-upstream', '不存在「无上游」状态');
+
+  const state = await service.getState({});
+  const row = state.installs.find((item) => item.name === 'alpha');
+  assert.notEqual(row.status, 'no-upstream');
   fs.rmSync(root, { recursive: true, force: true });
 });
 

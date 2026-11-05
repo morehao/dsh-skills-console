@@ -180,13 +180,6 @@ export function InstalledTab({
   function statusTag(row: SkillRow) {
     // 「待检查」不逐行刷：由列表头的计数与底部提示承接
     if (row.status === 'unknown') return null;
-    // 「无上游」不是待检查：没有可用订阅就永远无法检查更新。
-    // 连来源都没有时，下面的 sourceLine 已经写了「无远端来源 · 不检测更新」，不再重复一枚同义标签
-    if (row.status === 'no-upstream') {
-      return row.source
-        ? h('span', { className: 'dshsc-tag', title: t('status.noUpstreamHint') }, t('status.noUpstream'))
-        : null;
-    }
     const map: Record<string, [string, string, (boolean | undefined)?, (string | undefined)?]> = {
       current: ['status.current', 'ok', true],
       'update-available': ['status.update', 'warn'],
@@ -204,9 +197,8 @@ export function InstalledTab({
   }
 
   function sourceLine(row: SkillRow) {
-    if (!row.source) {
-      return h('div', { className: 'dshsc-src', title: t('meta.noUpstream') }, t('meta.noUpstream'));
-    }
+    // 来源按理总在（安装即来源）；真缺失属于异常，不渲染误导性的「不检测更新」，留空即可。
+    if (!row.source) return null;
     const repoUrl = githubRepoUrl(row.source);
     const commitUrl = githubCommitUrl(row.source, row.commit);
     const refLabel = row.commit ? `#${short(row.commit)}` : row.ref ? `#${row.ref}` : '';

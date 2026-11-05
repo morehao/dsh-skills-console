@@ -14,6 +14,7 @@ import { exportSkill, exportTargetsFor } from './exports.js';
 import { assertNotParked, reapplyInvocation } from './invocation.js';
 import { assertWritable, requireInstaller, state } from './guards.js';
 import { isSettledCheck, nowIso } from './shared.js';
+import { effectiveSubscription } from './tracking.js';
 import { ServiceError } from './errors.js';
 import type { ServiceCtx } from '../../contract/service.js';
 
@@ -21,13 +22,15 @@ export async function checkUpdates(ctx: ServiceCtx, { names, subscriptionId }: a
   const { store, paths, logger } = ctx;
   const installs = state(ctx).installs.filter((install) => {
     if (names && names.length > 0 && !names.includes(install.name)) return false;
+    // 显式按订阅筛选时仍只认真实订阅 id（合成订阅不会出现在 UI 的订阅列表里）
     if (subscriptionId && install.subscriptionId !== subscriptionId) return false;
     return true;
   });
   const lock = readLock(paths);
   const groups = new Map<string, any>();
   for (const install of installs) {
-    const subscription = state(ctx).subscriptions.find((item) => item.id === install.subscriptionId);
+    // 「source 即上游」：没有持久订阅也能从 source/lock 合成一条，照样检测更新。
+    const subscription = effectiveSubscription(ctx, install, lock);
     if (!subscription) continue;
     // 按订阅（id 已含 source/ref/subpath）分组：不能用 `ref || 'main'` 当键，否则 null-ref 与 main 会撞车
     if (!groups.has(subscription.id)) groups.set(subscription.id, { subscription, installs: [] });
@@ -138,8 +141,8 @@ export async function runAutoCheck(ctx: ServiceCtx, { now = Date.now() }: any = 
     const auto = settings.autoCheck || {};
     if (auto.enabled === false) return { ok: true, skipped: 'disabled' };
     const installs = Array.isArray(state(ctx).installs) ? state(ctx).installs : [];
-    const subscriptions = Array.isArray(state(ctx).subscriptions) ? state(ctx).subscriptions : [];
-    if (installs.length === 0 || subscriptions.length === 0) return { ok: true, skipped: 'empty' };
+    // 订阅只是调度载体；没有持久订阅时仍可对「有 source 的 install」做定时检测。
+    if (installs.length === 0) return { ok: true, skipped: 'empty' };
     if (ctx.runtime.enqueue.pending() > 0) return { ok: true, skipped: 'busy' };
     const last = auto.lastRunAt ? Date.parse(auto.lastRunAt) : NaN;
     if (Number.isFinite(last) && now - last < AUTO_CHECK_MIN_INTERVAL_MS) {
@@ -172,12 +175,14 @@ export async function planUpdate(ctx: ServiceCtx, { name }) {
   const { store, paths, logger } = ctx;
   const install = store.findInstall(name);
   if (!install) throw new ServiceError('error.skills.not-managed', `${name} 没有安装记录`);
-  const subscription = state(ctx).subscriptions.find((item) => item.id === install.subscriptionId);
-  if (!subscription) throw new ServiceError('error.skills.no-subscription', '该技能不属于任何订阅，无法生成更新计划');
+  const lock = readLock(paths);
+  const subscription = effectiveSubscription(ctx, install, lock);
+  if (!subscription) {
+    throw new ServiceError('error.skills.no-source', '该技能没有可识别的 GitHub 来源，无法生成更新计划');
+  }
   // 与 checkUpdates 共用一套取数语义；计划必须拿到完整树，所以不允许 commit 相同就短路
   const probe = await readSnapshot(ctx, subscription, { force: true, allowUnchanged: false });
   const ref = probe.branch;
-  const lock = readLock(paths);
   const skillPath = lock.skills?.[name]?.skillPath || install.skillPath;
   const entry = probe.tree.find((item) => item.type === 'blob' && item.path === skillPath);
   if (!entry) throw new ServiceError('error.skills.upstream-deleted', '上游已移除该技能');
@@ -228,8 +233,11 @@ export async function applyUpdate(ctx: ServiceCtx, { name, token, overwrite = fa
       });
     }
 
-    const subscription = state(ctx).subscriptions.find((item) => item.id === install.subscriptionId);
-    if (!subscription) throw new ServiceError('error.skills.no-subscription', '该技能不属于任何订阅，无法更新');
+    const lock = readLock(paths);
+    const subscription = effectiveSubscription(ctx, install, lock);
+    if (!subscription) {
+      throw new ServiceError('error.skills.no-source', '该技能没有可识别的 GitHub 来源，无法更新');
+    }
 
     let result;
     try {

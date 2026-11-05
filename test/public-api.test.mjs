@@ -212,7 +212,7 @@ test('adopt：只补记账不碰文件；已纳管 already；缺失 not-found', 
   }
 });
 
-test('update：current / updated / locally-modified / parked / no-subscription / failed / not-managed 七分支', async () => {
+test('update：current / updated / locally-modified / parked / no-source / failed / not-managed 七分支', async () => {
   const ctx = setupServiceApi();
   try {
     // canonical 内容与 state 记录的哈希对齐，避免误判本地改动
@@ -244,7 +244,7 @@ test('update：current / updated / locally-modified / parked / no-subscription /
         { name: 'gammaLocal', subscriptionId: SUB, skillPath: 'skills/gamma/SKILL.md', commit: OLD_COMMIT, treeSha: OLD_TREE, installedHash: 'd'.repeat(64), installedAt: NOW, updatedAt: NOW, enabled: true, mode: 'auto', backup: null },
         // failed：上游整树里找不到该 skillPath
         { name: 'ghost', subscriptionId: SUB, skillPath: 'skills/ghost/SKILL.md', commit: OLD_COMMIT, treeSha: OLD_TREE, installedHash: 'd'.repeat(64), installedAt: NOW, updatedAt: NOW, enabled: true, mode: 'auto', backup: null },
-        // no-subscription：没有订阅
+        // no-source：既没有持久订阅，也没有可解析的来源
         { name: 'offSub', subscriptionId: null, skillPath: 'skills/offSub/SKILL.md', commit: null, treeSha: null, installedHash: null, installedAt: NOW, updatedAt: NOW, enabled: true, mode: 'auto', backup: null },
         // parked：完全停用（A′）
         { name: 'parked', subscriptionId: SUB, skillPath: 'skills/alpha/SKILL.md', commit: COMMIT, treeSha: ALPHA_TREE, installedHash: alphaHash, installedAt: NOW, updatedAt: NOW, enabled: true, mode: 'hidden', hidden: { previousMode: 'auto' }, backup: null },
@@ -259,7 +259,7 @@ test('update：current / updated / locally-modified / parked / no-subscription /
     assert.equal(byName.get('beta'), 'updated');
     assert.equal(byName.get('gammaLocal'), 'locally-modified');
     assert.equal(byName.get('ghost'), 'failed');
-    assert.equal(byName.get('offSub'), 'no-subscription');
+    assert.equal(byName.get('offSub'), 'no-source');
     assert.equal(byName.get('parked'), 'parked');
     assert.equal(byName.get('nothere'), 'not-managed');
     assert.equal(result.ok, false, '存在非 updated/current 结果时 ok=false');

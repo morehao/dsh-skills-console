@@ -61,11 +61,11 @@ Screenshots are from a real DSH Web session on v0.5.2 (dark theme). All assets l
 
 - **Two entry points**: by default it lives in the "Skills Console" section of DSH settings; turn on "Sidebar entry" in the header ⚙ and a standalone panel appears in the left sidebar, effective immediately.
 - **One page, two tabs**: Installed / Subscriptions. The header holds "Auto-share on install" and "Add skill / Add subscription" on the right.
-- **Five actions per row**: toggle, view, update, share settings, delete; the ✨ next to a skill name opens the AI intro; "View" is hidden on narrow panels, and the skill name itself remains the entry point. Status labels cover up to date / update available / changed since install / removed upstream / broken link / no upstream.
+- **Five actions per row**: toggle, view, update, share settings, delete; the ✨ next to a skill name opens the AI intro; "View" is hidden on narrow panels, and the skill name itself remains the entry point. Status labels cover up to date / update available / changed since install / removed upstream / broken link.
 - **No layout jumps on narrow panels**: the action group wraps naturally with panel width and the plugin name always stays whole; the list switches to two columns by width; scrolling happens only in the list area, so switching tabs or resizing never flips the whole page.
 - **Many agents don't crowd**: at most 3 are shown per row and the rest fold into `+n`; hover or focus reveals all.
 - **Findable**: search by name / source / agent, filter by "updates / not checked / disabled", view flat or grouped by agent.
-- **Not checked vs. no upstream**: "Not checked" only means no upstream verdict was obtained this time (rate limit, network, repo 404, etc.) and will be retried next time; skills without a usable source are marked "No upstream" and skipped in update checks.
+- **Upstream is the source**: every install comes from a GitHub repo, so the source (`owner/repo`) is the upstream. Anything installed can be update-checked; there is no "no upstream" state. "Not checked" only means no upstream verdict was obtained this time (rate limit, network, repo 404, etc.) and will be retried next time. Subscriptions are just a scheduling vehicle for batched/periodic probing, not a precondition for checking updates.
 
 ## Viewing skill content
 

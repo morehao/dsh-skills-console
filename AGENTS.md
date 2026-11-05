@@ -61,6 +61,12 @@
   - 唯一会碰 `~/.dsh/skills` 的仍是 v2→v3 迁移清理 legacy 桩。
 - **可见性 = 扫描根 + 每个 agent 的 policy provider**：canonical `~/.agents/skills` 是 DSH 的扫描根；**禁止**往 `~/.dsh/skills` 建指向真身的「可见性链」（两份真相，摘链也不等于不可见）。`~/.dsh/skills` v0.4.0 起不写。provider 注册在每个 live agent 自己的 scope（preset scope 的子层），只在 **canonical 是 native winner** 时才发 `modelInvocable=false` + `userInvocable=false` 的同名候选；项目 100/200、user-dsh 400 有副本时 provider 必须沉默，让副本继续可见。用 `visibility.shadowScopeMismatch` 告知用户，不要「顺便」去删项目里的东西。
 - **导出与可见性解耦**：`exports` 只给不读共享根的其他 Agent 建链，默认空；没有任何导出的技能照样应该对 DSH 可见。
+- **上游 = `source`，不是「是否订阅」**（设计原则，界面友好性优先）：
+  - 插件的安装**永远来自 GitHub 仓库**，`install.source`（`owner/repo`，或 lock 的 `source`）就是上游。没有「手动丢文件」这种无来源的合法安装路径。
+  - **`subscribed` / `no-upstream` 不是一种状态**。历史实现把 `installs[].subscriptionId` 能否对上 `subscriptions[]` 当作「有没有上游」的唯一依据，导致「按仓库直接装」和「按订阅装」结论不一致——**禁止**再引入这类把「安装记录来源信息完整度」暴露给用户的二态。
+  - **订阅（`subscriptions[]`）只是调度载体**：用于批量 / 定时探测、快照缓存与节流；它是加速器，**不是**「能否检查更新」的前提。判断某技能能否检测更新，只看它有没有可解析的 `source`。
+  - 更新检测一律经 `service/tracking.ts` 的 `effectiveSubscription(ctx, install, lock)` 取「有效订阅」：命中持久订阅就用它，否则从 `source`/lock **合成一条临时订阅**（不写 state）照样拉树。`checkUpdates` / `planUpdate` / `applyUpdate` / `runAutoCheck` 都走这条，不得再在「找不到订阅」时跳过或硬失败。
+  - `install()` 必须把 `source`/`sourceUrl` 写进 install 记录，并按 `source` 计算 `subscriptionId`、按需建一条订阅；账本里所有已装技能在更新检测上一视同仁，只区分 `待检查 / current / update-available / conflict / upstream-deleted`。来源真缺失属于异常，用 `error.skills.no-source` 如实报 `failed`，不当成「无上游」的正常状态。
 - **不碰别人的东西**：本机可能并存其他同类技能插件。与本插件无关的插件一律不共用路由前缀与状态目录；也不要为了「统一命名」去凑别人的前缀。
 
 ### 测试与环境

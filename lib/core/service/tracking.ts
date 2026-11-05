@@ -139,6 +139,42 @@ export function rebaselineHashes(ctx: ServiceCtx) {
   return { rebaselined, unresolved };
 }
 
+/**
+ * 「source 即上游」：给一条 install 算出它用于更新检测的有效订阅（effective subscription）。
+ *
+ * 优先级：
+ *  1. `install.subscriptionId` 命中一条持久订阅 → 直接用（保留其 lastCheck / snapshot 缓存，最省事）。
+ *  2. 否则从 `install.source`（或 lock 里的 `source`）解析出 owner/repo → **合成一条临时订阅**
+ *     （不写 state、不复用持久订阅），让它照样能按 source/ref 拉树检测更新。
+ *  3. 都拿不到来源 → 返回 null（此时才真的无法检测更新，但不会有「无上游」这种面向用户的状态）。
+ *
+ * 订阅从此只是「调度载体」（批量/定时探测 + 快照缓存），不是「能否检测」的前提。
+ */
+export function effectiveSubscription(ctx: ServiceCtx, install, lock: any = null) {
+  if (!install) return null;
+  const owned = install.subscriptionId
+    ? state(ctx).subscriptions.find((item) => item.id === install.subscriptionId)
+    : null;
+  if (owned) return owned;
+  const lockEntry = lock?.skills?.[install.name] || null;
+  const rawSource = install.source || lockEntry?.source || null;
+  const parsed = rawSource ? parseSource(rawSource) : null;
+  if (!parsed) return null;
+  const source = `${parsed.owner}/${parsed.repo}`;
+  const ref = install.ref || lockEntry?.ref || null;
+  return {
+    id: snapshotId({ source, ref, subpath: null }),
+    source,
+    ref,
+    subpath: null,
+    skills: '*',
+    lastCheck: null,
+    snapshot: null,
+    // 标记为合成订阅：调用方不应把它当持久订阅写回 state。
+    synthesized: true,
+  };
+}
+
 // 每个进程只跑一次：写盘后新基线自洽，不必（也不该）每次请求都试旧口径。
 export function ensureHashBaseline(ctx: ServiceCtx) {
   if (ctx.runtime.hashBaselineChecked || ctx.store.readOnly || ctx.runtime.enqueue.pending() > 0) return;
@@ -152,7 +188,9 @@ export function ensureHashBaseline(ctx: ServiceCtx) {
 
 /**
  * 接管：把 CLI/别人装的技能纳入追踪（补一条 installs 记录）。
- * 有 lock 来源时顺带建/复用一个订阅，否则这个技能永远不会出现在更新检测里。
+ * 有 lock 来源时顺带建/复用一个订阅，之后更新检测就能工作。
+ * 没有来源时仍可接管（能启停 / 接入 / 删除），更新检测此时自然会失败——但这属于
+ * 「来源缺失」的异常情况，而不是一个叫「无上游」的正常状态。
  */
 export async function adopt(ctx: ServiceCtx, { name }) {
   assertWritable(ctx);
@@ -170,8 +208,6 @@ export async function adopt(ctx: ServiceCtx, { name }) {
     ok: true,
     name,
     subscriptionId: record.subscriptionId,
-    tracked: Boolean(record.subscriptionId),
     installedHash: record.installedHash,
-    note: record.subscriptionId ? null : '没有可识别的远端来源，只能追踪本地改动，不能检测更新',
   };
 }

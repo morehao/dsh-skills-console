@@ -72,7 +72,7 @@ export function readFrontmatterDescription(skillPath) {
   }
 }
 
-function statusOf({ install, check, locallyModified, brokenExports, subscribed }) {
+function statusOf({ install, check, locallyModified, brokenExports }) {
   if (!install) return 'unmanaged';
   if (locallyModified && check?.status === 'update-available') return 'conflict';
   if (locallyModified) return 'locally-modified';
@@ -80,9 +80,9 @@ function statusOf({ install, check, locallyModified, brokenExports, subscribed }
   if (check?.status === 'update-available') return 'update-available';
   if (brokenExports.length > 0) return 'broken-link';
   if (check?.status === 'current') return 'current';
-  // 没有可用的上游订阅 = 永远拿不到更新结论（检查更新只覆盖有订阅的技能）。
-  // 这跟「这次没判定出来」是两件事，混进 unknown 会让待检查计数永远降不下来。
-  if (!subscribed) return 'no-upstream';
+  // 「source 即上游」：只要安装记录里能解析出 GitHub 来源，就一定能检查更新，
+  // 不再有「无上游」这种面向用户的状态——那本质是安装记录来源信息完整度的泄露。
+  // 还没结论就是「待检查」（unknown），下次刷新即可出判定。
   return 'unknown';
 }
 
@@ -94,7 +94,6 @@ function statusOf({ install, check, locallyModified, brokenExports, subscribed }
 export function buildLedger({ paths, state, registry, lock, visibility, now = new Date().toISOString() }) {
   const scanned = scanCanonical(paths);
   const installs = new Map<string, any>(state.installs.map((item: any) => [item.name, item]));
-  const subscriptions = new Set((state.subscriptions || []).map((item) => item.id));
   const exportsBySkill = new Map<string, any[]>();
   for (const row of state.exports || []) {
     const list = exportsBySkill.get(row.skill);
@@ -149,7 +148,6 @@ export function buildLedger({ paths, state, registry, lock, visibility, now = ne
     }
 
     const check = state.checks?.[entry.name] || null;
-    const subscribed = Boolean(install?.subscriptionId) && subscriptions.has(install.subscriptionId);
     const enabled = install ? install.enabled !== false : true;
     const mode = parked ? 'hidden' : authorOnly ? 'manual' : (install?.mode || 'auto');
     const legacy = install?.legacy === 'dsh-off' ? 'dsh-off' : null;
@@ -193,7 +191,7 @@ export function buildLedger({ paths, state, registry, lock, visibility, now = ne
         : null,
       exports: exportsRows,
       brokenExports: brokenExports.length,
-      status: statusOf({ install, check, locallyModified, brokenExports, subscribed }),
+      status: statusOf({ install, check, locallyModified, brokenExports }),
       check,
       visible: Boolean(visible?.visible),
       visibleSource: visible?.winnerSource ?? null,
