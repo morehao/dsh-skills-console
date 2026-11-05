@@ -13,6 +13,9 @@ export function createSurface({ slots, layout, t, pickDirectory }: any): any {
   // 常驻的 settings.section 注册（boot 时由 registerFallbackSettingsSection 建）。它不随
   // mount() 的偏好切换拆装；mount('settings') 复用这一条，绝不另注册第二份同名 slot。
   let fallbackSettingsDisposer: (() => void) | null = null;
+  // 0.2.2 的 settings.section.icon：与 section 同 id 的导航图标。旧宿主没有声明这个 slot，
+  // slots.inject 的回调不会执行，静默不注册——不需要版本判断。
+  let fallbackIconDisposer: (() => void) | null = null;
   let fallbackSettingsComponent: any = null;
 
   function SettingsSurface(props: any) {
@@ -47,6 +50,7 @@ export function createSurface({ slots, layout, t, pickDirectory }: any): any {
   /**
    * boot 时常驻注册一次 settings.section（「保命入口」）。组件由调用方给，便于与首挂载保持
    * 同一份 Section 实例工厂。若已有常驻注册则幂等返回。
+   * 同时注册同 id 的 settings.section.icon；两者生命周期绑定，见 releaseSettingsSection()。
    */
   function registerFallbackSettingsSection(Component: any) {
     if (fallbackSettingsDisposer) return;
@@ -55,6 +59,17 @@ export function createSurface({ slots, layout, t, pickDirectory }: any): any {
       slots.register({
         name: 'settings.section', id: PANEL_ID, order: 26, label: () => t('section.title'),
       }, Component));
+    fallbackIconDisposer = slots.inject('settings.section.icon', () =>
+      slots.register({ name: 'settings.section.icon', id: PANEL_ID }, SurfaceIcon));
+  }
+
+  /** 撤掉常驻 settings.section 与它的导航图标（两者必须同进同出）。 */
+  function releaseSettingsSection() {
+    for (const dispose of [fallbackIconDisposer, fallbackSettingsDisposer]) {
+      try { dispose?.(); } catch { /* 单个卸载失败不阻塞另一个 */ }
+    }
+    fallbackIconDisposer = null;
+    fallbackSettingsDisposer = null;
   }
 
   /**
@@ -63,12 +78,7 @@ export function createSurface({ slots, layout, t, pickDirectory }: any): any {
    */
   function ensureSettingsSection() {
     if (!fallbackSettingsDisposer) registerFallbackSettingsSection(fallbackSettingsComponent);
-    return () => {
-      if (fallbackSettingsDisposer) {
-        try { fallbackSettingsDisposer(); } catch { /* ignore */ }
-        fallbackSettingsDisposer = null;
-      }
-    };
+    return releaseSettingsSection;
   }
 
   /**
@@ -120,10 +130,7 @@ export function createSurface({ slots, layout, t, pickDirectory }: any): any {
 
   function dispose() {
     clearSurface();
-    if (fallbackSettingsDisposer) {
-      try { fallbackSettingsDisposer(); } catch { /* ignore */ }
-      fallbackSettingsDisposer = null;
-    }
+    releaseSettingsSection();
     surface = null;
   }
 

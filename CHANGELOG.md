@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.8.14] - 2026-11-05
+
+### Features
+
+- **settings**: 设置导航图标改用 dsh 0.2.2 的 `settings.section.icon` slot（与 `settings.section` 同 `id`、同生命周期装卸），删除此前按 DOM 认领导航行、替换齿轮的 `installSettingsNavIcon` 补丁；旧宿主没有该 slot 时回落默认齿轮。
+
+### Fixes
+
+- **i18n**: 适配 dsh 0.2.2 新增的 ja / es / fr / de / ru / pt；未知语言回落英文（`t.lang` 用 `zh* ? zh : en`），不再显示中文；缺失 locale 时仍默认中文。
+- **update**: 补 `INCOMPATIBLE_VERSION` / `UNSUPPORTED_PLATFORM` / `ROLLBACK_FAILED` 的错误文案映射。
+
+### Chores
+
+- `@deepseek-ai/schemastery` peer 放宽为 `~3.18.5 || ~3.19.0`，兼容 dsh 0.2.2 自带的 3.19.0。
+- 升级 `@morehao/dsh-plugin-kit` 到 0.5.1；`locale/*.json` 增加 `meta.detail`。
+
 ## [v0.8.13] - 2026-11-05
 
 ### Fixes

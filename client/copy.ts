@@ -688,7 +688,7 @@ export async function copyText(text: unknown): Promise<boolean> {
   }
 }
 
-/** 按 locale 取文案；缺键先回落中文，再回落键名。`t.lang` 给出当前语言（简介用它）。 */
+/** 按 locale 取文案；未知语言回落英文，缺键再回落中文，最后键名。`t.lang` 给出当前语言（简介用它）。 */
 export interface LocaleLike {
   getLocale?(): { active?: string };
 }
@@ -705,12 +705,13 @@ export function buildTranslate(locale?: LocaleLike | null): Translate {
   };
   const translate = (key: string): string => {
     const id = active();
-    const pack = DICT[id] || DICT.zh;
-    return pack[key] ?? DICT.zh[key] ?? key;
+    // 未知语言（0.2.2 起宿主内置 ja/es/fr/de/ru/pt）回落英文；缺失 locale 时 active() 仍是 'zh'。
+    const pack = DICT[id] || DICT.en;
+    return pack[key] ?? DICT.en[key] ?? DICT.zh[key] ?? key;
   };
-  // 摘要语言跟随界面语言：只认 zh / en，其他语言回落中文
+  // 摘要语言跟随界面语言：zh* → zh，其余 → en（缺失 locale 时 active() 仍返回 'zh'）
   Object.defineProperty(translate, 'lang', {
-    get: () => (active() === 'en' ? 'en' : 'zh'),
+    get: () => (active().startsWith('zh') ? 'zh' : 'en'),
     enumerable: false,
   });
   return translate as Translate;

@@ -134,65 +134,6 @@ function collectByClass(node, className, out = []) {
   return out;
 }
 
-/** 设置导航的一行：只实现 client.js 用到的 textContent / attribute 接口。 */
-function navRow(text) {
-  const attrs = new Set();
-  let label = text;
-  return {
-    get textContent() { return label; },
-    set textContent(next) { label = next; },
-    attrs,
-    setAttribute(name) { attrs.add(name); },
-    removeAttribute(name) { attrs.delete(name); },
-    hasAttribute(name) { return attrs.has(name); },
-  };
-}
-
-/**
- * 设置对话框导航的 DOM 存根：一个 <nav> 里的几行按钮 + 可注入的 <style>。
- * 只服务 installSettingsNavIcon 用到的选择器与 MutationObserver。
- */
-function createSettingsNavDom(rows) {
-  const styles = [];
-  const observers = [];
-  const document = {
-    body: {},
-    head: { appendChild(node) { styles.push(node); } },
-    createElement(tagName) {
-      return {
-        tagName,
-        dataset: {},
-        textContent: '',
-        remove() {
-          const index = styles.indexOf(this);
-          if (index >= 0) styles.splice(index, 1);
-        },
-      };
-    },
-    querySelectorAll(selector) {
-      if (selector === '[role="dialog"] nav button') return rows;
-      if (selector === '[data-dsh-skills-console-nav-icon]') {
-        return rows.filter((row) => row.hasAttribute('data-dsh-skills-console-nav-icon'));
-      }
-      return [];
-    },
-  };
-  class FakeMutationObserver {
-    constructor(callback) {
-      this.callback = callback;
-      observers.push(this);
-    }
-    observe() {}
-    disconnect() {}
-  }
-  return {
-    document,
-    MutationObserver: FakeMutationObserver,
-    styles,
-    trigger() { for (const observer of observers) observer.callback([]); },
-  };
-}
-
 function loadModule(payload, options = {}) {
   let definition = null;
   const sandbox = {
@@ -204,8 +145,6 @@ function loadModule(payload, options = {}) {
     AbortController,
     console,
   };
-  if (options.document !== undefined) sandbox.document = options.document;
-  if (options.MutationObserver !== undefined) sandbox.MutationObserver = options.MutationObserver;
   if (options.fetch) sandbox.fetch = options.fetch;
   // 注入假的 localStorage（自更新恢复提示 / layout 卫生读它）；默认没有 → 走 fail-open 空实现。
   if (options.localStorage !== undefined) sandbox.window.localStorage = options.localStorage;
@@ -1146,6 +1085,7 @@ test('入口位置=sidebar：启动时注册主面板 + 侧栏图标，且设置
   assert.equal(icon.options.id, 'dsh-skills-console');
   // 开启侧栏入口后，设置里不应再保留一条（两个入口互斥）——这正是重复注册报错的根因
   assert.ok(!registrations.some((entry) => entry.key === 'settings.section' && entry.active), '侧栏模式不应残留 settings.section');
+  assert.ok(!registrations.some((entry) => entry.key === 'settings.section.icon' && entry.active), '侧栏模式不应残留 settings.section.icon');
 
   const first = stub.render(main.Component, {});
   first.effects.forEach((fn) => fn());
@@ -1158,32 +1098,16 @@ test('入口位置=sidebar：启动时注册主面板 + 侧栏图标，且设置
   assert.ok(textOf(stub.render(main.Component, {}, first.hooks).tree).includes('侧边栏入口'));
 });
 
-test('设置导航：只把自己那一行从齿轮换成本插件图标，卸载时还原', async () => {
-  const rows = [navRow('通用设置'), navRow('技能控制台'), navRow('插件市场')];
-  const dom = createSettingsNavDom(rows);
-  const { effects } = loadModule(STATE, { document: dom.document, MutationObserver: dom.MutationObserver });
-  const marker = 'data-dsh-skills-console-nav-icon';
-
-  assert.equal(dom.styles.length, 1, '注入一份导航图标样式');
-  assert.equal(dom.styles[0].dataset.plugin, '@morehao/dsh-skills-console');
-  assert.match(dom.styles[0].textContent, /mask-image/, '用 mask 画标记');
-  assert.ok(rows[1].hasAttribute(marker), '「技能控制台」那一行换成自己的图标');
-  assert.ok(!rows[0].hasAttribute(marker), '「通用设置」的齿轮保持原样');
-  assert.ok(!rows[2].hasAttribute(marker), '「插件市场」的图标保持原样');
-
-  // 语言切换后行文案会变：观察器要按新标题重新认领
-  rows[1].textContent = 'Skills Console';
-  dom.trigger();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.ok(!rows[1].hasAttribute(marker), '文案不匹配时不能继续占用');
-  rows[1].textContent = '技能控制台';
-  dom.trigger();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.ok(rows[1].hasAttribute(marker), '改回中文后重新认领');
+test('设置导航图标：用 settings.section.icon 声明式注册，随插件卸载一起移除', async () => {
+  const { registrations, effects } = loadModule(STATE);
+  const icon = registrations.find((entry) => entry.key === 'settings.section.icon' && entry.active);
+  assert.ok(icon, '注册 settings.section.icon');
+  assert.equal(icon.options.id, 'dsh-skills-console', 'icon 的 id 必须与 settings.section 一致');
+  assert.equal(typeof icon.Component, 'function', 'icon 必须是组件');
 
   for (const dispose of effects) if (typeof dispose === 'function') dispose();
-  assert.ok(!rows[1].hasAttribute(marker), '卸载时移除标记');
-  assert.equal(dom.styles.length, 0, '卸载时移除样式');
+  assert.equal(icon.active, false, '卸载时移除 icon 注册');
+  assert.ok(!registrations.some((entry) => entry.key === 'settings.section' && entry.active), '卸载时移除分区');
 });
 
 test('自动导出：只列本机已装的 Agent，默认不勾任何目标', async () => {

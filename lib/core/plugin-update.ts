@@ -57,6 +57,8 @@ function manualCommand(meta, profileName) {
  * - NO_MANAGER / LINKED_INSTALL：不能一键更新，给手动命令；
  * - NOT_CHECKED / INVALID_VERSION：拿不到可用最新版；
  * - APPLY_IN_PROGRESS：正在更新；
+ * - INCOMPATIBLE_VERSION：目标版本要求更高 DSH；
+ * - UNSUPPORTED_PLATFORM：目标版本不支持当前系统；
  * - 其余（INSTALL_FAILED / REMOVE_FAILED / ROLLBACK_FAILED / UNSUPPORTED_RESULT）：安装失败。
  */
 function toServiceError(error, manual) {
@@ -71,6 +73,27 @@ function toServiceError(error, manual) {
       return new ServiceError('error.plugin-update.check-failed', message.slice(0, 600), manual, 503);
     case 'APPLY_IN_PROGRESS':
       return new ServiceError('error.plugin-update.busy', '插件正在更新，请稍候', null, 409);
+    case 'INCOMPATIBLE_VERSION':
+      return new ServiceError(
+        'error.plugin-update.check-failed',
+        '最新版本要求更高版本的 DSH，请先升级 DSH 或改用手动方式',
+        manual,
+        409,
+      );
+    case 'UNSUPPORTED_PLATFORM':
+      return new ServiceError(
+        'error.plugin-update.manual',
+        '该版本不支持当前操作系统，请手动选择合适版本',
+        manual,
+        409,
+      );
+    case 'ROLLBACK_FAILED':
+      return new ServiceError(
+        'error.plugin-update.install-failed',
+        `更新失败且未能恢复旧版本，请手动重装：${message.slice(0, 400)}`,
+        manual,
+        500,
+      );
     default:
       // REMOVE_FAILED：宿主在当前 profile 未启用 HMR 时会以 stop-profile 拒绝卸载，
       // 这是「要先完全退出 DSH 再手动更新」的信号，给一句人能看懂的提示。

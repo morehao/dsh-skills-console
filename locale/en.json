@@ -1,6 +1,7 @@
 {
   "meta": {
     "title": "Skills Console",
-    "description": "Install, update, remove and manage invocation policies for local agent skills. Skill bodies stay untouched; only Manual-only adds one marker line."
+    "description": "Install, update, remove and manage invocation policies for local agent skills. Skill bodies stay untouched; only Manual-only adds one marker line.",
+    "detail": "README.en.md"
   }
 }
