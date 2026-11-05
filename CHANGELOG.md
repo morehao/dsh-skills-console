@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.8.13] - 2026-11-05
+
+### Fixes
+
+- **updates**: treat source as upstream, drop no-upstream status (#135)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.8.12...v0.8.13
+
 ## [v0.8.11] - 2026-11-04
 
 ### Fixes
