@@ -35,6 +35,8 @@ interface InstalledActions {
   onToggleBuiltin: () => void;
   onClearFilters: () => void;
   onBatchFailed?: (error: any) => void;
+  /** 简介生成成功后通知父级刷新列表（重拉 `/state` 让 introCached 立即同步）。 */
+  onIntroGenerated?: () => void;
 }
 
 export interface InstalledTabProps {
@@ -600,6 +602,7 @@ export function InstalledTab({
         stamp: [intro.row.commit || '', intro.row.currentHash || '', intro.row.updatedAt || '', intro.row.status || ''].join('|'),
         capability: data.intro,
         onClose: () => setIntro(null),
+        onGenerated: actions.onIntroGenerated,
         onView: () => {
           const target = intro.row;
           setIntro(null);

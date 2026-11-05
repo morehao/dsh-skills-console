@@ -55,6 +55,8 @@ export interface IntroModalProps {
   viewLabel?: string | null;
   onClose: () => void;
   onView?: (() => void) | null;
+  /** 生成成功（拿到新简介）后回调：父级据此重新拉 `/state`，让列表胶囊的「已生成 / 未生成」立即同步。 */
+  onGenerated?: (() => void) | null;
 }
 
 export function IntroModal({
@@ -68,6 +70,7 @@ export function IntroModal({
   viewLabel = null,
   onClose,
   onView = null,
+  onGenerated = null,
 }: IntroModalProps) {
   const enabled = capability?.enabled !== false;
   const available = capability?.available !== false;
@@ -87,6 +90,12 @@ export function IntroModal({
       .replace('{time}', formatWhen(intro.intro.generatedAt) || '—')
     : '';
 
+  // 生成成功后通知父级刷新列表（`/state` 才会重新判定 introCached），否则胶囊会停在旧状态。
+  const runGenerate = async (force: boolean) => {
+    const result = await intro.generate(force);
+    if (result?.intro) onGenerated?.();
+  };
+
   const actions: any[] = [];
   if (intro.intro) {
     actions.push(h('button', {
@@ -94,7 +103,7 @@ export function IntroModal({
       key: 'regen',
       className: 'dshsc-btn ghost',
       disabled: intro.generating || !available,
-      onClick: () => { void intro.generate(true); },
+      onClick: () => { void runGenerate(true); },
     }, intro.generating ? t('intro.generating') : t('intro.regenerate')));
     if (onView) {
       actions.push(h('button', {
@@ -110,7 +119,7 @@ export function IntroModal({
       key: 'gen',
       className: 'dshsc-btn primary',
       disabled: intro.generating || !available || !enabled,
-      onClick: () => { void intro.generate(false); },
+      onClick: () => { void runGenerate(false); },
     }, intro.generating ? t('intro.generating') : t('intro.generate')));
   }
 

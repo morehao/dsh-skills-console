@@ -36,11 +36,13 @@ export interface SubscriptionsTabProps {
   onAdd: () => void;
   /** 为本仓库生成简介：mode 由确认弹窗选择。 */
   onBatchStart?: (subscription: Subscription, mode: 'missing' | 'all') => void | Promise<void>;
+  /** 简介生成成功后通知父级刷新列表（重拉 `/state` 让 introCached 立即同步）。 */
+  onIntroGenerated?: () => void;
 }
 
 export function SubscriptionsTab({
   t, subscriptions, rows, expanded, busy, writable, capability = null, activeJob = null,
-  onToggle, onRefresh, onDelete, onInstall, onAdd, onBatchStart,
+  onToggle, onRefresh, onDelete, onInstall, onAdd, onBatchStart, onIntroGenerated,
 }: SubscriptionsTabProps) {
   const [intro, setIntro] = React.useState<{ subscriptionId: string; name: string } | null>(null);
   const [batchFor, setBatchFor] = React.useState<Subscription | null>(null);
@@ -107,6 +109,7 @@ export function SubscriptionsTab({
                 void onInstall(introSubscription!, introEntry);
               },
           onClose: () => setIntro(null),
+          onGenerated: onIntroGenerated,
         });
       })()
     : null;
