@@ -1,4 +1,4 @@
-/** 图标与设置导航图标认领：纯 SVG / DOM 操作，不依赖业务状态。 */
+/** 图标：纯 SVG，不依赖业务状态。 */
 import { h } from './host.js';
 
 export function Logo({ size = 30 }: { size?: number }): any {
@@ -36,100 +36,6 @@ export function PanelIcon({ size = 16 }: { size?: number }): any {
   h('circle', { cx: 12, cy: 4.2, r: 1.1, fill: 'currentColor', stroke: 'none' }),
   h('circle', { cx: 12, cy: 19.8, r: 1.1, fill: 'currentColor', stroke: 'none' }),
   h('circle', { cx: 4.2, cy: 12, r: 1.1, fill: 'currentColor', stroke: 'none' }));
-}
-
-// 设置导航的图标由 Host 按 section id 从固定映射里挑，未知 id 一律回落到齿轮
-// （dsh-client-ui-settings-general 的 navIcon），而 settings.section 只投影
-// id / order / label，没有 icon 字段——所以每个第三方分区都会和「通用设置」撞图标。
-// 这里在对话框挂载后认领自己那一行：只按可见文案匹配本插件的分区标题，把回落的
-// 齿轮换成本插件的标记；不碰 Host 的其它结构。等 settings.section 支持 icon 后删掉。
-const NAV_ICON_MARKER = 'data-dsh-skills-console-nav-icon';
-const NAV_ROW_SELECTOR = '[role="dialog"] nav button';
-
-/** 导航行里用的标记：与 PanelIcon 同一套几何，画成 CSS mask 的 alpha 形状。 */
-function navIconMaskSvg(): string {
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">'
-    + '<rect x="7.5" y="7.5" width="9" height="9" rx="3" stroke="#000" stroke-width="1.8"/>'
-    + '<path d="M9.8 12.1l1.5 1.5 3.1-3.3" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
-    + '<path d="M12 7.5V4.8M12 16.5v2.7M7.5 12H4.8" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-opacity=".55"/>'
-    + '<circle cx="12" cy="4.2" r="1.1" fill="#000"/><circle cx="12" cy="19.8" r="1.1" fill="#000"/>'
-    + '<circle cx="4.2" cy="12" r="1.1" fill="#000"/></svg>';
-}
-
-/** mask 的 URL：运行时编码，避免手写转义。 */
-function navIconMaskUrl(): string {
-  return `data:image/svg+xml,${encodeURIComponent(navIconMaskSvg())}`;
-}
-
-/** 隐藏 Host 画的齿轮，改用本插件标记（颜色跟随 currentColor，适配深浅主题）。 */
-function navIconCss(maskUrl: string): string {
-  return [
-    `[${NAV_ICON_MARKER}] > svg { display: none; }`,
-    `[${NAV_ICON_MARKER}]::before {`,
-    "  content: '';",
-    '  flex: none;',
-    '  width: 16px;',
-    '  height: 16px;',
-    '  background-color: currentColor;',
-    `  -webkit-mask-image: url("${maskUrl}");`,
-    `  mask-image: url("${maskUrl}");`,
-    '  -webkit-mask-repeat: no-repeat;',
-    '  mask-repeat: no-repeat;',
-    '  -webkit-mask-position: center;',
-    '  mask-position: center;',
-    '  -webkit-mask-size: 16px 16px;',
-    '  mask-size: 16px 16px;',
-    '}',
-  ].join('\n');
-}
-
-/** 只有可见文案等于本插件分区标题的那一行才算自己的；空标题不认领任何行。 */
-function isOwnNavRow(rowText: string, wantedLabel: string): boolean {
-  const wanted = String(wantedLabel ?? '').trim();
-  if (wanted.length === 0) return false;
-  return String(rowText ?? '').trim() === wanted;
-}
-
-/**
- * 把设置导航里的齿轮换成本插件标记。
- * @param ctx 客户端 context，用于 effect 生命周期（卸载时移除标记与样式）。
- * @param resolveLabel 当前分区标题（与 settings.section 用同一个 thunk，语言切换后可重认领）。
- */
-export function installSettingsNavIcon(ctx: any, resolveLabel: () => string): void {
-  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
-  ctx.effect(() => {
-    const tag = document.createElement('style');
-    tag.dataset.plugin = '@morehao/dsh-skills-console';
-    tag.dataset.pluginCss = 'dsh-skills-console/settings-nav-icon';
-    tag.textContent = navIconCss(navIconMaskUrl());
-    document.head.appendChild(tag);
-    let disposed = false;
-    let scheduled = false;
-    const sync = () => {
-      scheduled = false;
-      if (disposed) return;
-      const wanted = resolveLabel();
-      for (const row of document.querySelectorAll(NAV_ROW_SELECTOR)) {
-        if (isOwnNavRow(row.textContent, wanted)) row.setAttribute(NAV_ICON_MARKER, '');
-        else row.removeAttribute(NAV_ICON_MARKER);
-      }
-    };
-    const schedule = () => {
-      if (scheduled || disposed) return;
-      scheduled = true;
-      if (typeof queueMicrotask === 'function') queueMicrotask(sync);
-      else Promise.resolve().then(sync);
-    };
-    sync();
-    const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    return () => {
-      disposed = true;
-      observer.disconnect();
-      for (const row of document.querySelectorAll(`[${NAV_ICON_MARKER}]`)) row.removeAttribute(NAV_ICON_MARKER);
-      tag.remove();
-    };
-  }, 'dsh-skills-console: settings nav icon');
 }
 
 export function GitHubIcon({ size = 16 }: { size?: number }): any {

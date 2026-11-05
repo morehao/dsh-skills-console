@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { DICT } from '../client/copy.ts';
+import { DICT, buildTranslate } from '../client/copy.ts';
 
 const keysOf = (pack) => Object.keys(pack).sort();
 const placeholders = (text) => [...String(text).matchAll(/\{([a-zA-Z0-9_]+)\}/g)].map((m) => m[1]).sort();
@@ -30,4 +30,24 @@ test('i18n：文案均为非空字符串，不靠键名兜底', () => {
       if (key.includes('.')) assert.notEqual(value, key, `${locale} 的 ${key} 不能直接回落到键名`);
     }
   }
+});
+
+test('语言回退：0.2.2 新增语言走英文，中文族仍中文，缺失默认中文', () => {
+  const ja = buildTranslate({ getLocale: () => ({ active: 'ja' }) });
+  assert.equal(ja.lang, 'en', 'ja 的简介语言应是 en');
+  assert.equal(ja('section.title'), DICT.en['section.title']);
+
+  for (const code of ['de', 'fr', 'ru', 'es', 'pt']) {
+    const t = buildTranslate({ getLocale: () => ({ active: code }) });
+    assert.equal(t.lang, 'en', `${code} 的简介语言应是 en`);
+    assert.equal(t('section.title'), DICT.en['section.title'], `${code} 应显示英文`);
+  }
+
+  const zhHant = buildTranslate({ getLocale: () => ({ active: 'zh-Hant' }) });
+  assert.equal(zhHant.lang, 'zh');
+  assert.equal(zhHant('section.title'), DICT.zh['section.title']);
+
+  const fallback = buildTranslate(undefined);
+  assert.equal(fallback.lang, 'zh', '拿不到 locale 时保持默认中文');
+  assert.equal(fallback('section.title'), DICT.zh['section.title']);
 });
