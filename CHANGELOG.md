@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.8.15] - 2026-11-13
+
+### Features
+
+- **migrate**: add manifest copy/import tab for cross-machine sync (#139)
+
+**Full Changelog**: https://github.com/morehao/dsh-skills-console/compare/v0.8.14...v0.8.15
+
 ## [v0.8.14] - 2026-11-05
 
 ### Features
