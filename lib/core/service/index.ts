@@ -24,6 +24,7 @@ import {
   removeSubscription,
 } from './subscriptions.js';
 import { applyUpdate, checkUpdates, planUpdate, rollback, runAutoCheck } from './updates.js';
+import { exportManifest, importManifest } from './manifest.js';
 import {
   generateRemoteIntro,
   generateSkillIntro,
@@ -189,5 +190,9 @@ export function createService({
     applyUpdate: (args) => applyUpdate(ctx, args),
 
     rollback: (args) => rollback(ctx, args),
+
+    exportManifest: () => exportManifest(ctx),
+
+    importManifest: (args?: any) => importManifest(ctx, args),
   };
 }

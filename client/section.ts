@@ -19,6 +19,7 @@ import { InstalledTab } from './views/installed.js';
 import { AgentTip } from './views/agent-tip.js';
 import { ToastStack } from './views/toast.js';
 import { SubscriptionsTab } from './views/subscriptions.js';
+import { MigrateTab } from './views/migrate.js';
 import { Modals } from './views/modals.js';
 import { SkillReader } from './views/skill-reader.js';
 import { PluginUpdateModal } from './views/plugin-update-modal.js';
@@ -284,6 +285,14 @@ export function Section({ t, page = false, pickDirectory, onPlacementChange }: S
           agentTip,
           builtinOpen,
           actions: installedActions,
+        })
+      : tab === 'migrate'
+      ? h(MigrateTab, {
+          t,
+          writable,
+          busy,
+          reload,
+          setToast,
         })
       : h(SubscriptionsTab, {
           t,

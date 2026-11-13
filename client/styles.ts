@@ -932,4 +932,49 @@ export const CSS = `
   @keyframes dshsc-restore-in { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }
   @keyframes dshsc-restore-mask-in { from { opacity: 0; } to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .dshsc-restore-mask, .dshsc-restore { animation: none; } }
+
+  /* 迁移 tab：复制 / 导入名单 */
+  .dshsc-migrate { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+  .dshsc-migrate-stats { display: flex; gap: 22px; flex-wrap: wrap; padding: 12px 16px;
+    border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); }
+  .dshsc-migrate-stat { display: flex; flex-direction: column; gap: 2px; }
+  .dshsc-migrate-stat .v { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-primary); }
+  .dshsc-migrate-stat .v.ok { color: var(--dsw-alias-state-success-primary); }
+  .dshsc-migrate-stat .v.warn { color: var(--dsw-alias-state-warn-primary); }
+  .dshsc-migrate-stat .l { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+  .dshsc-card { border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
+    background: var(--dsw-alias-bg-layer-1); padding: 16px; }
+  .dshsc-card-head { display: flex; align-items: center; gap: 8px; }
+  .dshsc-card-title { margin: 0 0 4px; font-size: 13.5px; font-weight: 600; color: var(--dsw-alias-label-primary);
+    display: flex; align-items: center; gap: 8px; }
+  .dshsc-card-desc { margin: 0 0 12px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+  .dshsc-link { font-size: 11.5px; font-weight: 500; color: var(--dsw-alias-brand-primary); text-decoration: none; cursor: pointer; }
+  .dshsc-link:hover { text-decoration: underline; }
+  .dshsc-migrate-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  .dshsc-manifest-json { margin: 14px 0 0; background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1);
+    border-radius: 9px; padding: 14px; overflow: auto; max-height: 300px; font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px; line-height: 1.5; color: var(--dsw-alias-label-secondary); white-space: pre; }
+  .dshsc-manifest-input { box-sizing: border-box; width: 100%; height: 180px; padding: 12px; border-radius: 9px;
+    border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary);
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; resize: vertical; outline: none; }
+  .dshsc-manifest-input:focus { border-color: var(--dsw-alias-brand-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 16%, transparent); }
+  .dshsc-card-hint { color: var(--dsw-alias-label-tertiary); font-size: 11px; margin-top: 12px; }
+  .dshsc-card-hint.warn { color: var(--dsw-alias-state-warn-primary); }
+  .dshsc-card-hint.err { color: var(--dsw-alias-state-error-primary); }
+  .dshsc-migrate-result { margin-top: 14px; }
+  .dshsc-migrate-result-summary { margin: 0 0 10px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+  .dshsc-migrate-glist { border: 1px solid var(--dsw-alias-border-l1); border-radius: 9px; overflow: hidden; }
+  .dshsc-migrate-grow { display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
+  .dshsc-migrate-grow:first-child { border-top: 0; }
+  .dshsc-migrate-gsrc { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px;
+    color: var(--dsw-alias-label-primary); flex: none; min-width: 160px; }
+  .dshsc-migrate-gsrc .ref { color: var(--dsw-alias-label-tertiary); }
+  .dshsc-migrate-gskills { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
+  .dshsc-migrate-chip { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px;
+    background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1);
+    padding: 1px 7px; border-radius: 6px; color: var(--dsw-alias-label-secondary); }
+  .dshsc-migrate-tag { font-size: 11px; padding: 1px 7px; border-radius: 5px; font-weight: 600; white-space: nowrap; }
+  .dshsc-migrate-tag.install { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent);
+    color: var(--dsw-alias-state-success-primary); border: 1px solid color-mix(in srgb, var(--dsw-alias-state-success-primary) 30%, transparent); }
 `;
