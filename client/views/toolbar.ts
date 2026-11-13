@@ -26,7 +26,9 @@ export function Toolbar({
       h('button', { className: `dshsc-tab${tab === 'installed' ? ' active' : ''}`, onClick: () => onTabChange('installed') },
         h('span', null, t('tab.installed')), h('span', { className: 'n' }, installedCount)),
       h('button', { className: `dshsc-tab${tab === 'subscriptions' ? ' active' : ''}`, onClick: () => onTabChange('subscriptions') },
-        h('span', null, t('tab.subscriptions')), h('span', { className: 'n' }, subscriptionCount))),
+        h('span', null, t('tab.subscriptions')), h('span', { className: 'n' }, subscriptionCount)),
+      h('button', { className: `dshsc-tab${tab === 'migrate' ? ' active' : ''}`, onClick: () => onTabChange('migrate') },
+        h('span', null, t('tab.migrate')))),
     h('div', { className: 'dshsc-spacer' }),
     tab === 'installed' ? [
       h('div', { key: 'search', className: 'dshsc-search' },

@@ -42,6 +42,12 @@ function matchRoute(method, pathname) {
   if (segments.length === 1 && segments[0] === 'probe' && method === 'POST') return { name: 'probe' };
   if (segments.length === 1 && segments[0] === 'diagnostics' && method === 'GET') return { name: 'diagnostics' };
 
+  // 跨机器迁移：导出/导入名单
+  if (segments.length === 1 && segments[0] === 'manifest' && method === 'GET') return { name: 'manifest.export' };
+  if (segments.length === 2 && segments[0] === 'manifest' && segments[1] === 'import' && method === 'POST') {
+    return { name: 'manifest.import' };
+  }
+
   if (segments[0] === 'skills' && segments.length === 2 && method === 'GET') {
     return { name: 'skill.body', params: { name: decodeURIComponent(segments[1]) } };
   }
@@ -213,6 +219,14 @@ async function dispatch(route: any, { body, query, service, pluginUpdate = null,
       return service.probeSource(body);
     case 'diagnostics':
       return service.diagnostics();
+    case 'manifest.export':
+      return service.exportManifest();
+    case 'manifest.import':
+      return service.importManifest({
+        manifest: body.manifest,
+        dryRun: body.dryRun === true,
+        force: body.force === true,
+      });
     case 'skill.body':
       return service.listSkillBody({ name: route.params.name, path: query.path });
     case 'skill.files':
